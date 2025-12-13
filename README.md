@@ -20,7 +20,7 @@
 | 平台 | 链接 |
 | :--- | :--- |
 | **GitHub** | [点击前往下载页](https://github.com/yk1z/yaya_msg/releases) |
-| **百度网盘** | [点击前往下载页](https://pan.baidu.com/s/1Q3pFQ6chk4lZA1xS5urkDQ?pwd=0403) |
+| **百度网盘** | [点击前往下载页](https://pan.baidu.com/s/15_j1qmdxqi0HHEUsnhl-rA?pwd=0403) |
 
 ---
 
