@@ -801,17 +801,28 @@
                         outputList.innerHTML = '<div class="placeholder-tip"><h3>📂 没有找到数据</h3><p>请在“html”文件夹内放入 .html 文件。</p></div>'; return;
                     }
 
+                    const uniqueMap = new Map();
+                    const uniquePosts = [];
+                    allPosts.forEach(post => {
+                        const uniqueKey = `${post.timeStr}_${post.nameStr}_${post.text.substring(0, 50)}`;
+                        if (!uniqueMap.has(uniqueKey)) {
+                            uniqueMap.set(uniqueKey, true);
+                            uniquePosts.push(post);
+                        }
+                    });
+                    console.log(`去重完成：清除重复消息 ${allPosts.length - uniquePosts.length} 条`);
+                    allPosts = uniquePosts;
+
                     allPosts.sort((a, b) => new Date(a.timeStr) - new Date(b.timeStr));
                     allPosts.forEach((post, index) => { post.originalIndex = index; });
 
-                    // --- 保存缓存 ---
+
                     try {
                         fs.writeFileSync(CACHE_FILE, JSON.stringify(allPosts));
                         console.log("缓存已保存");
                     } catch (e) {
                         console.error("缓存保存失败", e);
                     }
-                    // ---------------
 
                     initUIWithData();
                     statusMsg.textContent = `✅ 扫描完成: ${allPosts.length} 条`;
