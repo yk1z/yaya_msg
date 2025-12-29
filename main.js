@@ -1,32 +1,53 @@
-const { app, BrowserWindow, Menu } = require('electron')
-const path = require('path')
+const { app, BrowserWindow, ipcMain } = require('electron');
+const path = require('path');
 
-function createWindow () {
-  const win = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    minWidth: 1200,   
-    minHeight: 800,  
-    title: "牙牙消息 by yk1z",
-    icon: path.join(__dirname, 'icon.png'), 
-    webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false
-    }
-  })
+let mainWindow;
 
-  win.loadFile('index.html')
-  
-  Menu.setApplicationMenu(null) 
+function createWindow() {
+    mainWindow = new BrowserWindow({
+        width: 1200,
+        height: 800,
+        minWidth: 1200,
+        minHeight: 800,
+        frame: false,
+        titleBarStyle: 'hidden',
+        icon: path.join(__dirname, 'icon.png'),
+        webPreferences: {
+            nodeIntegration: true,
+            contextIsolation: false,
+            webSecurity: false
+        }
+    });
+
+    mainWindow.loadFile('index.html');
 }
 
 app.whenReady().then(() => {
-  createWindow()
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
-  })
-})
+    createWindow();
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit()
-})
+    app.on('activate', function () {
+        if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    });
+});
+
+app.on('window-all-closed', function () {
+    if (process.platform !== 'darwin') app.quit();
+});
+
+ipcMain.on('window-min', () => {
+    if (mainWindow) mainWindow.minimize();
+});
+
+ipcMain.on('window-max', () => {
+    if (mainWindow) {
+        if (mainWindow.isMaximized()) {
+            mainWindow.unmaximize();
+        } else {
+            mainWindow.maximize();
+        }
+    }
+});
+
+ipcMain.on('window-close', () => {
+    if (mainWindow) mainWindow.close();
+});
