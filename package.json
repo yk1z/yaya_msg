@@ -1,6 +1,6 @@
 {
-  "name": "yaya-msg",
-  "version": "1.1.0",
+  "name": "yaya-message",
+  "version": "1.1.3",
   "description": "牙牙消息",
   "main": "main.js",
   "scripts": {
@@ -10,13 +10,51 @@
   },
   "author": "yk1z",
   "license": "ISC",
-  "devDependencies": {
-    "electron": "^28.0.0",
-    "electron-builder": "^24.9.0",
-    "electron-packager": "^17.1.2"
-  },
   "dependencies": {
-    "ffmpeg-static": "^5.3.0",
-    "fluent-ffmpeg": "^2.1.3"
+    "ffmpeg-static": "^5.2.0",
+    "fluent-ffmpeg": "^2.1.3",
+    "node-media-server": "^4.2.4"
+  },
+  "devDependencies": {
+    "electron": "^25.0.0",
+    "electron-builder": "^24.3.0"
+  },
+  "build": {
+    "appId": "com.yaya.message",
+    "productName": "牙牙消息",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "index.html",
+      "icon.png",
+      "members_id.csv",
+      "node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "node_modules/ffmpeg-static/ffmpeg.exe",
+        "to": "ffmpeg.exe"
+      },
+      {
+        "from": "node_modules/ffmpeg-static/ffmpeg",
+        "to": "ffmpeg"
+      }
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "**/*.node"
+    ],
+    "win": {
+      "target": [
+        "portable"
+      ],
+      "icon": "icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }
