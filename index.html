@@ -1893,6 +1893,7 @@
     <script>
         let memberData = [];
         let isMemberDataLoaded = false;
+        let currentSelectedMemberName = '';
 
         async function loadMemberData() {
             if (isMemberDataLoaded) return;
@@ -1939,6 +1940,7 @@
         }
 
         function selectToolMember(name, serverId, channelId) {
+            currentSelectedMemberName = name;
             document.getElementById('member-search').value = name;
             document.getElementById('tool-server').value = serverId;
             document.getElementById('tool-channel').value = channelId;
@@ -5233,7 +5235,8 @@ function toggleFetchMode() {
     </div>
 </body>
 </html>`;
-            const memberName = document.getElementById('member-search').value.trim() || '未命名成员';
+
+            const memberName = currentSelectedMemberName || document.getElementById('member-search').value.trim() || '未命名成员';
             const exportBtn = document.getElementById('btn-export-html');
             const originalBtnText = exportBtn.innerText;
             window.ipcRenderer.send('save-export-html', {
