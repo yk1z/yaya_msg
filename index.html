@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>牙牙消息 v1.1.3</title>
+    <title>牙牙消息 v1.1.4</title>
     <link rel="icon" href="./icon.png" type="image/x-icon">
     <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.4.0/dist/hls.min.js"></script>
@@ -13,6 +13,139 @@
     <script src="https://wlnimsc0.netease.im/nim-1.8.0.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dplayer/dist/DPlayer.min.js"></script>
     <style>
+        .search-wrapper {
+            position: relative;
+            margin-bottom: 15px;
+        }
+
+        .search-results {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            max-height: 200px;
+            overflow-y: auto;
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+        }
+
+        .search-item {
+            padding: 10px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .search-item:hover {
+            background-color: #f0f8ff;
+        }
+
+        .search-item .team-tag {
+            background: #f0f0f0;
+            color: #666;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .login-container {
+            max-width: 500px;
+            margin: 50px auto;
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border: 1px solid #eee;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .login-tip {
+            background: #e6f7ff;
+            border: 1px solid #91d5ff;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #0050b3;
+            margin-top: 15px;
+            line-height: 1.6;
+        }
+
+        .page-container {
+            flex: 1;
+            height: 100vh;
+            overflow: hidden;
+            background: #fff;
+            position: relative;
+        }
+
+        .page {
+            display: none;
+            height: 100%;
+            flex-direction: column;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .page.active {
+            display: flex;
+        }
+
+        .tools-header {
+            display: flex;
+            gap: 15px;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #eee;
+            margin-bottom: 15px;
+            align-items: flex-end;
+        }
+
+        .tools-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            flex: 1;
+        }
+
+        .tools-label {
+            font-size: 12px;
+            font-weight: bold;
+            color: #666;
+        }
+
+        .tools-input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        #msg-result-container {
+            flex: 1;
+            overflow-y: auto;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            background: #fafafa;
+            padding: 15px;
+        }
+
+        .sidebar-btn.active {
+            background: rgba(255, 255, 255, 0.1);
+            font-weight: bold;
+            color: #fff;
+            border-left: 4px solid #1890ff;
+        }
+
         .title-info .control-btn {
             display: flex;
             align-items: center;
@@ -1470,7 +1603,7 @@
                 </svg>
             </div>
             <img src="./icon.png" class="title-logo">
-            <span>牙牙消息 v1.1.3</span>
+            <span>牙牙消息 v1.1.4</span>
         </div>
         <div class="window-controls">
             <div class="control-btn" onclick="ipcRenderer.send('window-min')">
@@ -1506,12 +1639,19 @@
                     <button class="btn btn-primary" onclick="switchView('media', 'live')">📺 正在直播</button>
                     <button class="btn btn-secondary" onclick="switchView('media', 'vod')">📼 录播回放</button>
                 </div>
-                <button class="btn btn-primary btn-full" id="back-to-msg-btn" style="display: none;"
-                    onclick="switchView('messages')">
+                <button class="btn btn-primary btn-full" id="back-to-msg-btn" style="display: none;" onclick="switchView('messages')">
                     💬 返回成员消息
                 </button>
-                <button class="btn btn-secondary btn-full" style="margin-top: 8px;"
-                    onclick="openInBrowser('https://www.bilibili.com/video/BV1Ba8FzxEje/')">🦷 牙牙回放</button>
+                <button class="btn btn-secondary btn-full" style="margin-top: 8px;" onclick="openInBrowser('https://www.bilibili.com/video/BV1Ba8FzxEje/')">🦷 牙牙回放</button>
+            </div>
+            <div class="sidebar-group">
+                <div class="group-title">账号登录</div>
+                <button id="btn-open-toolbox" class="btn btn-primary btn-full" onclick="switchView('login')">
+                    抓取房间消息
+                </button>
+                <button id="btn-close-toolbox" class="btn btn-primary btn-full" onclick="switchView('messages')" style="display: none;">
+                    💬 返回成员消息
+                </button>
             </div>
             <div class="sidebar-group" id="sb-search">
                 <div class="group-title">搜索 & 排序</div>
@@ -1526,8 +1666,7 @@
                 <select class="input-control" id="groupSelect" onchange="applyFilters()">
                     <option value="all" selected>全部成员</option>
                 </select>
-                <button class="btn btn-secondary btn-full" style="margin-top: 8px;"
-                    onclick="forceReloadData()">更新/重扫数据</button>
+                <button class="btn btn-secondary btn-full" style="margin-top: 8px;" onclick="forceReloadData()">更新/重扫数据</button>
             </div>
             <div class="sidebar-group" id="sb-date">
                 <div class="group-title">日期筛选</div>
@@ -1571,13 +1710,11 @@
             </div>
             <div class="sidebar-group">
                 <div class="status-bar" id="statusMsg">软件正在初始化...</div>
-                <a href="javascript:void(0)" onclick="openInBrowser('https://space.bilibili.com/5250403')"
-                    class="credit-link">presented by yk1z</a>
+                <a href="javascript:void(0)" onclick="openInBrowser('https://space.bilibili.com/5250403')" class="credit-link">presented by yk1z</a>
             </div>
         </aside>
         <main class="main-content" id="mainContentArea">
-            <div id="view-messages"
-                style="height: 100%; overflow-y: auto; display: block; padding: 20px 40px; box-sizing: border-box;">
+            <div id="view-messages" style="height: 100%; overflow-y: auto; display: block; padding: 20px 40px; box-sizing: border-box;">
                 <div class="list-container" id="outputList">
                     <div class="placeholder-tip">
                         <h2>📚 正在自动读取数据...</h2>
@@ -1586,35 +1723,29 @@
                 </div>
                 <div id="loadingMore">正在加载更多...</div>
             </div>
-            <div id="view-media"
-                style="height: 100%; overflow-y: auto; display: none; padding: 0 20px 20px 20px; box-sizing: border-box;">
-                <div
-                    style="display: flex; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-top: 15px;">
+            <div id="view-media" style="height: 100%; overflow-y: auto; display: none; padding: 0 20px 20px 20px; box-sizing: border-box;">
+                <div style="display: flex; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-top: 15px;">
                     <h2 id="live-view-title" style="margin:0; font-size: 18px; white-space: nowrap;">📺 直播/回放</h2>
                 </div>
                 <div id="media-list-controls">
                     <div style="display: flex; gap: 12px; margin-bottom: 15px; align-items: center; flex-wrap: wrap;">
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <span style="white-space: nowrap; font-weight: bold; font-size: 14px;">团体</span>
-                            <select id="vod-group-select" class="input-control" style="width: 120px;"
-                                onchange="handleGroupChange(this.value)"></select>
+                            <select id="vod-group-select" class="input-control" style="width: 120px;" onchange="handleGroupChange(this.value)"></select>
                         </div>
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <span style="white-space: nowrap; font-weight: bold; font-size: 14px;">类型</span>
-                            <select id="vod-type-filter" class="input-control" style="width: 100px;"
-                                onchange="handleVodTypeChange()">
+                            <select id="vod-type-filter" class="input-control" style="width: 100px;" onchange="handleVodTypeChange()">
                                 <option value="0">全部</option>
                                 <option value="1">视频</option>
                                 <option value="2">电台</option>
                             </select>
                         </div>
                         <div style="position: relative; width: 240px;">
-                            <input type="text" id="vod-member-filter" class="input-control" style="width: 100%;"
-                                placeholder="成员名 / 日期" oninput="handleMemberFilter()" autocomplete="off">
+                            <input type="text" id="vod-member-filter" class="input-control" style="width: 100%;" placeholder="成员名 / 日期" oninput="handleMemberFilter()" autocomplete="off">
                             <div id="member-suggestions" class="suggestion-box"></div>
                         </div>
-                        <button id="refresh-btn" class="btn btn-secondary" onclick="handleRefreshList()"
-                            style="white-space: nowrap; padding: 0 15px; height: 38px;">刷新列表</button>
+                        <button id="refresh-btn" class="btn btn-secondary" onclick="handleRefreshList()" style="white-space: nowrap; padding: 0 15px; height: 38px;">刷新列表</button>
                     </div>
                 </div>
                 <div id="media-list-area" style="flex: 1; display: flex; flex-direction: column; justify-content: flex-start;">
@@ -1624,12 +1755,10 @@
                 <div id="live-player-view" style="display: none;">
                     <div style="margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; width: 100%;">
                         <div style="flex: 1; text-align: left;">
-                            <button class="btn btn-secondary" onclick="backToLiveList()"
-                                style="height: 32px; font-size: 13px;">&lt; 返回列表</button>
+                            <button class="btn btn-secondary" onclick="backToLiveList()" style="height: 32px; font-size: 13px;">&lt; 返回列表</button>
                         </div>
                         <div style="flex: 2; text-align: center;">
-                            <span id="current-live-title"
-                                style="font-weight: bold; font-size: 15px; color: var(--text); letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; max-width: 100%;"></span>
+                            <span id="current-live-title" style="font-weight: bold; font-size: 15px; color: var(--text); letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; max-width: 100%;"></span>
                         </div>
                         <div style="flex: 1; text-align: right;">
                             <span id="current-live-time" style="font-size: 12px; color: var(--text-sub);"></span>
@@ -1640,15 +1769,13 @@
                             <video id="live-video" controls autoplay style="width: 100%; height: 100%;"></video>
                         </div>
                     </div>
-                    <div id="clip-toolbar"
-                        style="margin-top: 15px; padding: 15px; background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                    <div id="clip-toolbar" style="margin-top: 15px; padding: 15px; background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
                         <div style="flex: 1; min-width: 200px;">
                             <div style="font-weight: bold; font-size: 14px; margin-bottom: 5px;">✂️ 视频切片工具</div>
                             <div style="font-size: 12px; color: var(--text-sub); display: flex; gap: 15px;">
                                 <span id="clip-start-display">起点: 未设置</span>
                                 <span id="clip-end-display">终点: 未设置</span>
-                                <span id="clip-duration-display" style="color: var(--primary); font-weight: bold;">时长:
-                                    0s</span>
+                                <span id="clip-duration-display" style="color: var(--primary); font-weight: bold;">时长: 0s</span>
                             </div>
                         </div>
                         <div class="btn-grid" style="grid-template-columns: auto auto auto; gap: 10px; display: flex;">
@@ -1660,12 +1787,58 @@
                 </div>
                 <div id="vod-pagination-controls" class="pagination-container" style="padding-bottom: 20px;"></div>
             </div>
+            <div id="view-login" style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
+                <div class="list-container">
+                    <div style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                        <h2 style="margin: 0; color: var(--primary);">抓取房间消息</h2>
+                        <span id="sdk-status" style="font-size: 12px; color: var(--text-sub);">SDK 加载中...</span>
+                    </div>
+                    <div id="panel-login" class="Box-row">
+                        <div style="margin-bottom: 15px;">
+                            <p style="font-size: 14px; font-weight: bold; color: var(--text); margin-bottom: 8px;">请输入 Token:</p>
+                            <textarea id="login-token" class="input-control" style="height: 100px; resize: none; padding: 10px; font-family: monospace;" placeholder="在此粘贴 Token"></textarea>
+                        </div>
+                        <button class="btn btn-primary btn-full" onclick="checkToken()" style="height: 40px; font-size: 15px;">记录并登录</button>
+                        <div id="login-msg" style="margin-top:15px; text-align:center; color:red; font-size:13px;"></div>
+                    </div>
+                    <div id="panel-tools" style="display: none;">
+                        <div class="Box-row" style="background: rgba(40, 167, 69, 0.1); border-color: #28a745;">
+                            <div style="font-weight: bold; font-size: 15px; color: #28a745; display: flex; justify-content: space-between; align-items: center;">
+                                <span>✅ 已记录 Token (<span id="user-nickname">口袋用户</span>)</span>
+                                <button class="btn btn-secondary" onclick="logout()" style="height: 24px; padding: 0 8px; font-size: 12px;">清除记录并退出</button>
+                            </div>
+                        </div>
+                        <div class="Box-row">
+                            <h3 style="margin: 0 0 15px 0; font-size: 16px; border-left: 4px solid var(--primary); padding-left: 10px;">抓取房间消息</h3>
+                            <div class="search-wrapper">
+                                <label style="font-size: 12px; color: var(--text-sub); display:block; margin-bottom:5px;">🔍 搜索成员</label>
+                                <input type="text" id="member-search" class="input-control" placeholder="输入成员名字" oninput="handleSearch(this.value)" onfocus="handleSearch(this.value)">
+                                <div id="search-results" class="search-results"></div>
+                            </div>
+                            <div style="display: none;">
+                                <input type="text" id="tool-server">
+                                <input type="text" id="tool-channel">
+                            </div>
+                            <div class="btn-grid" style="margin-bottom: 15px;">
+                                <button class="btn btn-primary" onclick="fetchMsgs()" id="btn-fetch-one">抓取最新</button>
+                                <button class="btn btn-secondary" onclick="fetchAllMsgs()" id="btn-fetch-all">加载全部</button>
+                                <button class="btn btn-secondary" onclick="exportMsgsToHtml()" id="btn-export-html" disabled>导出至成员消息</button>
+                            </div>
+                            <div id="msg-result" style="margin-top: 15px; height: 300px; overflow-y: auto; background: var(--input-bg); border-radius: 6px; padding: 10px; font-size: 13px; border: 1px solid var(--border);">
+                                <div style="color: var(--text-sub); text-align: center; margin-top: 50px;">暂无消息</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </main>
     </div>
     <div class="modal-overlay" id="userModal">
         <div class="modal-content">
-            <div class="modal-header"><span class="modal-title">互动榜</span><span class="close-btn"
-                    onclick="closeUserAnalysis()">×</span></div>
+            <div class="modal-header">
+                <span class="modal-title">互动榜</span>
+                <span class="close-btn" onclick="closeUserAnalysis()">×</span>
+            </div>
             <div class="modal-body" id="userListContainer">
                 <div class="empty-state">正在分析...</div>
             </div>
@@ -1673,8 +1846,10 @@
     </div>
     <div class="modal-overlay" id="dateModal">
         <div class="modal-content">
-            <div class="modal-header"><span class="modal-title">每日消息统计</span><span class="close-btn"
-                    onclick="closeDateAnalysis()">×</span></div>
+            <div class="modal-header">
+                <span class="modal-title">每日消息统计</span>
+                <span class="close-btn" onclick="closeDateAnalysis()">×</span>
+            </div>
             <div class="modal-body" id="dateListContainer">
                 <div class="empty-state">正在分析...</div>
             </div>
@@ -1686,26 +1861,83 @@
                 <span class="modal-title">📖 消息上下文</span>
                 <span class="close-btn" onclick="closeContextModal()">×</span>
             </div>
-            <div class="modal-body" id="contextListContainer" style="background: var(--bg); padding: 20px;">
-            </div>
+            <div class="modal-body" id="contextListContainer" style="background: var(--bg); padding: 20px;"></div>
         </div>
     </div>
-    <div class="modal-overlay" id="imageModal" onclick="closeImageModal()"
-        style="background: rgba(0,0,0,0.9); z-index: 2001;">
+    <div class="modal-overlay" id="imageModal" onclick="closeImageModal()" style="background: rgba(0,0,0,0.9); z-index: 2001;">
         <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; padding: 20px;">
-            <img id="modalImg" src=""
-                style="max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 4px; box-shadow: 0 0 20px rgba(0,0,0,0.5);">
+            <img id="modalImg" src="" style="max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 4px; box-shadow: 0 0 20px rgba(0,0,0,0.5);">
         </div>
     </div>
-
     <div id="global-notice-bar" style="display: none;">
         <div class="notice-content">
-            <span id="notice-icon">🔔</span> <span id="notice-text">正在加载公告...</span>
+            <span id="notice-icon">🔔</span>
+            <span id="notice-text">正在加载公告...</span>
             <a id="notice-link" href="javascript:void(0)">查看详情</a>
         </div>
         <div class="notice-close" onclick="closeNotice()">×</div>
     </div>
     <script>
+        let memberData = [];
+        let isMemberDataLoaded = false;
+
+        async function loadMemberData() {
+            if (isMemberDataLoaded) return;
+            const statusSpan = document.getElementById('sdk-status');
+            if (statusSpan) statusSpan.innerText = '正在更新成员列表...';
+            try {
+                const url = "https://fastly.jsdelivr.net/gh/duan602728596/qqtools@main/packages/NIMTest/node/roomId.json";
+                const res = await fetch(url);
+                const data = await res.json();
+                if (data && data.roomId) {
+                    memberData = data.roomId;
+                    isMemberDataLoaded = true;
+                    if (statusSpan) statusSpan.innerText = `✅ 成员列表已更新 (${memberData.length}人)`;
+                }
+            } catch (e) {
+                if (statusSpan) statusSpan.innerText = '⚠️ 成员列表加载失败';
+            }
+        }
+
+        function handleSearch(keyword) {
+            const resultBox = document.getElementById('search-results');
+            if (!keyword.trim()) {
+                resultBox.style.display = 'none';
+                return;
+            }
+            if (!isMemberDataLoaded) {
+                loadMemberData();
+                return;
+            }
+            const matches = memberData.filter(m => m.ownerName.includes(keyword));
+            if (matches.length > 0) {
+                const html = matches.map(m => `
+                    <div class="search-item" onclick="selectToolMember('${m.ownerName}', '${m.serverId}', '${m.channelId}')">
+                        <span style="font-weight:bold; color:#333;">${m.ownerName}</span>
+                        <span class="team-tag">${m.team}</span>
+                    </div>
+                `).join('');
+                resultBox.innerHTML = html;
+                resultBox.style.display = 'block';
+            } else {
+                resultBox.innerHTML = '<div style="padding:10px;color:#999;text-align:center;">未找到该成员</div>';
+                resultBox.style.display = 'block';
+            }
+        }
+
+        function selectToolMember(name, serverId, channelId) {
+            document.getElementById('member-search').value = name;
+            document.getElementById('tool-server').value = serverId;
+            document.getElementById('tool-channel').value = channelId;
+            document.getElementById('search-results').style.display = 'none';
+            document.getElementById('msg-result').innerHTML = '<div style="text-align:center;padding:20px;color:#999">已选择成员: ' + name + '<br>点击“抓取最新”开始</div>';
+        }
+        document.addEventListener('click', function(e) {
+            const wrapper = document.querySelector('.search-wrapper');
+            if (wrapper && !wrapper.contains(e.target)) {
+                document.getElementById('search-results').style.display = 'none';
+            }
+        });
         let currentPlayingItem = null;
 
         function toggleSidebar() {
@@ -1713,45 +1945,58 @@
             sidebar.classList.toggle('collapsed');
         }
 
-        function toggleSidebarMode(isMediaView) {
-            const idsToHideInMedia = [
-                'sb-members',
-                'sb-analysis',
-                'sb-search',
-                'sb-date',
-                'sb-type',
-                'statusMsg'
-            ];
+        function toggleSidebarMode(mode) {
+            const idsToHide = ['sb-members', 'sb-analysis', 'sb-search', 'sb-date', 'sb-type', 'statusMsg'];
             const downloadModule = document.getElementById('sb-download');
             const liveBtns = document.getElementById('live-btns-container');
             const backBtn = document.getElementById('back-to-msg-btn');
-            if (isMediaView) {
-                idsToHideInMedia.forEach(id => {
+            const liveGroup = document.getElementById('sb-live-group');
+            const btnOpenToolbox = document.getElementById('btn-open-toolbox');
+            const btnCloseToolbox = document.getElementById('btn-close-toolbox');
+            idsToHide.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.display = (id === 'statusMsg') ? 'block' : 'flex';
+            });
+            if (downloadModule) downloadModule.style.display = 'none';
+            if (liveBtns) liveBtns.style.display = 'grid';
+            if (backBtn) backBtn.style.display = 'none';
+            if (liveGroup) liveGroup.style.display = 'flex';
+            if (btnOpenToolbox) btnOpenToolbox.style.display = 'flex';
+            if (btnCloseToolbox) btnCloseToolbox.style.display = 'none';
+            if (mode === 'media') {
+                idsToHide.forEach(id => {
                     const el = document.getElementById(id);
                     if (el) el.style.display = 'none';
                 });
                 if (downloadModule) downloadModule.style.display = 'flex';
                 if (liveBtns) liveBtns.style.display = 'none';
                 if (backBtn) backBtn.style.display = 'block';
-            } else {
-                idsToHideInMedia.forEach(id => {
+                if (btnOpenToolbox) btnOpenToolbox.style.display = 'none';
+                if (btnCloseToolbox) btnCloseToolbox.style.display = 'none';
+            } else if (mode === 'login') {
+                idsToHide.forEach(id => {
                     const el = document.getElementById(id);
-                    if (el) {
-                        el.style.display = (id === 'statusMsg') ? 'block' : 'flex';
-                    }
+                    if (el) el.style.display = 'none';
                 });
-                if (downloadModule) downloadModule.style.display = 'none';
-                if (liveBtns) liveBtns.style.display = 'grid';
-                if (backBtn) backBtn.style.display = 'none';
+                if (liveGroup) liveGroup.style.display = 'none';
+                if (btnOpenToolbox) btnOpenToolbox.style.display = 'none';
+                if (btnCloseToolbox) btnCloseToolbox.style.display = 'flex';
             }
         }
 
         function switchView(viewName, mode = null) {
             const msgView = document.getElementById('view-messages');
             const mediaView = document.getElementById('view-media');
-            toggleSidebarMode(viewName === 'media');
+            const loginView = document.getElementById('view-login');
+            msgView.style.display = 'none';
+            mediaView.style.display = 'none';
+            if (loginView) loginView.style.display = 'none';
+            destroyPlayers();
+            if (window.vodState) {
+                window.vodState.isSearchActive = false;
+            }
             if (viewName === 'media') {
-                msgView.style.display = 'none';
+                toggleSidebarMode('media');
                 mediaView.style.display = 'flex';
                 mediaView.style.flexDirection = 'column';
                 const titleEl = document.getElementById('live-view-title');
@@ -1780,31 +2025,37 @@
                 }
                 document.getElementById('live-player-view').style.display = 'none';
                 document.getElementById('media-list-area').style.display = 'block';
-            } else {
-                msgView.style.display = 'block';
-                mediaView.style.display = 'none';
-                destroyPlayers();
-                if (window.vodState) {
-                    window.vodState.isSearchActive = false;
+            } else if (viewName === 'login') {
+                toggleSidebarMode('login');
+                if (loginView) loginView.style.display = 'block';
+                const savedToken = localStorage.getItem('yaya_p48_token');
+                const tokenInput = document.getElementById('login-token');
+                if (savedToken && tokenInput) {
+                    tokenInput.value = savedToken;
                 }
+                loadMemberData();
+            } else {
+                toggleSidebarMode('messages');
+                msgView.style.display = 'block';
             }
         }
 
         function cancelDownloadTask(taskId) {
-            ipcRenderer.send('cancel-download', { taskId });
+            ipcRenderer.send('cancel-download', {
+                taskId
+            });
             const taskEl = document.getElementById(taskId);
             if (taskEl) {
                 const liveId = taskEl.getAttribute('data-liveid');
                 if (liveId) {
-                    delete downloadStatusMap[liveId]; 
-            
+                    delete downloadStatusMap[liveId];
                     const mainBtn = document.querySelector(`.vod-btn-${liveId}`);
                     if (mainBtn) {
                         mainBtn.classList.remove('btn-downloading');
-                        mainBtn.classList.remove('btn-success'); 
+                        mainBtn.classList.remove('btn-success');
                         mainBtn.innerText = '下载';
                         mainBtn.disabled = false;
-                        mainBtn.style.pointerEvents = 'auto'; 
+                        mainBtn.style.pointerEvents = 'auto';
                         mainBtn.style.opacity = '1';
                     }
                 }
@@ -1828,9 +2079,7 @@
             const h = Math.floor(seconds / 3600);
             const m = Math.floor((seconds % 3600) / 60);
             const s = seconds % 60;
-            return h > 0 ?
-                `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}` :
-                `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+            return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}` : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
         }
         const {
             ipcRenderer
@@ -1838,15 +2087,26 @@
         window.ipcRenderer = ipcRenderer;
         const memberNameMap = new Map();
 
-        function loadMemberIdMap() {
+        async function loadMemberIdMap() {
             const csvPath = path.join(__dirname, 'members_id.csv');
+    
             if (!fs.existsSync(csvPath)) {
-                statusMsg.textContent = "⚠️ 未找到 ID 映射表，搜索速度可能受影响";
-                return;
+                statusMsg.textContent = "⚠️ 本地映射表缺失，正在尝试从云端获取...";
+                await autoUpdateMemberData(); 
             }
+
             try {
+                if (!fs.existsSync(csvPath)) {
+                    statusMsg.textContent = "❌ 无法获取成员数据，请检查网络";
+                    return;
+                }
+
                 const data = fs.readFileSync(csvPath, 'utf-8');
                 const lines = data.split('\n');
+        
+                memberNameMap.set('clear_all', true); 
+                memberNameMap.clear();
+
                 lines.forEach(line => {
                     const trimmed = line.trim();
                     if (!trimmed || trimmed.startsWith('[source') || trimmed.startsWith('ownerName')) return;
@@ -1855,6 +2115,7 @@
                         const name = parts[0].trim();
                         const id = parts[1].trim();
                         memberNameMap.set(name, id);
+                
                         if (name.includes('-')) {
                             const simpleName = name.split('-')[1];
                             if (!memberNameMap.has(simpleName)) {
@@ -1863,11 +2124,14 @@
                         }
                     }
                 });
-                initBestNames();
-            } catch (e) {
-                console.error("解析 CSV 失败:", e);
-            }
-        }
+        
+        initBestNames();
+        statusMsg.textContent = "✅ 成员映射表加载完成";
+    } catch (e) {
+        console.error("加载映射表失败:", e);
+        statusMsg.textContent = "❌ 映射表解析出错";
+    }
+}
         let bestNameMapForDisplay = new Map();
 
         async function autoUpdateMemberData() {
@@ -1977,21 +2241,64 @@
                 this.searchPageToken = 0;
                 this.isSearchActive = false;
                 this.nextPageTokens = {
-                    0: 0, 10: 0, 11: 0, 12: 0, 13: 0, 14: 0, 15: 0, 16: 0, 17: 0, 18: 20, 19: 0, 21: 0
+                    0: 0,
+                    10: 0,
+                    11: 0,
+                    12: 0,
+                    13: 0,
+                    14: 0,
+                    15: 0,
+                    16: 0,
+                    17: 0,
+                    18: 20,
+                    19: 0,
+                    21: 0
                 };
                 this.hasMore = true;
-                this.groups = [
-                    { apiId: 0, name: '全部团体' },
-                    { apiId: 10, name: 'SNH48' },
-                    { apiId: 11, name: 'BEJ48' },
-                    { apiId: 12, name: 'GNZ48' },
-                    { apiId: 14, name: 'CKG48' },
-                    { apiId: 21, name: 'CGT48' },
-                    { apiId: 15, name: 'IDFT' },
-                    { apiId: 17, name: 'THE9' },
-                    { apiId: 19, name: '明星殿堂' },
-                    { apiId: 20, name: '丝芭影视' },
-                    { apiId: 16, name: '海外练习生' },
+                this.groups = [{
+                        apiId: 0,
+                        name: '全部团体'
+                    },
+                    {
+                        apiId: 10,
+                        name: 'SNH48'
+                    },
+                    {
+                        apiId: 11,
+                        name: 'BEJ48'
+                    },
+                    {
+                        apiId: 12,
+                        name: 'GNZ48'
+                    },
+                    {
+                        apiId: 14,
+                        name: 'CKG48'
+                    },
+                    {
+                        apiId: 21,
+                        name: 'CGT48'
+                    },
+                    {
+                        apiId: 15,
+                        name: 'IDFT'
+                    },
+                    {
+                        apiId: 17,
+                        name: 'THE9'
+                    },
+                    {
+                        apiId: 19,
+                        name: '明星殿堂'
+                    },
+                    {
+                        apiId: 20,
+                        name: '丝芭影视'
+                    },
+                    {
+                        apiId: 16,
+                        name: '海外练习生'
+                    },
                 ];
                 this.currentPage = 1;
                 this.pageSize = 5;
@@ -2052,10 +2359,7 @@
             lines.forEach((line, index) => {
                 const timeMatch = line.match(timeRegex);
                 if (timeMatch) {
-                    const seconds = (parseInt(timeMatch[1]) * 3600) +
-                        (parseInt(timeMatch[2]) * 60) +
-                        parseInt(timeMatch[3]) +
-                        (parseInt(timeMatch[4]) / 1000);
+                    const seconds = (parseInt(timeMatch[1]) * 3600) + (parseInt(timeMatch[2]) * 60) + parseInt(timeMatch[3]) + (parseInt(timeMatch[4]) / 1000);
                     const contentPart = line.replace(timeMatch[0], '');
                     const parts = contentPart.split('\t');
                     if (parts.length >= 2) {
@@ -2141,12 +2445,18 @@
                             const json = JSON.parse(data);
                             resolve(json);
                         } catch (e) {
-                            resolve({ status: 500, content: {} });
+                            resolve({
+                                status: 500,
+                                content: {}
+                            });
                         }
                     });
                 });
                 req.on('error', (e) => {
-                    resolve({ status: 500, content: {} });
+                    resolve({
+                        status: 500,
+                        content: {}
+                    });
                 });
                 req.write(postData);
                 req.end();
@@ -2157,9 +2467,16 @@
         function saveCacheOptimized(data) {
             return new Promise((resolve, reject) => {
                 try {
-                    const stream = fs.createWriteStream(CACHE_FILE, { flags: 'w', encoding: 'utf-8' });
-                    stream.on('error', (err) => { reject(err); });
-                    stream.on('finish', () => { resolve(); });
+                    const stream = fs.createWriteStream(CACHE_FILE, {
+                        flags: 'w',
+                        encoding: 'utf-8'
+                    });
+                    stream.on('error', (err) => {
+                        reject(err);
+                    });
+                    stream.on('finish', () => {
+                        resolve();
+                    });
                     stream.write('[\n');
                     data.forEach((post, index) => {
                         const jsonStr = JSON.stringify(post);
@@ -2179,8 +2496,13 @@
                 const tempPosts = [];
                 try {
                     const fileStream = fs.createReadStream(CACHE_FILE);
-                    fileStream.on('error', (err) => { reject(err); });
-                    const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity });
+                    fileStream.on('error', (err) => {
+                        reject(err);
+                    });
+                    const rl = readline.createInterface({
+                        input: fileStream,
+                        crlfDelay: Infinity
+                    });
                     rl.on('line', (line) => {
                         line = line.trim();
                         if (line === '[' || line === ']') return;
@@ -2189,16 +2511,18 @@
                             try {
                                 const post = JSON.parse(line);
                                 tempPosts.push(post);
-                            } catch (e) { }
+                            } catch (e) {}
                         }
                     });
-                    rl.on('close', () => { resolve(tempPosts); });
+                    rl.on('close', () => {
+                        resolve(tempPosts);
+                    });
                 } catch (e) {
                     reject(e);
                 }
             });
         }
-        window.onload = function () {
+        window.onload = function() {
             autoUpdateMemberData();
             checkGitHubNotice();
             initTheme();
@@ -2206,11 +2530,15 @@
                 statusMsg.textContent = "🚀 正在流式读取缓存...";
                 loadCacheOptimized().then((data) => {
                     allPosts = data;
-                    allPosts.forEach((post, index) => { post.originalIndex = index; });
+                    allPosts.forEach((post, index) => {
+                        post.originalIndex = index;
+                    });
                     initUIWithData();
                     statusMsg.textContent = `⚡ 缓存加载完毕: ${allPosts.length} 条`;
                 }).catch((e) => {
-                    try { fs.unlinkSync(CACHE_FILE); } catch (err) { }
+                    try {
+                        fs.unlinkSync(CACHE_FILE);
+                    } catch (err) {}
                     scanFiles();
                 });
             } else {
@@ -2226,9 +2554,11 @@
                 });
             }
         };
-        window.forceReloadData = function () {
+        window.forceReloadData = function() {
             if (fs.existsSync(CACHE_FILE)) {
-                try { fs.unlinkSync(CACHE_FILE); } catch (e) { }
+                try {
+                    fs.unlinkSync(CACHE_FILE);
+                } catch (e) {}
             }
             outputList.innerHTML = '<div class="placeholder-tip"><h3>🔄 正在重新扫描...</h3><p>请稍候，不要关闭软件。</p></div>';
             statusMsg.textContent = "⏳ 正在重新建立索引...";
@@ -2244,7 +2574,9 @@
             statusMsg.textContent = "⏳ 正在扫描文件夹...";
             setTimeout(() => {
                 try {
-                    const items = fs.readdirSync(FIXED_PATH, { withFileTypes: true });
+                    const items = fs.readdirSync(FIXED_PATH, {
+                        withFileTypes: true
+                    });
                     allPosts = [];
                     const readFilesFromDir = (dirPath, groupName) => {
                         const files = fs.readdirSync(dirPath);
@@ -2254,7 +2586,7 @@
                                     const fullPath = path.join(dirPath, file);
                                     const text = fs.readFileSync(fullPath, 'utf-8');
                                     allPosts = allPosts.concat(parseHtmlContent(text, file, groupName));
-                                } catch (e) { }
+                                } catch (e) {}
                             }
                         });
                     };
@@ -2277,7 +2609,9 @@
                     });
                     allPosts = uniquePosts;
                     allPosts.sort((a, b) => new Date(a.timeStr) - new Date(b.timeStr));
-                    allPosts.forEach((post, index) => { post.originalIndex = index; });
+                    allPosts.forEach((post, index) => {
+                        post.originalIndex = index;
+                    });
                     statusMsg.textContent = "💾 正在写入缓存...";
                     saveCacheOptimized(allPosts).then(() => {
                         statusMsg.textContent = `✅ 扫描完成: ${allPosts.length} 条`;
@@ -2326,7 +2660,9 @@
             if (!window.vodState) return;
             vodState.currentGroup = parseInt(apiId);
             vodState.resetPagination(vodState.currentGroup);
-            ensurePageData(2).then(() => { window.renderVODListUI(); });
+            ensurePageData(2).then(() => {
+                window.renderVODListUI();
+            });
         }
         let filterTimeout;
 
@@ -2341,9 +2677,7 @@
                     if (name.toLowerCase().includes(val)) matches.push(name);
                 }
                 if (matches.length > 0) {
-                    box.innerHTML = matches.slice(0, 10).map(name =>
-                        `<div class="suggestion-item" onclick="selectMember('${name}')">${name}</div>`
-                    ).join('');
+                    box.innerHTML = matches.slice(0, 10).map(name => `<div class="suggestion-item" onclick="selectMember('${name}')">${name}</div>`).join('');
                     box.style.display = 'block';
                 } else box.style.display = 'none';
             }
@@ -2441,10 +2775,20 @@
             let nextToken = memberId ? (vodState.searchPageToken || 0) : vodState.nextPageTokens[groupId];
             try {
                 if (memberId && nextToken === 0) {
-                    const anchorRes = await fetchPocketAPI('/live/api/v1/live/getLiveList', JSON.stringify({ debug: true, next: 0, record: true, limit: 1 }));
+                    const anchorRes = await fetchPocketAPI('/live/api/v1/live/getLiveList', JSON.stringify({
+                        debug: true,
+                        next: 0,
+                        record: true,
+                        limit: 1
+                    }));
                     if (anchorRes?.content?.liveList?.[0]) nextToken = anchorRes.content.liveList[0].liveId;
                 }
-                const payload = { debug: true, next: nextToken, record: true, limit: 50 };
+                const payload = {
+                    debug: true,
+                    next: nextToken,
+                    record: true,
+                    limit: 50
+                };
                 if (memberId) {
                     payload.userId = parseInt(memberId, 10);
                     document.getElementById('vod-loading').textContent = `🔍 正在检索 ID: ${memberId} 的回放...`;
@@ -2467,7 +2811,7 @@
                     vodState.hasMore = res.content.next !== 0 && res.content.next !== null;
                     return newList.length;
                 }
-            } catch (e) { }
+            } catch (e) {}
             return 0;
         }
         async function ensurePageData(page) {
@@ -2485,7 +2829,7 @@
                     if (addedRaw === 0 && !vodState.hasMore) break;
                     loopSafety++;
                 }
-            } catch (e) { } finally {
+            } catch (e) {} finally {
                 vodState.isLoading = false;
                 document.getElementById('vod-loading').style.display = 'none';
                 togglePagination(true);
@@ -2499,7 +2843,7 @@
                 btns.forEach(b => b.disabled = !enabled);
             }
         }
-        window.renderVODListUI = function () {
+        window.renderVODListUI = function() {
             if (!window.vodState) return;
             const container = document.getElementById('vod-list-container');
             const filteredList = getFilteredVODList();
@@ -2519,11 +2863,17 @@
                 const card = document.createElement('div');
                 card.className = 'vod-card-row';
                 const status = downloadStatusMap[item.liveId];
-                let btnText = "下载", btnStyleClass = "btn-secondary", btnDisabled = "";
+                let btnText = "下载",
+                    btnStyleClass = "btn-secondary",
+                    btnDisabled = "";
                 if (status === 'downloading') {
-                    btnText = "下载中"; btnStyleClass = "btn-secondary btn-downloading"; btnDisabled = "disabled";
+                    btnText = "下载中";
+                    btnStyleClass = "btn-secondary btn-downloading";
+                    btnDisabled = "disabled";
                 } else if (status === 'success') {
-                    btnText = "已完成"; btnStyleClass = "btn-primary btn-success"; btnDisabled = "disabled";
+                    btnText = "已完成";
+                    btnStyleClass = "btn-primary btn-success";
+                    btnDisabled = "disabled";
                 }
                 const isLive = item.liveStatus === 1;
                 const name = item.userInfo ? item.userInfo.nickname : item.nickname || '未知成员';
@@ -2555,7 +2905,14 @@
                         <div class="vod-row-time">${timeStr}</div>
                     </div>
                 `;
-                card.onclick = () => playLiveStream({ liveId: item.liveId, userInfo: { nickname: name }, title: titleText, startTime: rawTime }, isLive ? 'live' : 'vod');
+                card.onclick = () => playLiveStream({
+                    liveId: item.liveId,
+                    userInfo: {
+                        nickname: name
+                    },
+                    title: titleText,
+                    startTime: rawTime
+                }, isLive ? 'live' : 'vod');
                 container.appendChild(card);
             });
             updatePaginationControls(filteredList.length);
@@ -2563,37 +2920,57 @@
 
         function initLiveDanmu(chatroomId) {
             if (!chatroomId) return;
-            if (nimInstance) { nimInstance.disconnect(); nimInstance = null; }
+            if (nimInstance) {
+                nimInstance.disconnect();
+                nimInstance = null;
+            }
             nimInstance = NIM.Chatroom.getInstance({
                 appKey: '632feff1f4c838541ab75195d1ceb3fa',
                 chatroomId: chatroomId,
                 chatroomAddresses: ['chatweblink01.netease.im:443'],
                 isAnonymous: true,
                 chatroomNick: 'guest_' + Math.floor(Math.random() * 10000),
-                onconnect: () => { if (dp) dp.notice('弹幕服务器已连接'); },
+                onconnect: () => {
+                    if (dp) dp.notice('弹幕服务器已连接');
+                },
                 onmsgs: (msgs) => {
                     msgs.forEach(msg => {
                         let text = "";
                         try {
                             if (msg.type === 'text') text = msg.text;
-                            else if (msg.custom) { const custom = JSON.parse(msg.custom); text = custom.text; }
-                        } catch (e) { }
-                        if (text && dp && dp.danmaku) dp.danmaku.draw({ text: text, color: '#fff', type: 'right' });
+                            else if (msg.custom) {
+                                const custom = JSON.parse(msg.custom);
+                                text = custom.text;
+                            }
+                        } catch (e) {}
+                        if (text && dp && dp.danmaku) dp.danmaku.draw({
+                            text: text,
+                            color: '#fff',
+                            type: 'right'
+                        });
                     });
                 }
             });
         }
+
         function updatePaginationControls(totalItems) {
             const controlsContainer = document.getElementById('vod-pagination-controls');
             if (!controlsContainer) return;
-            if (totalItems === 0) { controlsContainer.innerHTML = ''; return; }
+            if (totalItems === 0) {
+                controlsContainer.innerHTML = '';
+                return;
+            }
             const current = vodState.currentPage;
             const totalPagesLocal = Math.ceil(totalItems / vodState.pageSize);
             let html = '';
             html += `<button class="pagination-btn" onclick="goToPage(1)" ${current <= 1 ? 'disabled' : ''}>首页</button>`;
             html += `<button class="pagination-btn" onclick="handlePrevPage()" ${current <= 1 ? 'disabled' : ''}>上一页</button>`;
-            let start = Math.max(1, current - 2), end = start + 4;
-            if (end > totalPagesLocal) { end = Math.max(totalPagesLocal, 1); start = Math.max(1, end - 4); }
+            let start = Math.max(1, current - 2),
+                end = start + 4;
+            if (end > totalPagesLocal) {
+                end = Math.max(totalPagesLocal, 1);
+                start = Math.max(1, end - 4);
+            }
             for (let i = start; i <= end; i++) html += generatePageBtn(i, current);
             const canNext = current < totalPagesLocal || vodState.hasMore;
             html += `<button class="pagination-btn" onclick="handleNextPage()" ${!canNext ? 'disabled' : ''}>下一页</button>`;
@@ -2609,11 +2986,18 @@
             vodLoading.style.display = 'block';
             vodListContainer.innerHTML = '';
             try {
-                const res = await fetchPocketAPI('/live/api/v1/live/getLiveList', JSON.stringify({ debug: true, next: 0, groupId: 0, record: false }));
+                const res = await fetchPocketAPI('/live/api/v1/live/getLiveList', JSON.stringify({
+                    debug: true,
+                    next: 0,
+                    groupId: 0,
+                    record: false
+                }));
                 vodLoading.style.display = 'none';
                 if (res && res.status === 200 && res.content && res.content.liveList && res.content.liveList.length > 0) renderLiveList(res.content.liveList);
                 else vodListContainer.innerHTML = '<div style="width:100%; text-align:center; color:#888;">当前没有成员在直播</div>';
-            } catch (err) { vodLoading.textContent = '获取失败，请检查网络'; }
+            } catch (err) {
+                vodLoading.textContent = '获取失败，请检查网络';
+            }
         }
 
         function renderLiveList(list) {
@@ -2623,8 +3007,12 @@
                 const card = document.createElement('div');
                 card.className = 'live-card';
                 const cover = item.coverPath ? `https://source.48.cn${item.coverPath}` : './icon.png';
-                let typeText = '视频', typeClass = 'badge-video';
-                if (item.liveType === 2) { typeText = '电台'; typeClass = 'badge-radio'; }
+                let typeText = '视频',
+                    typeClass = 'badge-video';
+                if (item.liveType === 2) {
+                    typeText = '电台';
+                    typeClass = 'badge-radio';
+                }
                 card.innerHTML = `
                     <div class="live-badge ${typeClass}">${typeText}</div>
                     <img src="${cover}" onclick="directToPotPlayer(event, '${item.liveId}')" title="点击头像直接调用PotPlayer播放" style="cursor: pointer;">
@@ -2635,9 +3023,7 @@
                 vodListContainer.appendChild(card);
             });
         }
-
         let liveRecordCount = 0;
-
         async function playLiveStream(item, mode) {
             liveRecordCount = 0;
             currentPlayingItem = item;
@@ -2661,7 +3047,9 @@
             if (oldNotice) oldNotice.remove();
             liveVideo.style.display = 'none';
             try {
-                const res = await fetchPocketAPI('/live/api/v1/live/getLiveOne', JSON.stringify({ liveId: item.liveId }));
+                const res = await fetchPocketAPI('/live/api/v1/live/getLiveOne', JSON.stringify({
+                    liveId: item.liveId
+                }));
                 if (res && res.status === 200 && res.content) {
                     const streamUrl = res.content.playStreamPath;
                     const title = item.title || item.liveTitle;
@@ -2673,7 +3061,7 @@
                             const secureUrl = danmuUrl.replace(/^http:\/\//i, 'https://');
                             const danmuText = await fetchDanmuNative(secureUrl);
                             danmuData = parsePocketDanmu(danmuText);
-                        } catch (e) { }
+                        } catch (e) {}
                     }
                     startPlayer(streamUrl, title, isLive, res.content.chatroomId, danmuData);
                 } else {
@@ -2713,18 +3101,14 @@
         function resetClipTool() {
             clipStartTime = null;
             clipEndTime = null;
-            currentRecordTaskId = null; 
-    
-            updateClipUI(); 
-    
+            currentRecordTaskId = null;
+            updateClipUI();
             const startEl = document.getElementById('clip-start-display');
             const endEl = document.getElementById('clip-end-display');
             if (startEl) startEl.textContent = "起点: 未设置";
             if (endEl) endEl.textContent = "终点: 未设置";
-    
             console.log("切片工具已随视频切换自动重置");
         }
-
         let currentRecordTaskId = null;
 
         function setClipStart() {
@@ -2736,7 +3120,10 @@
                 }
                 currentRecordTaskId = 'rec_' + Date.now();
                 const url = art.option.url;
-                ipcRenderer.send('start-record', { url: url, taskId: currentRecordTaskId });
+                ipcRenderer.send('start-record', {
+                    url: url,
+                    taskId: currentRecordTaskId
+                });
                 document.getElementById('clip-start-display').textContent = "🔴 状态: 正在录制...";
                 if (dp) dp.notice('🔴 后台录制已开启');
             } else {
@@ -2764,7 +3151,10 @@
                     timeStr = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}.${pad(d.getMinutes())}.${pad(d.getSeconds())}`;
                 }
                 const fileName = `直播切片_【${nickname}】${timeStr}_${liveRecordCount}`;
-                ipcRenderer.send('stop-record', { taskId: currentRecordTaskId, fileName: fileName });
+                ipcRenderer.send('stop-record', {
+                    taskId: currentRecordTaskId,
+                    fileName: fileName
+                });
                 const downloadList = document.getElementById('downloadList');
                 if (downloadList.innerText.includes('暂无')) downloadList.innerHTML = '';
                 downloadList.insertAdjacentHTML('afterbegin', `
@@ -2783,9 +3173,15 @@
                 document.getElementById('clip-end-display').textContent = "✅ 录制请求已提交";
                 currentRecordTaskId = null;
             } else {
-                if (clipStartTime === null) { art.notice.show = '❌ 请先设置起点'; return; }
+                if (clipStartTime === null) {
+                    art.notice.show = '❌ 请先设置起点';
+                    return;
+                }
                 const current = art.currentTime;
-                if (current <= clipStartTime) { art.notice.show = '❌ 终点必须晚于起点'; return; }
+                if (current <= clipStartTime) {
+                    art.notice.show = '❌ 终点必须晚于起点';
+                    return;
+                }
                 clipEndTime = current;
                 updateClipUI();
                 art.notice.show = `已设定终点: ${formatDuration(clipEndTime * 1000)}`;
@@ -2795,19 +3191,28 @@
         function executeClip() {
             if (!art || clipStartTime === null || clipEndTime === null) return;
             const duration = clipEndTime - clipStartTime;
-            if (duration <= 0.5) { art.notice.show = '❌ 片段太短'; return; }
+            if (duration <= 0.5) {
+                art.notice.show = '❌ 片段太短';
+                return;
+            }
             const nickname = currentPlayingItem?.userInfo?.nickname || currentPlayingItem?.nickname || '未知成员';
             const baseTimeNum = Number(currentPlayingItem?.startTime || currentPlayingItem?.ctime || Date.now());
             const d = new Date(baseTimeNum);
             const pad = (n) => String(n).padStart(2, '0');
             const streamStartDateStr = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}.${pad(d.getMinutes())}.${pad(d.getSeconds())}`;
             const formatRelativeTime = (s) => {
-                const ts = Math.floor(s), h = Math.floor(ts / 3600), m = Math.floor((ts % 3600) / 60), sec = ts % 60;
+                const ts = Math.floor(s),
+                    h = Math.floor(ts / 3600),
+                    m = Math.floor((ts % 3600) / 60),
+                    sec = ts % 60;
                 return h > 0 ? `${pad(h)}.${pad(m)}.${pad(sec)}` : `${pad(m)}.${pad(sec)}`;
             };
-            const startStrFile = formatRelativeTime(clipStartTime), endStrFile = formatRelativeTime(clipEndTime);
+            const startStrFile = formatRelativeTime(clipStartTime),
+                endStrFile = formatRelativeTime(clipEndTime);
             const formatRelativeTimeUI = (s) => {
-                const ts = Math.floor(s), m = Math.floor(ts / 60), sec = ts % 60;
+                const ts = Math.floor(s),
+                    m = Math.floor(ts / 60),
+                    sec = ts % 60;
                 return `${pad(m)}:${pad(sec)}`;
             };
             const fileName = `【${nickname}】${streamStartDateStr}~${startStrFile}_${endStrFile}`;
@@ -2832,10 +3237,17 @@
                 </div>
             `);
             art.notice.show = '🚀 切片任务已开始';
-            window.ipcRenderer.send('clip-vod', { url: art.option.url, fileName: fileName, startTime: clipStartTime, duration: duration, taskId: taskId });
+            window.ipcRenderer.send('clip-vod', {
+                url: art.option.url,
+                fileName: fileName,
+                startTime: clipStartTime,
+                duration: duration,
+                taskId: taskId
+            });
         }
-        let nimInstance = null, dp = null, art = null;
-
+        let nimInstance = null,
+            dp = null,
+            art = null;
         async function startPlayer(url, title = '直播/回放', isLiveContent = false, chatroomId = null, vodDanmuData = []) {
             destroyPlayers();
             const container = document.getElementById('live-player-container');
@@ -2848,23 +3260,43 @@
                     let flvPlayer = null;
                     dp = new DPlayer({
                         container: document.getElementById('dplayer-container'),
-                        live: false, autoplay: true, theme: '#9b6a9c',
+                        live: false,
+                        autoplay: true,
+                        theme: '#9b6a9c',
                         video: {
-                            url: localUrl, type: 'customFlv',
+                            url: localUrl,
+                            type: 'customFlv',
                             customType: {
-                                customFlv: function (video) {
-                                    flvPlayer = mpegts.createPlayer({ type: 'flv', url: localUrl, isLive: true, enableWorker: false, enableStashBuffer: false });
-                                    flvPlayer.attachMediaElement(video); flvPlayer.load();
+                                customFlv: function(video) {
+                                    flvPlayer = mpegts.createPlayer({
+                                        type: 'flv',
+                                        url: localUrl,
+                                        isLive: true,
+                                        enableWorker: false,
+                                        enableStashBuffer: false
+                                    });
+                                    flvPlayer.attachMediaElement(video);
+                                    flvPlayer.load();
                                 }
                             }
                         }
                     });
                     art = {
-                        get currentTime() { return dp.video.currentTime; },
-                        get notice() { return { show: (msg) => dp.notice(msg) }; },
-                        option: { url: localUrl }
+                        get currentTime() {
+                            return dp.video.currentTime;
+                        },
+                        get notice() {
+                            return {
+                                show: (msg) => dp.notice(msg)
+                            };
+                        },
+                        option: {
+                            url: localUrl
+                        }
                     };
-                    clipStartTime = null; clipEndTime = null; updateClipUI();
+                    clipStartTime = null;
+                    clipEndTime = null;
+                    updateClipUI();
                     setInterval(() => {
                         if (flvPlayer && flvPlayer.buffered.length) {
                             let diff = flvPlayer.buffered.end(0) - flvPlayer.currentTime;
@@ -2872,7 +3304,9 @@
                         }
                     }, 3000);
                     if (chatroomId) initLiveDanmu(chatroomId);
-                } catch (err) { container.innerHTML = `<div style="color:red">播放失败: ${err.message}</div>`; }
+                } catch (err) {
+                    container.innerHTML = `<div style="color:red">播放失败: ${err.message}</div>`;
+                }
                 return;
             }
             container.innerHTML = '<div class="artplayer-app"></div>';
@@ -2886,106 +3320,266 @@
                         text = text.replace(/(^|[\r\n]+)\d+([\r\n]+)(?=\d{2}:\d{2}:\d{2})/g, '$1');
                         text = text.replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2');
                         if (!text.startsWith('WEBVTT')) text = 'WEBVTT\n\n' + text;
-                        const url = URL.createObjectURL(new Blob([text], { type: 'text/vtt;charset=utf-8' }));
-                        art.subtitle.switch(url, { type: 'vtt', name: '本地字幕' }).then(() => { if (art.notice) art.notice.show = `字幕加载成功: ${file.name}`; });
+                        const url = URL.createObjectURL(new Blob([text], {
+                            type: 'text/vtt;charset=utf-8'
+                        }));
+                        art.subtitle.switch(url, {
+                            type: 'vtt',
+                            name: '本地字幕'
+                        }).then(() => {
+                            if (art.notice) art.notice.show = `字幕加载成功: ${file.name}`;
+                        });
                     };
                     reader.readAsText(file);
                 } else {
                     const url = URL.createObjectURL(file);
-                    art.subtitle.switch(url, { type: ext, name: '本地字幕' }).then(() => { if (art.notice) art.notice.show = `字幕加载成功: ${file.name}`; });
+                    art.subtitle.switch(url, {
+                        type: ext,
+                        name: '本地字幕'
+                    }).then(() => {
+                        if (art.notice) art.notice.show = `字幕加载成功: ${file.name}`;
+                    });
                 }
             };
             let subInput = document.getElementById('art-subtitle-loader');
             if (!subInput) {
-                subInput = document.createElement('input'); subInput.type = 'file'; subInput.id = 'art-subtitle-loader';
-                subInput.accept = '.srt,.vtt,.ass'; subInput.style.display = 'none'; document.body.appendChild(subInput);
+                subInput = document.createElement('input');
+                subInput.type = 'file';
+                subInput.id = 'art-subtitle-loader';
+                subInput.accept = '.srt,.vtt,.ass';
+                subInput.style.display = 'none';
+                document.body.appendChild(subInput);
             }
-            subInput.onchange = (e) => { loadSubtitle(e.target.files[0]); subInput.value = ''; };
+            subInput.onchange = (e) => {
+                loadSubtitle(e.target.files[0]);
+                subInput.value = '';
+            };
             if (window.Artplayer) Artplayer.CONTEXTMENU = false;
             art = new Artplayer({
-                container: '.artplayer-app', url: url, title: title, isLive: isLiveContent, theme: '#FF8EBF',
-                autoSize: false, fullscreen: true, fullscreenWeb: true, setting: true, subtitleOffset: true,
-                screenshot: true, pip: true, flip: true, playbackRate: true, aspectRatio: true, contextmenu: [],
-                subtitle: { url: '', type: 'vtt', encoding: 'utf-8', style: { color: '#FFFFFF', fontSize: '30px', fontWeight: 'bold', textShadow: '0 2px 4px rgba(0,0,0,0.8), 0 0 2px #000', fontFamily: 'sans-serif', marginBottom: '30px', backgroundColor: 'transparent' } },
-                settings: [
-                    {
-                        html: '字幕颜色', width: 250, tooltip: '白色',
-                        selector: [
-                            { html: '<span style="color:#ffffff; font-weight:bold;">白色</span>', url: '#FFFFFF', default: true },
-                            { html: '<span style="color:#ffff00; font-weight:bold;">黄色</span>', url: '#FFFF00' },
-                            { html: '<span style="color:#00ff00; font-weight:bold;">绿色</span>', url: '#00FF00' },
-                            { html: '<span style="color:#ff0000; font-weight:bold;">红色</span>', url: '#FF0000' },
-                            { html: '<span style="color:#00ffff; font-weight:bold;">青色</span>', url: '#00FFFF' },
-                            { html: '<span style="color:#ff00ff; font-weight:bold;">洋红</span>', url: '#FF00FF' }
+                container: '.artplayer-app',
+                url: url,
+                title: title,
+                isLive: isLiveContent,
+                theme: '#FF8EBF',
+                autoSize: false,
+                fullscreen: true,
+                fullscreenWeb: true,
+                setting: true,
+                subtitleOffset: true,
+                screenshot: true,
+                pip: true,
+                flip: true,
+                playbackRate: true,
+                aspectRatio: true,
+                contextmenu: [],
+                subtitle: {
+                    url: '',
+                    type: 'vtt',
+                    encoding: 'utf-8',
+                    style: {
+                        color: '#FFFFFF',
+                        fontSize: '30px',
+                        fontWeight: 'bold',
+                        textShadow: '0 2px 4px rgba(0,0,0,0.8), 0 0 2px #000',
+                        fontFamily: 'sans-serif',
+                        marginBottom: '30px',
+                        backgroundColor: 'transparent'
+                    }
+                },
+                settings: [{
+                        html: '字幕颜色',
+                        width: 250,
+                        tooltip: '白色',
+                        selector: [{
+                                html: '<span style="color:#ffffff; font-weight:bold;">白色</span>',
+                                url: '#FFFFFF',
+                                default: true
+                            },
+                            {
+                                html: '<span style="color:#ffff00; font-weight:bold;">黄色</span>',
+                                url: '#FFFF00'
+                            },
+                            {
+                                html: '<span style="color:#00ff00; font-weight:bold;">绿色</span>',
+                                url: '#00FF00'
+                            },
+                            {
+                                html: '<span style="color:#ff0000; font-weight:bold;">红色</span>',
+                                url: '#FF0000'
+                            },
+                            {
+                                html: '<span style="color:#00ffff; font-weight:bold;">青色</span>',
+                                url: '#00FFFF'
+                            },
+                            {
+                                html: '<span style="color:#ff00ff; font-weight:bold;">洋红</span>',
+                                url: '#FF00FF'
+                            }
                         ],
-                        onSelect: function (item) { art.subtitle.style('color', item.url); return item.html; }
+                        onSelect: function(item) {
+                            art.subtitle.style('color', item.url);
+                            return item.html;
+                        }
                     },
                     {
-                        html: '字幕大小', width: 250, tooltip: '30px',
-                        selector: [
-                            { html: '20px (小)', url: '20px' },
-                            { html: '30px (标准)', url: '30px', default: true },
-                            { html: '40px (大)', url: '40px' },
-                            { html: '50px (特大)', url: '50px' },
-                            { html: '60px (极大)', url: '60px' },
-                            { html: '80px (巨型)', url: '80px' }
+                        html: '字幕大小',
+                        width: 250,
+                        tooltip: '30px',
+                        selector: [{
+                                html: '20px (小)',
+                                url: '20px'
+                            },
+                            {
+                                html: '30px (标准)',
+                                url: '30px',
+                                default: true
+                            },
+                            {
+                                html: '40px (大)',
+                                url: '40px'
+                            },
+                            {
+                                html: '50px (特大)',
+                                url: '50px'
+                            },
+                            {
+                                html: '60px (极大)',
+                                url: '60px'
+                            },
+                            {
+                                html: '80px (巨型)',
+                                url: '80px'
+                            }
                         ],
-                        onSelect: function (item) { art.subtitle.style('fontSize', item.url); return item.html; }
+                        onSelect: function(item) {
+                            art.subtitle.style('fontSize', item.url);
+                            return item.html;
+                        }
                     },
                     {
-                        html: '垂直位置', width: 250, tooltip: '30px',
-                        selector: [
-                            { html: '0px (最底)', url: '0px' },
-                            { html: '30px (标准)', url: '30px', default: true },
-                            { html: '60px (偏高)', url: '60px' },
-                            { html: '100px (高)', url: '100px' },
-                            { html: '150px (很高)', url: '150px' }
+                        html: '垂直位置',
+                        width: 250,
+                        tooltip: '30px',
+                        selector: [{
+                                html: '0px (最底)',
+                                url: '0px'
+                            },
+                            {
+                                html: '30px (标准)',
+                                url: '30px',
+                                default: true
+                            },
+                            {
+                                html: '60px (偏高)',
+                                url: '60px'
+                            },
+                            {
+                                html: '100px (高)',
+                                url: '100px'
+                            },
+                            {
+                                html: '150px (很高)',
+                                url: '150px'
+                            }
                         ],
-                        onSelect: function (item) { art.subtitle.style('marginBottom', item.url); return item.html; }
+                        onSelect: function(item) {
+                            art.subtitle.style('marginBottom', item.url);
+                            return item.html;
+                        }
                     }
                 ],
-                controls: [{ name: 'upload-subtitle', position: 'right', html: '字幕', tooltip: '加载本地字幕', click: function () { subInput.click(); } }],
-                plugins: [artplayerPluginDanmuku({ danmuku: isLiveContent ? [] : vodDanmuData, speed: 8, opacity: 1, fontSize: 25, color: '#FFFFFF', theme: 'dark', mode: 0, margin: [10, '25%'], antiOverlap: true, useWorker: true, synchronousPlayback: false, emitter: false, heatmap: true, points: [] })],
+                controls: [{
+                    name: 'upload-subtitle',
+                    position: 'right',
+                    html: '字幕',
+                    tooltip: '加载本地字幕',
+                    click: function() {
+                        subInput.click();
+                    }
+                }],
+                plugins: [artplayerPluginDanmuku({
+                    danmuku: isLiveContent ? [] : vodDanmuData,
+                    speed: 8,
+                    opacity: 1,
+                    fontSize: 25,
+                    color: '#FFFFFF',
+                    theme: 'dark',
+                    mode: 0,
+                    margin: [10, '25%'],
+                    antiOverlap: true,
+                    useWorker: true,
+                    synchronousPlayback: false,
+                    emitter: false,
+                    heatmap: true,
+                    points: []
+                })],
                 customType: {
-                    flv: function (video, url) {
+                    flv: function(video, url) {
                         if (window.mpegts && window.mpegts.getIsSupported()) {
-                            const player = window.mpegts.createPlayer({ type: 'flv', url: url, isLive: isLiveContent });
-                            player.attachMediaElement(video); player.load(); video.mpegts = player;
+                            const player = window.mpegts.createPlayer({
+                                type: 'flv',
+                                url: url,
+                                isLive: isLiveContent
+                            });
+                            player.attachMediaElement(video);
+                            player.load();
+                            video.mpegts = player;
                         } else video.src = url;
                     },
-                    m3u8: function (video, url) {
+                    m3u8: function(video, url) {
                         if (window.Hls && window.Hls.isSupported()) {
-                            const hls = new window.Hls(); hls.loadSource(url); hls.attachMedia(video); video.hls = hls;
+                            const hls = new window.Hls();
+                            hls.loadSource(url);
+                            hls.attachMedia(video);
+                            video.hls = hls;
                         } else video.src = url;
                     },
                 },
             });
             if (chatroomId && isLiveContent) {
                 nimInstance = NIM.Chatroom.getInstance({
-                    appKey: '632feff1f4c838541ab75195d1ceb3fa', chatroomId: chatroomId,
-                    chatroomAddresses: ['chatweblink01.netease.im:443'], isAnonymous: true,
+                    appKey: '632feff1f4c838541ab75195d1ceb3fa',
+                    chatroomId: chatroomId,
+                    chatroomAddresses: ['chatweblink01.netease.im:443'],
+                    isAnonymous: true,
                     chatroomNick: 'guest_' + Math.floor(Math.random() * 10000),
-                    onconnect: () => { if (art && art.notice) art.notice.show = '弹幕服务器已连接'; },
-                    onmsgs: (msgs) => { msgs.forEach(msg => handlePocketMessage(msg, art)); }
+                    onconnect: () => {
+                        if (art && art.notice) art.notice.show = '弹幕服务器已连接';
+                    },
+                    onmsgs: (msgs) => {
+                        msgs.forEach(msg => handlePocketMessage(msg, art));
+                    }
                 });
             }
             art.on('ready', () => {
-                const removeInput = () => { document.querySelectorAll('.art-control-danmuku-input, .art-danmuku-input, .art-control-danmuku-send').forEach(el => el.remove()); };
-                removeInput(); setTimeout(removeInput, 500); art.play();
+                const removeInput = () => {
+                    document.querySelectorAll('.art-control-danmuku-input, .art-danmuku-input, .art-control-danmuku-send').forEach(el => el.remove());
+                };
+                removeInput();
+                setTimeout(removeInput, 500);
+                art.play();
             });
         }
 
         function initDanmuForDPlayer(chatroomId) {
             nimInstance = NIM.Chatroom.getInstance({
-                appKey: '632feff1f4c838541ab75195d1ceb3fa', chatroomId: chatroomId,
-                chatroomAddresses: ['chatweblink01.netease.im:443'], isAnonymous: true,
+                appKey: '632feff1f4c838541ab75195d1ceb3fa',
+                chatroomId: chatroomId,
+                chatroomAddresses: ['chatweblink01.netease.im:443'],
+                isAnonymous: true,
                 chatroomNick: 'guest_' + Math.floor(Math.random() * 10000),
-                onconnect: () => { if (dp) dp.notice('弹幕服务器已连接'); },
+                onconnect: () => {
+                    if (dp) dp.notice('弹幕服务器已连接');
+                },
                 onmsgs: (msgs) => {
                     msgs.forEach(msg => {
                         const custom = JSON.parse(msg.custom || '{}');
                         let text = msg.type === 'text' ? msg.text : (custom.text || "");
-                        if (text && dp && dp.danmaku) dp.danmaku.draw({ text: text, color: '#fff', type: 'right' });
+                        if (text && dp && dp.danmaku) dp.danmaku.draw({
+                            text: text,
+                            color: '#fff',
+                            type: 'right'
+                        });
                     });
                 }
             });
@@ -2993,12 +3587,25 @@
 
         function destroyPlayers() {
             if (art && art.destroy) {
-                if (art.video.mpegts) { art.video.mpegts.destroy(); art.video.mpegts = null; }
-                if (art.video.hls) { art.video.hls.destroy(); art.video.hls = null; }
-                art.destroy(true); art = null;
+                if (art.video.mpegts) {
+                    art.video.mpegts.destroy();
+                    art.video.mpegts = null;
+                }
+                if (art.video.hls) {
+                    art.video.hls.destroy();
+                    art.video.hls = null;
+                }
+                art.destroy(true);
+                art = null;
             }
-            if (dp) { dp.destroy(); dp = null; }
-            if (nimInstance) { nimInstance.disconnect(); nimInstance = null; }
+            if (dp) {
+                dp.destroy();
+                dp = null;
+            }
+            if (nimInstance) {
+                nimInstance.disconnect();
+                nimInstance = null;
+            }
             const container = document.getElementById('live-player-container');
             if (container) container.innerHTML = '';
         }
@@ -3007,16 +3614,34 @@
             const wrapper = document.createElement('div');
             wrapper.className = 'audio-wrapper';
             wrapper.innerHTML = `<div class="audio-control-icon">▶</div><div class="audio-wave-box"><div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div></div><span class="audio-duration">语音</span><audio style="display:none" preload="metadata" src="${url}"></audio>`;
-            const audio = wrapper.querySelector('audio'), icon = wrapper.querySelector('.audio-control-icon'), timeDisplay = wrapper.querySelector('.audio-duration');
-            audio.onloadedmetadata = () => { timeDisplay.innerText = `${Math.floor(audio.duration / 60)}:${Math.floor(audio.duration % 60).toString().padStart(2, '0')}`; };
-            wrapper.onclick = (e) => {
-                e.preventDefault(); e.stopPropagation();
-                if (audio.paused) {
-                    if (currentPlayingAudio && currentPlayingAudio !== audio) { currentPlayingAudio.pause(); }
-                    audio.play(); currentPlayingAudio = audio; wrapper.classList.add('playing'); icon.innerText = '⏸';
-                } else { audio.pause(); wrapper.classList.remove('playing'); icon.innerText = '▶'; }
+            const audio = wrapper.querySelector('audio'),
+                icon = wrapper.querySelector('.audio-control-icon'),
+                timeDisplay = wrapper.querySelector('.audio-duration');
+            audio.onloadedmetadata = () => {
+                timeDisplay.innerText = `${Math.floor(audio.duration / 60)}:${Math.floor(audio.duration % 60).toString().padStart(2, '0')}`;
             };
-            audio.onended = () => { wrapper.classList.remove('playing'); icon.innerText = '▶'; currentPlayingAudio = null; };
+            wrapper.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (audio.paused) {
+                    if (currentPlayingAudio && currentPlayingAudio !== audio) {
+                        currentPlayingAudio.pause();
+                    }
+                    audio.play();
+                    currentPlayingAudio = audio;
+                    wrapper.classList.add('playing');
+                    icon.innerText = '⏸';
+                } else {
+                    audio.pause();
+                    wrapper.classList.remove('playing');
+                    icon.innerText = '▶';
+                }
+            };
+            audio.onended = () => {
+                wrapper.classList.remove('playing');
+                icon.innerText = '▶';
+                currentPlayingAudio = null;
+            };
             return wrapper;
         }
 
@@ -3024,22 +3649,37 @@
             const wrapper = document.createElement('div');
             wrapper.className = 'video-wrapper';
             wrapper.innerHTML = `<video src="${url}" preload="none" width="100%"></video><div class="video-overlay"><div class="play-btn-glass"></div></div>`;
-            const video = wrapper.querySelector('video'), overlay = wrapper.querySelector('.video-overlay');
+            const video = wrapper.querySelector('video'),
+                overlay = wrapper.querySelector('.video-overlay');
             overlay.onclick = (e) => {
                 e.stopPropagation();
                 if (currentPlayingVideo && currentPlayingVideo !== video) {
-                    currentPlayingVideo.pause(); currentPlayingVideo.controls = false;
-                    const oldWrapper = currentPlayingVideo.closest('.video-wrapper'); if (oldWrapper) oldWrapper.classList.remove('is-playing');
+                    currentPlayingVideo.pause();
+                    currentPlayingVideo.controls = false;
+                    const oldWrapper = currentPlayingVideo.closest('.video-wrapper');
+                    if (oldWrapper) oldWrapper.classList.remove('is-playing');
                 }
-                if (currentPlayingAudio) { currentPlayingAudio.pause(); currentPlayingAudio = null; }
-                currentPlayingVideo = video; video.controls = true; video.play(); wrapper.classList.add('is-playing');
+                if (currentPlayingAudio) {
+                    currentPlayingAudio.pause();
+                    currentPlayingAudio = null;
+                }
+                currentPlayingVideo = video;
+                video.controls = true;
+                video.play();
+                wrapper.classList.add('is-playing');
             };
-            video.onended = () => { wrapper.classList.remove('is-playing'); video.controls = false; if (currentPlayingVideo === video) currentPlayingVideo = null; };
+            video.onended = () => {
+                wrapper.classList.remove('is-playing');
+                video.controls = false;
+                if (currentPlayingVideo === video) currentPlayingVideo = null;
+            };
             video.onplay = () => {
                 if (currentPlayingAudio) currentPlayingAudio.pause();
                 if (currentPlayingVideo && currentPlayingVideo !== video) {
-                    currentPlayingVideo.pause(); currentPlayingVideo.controls = false;
-                    const oldWrapper = currentPlayingVideo.closest('.video-wrapper'); if (oldWrapper) oldWrapper.classList.remove('is-playing');
+                    currentPlayingVideo.pause();
+                    currentPlayingVideo.controls = false;
+                    const oldWrapper = currentPlayingVideo.closest('.video-wrapper');
+                    if (oldWrapper) oldWrapper.classList.remove('is-playing');
                 }
                 currentPlayingVideo = video;
             };
@@ -3062,14 +3702,18 @@
             updateThemeBtn(next);
         }
 
-        function updateThemeBtn(theme) { themeBtn.textContent = theme === 'dark' ? '🌙 模式' : '🌞 模式'; }
+        function updateThemeBtn(theme) {
+            themeBtn.textContent = theme === 'dark' ? '🌙 模式' : '🌞 模式';
+        }
         bgInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
                 const reader = new FileReader();
                 reader.onload = (ev) => {
                     document.body.style.backgroundImage = `url('${ev.target.result}')`;
-                    try { localStorage.setItem('custom_bg_data', ev.target.result); } catch (e) { }
+                    try {
+                        localStorage.setItem('custom_bg_data', ev.target.result);
+                    } catch (e) {}
                 };
                 reader.readAsDataURL(file);
             }
@@ -3088,31 +3732,54 @@
                 cleanRow.querySelectorAll('audio').forEach(el => el.remove());
                 if (cleanRow.querySelector('time')) cleanRow.querySelector('time').remove();
                 if (cleanRow.querySelector('div.mb-2')) cleanRow.querySelector('div.mb-2').remove();
-                let audioUrl = '', videoUrl = '', liveId = null, isLiveText = false, liveTitle = '';
+                let audioUrl = '',
+                    videoUrl = '',
+                    liveId = null,
+                    isLiveText = false,
+                    liveTitle = '';
                 const idMatch = cleanRow.innerHTML.match(/[?&]id=(\d+)/);
                 if (idMatch) {
                     liveId = idMatch[1];
-                    cleanRow.querySelectorAll('div, p').forEach(node => { if (node.innerText.includes('直播') && node.innerText.includes('http')) node.remove(); });
+                    cleanRow.querySelectorAll('div, p').forEach(node => {
+                        if (node.innerText.includes('直播') && node.innerText.includes('http')) node.remove();
+                    });
                 }
                 row.querySelectorAll('div').forEach(div => {
                     const txt = div.innerText.trim();
                     if (/^(音频|语音)[\s\u00A0]*[-–—][\s\u00A0]*http/i.test(txt)) {
-                        const link = div.querySelector('a'); if (link) audioUrl = link.href;
-                        else { const match = txt.match(/http\S+/); if (match) audioUrl = match[0]; }
+                        const link = div.querySelector('a');
+                        if (link) audioUrl = link.href;
+                        else {
+                            const match = txt.match(/http\S+/);
+                            if (match) audioUrl = match[0];
+                        }
                     }
                     if (/^(视频)[\s\u00A0]*[-–—][\s\u00A0]*http/i.test(txt)) {
-                        const link = div.querySelector('a'); if (link) videoUrl = link.href;
-                        else { const match = txt.match(/http\S+/); if (match) videoUrl = match[0]; }
+                        const link = div.querySelector('a');
+                        if (link) videoUrl = link.href;
+                        else {
+                            const match = txt.match(/http\S+/);
+                            if (match) videoUrl = match[0];
+                        }
                     }
                 });
-                cleanRow.querySelectorAll('div, p').forEach(node => { if (/^(图片|视频|音频|语音)[\s\u00A0]*[-–—][\s\u00A0]*http/i.test(node.innerText.trim())) node.remove(); });
+                cleanRow.querySelectorAll('div, p').forEach(node => {
+                    if (/^(图片|视频|音频|语音)[\s\u00A0]*[-–—][\s\u00A0]*http/i.test(node.innerText.trim())) node.remove();
+                });
                 const textLiveMatch = cleanRow.innerText.trim().match(/(?:^|\s)直播(?:通知)?[\s\u00A0]*[-–—:：~]\s*([^\r\n]*)/i);
-                if (!liveId && textLiveMatch) { isLiveText = true; liveTitle = textLiveMatch[1].trim() || '直播回放'; cleanRow.innerHTML = ''; }
-                let avatarHtml = '', nameStr = 'Unknown';
+                if (!liveId && textLiveMatch) {
+                    isLiveText = true;
+                    liveTitle = textLiveMatch[1].trim() || '直播回放';
+                    cleanRow.innerHTML = '';
+                }
+                let avatarHtml = '',
+                    nameStr = 'Unknown';
                 const originalHeader = row.querySelector('div.mb-2');
                 if (originalHeader) {
-                    const img = originalHeader.querySelector('img'); if (img) avatarHtml = img.outerHTML;
-                    const span = originalHeader.querySelector('span'); if (span) nameStr = span.innerText;
+                    const img = originalHeader.querySelector('img');
+                    if (img) avatarHtml = img.outerHTML;
+                    const span = originalHeader.querySelector('span');
+                    if (span) nameStr = span.innerText;
                 }
                 let rowHtml = cleanRow.innerHTML;
                 const isFlip = rowHtml.includes('翻牌问题：') && rowHtml.includes('回答：');
@@ -3122,119 +3789,228 @@
                     if (cleanRow.querySelector('blockquote')) cleanRow.querySelector('blockquote').classList.add('flip-message-quote');
                     cleanRow.innerHTML = rowHtml;
                 }
-                let year = '', month = '', day = '', dateFull = '';
+                let year = '',
+                    month = '',
+                    day = '',
+                    dateFull = '';
                 if (timeStr) {
-                    const datePart = timeStr.split(' ')[0]; dateFull = datePart;
+                    const datePart = timeStr.split(' ')[0];
+                    dateFull = datePart;
                     const parts = datePart.split('-');
-                    if (parts.length === 3) { year = parts[0]; month = parseInt(parts[1]).toString(); day = parseInt(parts[2]).toString(); }
+                    if (parts.length === 3) {
+                        year = parts[0];
+                        month = parseInt(parts[1]).toString();
+                        day = parseInt(parts[2]).toString();
+                    }
                 }
                 extracted.push({
-                    avatarHtml, nameStr, contentHtml: cleanRow.innerHTML, text: cleanRow.innerText.toLowerCase(), timeStr,
-                    year, month, day, dateFull, hasImg: !!cleanRow.querySelector('img:not(.avatar)'),
+                    avatarHtml,
+                    nameStr,
+                    contentHtml: cleanRow.innerHTML,
+                    text: cleanRow.innerText.toLowerCase(),
+                    timeStr,
+                    year,
+                    month,
+                    day,
+                    dateFull,
+                    hasImg: !!cleanRow.querySelector('img:not(.avatar)'),
                     hasVideo: row.innerText.includes('视频') && (row.innerText.includes('http') || !!cleanRow.querySelector('video')),
                     hasAudio: !!audioUrl || row.innerText.includes('音频'),
-                    audioUrl, videoUrl, isReply: isFlip, groupName, liveId, isLiveText, liveTitle
+                    audioUrl,
+                    videoUrl,
+                    isReply: isFlip,
+                    groupName,
+                    liveId,
+                    isLiveText,
+                    liveTitle
                 });
             });
             return extracted;
         }
 
         function renderNextBatch() {
-            if (renderedCount >= currentFilteredPosts.length) { loadingMoreDiv.style.display = 'none'; return; }
+            if (renderedCount >= currentFilteredPosts.length) {
+                loadingMoreDiv.style.display = 'none';
+                return;
+            }
             loadingMoreDiv.style.display = 'block';
             const nextBatch = currentFilteredPosts.slice(renderedCount, renderedCount + getBatchSize());
             const fragment = document.createDocumentFragment();
             nextBatch.forEach(post => {
-                const div = document.createElement('div'); div.className = 'Box-row';
-                const header = document.createElement('div'); header.className = 'user-header-row';
+                const div = document.createElement('div');
+                div.className = 'Box-row';
+                const header = document.createElement('div');
+                header.className = 'user-header-row';
                 header.innerHTML = `${post.avatarHtml}<div class="user-info-col"><div><span class="username">${post.nameStr}</span></div><span class="timestamp">${post.timeStr}</span></div>`;
-                const content = document.createElement('div'); content.innerHTML = post.contentHtml;
+                const content = document.createElement('div');
+                content.innerHTML = post.contentHtml;
                 try {
                     const audioRegex = /(?:音频[\s\u00A0]*[-–—][\s\u00A0]*)?(https?:\/\/[^\s<"']+\.(?:mp3|aac|m4a))/gi;
                     if (audioRegex.test(content.innerHTML)) content.innerHTML = content.innerHTML.replace(audioRegex, '<span class="temp-audio-placeholder" data-src="$1"></span>');
                     content.querySelectorAll('a, .temp-audio-placeholder').forEach(el => {
                         let src = el.tagName === 'SPAN' ? el.getAttribute('data-src') : (/\.(mp3|aac|m4a)$/i.test(el.href) ? el.href : '');
                         if (src) {
-                            const player = createCustomAudioPlayer(src); player.style.display = 'inline-flex'; player.style.margin = '4px 0';
+                            const player = createCustomAudioPlayer(src);
+                            player.style.display = 'inline-flex';
+                            player.style.margin = '4px 0';
                             if (el.tagName === 'A') el.parentNode.replaceChild(player, el);
-                            else { const parent = el.closest('a'); if (parent) parent.parentNode.replaceChild(player, parent); else el.parentNode.replaceChild(player, el); }
+                            else {
+                                const parent = el.closest('a');
+                                if (parent) parent.parentNode.replaceChild(player, parent);
+                                else el.parentNode.replaceChild(player, el);
+                            }
                         }
                     });
-                } catch (e) { }
+                } catch (e) {}
                 content.classList.add('message-content-clickable');
                 content.onclick = (e) => {
-                    if (e.target.tagName === 'IMG' && !e.target.classList.contains('avatar')) { openImageModal(e.target.src); return; }
+                    if (e.target.tagName === 'IMG' && !e.target.classList.contains('avatar')) {
+                        openImageModal(e.target.src);
+                        return;
+                    }
                     if (e.target.tagName === 'VIDEO' || e.target.closest('.audio-wrapper') || e.target.closest('.video-wrapper') || e.target.closest('.vod-card-row') || e.target.tagName === 'BUTTON') return;
                     openContextModal(post.originalIndex);
                 };
                 let hasVideoTag = false;
                 content.querySelectorAll('video').forEach(rawVideo => {
                     const src = rawVideo.src || rawVideo.querySelector('source')?.src;
-                    if (src) { rawVideo.parentNode.replaceChild(createCustomVideoPlayer(src), rawVideo); hasVideoTag = true; }
+                    if (src) {
+                        rawVideo.parentNode.replaceChild(createCustomVideoPlayer(src), rawVideo);
+                        hasVideoTag = true;
+                    }
                 });
                 if (post.videoUrl && !hasVideoTag) content.appendChild(createCustomVideoPlayer(post.videoUrl));
                 if (post.liveId) {
-                    const liveBtn = document.createElement('button'); liveBtn.className = 'btn btn-primary';
+                    const liveBtn = document.createElement('button');
+                    liveBtn.className = 'btn btn-primary';
                     liveBtn.style.cssText = 'margin-top: 8px; padding: 5px 15px; font-size: 13px; display: block;';
-                    liveBtn.innerHTML = '📺 观看直播回放'; liveBtn.onclick = (e) => { e.stopPropagation(); playArchiveFromMessage(post.liveId, post.nameStr, post.timeStr); };
+                    liveBtn.innerHTML = '📺 观看直播回放';
+                    liveBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        playArchiveFromMessage(post.liveId, post.nameStr, post.timeStr);
+                    };
                     content.appendChild(liveBtn);
                 } else if (post.isLiveText) {
-                    const card = document.createElement('div'); card.className = 'vod-card-row'; card.style.cssText = 'margin-top: 10px; width: 100%; box-sizing: border-box;';
-                    let coverSrc = './icon.png'; if (post.avatarHtml) { const srcMatch = post.avatarHtml.match(/src=['"]([^'"]+)['"]/); if (srcMatch) coverSrc = srcMatch[1]; }
+                    const card = document.createElement('div');
+                    card.className = 'vod-card-row';
+                    card.style.cssText = 'margin-top: 10px; width: 100%; box-sizing: border-box;';
+                    let coverSrc = './icon.png';
+                    if (post.avatarHtml) {
+                        const srcMatch = post.avatarHtml.match(/src=['"]([^'"]+)['"]/);
+                        if (srcMatch) coverSrc = srcMatch[1];
+                    }
                     card.innerHTML = `<div class="vod-row-cover-container" style="width:100px; height:56px;"><img src="${coverSrc}" style="width:100%; height:100%; object-fit: cover; border-radius: 6px;"><div class="vod-badge badge-replay">回放</div></div><div class="vod-row-info" style="height:56px;"><div class="vod-row-name">${post.nameStr}</div><div class="vod-row-title" style="font-size:13px;">${post.liveTitle || '直播记录'}</div><div class="vod-row-time" style="font-size:11px;">${post.timeStr}</div></div>`;
-                    card.onclick = (e) => { e.stopPropagation(); matchReplayByTime(post.nameStr, post.timeStr); }; content.appendChild(card);
+                    card.onclick = (e) => {
+                        e.stopPropagation();
+                        matchReplayByTime(post.nameStr, post.timeStr);
+                    };
+                    content.appendChild(card);
                 }
                 if (post.audioUrl && !content.querySelector('.audio-wrapper')) content.appendChild(createCustomAudioPlayer(post.audioUrl));
-                div.appendChild(header); div.appendChild(content); fragment.appendChild(div);
+                div.appendChild(header);
+                div.appendChild(content);
+                fragment.appendChild(div);
             });
-            outputList.appendChild(fragment); renderedCount += nextBatch.length;
+            outputList.appendChild(fragment);
+            renderedCount += nextBatch.length;
             if (scrollContainer.scrollHeight <= scrollContainer.clientHeight && renderedCount < currentFilteredPosts.length) renderNextBatch();
             updateStatus();
         }
 
         function initDateSelectors() {
-            allPosts.forEach(post => { if (post.year) availableYears.add(post.year); });
+            allPosts.forEach(post => {
+                if (post.year) availableYears.add(post.year);
+            });
             yearSelect.innerHTML = '<option value="all">全部</option>';
             Array.from(availableYears).sort().reverse().forEach(y => {
-                const opt = document.createElement('option'); opt.value = y; opt.textContent = `${y}年`; yearSelect.appendChild(opt);
+                const opt = document.createElement('option');
+                opt.value = y;
+                opt.textContent = `${y}年`;
+                yearSelect.appendChild(opt);
             });
-            resetMonthSelect(); resetDaySelect();
+            resetMonthSelect();
+            resetDaySelect();
         }
 
         function handleDateChange(level) {
-            if (level === 'year') { if (yearSelect.value === 'all') { resetMonthSelect(); resetDaySelect(); } else { populateMonths(yearSelect.value); monthSelect.disabled = false; } }
-            else if (level === 'month') { if (monthSelect.value === 'all') resetDaySelect(); else { populateDays(yearSelect.value, monthSelect.value); daySelect.disabled = false; } }
+            if (level === 'year') {
+                if (yearSelect.value === 'all') {
+                    resetMonthSelect();
+                    resetDaySelect();
+                } else {
+                    populateMonths(yearSelect.value);
+                    monthSelect.disabled = false;
+                }
+            } else if (level === 'month') {
+                if (monthSelect.value === 'all') resetDaySelect();
+                else {
+                    populateDays(yearSelect.value, monthSelect.value);
+                    daySelect.disabled = false;
+                }
+            }
             applyFilters();
         }
 
         function populateMonths(year) {
-            monthSelect.innerHTML = '<option value="all">全年</option>'; const months = new Set();
-            allPosts.forEach(p => { if (p.year == year) months.add(p.month); });
+            monthSelect.innerHTML = '<option value="all">全年</option>';
+            const months = new Set();
+            allPosts.forEach(p => {
+                if (p.year == year) months.add(p.month);
+            });
             Array.from(months).sort((a, b) => a - b).forEach(m => {
-                const opt = document.createElement('option'); opt.value = m; opt.textContent = `${m}月`; monthSelect.appendChild(opt);
+                const opt = document.createElement('option');
+                opt.value = m;
+                opt.textContent = `${m}月`;
+                monthSelect.appendChild(opt);
             });
             resetDaySelect();
         }
 
         function populateDays(year, month) {
-            daySelect.innerHTML = '<option value="all">全月</option>'; const days = new Set();
-            allPosts.forEach(p => { if (p.year == year && p.month == month) days.add(p.day); });
+            daySelect.innerHTML = '<option value="all">全月</option>';
+            const days = new Set();
+            allPosts.forEach(p => {
+                if (p.year == year && p.month == month) days.add(p.day);
+            });
             Array.from(days).sort((a, b) => a - b).forEach(d => {
-                const opt = document.createElement('option'); opt.value = d; opt.textContent = `${d}日`; daySelect.appendChild(opt);
+                const opt = document.createElement('option');
+                opt.value = d;
+                opt.textContent = `${d}日`;
+                daySelect.appendChild(opt);
             });
         }
 
-        function resetMonthSelect() { monthSelect.innerHTML = '<option value="all">全年</option>'; monthSelect.disabled = true; }
-        function resetDaySelect() { daySelect.innerHTML = '<option value="all">全月</option>'; daySelect.disabled = true; }
-        function resetDateFilter() { yearSelect.value = 'all'; resetMonthSelect(); resetDaySelect(); applyFilters(); }
+        function resetMonthSelect() {
+            monthSelect.innerHTML = '<option value="all">全年</option>';
+            monthSelect.disabled = true;
+        }
+
+        function resetDaySelect() {
+            daySelect.innerHTML = '<option value="all">全月</option>';
+            daySelect.disabled = true;
+        }
+
+        function resetDateFilter() {
+            yearSelect.value = 'all';
+            resetMonthSelect();
+            resetDaySelect();
+            applyFilters();
+        }
 
         function setFilter(type) {
-            filterType = type; document.querySelectorAll('.filter-chip').forEach(el => el.classList.remove('active'));
-            document.getElementById(`filter-${type}`).classList.add('active'); applyFilters();
+            filterType = type;
+            document.querySelectorAll('.filter-chip').forEach(el => el.classList.remove('active'));
+            document.getElementById(`filter-${type}`).classList.add('active');
+            applyFilters();
         }
 
         function applyFilters() {
-            const keyword = searchInput.value.trim().toLowerCase(), sortType = sortSelect.value, selYear = yearSelect.value, selMonth = monthSelect.value, selDay = daySelect.value, selGroup = groupSelect.value;
+            const keyword = searchInput.value.trim().toLowerCase(),
+                sortType = sortSelect.value,
+                selYear = yearSelect.value,
+                selMonth = monthSelect.value,
+                selDay = daySelect.value,
+                selGroup = groupSelect.value;
             currentFilteredPosts = allPosts.filter(post => {
                 if (selGroup !== 'all' && post.groupName !== selGroup) return false;
                 if (keyword && !post.text.includes(keyword)) return false;
@@ -3246,38 +4022,95 @@
                 else if (filterType === 'live-record') matchType = (post.liveId || post.isLiveText);
                 else if (filterType === 'text') matchType = !post.hasImg && !post.hasVideo && !post.hasAudio && !post.liveId && !post.isLiveText && !post.isReply;
                 if (!matchType) return false;
-                if (selYear !== 'all') { if (post.year != selYear) return false; if (selMonth !== 'all') { if (post.month != selMonth) return false; if (selDay !== 'all' && post.day != selDay) return false; } }
+                if (selYear !== 'all') {
+                    if (post.year != selYear) return false;
+                    if (selMonth !== 'all') {
+                        if (post.month != selMonth) return false;
+                        if (selDay !== 'all' && post.day != selDay) return false;
+                    }
+                }
                 return true;
             });
-            currentFilteredPosts.sort((a, b) => { const tA = new Date(a.timeStr).getTime() || 0, tB = new Date(b.timeStr).getTime() || 0; return sortType === 'desc' ? tB - tA : tA - tB; });
-            outputList.innerHTML = ''; renderedCount = 0; renderNextBatch(); updateStatus();
+            currentFilteredPosts.sort((a, b) => {
+                const tA = new Date(a.timeStr).getTime() || 0,
+                    tB = new Date(b.timeStr).getTime() || 0;
+                return sortType === 'desc' ? tB - tA : tA - tB;
+            });
+            outputList.innerHTML = '';
+            renderedCount = 0;
+            renderNextBatch();
+            updateStatus();
         }
 
         function updateStatus() {
-            const names = { 'all': '全部', 'text': '纯文字', 'image': '图片', 'video': '视频', 'audio': '语音', 'reply': '翻牌', 'live-record': '直播' };
+            const names = {
+                'all': '全部',
+                'text': '纯文字',
+                'image': '图片',
+                'video': '视频',
+                'audio': '语音',
+                'reply': '翻牌',
+                'live-record': '直播'
+            };
             statusMsg.textContent = `[${names[filterType]}] 找到 ${currentFilteredPosts.length} 条`;
         }
-        scrollContainer.addEventListener('scroll', () => { if (scrollContainer.scrollTop + scrollContainer.clientHeight >= scrollContainer.scrollHeight - 300) renderNextBatch(); });
+        scrollContainer.addEventListener('scroll', () => {
+            if (scrollContainer.scrollTop + scrollContainer.clientHeight >= scrollContainer.scrollHeight - 300) renderNextBatch();
+        });
         searchInput.addEventListener('input', applyFilters);
 
-        function openUserAnalysis() { userModal.style.display = 'flex'; userListContainer.innerHTML = '<div class="empty-state">正在分析互动数据...</div>'; setTimeout(() => { performUserAnalysis(); renderUserList(); }, 100); }
-        function closeUserAnalysis() { userModal.style.display = 'none'; }
-        function openDateAnalysis() { dateModal.style.display = 'flex'; dateListContainer.innerHTML = '<div class="empty-state">正在分析数据...</div>'; setTimeout(() => { performDateAnalysis(); renderDateList(); }, 100); }
-        function closeDateAnalysis() { dateModal.style.display = 'none'; }
+        function openUserAnalysis() {
+            userModal.style.display = 'flex';
+            userListContainer.innerHTML = '<div class="empty-state">正在分析互动数据...</div>';
+            setTimeout(() => {
+                performUserAnalysis();
+                renderUserList();
+            }, 100);
+        }
+
+        function closeUserAnalysis() {
+            userModal.style.display = 'none';
+        }
+
+        function openDateAnalysis() {
+            dateModal.style.display = 'flex';
+            dateListContainer.innerHTML = '<div class="empty-state">正在分析数据...</div>';
+            setTimeout(() => {
+                performDateAnalysis();
+                renderDateList();
+            }, 100);
+        }
+
+        function closeDateAnalysis() {
+            dateModal.style.display = 'none';
+        }
 
         function performUserAnalysis() {
-            const counts = {}, selGroup = groupSelect.value, sourceData = selGroup === 'all' ? allPosts : allPosts.filter(p => p.groupName === selGroup);
-            const modalTitle = document.querySelector('#userModal .modal-title'); if (modalTitle) modalTitle.innerText = selGroup === 'all' ? '互动榜 (全部)' : `互动榜 (${selGroup})`;
+            const counts = {},
+                selGroup = groupSelect.value,
+                sourceData = selGroup === 'all' ? allPosts : allPosts.filter(p => p.groupName === selGroup);
+            const modalTitle = document.querySelector('#userModal .modal-title');
+            if (modalTitle) modalTitle.innerText = selGroup === 'all' ? '互动榜 (全部)' : `互动榜 (${selGroup})`;
             sourceData.forEach(post => {
                 const match = post.contentHtml.match(/<blockquote[^>]*>\s*(.*?)[：:]/i);
-                if (match && match[1]) { let name = match[1].replace(/<[^>]+>/g, '').trim(); if (name) counts[name] = (counts[name] || 0) + 1; }
+                if (match && match[1]) {
+                    let name = match[1].replace(/<[^>]+>/g, '').trim();
+                    if (name) counts[name] = (counts[name] || 0) + 1;
+                }
             });
-            userStats = Object.entries(counts).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
+            userStats = Object.entries(counts).map(([name, count]) => ({
+                name,
+                count
+            })).sort((a, b) => b.count - a.count);
         }
 
         function renderUserList() {
-            if (userStats.length === 0) { userListContainer.innerHTML = '<div class="empty-state">暂无互动数据</div>'; return; }
-            let html = ''; userStats.forEach((user, index) => {
+            if (userStats.length === 0) {
+                userListContainer.innerHTML = '<div class="empty-state">暂无互动数据</div>';
+                return;
+            }
+            let html = '';
+            userStats.forEach((user, index) => {
                 const rClass = index === 0 ? 'rank-1' : (index === 1 ? 'rank-2' : (index === 2 ? 'rank-3' : ''));
                 html += `<div class="list-item" onclick="filterByUser('${escapeHtml(user.name)}')"><div class="rank-num ${rClass}">${index + 1}</div><div class="item-main"><span class="item-title">${user.name}</span></div><div class="item-count">${user.count}次</div></div>`;
             });
@@ -3285,144 +4118,337 @@
         }
 
         function performDateAnalysis() {
-            const counts = {}, selGroup = groupSelect.value, sourceData = selGroup === 'all' ? allPosts : allPosts.filter(p => p.groupName === selGroup);
-            const modalTitle = document.querySelector('#dateModal .modal-title'); if (modalTitle) modalTitle.innerText = selGroup === 'all' ? '每日消息统计 (全部)' : `每日消息统计 (${selGroup})`;
-            sourceData.forEach(post => { if (post.dateFull) counts[post.dateFull] = (counts[post.dateFull] || 0) + 1; });
-            dateStats = Object.entries(counts).map(([date, count]) => ({ date, count })).sort((a, b) => new Date(b.date) - new Date(a.date));
+            const counts = {},
+                selGroup = groupSelect.value,
+                sourceData = selGroup === 'all' ? allPosts : allPosts.filter(p => p.groupName === selGroup);
+            const modalTitle = document.querySelector('#dateModal .modal-title');
+            if (modalTitle) modalTitle.innerText = selGroup === 'all' ? '每日消息统计 (全部)' : `每日消息统计 (${selGroup})`;
+            sourceData.forEach(post => {
+                if (post.dateFull) counts[post.dateFull] = (counts[post.dateFull] || 0) + 1;
+            });
+            dateStats = Object.entries(counts).map(([date, count]) => ({
+                date,
+                count
+            })).sort((a, b) => new Date(b.date) - new Date(a.date));
         }
 
         function renderDateList() {
-            if (dateStats.length === 0) { dateListContainer.innerHTML = '<div class="empty-state">暂无日期数据</div>'; return; }
-            const max = Math.max(...dateStats.map(d => d.count)); let html = '';
+            if (dateStats.length === 0) {
+                dateListContainer.innerHTML = '<div class="empty-state">暂无日期数据</div>';
+                return;
+            }
+            const max = Math.max(...dateStats.map(d => d.count));
+            let html = '';
             dateStats.forEach((item) => {
                 html += `<div class="list-item" onclick="filterByDate('${item.date}')"><div class="item-main"><span class="item-title">${item.date}</span><div class="stat-bar-container"><div class="stat-bar" style="width: ${(item.count / max) * 100}%"></div></div></div><div class="item-count">${item.count}条</div></div>`;
             });
             dateListContainer.innerHTML = html;
         }
 
-        function filterByUser(username) { closeUserAnalysis(); searchInput.value = username; setFilter('all'); resetDateFilter(); }
+        function filterByUser(username) {
+            closeUserAnalysis();
+            searchInput.value = username;
+            setFilter('all');
+            resetDateFilter();
+        }
+
         function filterByDate(dateStr) {
-            closeDateAnalysis(); const [y, m, d] = dateStr.split('-');
-            yearSelect.value = y; populateMonths(y); monthSelect.value = parseInt(m).toString(); populateDays(y, parseInt(m).toString()); daySelect.value = parseInt(d).toString();
-            monthSelect.disabled = false; daySelect.disabled = false; applyFilters();
+            closeDateAnalysis();
+            const [y, m, d] = dateStr.split('-');
+            yearSelect.value = y;
+            populateMonths(y);
+            monthSelect.value = parseInt(m).toString();
+            populateDays(y, parseInt(m).toString());
+            daySelect.value = parseInt(d).toString();
+            monthSelect.disabled = false;
+            daySelect.disabled = false;
+            applyFilters();
         }
 
         function openContextModal(targetGlobalIndex) {
-            contextListContainer.innerHTML = ''; const targetPost = allPosts[targetGlobalIndex]; if (!targetPost) return;
-            const groupPosts = allPosts.filter(p => p.groupName === targetPost.groupName), indexInGroup = groupPosts.indexOf(targetPost);
+            contextListContainer.innerHTML = '';
+            const targetPost = allPosts[targetGlobalIndex];
+            if (!targetPost) return;
+            const groupPosts = allPosts.filter(p => p.groupName === targetPost.groupName),
+                indexInGroup = groupPosts.indexOf(targetPost);
             const contextPosts = groupPosts.slice(Math.max(0, indexInGroup - 10), Math.min(groupPosts.length, indexInGroup + 11));
             contextPosts.forEach(post => {
-                const div = document.createElement('div'); div.className = 'Box-row'; div.style.marginBottom = '10px';
-                if (post === targetPost) { div.classList.add('context-highlight'); div.id = 'target-message-scroll-anchor'; }
-                const header = document.createElement('div'); header.className = 'user-header-row';
+                const div = document.createElement('div');
+                div.className = 'Box-row';
+                div.style.marginBottom = '10px';
+                if (post === targetPost) {
+                    div.classList.add('context-highlight');
+                    div.id = 'target-message-scroll-anchor';
+                }
+                const header = document.createElement('div');
+                header.className = 'user-header-row';
                 header.innerHTML = `${post.avatarHtml}<div class="user-info-col"><div><span class="username">${post.nameStr}</span></div><span class="timestamp">${post.timeStr}</span></div>`;
-                const content = document.createElement('div'); content.innerHTML = post.contentHtml;
+                const content = document.createElement('div');
+                content.innerHTML = post.contentHtml;
                 try {
                     const audioRegex = /(?:音频[\s\u00A0]*[-–—][\s\u00A0]*)?(https?:\/\/[^\s<"']+\.(?:mp3|aac|m4a))/gi;
                     if (audioRegex.test(content.innerHTML)) content.innerHTML = content.innerHTML.replace(audioRegex, '<span class="temp-audio-placeholder" data-src="$1"></span>');
                     content.querySelectorAll('a, .temp-audio-placeholder').forEach(el => {
                         let src = el.tagName === 'SPAN' ? el.getAttribute('data-src') : (/\.(mp3|aac|m4a)$/i.test(el.href) ? el.href : '');
                         if (src) {
-                            const player = createCustomAudioPlayer(src); player.style.display = 'inline-flex'; player.style.margin = '4px 0';
+                            const player = createCustomAudioPlayer(src);
+                            player.style.display = 'inline-flex';
+                            player.style.margin = '4px 0';
                             if (el.tagName === 'A') el.parentNode.replaceChild(player, el);
-                            else { const parent = el.closest('a'); if (parent) parent.parentNode.replaceChild(player, parent); else el.parentNode.replaceChild(player, el); }
+                            else {
+                                const parent = el.closest('a');
+                                if (parent) parent.parentNode.replaceChild(player, parent);
+                                else el.parentNode.replaceChild(player, el);
+                            }
                         }
                     });
-                } catch (e) { }
-                let hasVTag = false; content.querySelectorAll('video').forEach(rawV => { const src = rawV.src || rawV.querySelector('source')?.src; if (src) { rawV.parentNode.replaceChild(createCustomVideoPlayer(src), rawV); hasVTag = true; } });
+                } catch (e) {}
+                let hasVTag = false;
+                content.querySelectorAll('video').forEach(rawV => {
+                    const src = rawV.src || rawV.querySelector('source')?.src;
+                    if (src) {
+                        rawV.parentNode.replaceChild(createCustomVideoPlayer(src), rawV);
+                        hasVTag = true;
+                    }
+                });
                 if (post.videoUrl && !hasVTag) content.appendChild(createCustomVideoPlayer(post.videoUrl));
                 if (post.liveId) {
-                    const btn = document.createElement('button'); btn.className = 'btn btn-primary'; btn.style.cssText = 'margin-top: 8px; padding: 5px 15px; font-size: 13px; display: block;';
-                    btn.innerHTML = '📺 观看直播回放'; btn.onclick = (e) => { e.stopPropagation(); playArchiveFromMessage(post.liveId, post.nameStr, post.timeStr); }; content.appendChild(btn);
+                    const btn = document.createElement('button');
+                    btn.className = 'btn btn-primary';
+                    btn.style.cssText = 'margin-top: 8px; padding: 5px 15px; font-size: 13px; display: block;';
+                    btn.innerHTML = '📺 观看直播回放';
+                    btn.onclick = (e) => {
+                        e.stopPropagation();
+                        playArchiveFromMessage(post.liveId, post.nameStr, post.timeStr);
+                    };
+                    content.appendChild(btn);
                 } else if (post.isLiveText) {
-                    const card = document.createElement('div'); card.className = 'vod-card-row'; card.style.cssText = 'margin-top: 10px; width: 100%; box-sizing: border-box; background: var(--input-bg);';
-                    let cSrc = './icon.png'; if (post.avatarHtml) { const sMatch = post.avatarHtml.match(/src=['"]([^'"]+)['"]/); if (sMatch) cSrc = sMatch[1]; }
+                    const card = document.createElement('div');
+                    card.className = 'vod-card-row';
+                    card.style.cssText = 'margin-top: 10px; width: 100%; box-sizing: border-box; background: var(--input-bg);';
+                    let cSrc = './icon.png';
+                    if (post.avatarHtml) {
+                        const sMatch = post.avatarHtml.match(/src=['"]([^'"]+)['"]/);
+                        if (sMatch) cSrc = sMatch[1];
+                    }
                     card.innerHTML = `<div class="vod-row-cover-container" style="width:100px; height:56px;"><img src="${cSrc}" style="width:100%; height:100%; object-fit: cover; border-radius: 6px;"><div class="vod-badge badge-replay">回放</div></div><div class="vod-row-info" style="height:56px;"><div class="vod-row-name">${post.nameStr}</div><div class="vod-row-title" style="font-size:13px;">${post.liveTitle || '直播记录'}</div><div class="vod-row-time" style="font-size:11px;">${post.timeStr}</div></div>`;
-                    card.onclick = (e) => { e.stopPropagation(); matchReplayByTime(post.nameStr, post.timeStr); }; content.appendChild(card);
+                    card.onclick = (e) => {
+                        e.stopPropagation();
+                        matchReplayByTime(post.nameStr, post.timeStr);
+                    };
+                    content.appendChild(card);
                 }
                 if (post.audioUrl && !content.querySelector('.audio-wrapper')) content.appendChild(createCustomAudioPlayer(post.audioUrl));
-                div.appendChild(header); div.appendChild(content); contextListContainer.appendChild(div);
+                div.appendChild(header);
+                div.appendChild(content);
+                contextListContainer.appendChild(div);
             });
-            document.querySelector('#contextModal .modal-title').innerText = `📖 上下文: ${targetPost.groupName}`; contextModal.style.display = 'flex';
-            setTimeout(() => { const tEl = document.getElementById('target-message-scroll-anchor'); if (tEl) tEl.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 100);
+            document.querySelector('#contextModal .modal-title').innerText = `📖 上下文: ${targetPost.groupName}`;
+            contextModal.style.display = 'flex';
+            setTimeout(() => {
+                const tEl = document.getElementById('target-message-scroll-anchor');
+                if (tEl) tEl.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center'
+                });
+            }, 100);
         }
 
-        function closeContextModal() { contextModal.style.display = 'none'; document.querySelector('#contextModal .modal-title').innerText = `📖 消息上下文`; if (currentPlayingAudio) { currentPlayingAudio.pause(); currentPlayingAudio = null; } }
-        contextModal.onclick = (e) => { if (e.target === contextModal) closeContextModal(); }
-        function escapeHtml(text) { const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }; return text.replace(/[&<>"']/g, (m) => map[m]); }
-        window.onclick = function (e) { if (e.target == userModal) closeUserAnalysis(); if (e.target == dateModal) closeDateAnalysis(); }
+        function closeContextModal() {
+            contextModal.style.display = 'none';
+            document.querySelector('#contextModal .modal-title').innerText = `📖 消息上下文`;
+            if (currentPlayingAudio) {
+                currentPlayingAudio.pause();
+                currentPlayingAudio = null;
+            }
+        }
+        contextModal.onclick = (e) => {
+            if (e.target === contextModal) closeContextModal();
+        }
+
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, (m) => map[m]);
+        }
+        window.onclick = function(e) {
+            if (e.target == userModal) closeUserAnalysis();
+            if (e.target == dateModal) closeDateAnalysis();
+        }
 
         async function directToPotPlayer(e, liveId) {
-            e.stopPropagation(); e.target.style.cursor = 'wait';
-            const titleEl = document.getElementById('live-view-title') || document.getElementById('live-modal-title'), oTitle = titleEl ? titleEl.textContent : '';
+            e.stopPropagation();
+            e.target.style.cursor = 'wait';
+            const titleEl = document.getElementById('live-view-title') || document.getElementById('live-modal-title'),
+                oTitle = titleEl ? titleEl.textContent : '';
             if (titleEl) titleEl.textContent = '⌛ 正在解析 PotPlayer 地址...';
             try {
-                const res = await fetchPocketAPI('/live/api/v1/live/getLiveOne', JSON.stringify({ liveId: liveId }));
-                if (res && res.status === 200 && res.content && res.content.playStreamPath) { if (titleEl) titleEl.textContent = '🚀 正在唤起 PotPlayer...'; window.location.href = `potplayer://${encodeURIComponent(res.content.playStreamPath)}`; }
-                else if (titleEl) titleEl.textContent = '❌ 无法获取流地址 (可能已失效)';
-            } catch (err) { if (titleEl) titleEl.textContent = '❌ 网络请求失败'; }
-            finally { e.target.style.cursor = 'pointer'; if (titleEl) setTimeout(() => { if (document.body.contains(titleEl)) titleEl.textContent = oTitle || (currentMode === 'live' ? '📺 正在直播' : '📼 录播回放'); }, 2000); }
+                const res = await fetchPocketAPI('/live/api/v1/live/getLiveOne', JSON.stringify({
+                    liveId: liveId
+                }));
+                if (res && res.status === 200 && res.content && res.content.playStreamPath) {
+                    if (titleEl) titleEl.textContent = '🚀 正在唤起 PotPlayer...';
+                    window.location.href = `potplayer://${encodeURIComponent(res.content.playStreamPath)}`;
+                } else if (titleEl) titleEl.textContent = '❌ 无法获取流地址 (可能已失效)';
+            } catch (err) {
+                if (titleEl) titleEl.textContent = '❌ 网络请求失败';
+            } finally {
+                e.target.style.cursor = 'pointer';
+                if (titleEl) setTimeout(() => {
+                    if (document.body.contains(titleEl)) titleEl.textContent = oTitle || (currentMode === 'live' ? '📺 正在直播' : '📼 录播回放');
+                }, 2000);
+            }
         }
 
-        function openInBrowser(url) { try { require('electron').shell.openExternal(url); } catch (e) { window.open(url, '_blank'); } }
+        function openInBrowser(url) {
+            try {
+                require('electron').shell.openExternal(url);
+            } catch (e) {
+                window.open(url, '_blank');
+            }
+        }
 
         function playArchiveFromMessage(liveId, nickname, timeStr) {
             switchView('media', 'vod');
-            const temp = { liveId: liveId, userInfo: { nickname: nickname }, title: `历史消息归档 (${timeStr})`, liveType: 1 };
-            setTimeout(() => { playLiveStream(temp, 'vod'); }, 300);
+            const temp = {
+                liveId: liveId,
+                userInfo: {
+                    nickname: nickname
+                },
+                title: `历史消息归档 (${timeStr})`,
+                liveType: 1
+            };
+            setTimeout(() => {
+                playLiveStream(temp, 'vod');
+            }, 300);
         }
 
         async function matchReplayByTime(memberName, timeStr) {
-            switchView('media', 'vod'); const fInput = document.getElementById('vod-member-filter');
-            if (fInput) { fInput.value = getMemberIdFromQuery(memberName) || memberName; if (window.vodState) vodState.currentPage = 1; }
-            const loadingDiv = document.getElementById('vod-loading'); loadingDiv.style.display = 'block';
-            if (window.vodState) { vodState.list = []; vodState.nextPageTokens[vodState.currentGroup] = 0; vodState.hasMore = true; vodState.searchPageToken = 0; vodState.isSearchActive = true; }
-            const tTime = new Date(timeStr).getTime(); if (isNaN(tTime)) { alert('消息时间格式无法解析。'); loadingDiv.style.display = 'none'; return; }
-            let found = false, pCount = 0;
+            switchView('media', 'vod');
+            const fInput = document.getElementById('vod-member-filter');
+            if (fInput) {
+                fInput.value = getMemberIdFromQuery(memberName) || memberName;
+                if (window.vodState) vodState.currentPage = 1;
+            }
+            const loadingDiv = document.getElementById('vod-loading');
+            loadingDiv.style.display = 'block';
+            if (window.vodState) {
+                vodState.list = [];
+                vodState.nextPageTokens[vodState.currentGroup] = 0;
+                vodState.hasMore = true;
+                vodState.searchPageToken = 0;
+                vodState.isSearchActive = true;
+            }
+            const tTime = new Date(timeStr).getTime();
+            if (isNaN(tTime)) {
+                alert('消息时间格式无法解析。');
+                loadingDiv.style.display = 'none';
+                return;
+            }
+            let found = false,
+                pCount = 0;
             while (vodState.hasMore && !found && vodState.isSearchActive) {
-                pCount++; loadingDiv.innerHTML = `🔍 正在深度搜索第 ${pCount} 页 请耐心等待<br><span style="font-size:12px;color:#999">目标: ${timeStr}</span>`;
-                await fetchVODPageInternal(); const cList = getFilteredVODList(); let bMatch = null, minD = Infinity, oldest = Infinity;
+                pCount++;
+                loadingDiv.innerHTML = `🔍 正在深度搜索第 ${pCount} 页 请耐心等待<br><span style="font-size:12px;color:#999">目标: ${timeStr}</span>`;
+                await fetchVODPageInternal();
+                const cList = getFilteredVODList();
+                let bMatch = null,
+                    minD = Infinity,
+                    oldest = Infinity;
                 for (const item of cList) {
-                    const vTime = parseInt(item.startTime || item.ctime); if (!vTime) continue; if (vTime < oldest) oldest = vTime;
-                    const diff = Math.abs(vTime - tTime); if (diff < 300000 && diff < minD) { minD = diff; bMatch = item; }
+                    const vTime = parseInt(item.startTime || item.ctime);
+                    if (!vTime) continue;
+                    if (vTime < oldest) oldest = vTime;
+                    const diff = Math.abs(vTime - tTime);
+                    if (diff < 300000 && diff < minD) {
+                        minD = diff;
+                        bMatch = item;
+                    }
                 }
-                if (bMatch) { playLiveStream(bMatch, 'vod'); found = true; loadingDiv.style.display = 'none'; break; }
+                if (bMatch) {
+                    playLiveStream(bMatch, 'vod');
+                    found = true;
+                    loadingDiv.style.display = 'none';
+                    break;
+                }
                 if (oldest < tTime - 86400000 && oldest !== Infinity) break;
                 await new Promise(r => setTimeout(r, 100));
             }
-            if (!found && vodState.isSearchActive) { loadingDiv.innerText = `未找到匹配回放 (已搜索 ${pCount} 页)`; window.renderVODListUI(); }
+            if (!found && vodState.isSearchActive) {
+                loadingDiv.innerText = `未找到匹配回放 (已搜索 ${pCount} 页)`;
+                window.renderVODListUI();
+            }
             if (window.vodState) vodState.isSearchActive = false;
         }
 
-        function fetchDanmuNative(url) { return new Promise((resolve, reject) => { https.get(url, (res) => { let data = ''; res.on('data', (c) => data += c); res.on('end', () => resolve(data)); }).on('error', (e) => reject(e)); }); }
-        document.addEventListener('click', function (e) {
-            const box = document.getElementById('member-suggestions'), input = document.getElementById('vod-member-filter');
+        function fetchDanmuNative(url) {
+            return new Promise((resolve, reject) => {
+                https.get(url, (res) => {
+                    let data = '';
+                    res.on('data', (c) => data += c);
+                    res.on('end', () => resolve(data));
+                }).on('error', (e) => reject(e));
+            });
+        }
+        document.addEventListener('click', function(e) {
+            const box = document.getElementById('member-suggestions'),
+                input = document.getElementById('vod-member-filter');
             if (box && input && e.target !== input && !box.contains(e.target)) box.style.display = 'none';
         });
 
         async function handleDownloadVOD(event, item) {
-            if (event) event.stopPropagation(); const btn = event.currentTarget, liveId = item.liveId;
+            if (event) event.stopPropagation();
+            const btn = event.currentTarget,
+                liveId = item.liveId;
             if (downloadStatusMap[liveId] === 'downloading' || downloadStatusMap[liveId] === 'success') return;
-            downloadStatusMap[liveId] = 'downloading'; btn.textContent = "下载中"; btn.className = "btn btn-secondary btn-downloading"; btn.disabled = true;
-            const nickname = item.userInfo ? item.userInfo.nickname : (item.nickname || '未知成员'), title = item.liveTitle || item.title || '无标题';
-            let tLabel = '未知时间', fTimestamp = '', rawT = item.startTime || item.ctime;
+            downloadStatusMap[liveId] = 'downloading';
+            btn.textContent = "下载中";
+            btn.className = "btn btn-secondary btn-downloading";
+            btn.disabled = true;
+            const nickname = item.userInfo ? item.userInfo.nickname : (item.nickname || '未知成员'),
+                title = item.liveTitle || item.title || '无标题';
+            let tLabel = '未知时间',
+                fTimestamp = '',
+                rawT = item.startTime || item.ctime;
             if (rawT) {
-                const d = new Date(Number(rawT)), pad = (n) => String(n).padStart(2, '0');
+                const d = new Date(Number(rawT)),
+                    pad = (n) => String(n).padStart(2, '0');
                 tLabel = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
                 fTimestamp = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}.${pad(d.getMinutes())}.${pad(d.getSeconds())}`;
             }
-            const taskId = 'task_' + Date.now(); const downloadList = document.getElementById('downloadList');
+            const taskId = 'task_' + Date.now();
+            const downloadList = document.getElementById('downloadList');
             if (downloadList.innerText.includes('暂无下载任务')) downloadList.innerHTML = '';
             downloadList.insertAdjacentHTML('afterbegin', `<div class="download-item" id="${taskId}" data-liveid="${liveId}"><div class="download-title-row"><div class="download-title-line" title="${title}" style="flex:1;">${title}</div><button class="btn-cancel" onclick="cancelDownloadTask('${taskId}')">取消</button></div><div class="download-detail-row"><span>👤 ${nickname}</span><b class="download-percent">0%</b></div><div class="download-detail-row"><span>📅 ${tLabel}</span></div><div class="progress-container" style="margin: 5px 0;"><div class="progress-fill"></div></div><span class="download-status-text">正在请求下载地址...</span></div>`);
             try {
-                const res = await fetchPocketAPI('/live/api/v1/live/getLiveOne', JSON.stringify({ liveId: liveId }));
+                const res = await fetchPocketAPI('/live/api/v1/live/getLiveOne', JSON.stringify({
+                    liveId: liveId
+                }));
                 if (res?.status === 200 && res.content?.playStreamPath) {
                     const safeName = `【${nickname}】${fTimestamp}`.replace(/[\\/:*?"<>|]/g, '_');
-                    ipcRenderer.send('download-vod', { url: res.content.playStreamPath, fileName: safeName, taskId: taskId });
-                } else { downloadStatusMap[liveId] = 'error'; btn.textContent = "下载"; btn.className = "btn btn-secondary"; btn.disabled = false; }
-            } catch (err) { downloadStatusMap[liveId] = 'error'; btn.textContent = "下载"; btn.className = "btn btn-secondary"; btn.disabled = false; }
+                    ipcRenderer.send('download-vod', {
+                        url: res.content.playStreamPath,
+                        fileName: safeName,
+                        taskId: taskId
+                    });
+                } else {
+                    downloadStatusMap[liveId] = 'error';
+                    btn.textContent = "下载";
+                    btn.className = "btn btn-secondary";
+                    btn.disabled = false;
+                }
+            } catch (err) {
+                downloadStatusMap[liveId] = 'error';
+                btn.textContent = "下载";
+                btn.className = "btn btn-secondary";
+                btn.disabled = false;
+            }
         }
-
         ipcRenderer.on('download-progress', (event, data) => {
             const taskEl = document.getElementById(data.taskId);
             if (taskEl) {
@@ -3430,23 +4456,21 @@
                 const fillEl = taskEl.querySelector('.progress-fill');
                 const textEl = taskEl.querySelector('.download-percent');
                 const statusTextEl = taskEl.querySelector('.download-status-text');
-
                 if (percent > 0) {
                     textEl.textContent = `${percent}%`;
                     fillEl.style.width = `${percent}%`;
                     if (statusTextEl.textContent.includes('已下载时长')) {
-                       statusTextEl.textContent = '正在下载...'; 
+                        statusTextEl.textContent = '正在下载...';
                     }
                 } else if (data.timemark) {
                     fillEl.style.width = '100%';
                     fillEl.style.opacity = '0.3';
-                    textEl.textContent = ''; 
+                    textEl.textContent = '';
                     const cleanTime = data.timemark.split('.')[0];
                     statusTextEl.textContent = `已下载时长: ${cleanTime}`;
                 }
             }
         });
-        
         ipcRenderer.on('download-status', (event, data) => {
             const taskEl = document.getElementById(data.taskId);
             if (!taskEl) return;
@@ -3457,8 +4481,7 @@
             } else if (data.status === 'error' || data.status === 'canceled') {
                 downloadStatusMap[liveId] = 'error';
             }
-            const listBtn = document.querySelector(`.vod-card-row[onclick*="${liveId}"] .btn`) ||
-                document.querySelector(`button[onclick*="${liveId}"]`);
+            const listBtn = document.querySelector(`.vod-card-row[onclick*="${liveId}"] .btn`) || document.querySelector(`button[onclick*="${liveId}"]`);
             if (data.status === 'success') {
                 statusText.textContent = "完成";
                 statusText.style.color = '#28a745';
@@ -3504,30 +4527,489 @@
                 }, 1500);
             });
         }
-
         let autoCloseTimer = null;
         async function checkGitHubNotice() {
             try {
-                const res = await fetch(`https://cdn.jsdelivr.net/gh/yk1z/yaya_msg@master/notice.json?t=${Date.now()}`, { method: 'GET', cache: 'no-store' });
+                const res = await fetch(`https://cdn.jsdelivr.net/gh/yk1z/yaya_msg@master/notice.json?t=${Date.now()}`, {
+                    method: 'GET',
+                    cache: 'no-store'
+                });
                 if (res.status === 200) handleNoticeDisplay(await res.json());
-            } catch (e) { }
+            } catch (e) {}
         }
 
         function handleNoticeDisplay(data) {
             if (!data.show) return;
-            const bar = document.getElementById('global-notice-bar'), textEl = document.getElementById('notice-text'), linkEl = document.getElementById('notice-link');
+            const bar = document.getElementById('global-notice-bar'),
+                textEl = document.getElementById('notice-text'),
+                linkEl = document.getElementById('notice-link');
             textEl.textContent = data.content;
-            if (data.link) { linkEl.href = "javascript:void(0)"; linkEl.onclick = (e) => { e.preventDefault(); openInBrowser(data.link); }; linkEl.style.display = 'inline'; }
-            else linkEl.style.display = 'none';
-            bar.classList.remove('notice-hiding'); bar.style.display = 'flex';
+            if (data.link) {
+                linkEl.href = "javascript:void(0)";
+                linkEl.onclick = (e) => {
+                    e.preventDefault();
+                    openInBrowser(data.link);
+                };
+                linkEl.style.display = 'inline';
+            } else linkEl.style.display = 'none';
+            bar.classList.remove('notice-hiding');
+            bar.style.display = 'flex';
             if (autoCloseTimer) clearTimeout(autoCloseTimer);
             autoCloseTimer = setTimeout(() => closeNotice(), 5000);
         }
 
         function closeNotice() {
-            const bar = document.getElementById('global-notice-bar'); if (!bar || bar.classList.contains('notice-hiding')) return;
-            bar.classList.add('notice-hiding'); if (autoCloseTimer) { clearTimeout(autoCloseTimer); autoCloseTimer = null; }
-            setTimeout(() => { bar.style.display = 'none'; bar.classList.remove('notice-hiding'); }, 500);
+            const bar = document.getElementById('global-notice-bar');
+            if (!bar || bar.classList.contains('notice-hiding')) return;
+            bar.classList.add('notice-hiding');
+            if (autoCloseTimer) {
+                clearTimeout(autoCloseTimer);
+                autoCloseTimer = null;
+            }
+            setTimeout(() => {
+                bar.style.display = 'none';
+                bar.classList.remove('notice-hiding');
+            }, 500);
+        }
+    </script>
+    <script type="module">
+        import init, { __x6c2adf8__ } from './sdk/rust-wasm.js';
+        window.isWasmReady = false;
+        async function initSDK() {
+            try {
+                await init('./sdk/2.wasm');
+                window.isWasmReady = true;
+                console.log("✅ SDK 加载成功");
+            } catch (e) {
+                console.error("SDK Error:", e);
+            }
+        }
+        window.getPA = function() {
+            return window.isWasmReady ? __x6c2adf8__() : null;
+        };
+        initSDK();
+    </script>
+    <script>
+        let appToken = '';
+        let lastNextTime = 0;
+        let isAutoFetching = false;
+
+        async function fetchAllMsgs() {
+            const btn = document.getElementById('btn-fetch-all');
+            const fetchBtn = document.getElementById('btn-fetch-one');
+            const box = document.getElementById('msg-result');
+            const memberSearch = document.getElementById('member-search');
+            if (isAutoFetching) {
+                isAutoFetching = false;
+                btn.innerText = '加载全部';
+                btn.style.background = '';
+                btn.style.color = '';
+                if (fetchBtn) fetchBtn.disabled = false;
+                if (memberSearch) memberSearch.disabled = false;
+                return;
+            }
+            const channelId = document.getElementById('tool-channel').value.trim();
+            if (!channelId) {
+                box.innerHTML = `<div style="text-align:center; padding:20px; color:#ff4d4f;">⚠️ 请先在搜索框输入名字并选择成员</div>`;
+                isAutoFetching = false;
+                btn.innerText = '加载全部';
+                btn.style.background = '';
+                if (fetchBtn) fetchBtn.disabled = false;
+                if (memberSearch) memberSearch.disabled = false;
+                return;
+            }
+            isAutoFetching = true;
+            btn.innerText = '停止加载';
+            btn.style.background = '#ff4d4f';
+            btn.style.color = 'white';
+            if (fetchBtn) fetchBtn.disabled = true;
+            if (memberSearch) memberSearch.disabled = true;
+            if (lastNextTime === 0 || box.children.length <= 1) {
+                await fetchMsgs(false);
+                await sleep(10);
+            }
+            while (isAutoFetching && lastNextTime > 0) {
+                box.scrollTop = box.scrollHeight;
+                const lastEl = box.lastElementChild;
+                if (lastEl && lastEl.innerText.includes('加载更多')) lastEl.remove();
+                await fetchMsgs(true);
+                await sleep(10);
+            }
+            isAutoFetching = false;
+            btn.innerText = '加载全部';
+            btn.style.background = '';
+            btn.style.color = '';
+            if (fetchBtn) fetchBtn.disabled = false;
+            if (memberSearch) memberSearch.disabled = false;
+        }
+
+        function stopAutoFetching(btn, fetchBtn) {
+            isAutoFetching = false;
+            btn.innerText = '加载全部';
+            btn.style.background = '';
+            btn.style.color = '';
+            if (fetchBtn) fetchBtn.disabled = false;
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        async function checkToken() {
+            const tokenInput = document.getElementById('login-token').value.trim();
+            const msgBox = document.getElementById('login-msg');
+            if (!tokenInput) {
+                msgBox.innerText = '请输入 Token';
+                return;
+            }
+            appToken = tokenInput;
+            localStorage.setItem('yaya_p48_token', appToken);
+            msgBox.innerText = '正在记录并验证身份...';
+            msgBox.style.color = '#666';
+            try {
+                const pa = window.getPA ? window.getPA() : null;
+                const res = await ipcRenderer.invoke('login-check-token', {
+                    token: tokenInput,
+                    pa
+                });
+                document.getElementById('panel-login').style.display = 'none';
+                document.getElementById('panel-tools').style.display = 'block';
+                if (res.success) {
+                    const safeName = res.userInfo?.baseUserInfo?.nickname || res.userInfo?.nickname || '口袋用户';
+                    document.getElementById('user-nickname').innerText = safeName;
+                } else {
+                    document.getElementById('user-nickname').innerText = '未验证用户';
+                    document.getElementById('msg-result').innerHTML = `<div style="color:orange; text-align:center; padding:10px;">Token 已记录。</div>`;
+                }
+            } catch (e) {
+                document.getElementById('panel-login').style.display = 'none';
+                document.getElementById('panel-tools').style.display = 'block';
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('yaya_p48_token');
+            appToken = '';
+            document.getElementById('panel-login').style.display = 'block';
+            document.getElementById('panel-tools').style.display = 'none';
+            document.getElementById('login-token').value = '';
+            document.getElementById('login-msg').innerText = '记录已清除';
+            document.getElementById('login-msg').style.color = '#28a745';
+            const memberSearch = document.getElementById('member-search');
+            if (memberSearch) {
+                memberSearch.disabled = false;
+                memberSearch.value = '';
+            }
+        }
+        let allFetchedMsgs = [];
+        async function fetchMsgs(isLoadMore = false) {
+            const channelId = document.getElementById('tool-channel').value.trim();
+            const serverId = document.getElementById('tool-server').value.trim();
+            const box = document.getElementById('msg-result');
+            const exportBtn = document.getElementById('btn-export-html');
+            const exportLocalBtn = document.getElementById('btn-export-local');
+            if (!channelId) {
+                box.innerHTML = `<div style="text-align:center; padding:20px; color:#ff4d4f;">⚠️ 请先选择成员再进行抓取</div>`;
+                return;
+            }
+            if (!channelId) return alert('请输入 Channel ID');
+            if (!isLoadMore) {
+                box.innerHTML = '';
+                lastNextTime = 0;
+                allFetchedMsgs = [];
+                if (exportBtn) exportBtn.disabled = true;
+            }
+            const loadingDiv = document.createElement('div');
+            loadingDiv.innerText = '加载中...';
+            loadingDiv.style.textAlign = 'center';
+            loadingDiv.style.color = '#999';
+            loadingDiv.id = 'loading-indicator';
+            box.appendChild(loadingDiv);
+            try {
+                const pa = window.getPA ? window.getPA() : null;
+                const res = await ipcRenderer.invoke('fetch-room-messages', {
+                    token: appToken,
+                    serverId,
+                    channelId,
+                    pa,
+                    nextTime: lastNextTime
+                });
+                if (document.getElementById('loading-indicator')) {
+                    box.removeChild(document.getElementById('loading-indicator'));
+                }
+                if (res.success && res.data.content) {
+                    if (res.usedServerId) document.getElementById('tool-server').value = res.usedServerId;
+                    const content = res.data.content;
+                    const list = content.messageList || content.message || [];
+                    lastNextTime = content.nextTime;
+                    if (list.length === 0 && !isLoadMore) {
+                        if (!isLoadMore) box.innerHTML = '<div style="text-align:center;padding:20px;color:#999">暂无新消息</div>';
+                        return;
+                    }
+                    allFetchedMsgs = allFetchedMsgs.concat(list);
+                    if (exportBtn) exportBtn.disabled = false;
+                    if (exportLocalBtn) exportLocalBtn.disabled = false;
+                    const html = list.map(m => {
+                        let txt = '[未知类型]';
+                        let isMember = false;
+                        try {
+                            let body = m.bodys;
+                            if (m.msgContent) body = m.msgContent;
+                            if (typeof body === 'string' && body.startsWith('{')) {
+                                const json = JSON.parse(body);
+                                if (m.msgType === 'text') txt = json.text;
+                                else if (m.msgType === 'image') txt = `[图片] <a href="${json.url}" target="_blank">查看</a>`;
+                                else if (m.msgType === 'reply') txt = `回复: ${json.text}`;
+                                else if (m.msgType === 'live_push') txt = `[直播] ${json.liveTitle}`;
+                                else if (m.msgType === 'express') txt = `[表情]`;
+                            } else {
+                                txt = body;
+                            }
+                            if (m.extInfo) {
+                                const ext = JSON.parse(m.extInfo);
+                                if (ext.user && ext.user.roleId > 1) isMember = true;
+                            }
+                        } catch (e) {
+                            txt = m.msgContent || m.bodys || '解析错误';
+                        }
+                        const time = new Date(m.msgTime).toLocaleString();
+                        const nameColor = isMember ? '#ff4d4f' : '#1890ff';
+                        return `<div style="padding:8px 0; border-bottom:1px solid #eee; font-size:13px;">
+                    <div style="color:#999; font-size:11px; margin-bottom:2px;">${time} <span style="color:${nameColor}; font-weight:${isMember?'bold':'normal'}">${m.senderName || (m.extInfo && JSON.parse(m.extInfo).user.nickName) || '未知用户'}</span></div>
+                    <div style="color:#333; line-height:1.4; word-break: break-all;">${txt}</div>
+                </div>`;
+                    }).join('');
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = html;
+                    box.appendChild(tempDiv);
+                    const oldBtn = document.getElementById('btn-load-more-msg');
+                    if (oldBtn) oldBtn.remove();
+                    if (lastNextTime > 0) {
+                        const moreBtn = document.createElement('div');
+                        moreBtn.id = 'btn-load-more-msg';
+                        moreBtn.innerHTML = '<button style="width:100%; margin-top:10px; padding:8px; cursor:pointer; background:#f0f0f0; border:1px solid #ddd; border-radius:4px;" onclick="fetchMsgs(true)">加载更多...</button>';
+                        box.appendChild(moreBtn);
+                    }
+                } else {
+                    if (!isLoadMore) box.innerText = '获取失败: ' + (res.msg || 'API Error');
+                }
+            } catch (e) {
+                if (!isLoadMore) box.innerText = '出错: ' + e.message;
+            }
+        }
+
+        function exportMsgsToHtml() {
+            if (allFetchedMsgs.length === 0) return alert('没有消息可导出');
+            const fix48Url = (path) => {
+                if (!path) return 'https://www.snh48.com/images/logo_snh48.jpg';
+                if (/^https?:\/\//i.test(path)) return path;
+                if (path.includes('48.cn')) {
+                    return `https://${path.replace(/^\/+/, '')}`;
+                }
+                const baseUrl = 'https://source3.48.cn';
+                return path.startsWith('/') ? `${baseUrl}${path}` : `${baseUrl}/${path}`;
+            };
+            const styleValue = `
+        body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; background-color: #f6f8fa; padding: 20px; }
+        .template-body { width: 100%; max-width: 900px; margin: 0 auto; }
+        .template-media { max-width: 600px; border-radius: 6px; margin-top: 5px; }
+        .template-image-express-image { max-width: 85px; }
+        .template-pre { white-space: pre-wrap; word-break: break-all; margin-bottom: 8px; }
+        .avatar-5 { width: 32px; height: 32px; } 
+        .color-bg-accent { background-color: #f6f8fa; } 
+        .color-fg-accent { color: #0969da; text-decoration: none; }
+    `;
+            let htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>口袋消息导出</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://unpkg.com/@primer/css@20.8.3/dist/primer.css" />
+    <style>${styleValue}</style>
+</head>
+<body class="template-body">
+    <div class="d-flex flex-column">
+        <div class="flex-auto p-2">
+            <div class="Box">
+                <ul class="f5" style="list-style: none; padding: 0; margin: 0;">
+`;
+            allFetchedMsgs.forEach(m => {
+                let contentHtml = '';
+                let userHtml = '';
+                let timeStr = '';
+                try {
+                    let avatarUrl = 'https://www.snh48.com/images/logo_snh48.jpg';
+                    let nickName = m.senderName || '未知用户';
+                    if (m.extInfo) {
+                        try {
+                            const ext = typeof m.extInfo === 'string' ? JSON.parse(m.extInfo) : m.extInfo;
+                            if (ext.user) {
+                                nickName = ext.user.nickName;
+                                if (ext.user.avatar) avatarUrl = fix48Url(ext.user.avatar);
+                            }
+                        } catch (e) {}
+                    }
+                    userHtml = `
+                <div class="mb-2">
+                    <img class="avatar avatar-5 mr-2" src="${avatarUrl}" loading="lazy"/>
+                    <span>${nickName}</span>
+                </div>
+            `;
+                    let body = m.bodys || m.msgContent;
+                    if (typeof body === 'string' && (body.startsWith('{') || body.startsWith('['))) {
+                        try {
+                            const json = JSON.parse(body);
+                            if (m.msgType === 'TEXT') {
+                                const text = json.bodys || json.text || body;
+                                contentHtml = `<p class="mb-2 template-pre">${text}</p>`;
+                            } else if (m.msgType === 'IMAGE') {
+                                const url = fix48Url(json.url);
+                                contentHtml = `
+        <div class="mb-2">
+            <img class="template-media" src="${url}" loading="lazy" style="cursor: default;"/>
+        </div>
+        <div class="mb-2">
+        </div>`;
+                            } else if (m.msgType === 'VIDEO') {
+                                const url = fix48Url(json.url);
+                                contentHtml = `
+                            <div class="mb-2">
+                                <video class="template-media" src="${url}" controls></video>
+                            </div>
+                            <div class="mb-2">
+                                视频 - <a class="color-fg-accent" href="${url}" target="_blank">${url}</a>
+                            </div>`;
+                            } else if (m.msgType === 'AUDIO') {
+                                const url = fix48Url(json.url);
+                                contentHtml = `
+                            <div class="mb-2">
+                                <audio class="template-media" src="${url}" controls></audio>
+                            </div>
+                            <div class="mb-2">
+                                语音 - <a class="color-fg-accent" href="${url}" target="_blank">${url}</a>
+                            </div>`;
+                            } else if (m.msgType === 'REPLY' || m.msgType === 'GIFTREPLY') {
+                                let info = json.replyInfo || json.giftReplyInfo;
+                                if (!info && json.bodys) info = json.bodys.replyInfo || json.bodys.giftReplyInfo;
+                                const myText = info?.text || json.text || body;
+                                const rName = info?.replyName || '未知用户';
+                                const rText = info?.replyText || '未知消息';
+                                contentHtml = `<p class="mb-2 template-pre">${myText}</p>`;
+                                contentHtml += `
+                            <blockquote class="ml-2 mb-2 p-2 color-bg-accent template-pre" style="border-left: 4px solid #d0d7de; color: #57606a;">
+                                ${rName}：${rText}
+                            </blockquote>`;
+                            } else if (m.msgType === 'EXPRESSIMAGE') {
+                                let url = '';
+                                if (json.expressImgInfo) url = fix48Url(json.expressImgInfo.emotionRemote);
+                                else if (json.url) url = fix48Url(json.url);
+                                contentHtml = `<div class="mb-2"><img class="template-image-express-image" src="${url}"/></div>`;
+                            } else if (m.msgType === 'LIVEPUSH') {
+                                const title = json.livePushInfo ? json.livePushInfo.liveTitle : '直播开始了';
+                                contentHtml = `直播 - ${title}`;
+                            } else if (['FLIPCARD', 'FLIPCARD_AUDIO', 'FLIPCARD_VIDEO'].includes(m.msgType)) {
+                                const possibleKeys = ['flipCardInfo', 'filpCardInfo', 'flipCardAudioInfo', 'filpCardAudioInfo', 'flipCardVideoInfo', 'filpCardVideoInfo'];
+                                let info = null;
+                                for (const key of possibleKeys) {
+                                    if (json[key]) {
+                                        info = json[key];
+                                        break;
+                                    }
+                                    if (json.bodys && json.bodys[key]) {
+                                        info = json.bodys[key];
+                                        break;
+                                    }
+                                }
+                                const q = info?.question || json.question || '问题';
+                                let a = info?.answer || json.answer || '回答';
+                                let mediaHtml = '';
+                                if (m.msgType !== 'FLIPCARD') {
+                                    try {
+                                        const answerObj = typeof a === 'string' ? JSON.parse(a) : a;
+                                        if (answerObj && answerObj.url) {
+                                            let rawUrl = answerObj.url;
+                                            let mediaUrl;
+                                            if (!rawUrl.includes('48.cn')) {
+                                                mediaUrl = `https://mp4.48.cn/${rawUrl.replace(/^\/+/, '')}`;
+                                            } else {
+                                                mediaUrl = fix48Url(rawUrl);
+                                            }
+                                            if (m.msgType === 'FLIPCARD_VIDEO') {
+                                                mediaHtml = `<div class="mb-2"><video class="template-media" src="${mediaUrl}" controls preload="metadata"></video></div>`;
+                                                a = `<a class="color-fg-accent template-pre" href="${mediaUrl}" target="_blank">${mediaUrl}</a>`;
+                                            } else {
+                                                mediaHtml = `<div class="mb-2"><audio class="template-media" src="${mediaUrl}" controls preload="metadata"></audio></div>`;
+                                                a = `<a class="color-fg-accent template-pre" href="${mediaUrl}" target="_blank">${mediaUrl}</a>`;
+                                            }
+                                        }
+                                    } catch (e) {
+                                        console.error('翻牌解析失败', e);
+                                    }
+                                }
+                                contentHtml = `
+        <p class="mb-2"><strong>翻牌问题：</strong>${q}</p>
+        <p class="mb-2"><strong>回答：</strong>${a}</p>
+        ${mediaHtml}
+    `;
+                            } else {
+                                contentHtml = `<p class="mb-2 template-pre">${body}</p>`;
+                            }
+                        } catch (e) {
+                            contentHtml = `<p class="mb-2 template-pre">${body}</p>`;
+                        }
+                    } else {
+                        contentHtml = `<p class="mb-2 template-pre">${body}</p>`;
+                    }
+                    const d = new Date(m.msgTime);
+                    const pad = (n) => String(n).padStart(2, '0');
+                    timeStr = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+                } catch (e) {
+                    console.error(e);
+                    contentHtml = `<p class="mb-2" style="color:red">解析错误</p>`;
+                }
+                htmlContent += `
+            <li class="Box-row">
+                ${userHtml}
+                ${contentHtml}
+                <time class="d-block">${timeStr}</time>
+            </li>
+        `;
+            });
+            htmlContent += `
+                </ul>
+            </div>
+        </div>
+    </div>
+</body>
+</html>`;
+            const memberName = document.getElementById('member-search').value.trim() || '未命名成员';
+            const exportBtn = document.getElementById('btn-export-html');
+            const originalBtnText = exportBtn.innerText;
+            window.ipcRenderer.send('save-export-html', {
+                memberName: memberName,
+                htmlContent: htmlContent
+            });
+            exportBtn.innerText = "✅ 导出成功";
+            exportBtn.style.backgroundColor = "#28a745";
+            exportBtn.style.color = "white";
+            exportBtn.disabled = true;
+            const box = document.getElementById('msg-result');
+            const tip = document.createElement('div');
+            tip.style.cssText = "text-align:center; color:#28a745; margin-top:10px; font-weight:bold; padding:5px; border:1px solid #28a745; border-radius:4px; background:rgba(40,167,69,0.1);";
+            tip.innerText = `已存至: html/${memberName}/`;
+            box.appendChild(tip);
+            setTimeout(() => {
+                exportBtn.innerText = originalBtnText;
+                exportBtn.style.backgroundColor = "";
+                exportBtn.style.color = "";
+                exportBtn.disabled = false;
+                tip.remove();
+                if (typeof forceReloadData === 'function') {
+                    forceReloadData();
+                }
+            }, 3000);
         }
     </script>
 </body>

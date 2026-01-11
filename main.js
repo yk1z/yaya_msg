@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const axios = require('axios');
 const ffmpeg = require('fluent-ffmpeg');
 const ffmpegPath = require('ffmpeg-static');
 const NodeMediaServer = require('node-media-server');
@@ -113,7 +114,7 @@ ipcMain.on('stop-record', (event, { taskId, fileName }) => {
             return;
         }
 
-        const transCommand = ffmpeg(task.tempPath)
+        ffmpeg(task.tempPath)
             .outputOptions(['-c copy', '-movflags faststart'])
             .on('start', () => {
                 event.reply('download-status', { taskId, msg: '录制完成，正在封装...', status: 'processing' });
@@ -275,4 +276,122 @@ ipcMain.on('download-vod', (event, { url, fileName, taskId }) => {
             });
         })
         .save(outputPath);
+});
+
+function rStr(len) {
+    const str = 'QWERTYUIOPASDFGHJKLZXCVBNM1234567890';
+    let result = '';
+    for (let i = 0; i < len; i++) result += str[Math.floor(Math.random() * str.length)];
+    return result;
+}
+
+const DEVICE_ID = `${rStr(8)}-${rStr(4)}-${rStr(4)}-${rStr(4)}-${rStr(12)}`;
+
+function createHeaders(token, pa) {
+    const headers = {
+        'Content-Type': 'application/json;charset=utf-8',
+        'User-Agent': 'PocketFans201807/7.0.16 (iPhone; iOS 13.5.1; Scale/2.00)',
+        'Host': 'pocketapi.48.cn',
+        'Accept-Language': 'zh-Hans-CN;q=1',
+        'appInfo': JSON.stringify({
+            vendor: 'apple',
+            deviceId: DEVICE_ID,
+            appVersion: '7.0.16',
+            appBuild: '23011601',
+            osVersion: '16.3.1',
+            osType: 'ios',
+            deviceName: 'iPhone XR',
+            os: 'ios'
+        })
+    };
+    if (token) headers['token'] = token;
+    if (pa) headers['pa'] = pa; 
+    return headers;
+}
+
+ipcMain.handle('login-check-token', async (event, { token, pa }) => {
+    try {
+        const url = 'https://pocketapi.48.cn/user/api/v1/user/info/reload';
+        const res = await axios.post(url, { from: 'appstart' }, { 
+            headers: createHeaders(token, pa) 
+        });
+
+        if (res.status === 200 && res.data.success) {
+            const info = res.data.content.userInfo || res.data.content;
+            return { success: true, userInfo: info };
+        }
+        return { success: false, msg: res.data.message || 'Token 无效' };
+    } catch (e) {
+        return { success: false, msg: '验证失败: ' + e.message };
+    }
+});
+
+ipcMain.handle('fetch-room-messages', async (event, { channelId, serverId, token, pa, nextTime = 0 }) => {
+    if (!token) return { success: false, msg: '缺少 Token' };
+    
+    try {
+        const headers = createHeaders(token, pa);
+        let finalServerId = serverId;
+        const FETCH_ALL_MESSAGES = false; 
+
+        if (!finalServerId || finalServerId == 0) {
+            try {
+                const infoUrl = 'https://pocketapi.48.cn/im/api/v1/im/team/room/info';
+                const infoRes = await axios.post(infoUrl, { channelId: String(channelId) }, { headers });
+                if (infoRes.data.success) {
+                    finalServerId = infoRes.data.content.serverId;
+                }
+            } catch (e) {
+                console.warn('ServerID 自动获取失败');
+            }
+        }
+
+        const url = FETCH_ALL_MESSAGES 
+            ? 'https://pocketapi.48.cn/im/api/v1/team/message/list/all'       
+            : 'https://pocketapi.48.cn/im/api/v1/team/message/list/homeowner'; 
+
+        const payload = {
+            channelId: parseInt(channelId),
+            serverId: parseInt(finalServerId),
+            nextTime: nextTime,
+            limit: 20
+        };
+
+        const res = await axios.post(url, payload, { headers });
+
+        if (res.status === 200 && res.data && res.data.status === 200) {
+            return { success: true, data: res.data, usedServerId: finalServerId };
+        }
+        
+        return { success: false, msg: res.data ? res.data.message : 'API 错误' };
+    } catch (e) {
+        return { success: false, msg: e.message };
+    }
+});
+
+ipcMain.on('save-export-html', (event, { memberName, htmlContent }) => {
+    try {
+        const baseDir = path.join(process.cwd(), 'html');
+        const safeMemberName = memberName.replace(/[\\/:*?"<>|]/g, '_');
+        const memberDir = path.join(baseDir, safeMemberName);
+        
+        if (!fs.existsSync(baseDir)) {
+            fs.mkdirSync(baseDir);
+        }
+        
+        if (!fs.existsSync(memberDir)) {
+            fs.mkdirSync(memberDir);
+        }
+        
+        const now = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        const timeStr = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`;
+        const fileName = `yaya_html_${timeStr}.html`;
+        const filePath = path.join(memberDir, fileName);
+        
+        fs.writeFileSync(filePath, htmlContent, 'utf8');
+        console.log(`[导出成功] ${filePath}`);
+    } catch (err) {
+        console.error('[导出失败]', err);
+    }
 });
