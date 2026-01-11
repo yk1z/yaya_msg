@@ -326,13 +326,12 @@ ipcMain.handle('login-check-token', async (event, { token, pa }) => {
     }
 });
 
-ipcMain.handle('fetch-room-messages', async (event, { channelId, serverId, token, pa, nextTime = 0 }) => {
+ipcMain.handle('fetch-room-messages', async (event, { channelId, serverId, token, pa, nextTime = 0, fetchAll = false }) => { 
     if (!token) return { success: false, msg: '缺少 Token' };
     
     try {
         const headers = createHeaders(token, pa);
         let finalServerId = serverId;
-        const FETCH_ALL_MESSAGES = false; 
 
         if (!finalServerId || finalServerId == 0) {
             try {
@@ -346,7 +345,7 @@ ipcMain.handle('fetch-room-messages', async (event, { channelId, serverId, token
             }
         }
 
-        const url = FETCH_ALL_MESSAGES 
+        const url = fetchAll 
             ? 'https://pocketapi.48.cn/im/api/v1/team/message/list/all'       
             : 'https://pocketapi.48.cn/im/api/v1/team/message/list/homeowner'; 
 

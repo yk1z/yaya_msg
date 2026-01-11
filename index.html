@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>牙牙消息 v1.1.4</title>
+    <title>牙牙消息 v1.1.5</title>
     <link rel="icon" href="./icon.png" type="image/x-icon">
     <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.4.0/dist/hls.min.js"></script>
@@ -1603,7 +1603,7 @@
                 </svg>
             </div>
             <img src="./icon.png" class="title-logo">
-            <span>牙牙消息 v1.1.4</span>
+            <span>牙牙消息 v1.1.5</span>
         </div>
         <div class="window-controls">
             <div class="control-btn" onclick="ipcRenderer.send('window-min')">
@@ -1653,14 +1653,26 @@
                     💬 返回成员消息
                 </button>
             </div>
-            <div class="sidebar-group" id="sb-search">
-                <div class="group-title">搜索 & 排序</div>
-                <input type="text" id="searchInput" class="input-control" placeholder="🔍 搜索关键词..." disabled>
-                <select class="input-control" id="sortSelect" onchange="applyFilters()">
-                    <option value="desc" selected>最新消息在前</option>
-                    <option value="asc">最早消息在前</option>
-                </select>
-            </div>
+<div class="sidebar-group" id="sb-search">
+    <div class="group-title">搜索 & 排序</div>
+    
+    <div style="display: flex; align-items: center; margin-bottom: 8px;">
+        <select id="searchTypeSelect" class="input-control" onchange="applyFilters()" 
+            style="width: 80px; padding-left: 5px; padding-right: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; border-right: none; cursor: pointer;">
+            <option value="all">综合</option>
+            <option value="text">内容</option>
+            <option value="name">昵称</option>
+            <option value="id">ID</option>
+        </select>
+        
+        <input type="text" id="searchInput" class="input-control" placeholder="输入关键词..." disabled 
+            style="flex: 1; border-top-left-radius: 0; border-bottom-left-radius: 0;">
+    </div>
+    <select class="input-control" id="sortSelect" onchange="applyFilters()">
+        <option value="desc" selected>最新消息在前</option>
+        <option value="asc">最早消息在前</option>
+    </select>
+</div>
             <div class="sidebar-group" id="sb-members">
                 <div class="group-title">成员消息</div>
                 <select class="input-control" id="groupSelect" onchange="applyFilters()">
@@ -1821,7 +1833,8 @@
                             </div>
                             <div class="btn-grid" style="margin-bottom: 15px;">
                                 <button class="btn btn-primary" onclick="fetchMsgs()" id="btn-fetch-one">抓取最新</button>
-                                <button class="btn btn-secondary" onclick="fetchAllMsgs()" id="btn-fetch-all">加载全部</button>
+                                <button class="btn btn-secondary" onclick="fetchAllMsgs()" id="btn-fetch-all">加载全部</button>                           
+                                <button id="btn-toggle-mode" class="btn btn-secondary" onclick="toggleFetchMode()">模式：只看成员</button>
                                 <button class="btn btn-secondary" onclick="exportMsgsToHtml()" id="btn-export-html" disabled>导出至成员消息</button>
                             </div>
                             <div id="msg-result" style="margin-top: 15px; height: 300px; overflow-y: auto; background: var(--input-bg); border-radius: 6px; padding: 10px; font-size: 13px; border: 1px solid var(--border);">
@@ -2086,6 +2099,7 @@
         } = require('electron');
         window.ipcRenderer = ipcRenderer;
         const memberNameMap = new Map();
+        const memberIdSet = new Set();
 
         async function loadMemberIdMap() {
             const csvPath = path.join(__dirname, 'members_id.csv');
@@ -2106,6 +2120,7 @@
         
                 memberNameMap.set('clear_all', true); 
                 memberNameMap.clear();
+                memberIdSet.clear();
 
                 lines.forEach(line => {
                     const trimmed = line.trim();
@@ -2115,6 +2130,7 @@
                         const name = parts[0].trim();
                         const id = parts[1].trim();
                         memberNameMap.set(name, id);
+                        if (id) memberIdSet.add(id);
                 
                         if (name.includes('-')) {
                             const simpleName = name.split('-')[1];
@@ -3772,15 +3788,47 @@
                     liveTitle = textLiveMatch[1].trim() || '直播回放';
                     cleanRow.innerHTML = '';
                 }
+
+
                 let avatarHtml = '',
-                    nameStr = 'Unknown';
+                    nameStr = 'Unknown',
+                    userId = null,
+                    isMember = false; 
+
+
+                const VIP_IDS = []; 
+
                 const originalHeader = row.querySelector('div.mb-2');
                 if (originalHeader) {
                     const img = originalHeader.querySelector('img');
                     if (img) avatarHtml = img.outerHTML;
+                    
                     const span = originalHeader.querySelector('span');
-                    if (span) nameStr = span.innerText;
+                    if (span) {
+                        nameStr = span.innerText;
+                        userId = span.getAttribute('data-userid'); 
+                        const roleId = span.getAttribute('data-roleid'); 
+                        
+
+                        if (roleId && parseInt(roleId) > 1) {
+                            isMember = true;
+                        }
+                        
+
+                        const style = span.getAttribute('style') || '';
+                        if (style.includes('#ff4d4f') || style.includes('bold') || style.includes('font-weight:700')) {
+                            isMember = true;
+                        }
+
+
+                        if (userId && VIP_IDS.includes(String(userId))) {
+                            isMember = true;
+                        }
+                        
+                   
+                    }
                 }
+
                 let rowHtml = cleanRow.innerHTML;
                 const isFlip = rowHtml.includes('翻牌问题：') && rowHtml.includes('回答：');
                 if (isFlip) {
@@ -3809,11 +3857,12 @@
                     contentHtml: cleanRow.innerHTML,
                     text: cleanRow.innerText.toLowerCase(),
                     timeStr,
+                    userId,
                     year,
                     month,
                     day,
                     dateFull,
-                    hasImg: !!cleanRow.querySelector('img:not(.avatar)'),
+                    hasImg: !!row.querySelector('img.template-media'),
                     hasVideo: row.innerText.includes('视频') && (row.innerText.includes('http') || !!cleanRow.querySelector('video')),
                     hasAudio: !!audioUrl || row.innerText.includes('音频'),
                     audioUrl,
@@ -3839,9 +3888,74 @@
             nextBatch.forEach(post => {
                 const div = document.createElement('div');
                 div.className = 'Box-row';
+                div.style.position = 'relative';
+                if (post.userId && String(post.userId) !== 'undefined') {
+                    const idTag = document.createElement('div');
+                    idTag.innerHTML = `${post.userId}`;
+                    
+                    idTag.style.cssText = `
+                        position: absolute;
+                        top: 14px;
+                        right: 15px;
+                        background: var(--chip-bg);
+                        border: 1px solid var(--border);
+                        color: var(--text-sub);
+                        padding: 2px 8px;
+                        border-radius: 12px;
+                        font-size: 11px;
+                        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+                        z-index: 5;
+                        display: flex;
+                        align-items: center;
+                        
+                        /* ⬇️⬇️⬇️ 关键样式：鼠标变手型，禁止文字选中 ⬇️⬇️⬇️ */
+                        cursor: pointer; 
+                        user-select: none; 
+                        transition: all 0.2s ease;
+                        box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+                    `;
+                    
+                    idTag.onclick = (e) => window.filterByUserId(post.userId);
+                    idTag.title = "点击筛选此人的所有消息";
+
+                    idTag.onmouseenter = () => { 
+                        idTag.style.borderColor = 'var(--primary)'; 
+                        idTag.style.color = 'var(--primary)';
+                        idTag.style.transform = 'translateY(-1px)'; 
+                        idTag.style.boxShadow = '0 2px 5px rgba(0,0,0,0.1)';
+                    };
+                    idTag.onmouseleave = () => { 
+                        idTag.style.borderColor = 'var(--border)'; 
+                        idTag.style.color = 'var(--text-sub)';
+                        idTag.style.transform = 'none';
+                        idTag.style.boxShadow = '0 1px 2px rgba(0,0,0,0.02)';
+                    };
+
+                    div.appendChild(idTag);
+                }
                 const header = document.createElement('div');
                 header.className = 'user-header-row';
-                header.innerHTML = `${post.avatarHtml}<div class="user-info-col"><div><span class="username">${post.nameStr}</span></div><span class="timestamp">${post.timeStr}</span></div>`;
+                
+
+                const isMemberPost = 
+                    post.isMember ||                                     
+                    (post.nameStr === post.groupName) ||                 
+                    post.isReply ||                                       
+                    (typeof memberNameMap !== 'undefined' && memberNameMap.has(post.nameStr)) || 
+                    (typeof memberIdSet !== 'undefined' && post.userId && memberIdSet.has(String(post.userId))); 
+                
+
+                const nameStyle = isMemberPost ? 'color: #FB7299; font-weight: bold;' : 'color: var(--text); opacity: 0.9;';
+ 
+                header.innerHTML = `
+                    ${post.avatarHtml}
+                    <div class="user-info-col">
+                        <div>
+                            <span class="username" style="${nameStyle}">${post.nameStr}</span>
+                        </div>
+                        <span class="timestamp">${post.timeStr}</span>
+                    </div>
+                `;
                 const content = document.createElement('div');
                 content.innerHTML = post.contentHtml;
                 try {
@@ -4004,16 +4118,38 @@
             applyFilters();
         }
 
-        function applyFilters() {
-            const keyword = searchInput.value.trim().toLowerCase(),
-                sortType = sortSelect.value,
-                selYear = yearSelect.value,
-                selMonth = monthSelect.value,
-                selDay = daySelect.value,
-                selGroup = groupSelect.value;
+function applyFilters() {
+            const keyword = searchInput.value.trim().toLowerCase();
+            const sortType = sortSelect.value;
+            const selYear = yearSelect.value;
+            const selMonth = monthSelect.value;
+            const selDay = daySelect.value;
+            const selGroup = groupSelect.value;
+            
+            const searchType = document.getElementById('searchTypeSelect').value;
+
             currentFilteredPosts = allPosts.filter(post => {
                 if (selGroup !== 'all' && post.groupName !== selGroup) return false;
-                if (keyword && !post.text.includes(keyword)) return false;
+
+                if (keyword) {
+                    const postUserIdStr = post.userId ? String(post.userId).toLowerCase() : '';
+                    
+                    const inText = post.text.includes(keyword);
+                    const inName = post.nameStr && post.nameStr.toLowerCase().includes(keyword);
+                    const inIdPartial = postUserIdStr && postUserIdStr.includes(keyword);
+                    const inIdExact = postUserIdStr && postUserIdStr === keyword;
+
+                    if (searchType === 'text') {
+                        if (!inText) return false;
+                    } else if (searchType === 'name') {
+                        if (!inName) return false;
+                    } else if (searchType === 'id') {
+                        if (!inIdExact) return false;
+                    } else {
+                        if (!inText && !inName && !inIdPartial) return false;
+                    }
+                }
+
                 let matchType = true;
                 if (filterType === 'image') matchType = post.hasImg;
                 else if (filterType === 'video') matchType = post.hasVideo;
@@ -4021,7 +4157,9 @@
                 else if (filterType === 'reply') matchType = post.isReply;
                 else if (filterType === 'live-record') matchType = (post.liveId || post.isLiveText);
                 else if (filterType === 'text') matchType = !post.hasImg && !post.hasVideo && !post.hasAudio && !post.liveId && !post.isLiveText && !post.isReply;
+                
                 if (!matchType) return false;
+
                 if (selYear !== 'all') {
                     if (post.year != selYear) return false;
                     if (selMonth !== 'all') {
@@ -4031,11 +4169,13 @@
                 }
                 return true;
             });
+
             currentFilteredPosts.sort((a, b) => {
                 const tA = new Date(a.timeStr).getTime() || 0,
                     tB = new Date(b.timeStr).getTime() || 0;
                 return sortType === 'desc' ? tB - tA : tA - tB;
             });
+            
             outputList.innerHTML = '';
             renderedCount = 0;
             renderNextBatch();
@@ -4145,11 +4285,50 @@
             dateListContainer.innerHTML = html;
         }
 
-        function filterByUser(username) {
+function filterByUser(username) {
             closeUserAnalysis();
-            searchInput.value = username;
-            setFilter('all');
-            resetDateFilter();
+
+            const searchInput = document.getElementById('searchInput');
+            const typeSelect = document.getElementById('searchTypeSelect');
+
+            if (searchInput) {
+                searchInput.value = username;
+                searchInput.disabled = false;
+
+                if (typeSelect) typeSelect.value = 'text'; 
+
+                if (typeof setFilter === 'function') setFilter('all');
+                
+                if (typeof resetDateFilter === 'function') resetDateFilter();
+
+                applyFilters();
+                
+                const view = document.getElementById('view-messages');
+                if (view) view.scrollTop = 0;
+            }
+        }
+        window.filterByUserId = function(userId) {
+            if (window.event) window.event.stopPropagation();
+
+            const searchInput = document.getElementById('searchInput');
+            const typeSelect = document.getElementById('searchTypeSelect');
+
+            if (searchInput && userId) {
+                searchInput.value = String(userId).trim();
+                searchInput.disabled = false;
+                
+                if (typeSelect) typeSelect.value = 'id';
+                
+                if (typeof setFilter === 'function') setFilter('all'); 
+                if (typeof resetDateFilter === 'function') resetDateFilter();
+                
+                applyFilters();
+                
+                const view = document.getElementById('view-messages');
+                if (view) view.scrollTop = 0;
+
+                console.log(`[筛选] 已过滤 ID: ${userId}`);
+            }
         }
 
         function filterByDate(dateStr) {
@@ -4655,6 +4834,26 @@
             return new Promise(resolve => setTimeout(resolve, ms));
         }
 
+
+let isFetchAllMode = false;
+
+function toggleFetchMode() {
+    isFetchAllMode = !isFetchAllMode;
+    const btn = document.getElementById('btn-toggle-mode');
+    
+    if (isFetchAllMode) {
+        btn.innerHTML = "当前模式：全体消息";
+        btn.classList.remove('btn-secondary');
+        btn.classList.add('btn-primary'); 
+    } else {
+        btn.innerHTML = "当前模式：只看成员";
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-secondary');
+    }
+    
+  
+}
+
         async function checkToken() {
             const tokenInput = document.getElementById('login-token').value.trim();
             const msgBox = document.getElementById('login-msg');
@@ -4728,12 +4927,13 @@
             try {
                 const pa = window.getPA ? window.getPA() : null;
                 const res = await ipcRenderer.invoke('fetch-room-messages', {
-                    token: appToken,
-                    serverId,
-                    channelId,
-                    pa,
-                    nextTime: lastNextTime
-                });
+            token: appToken,
+            serverId,
+            channelId,
+            pa,
+            nextTime: lastNextTime,
+            fetchAll: isFetchAllMode  
+        });
                 if (document.getElementById('loading-indicator')) {
                     box.removeChild(document.getElementById('loading-indicator'));
                 }
@@ -4749,36 +4949,63 @@
                     allFetchedMsgs = allFetchedMsgs.concat(list);
                     if (exportBtn) exportBtn.disabled = false;
                     if (exportLocalBtn) exportLocalBtn.disabled = false;
-                    const html = list.map(m => {
-                        let txt = '[未知类型]';
-                        let isMember = false;
-                        try {
-                            let body = m.bodys;
-                            if (m.msgContent) body = m.msgContent;
-                            if (typeof body === 'string' && body.startsWith('{')) {
-                                const json = JSON.parse(body);
-                                if (m.msgType === 'text') txt = json.text;
-                                else if (m.msgType === 'image') txt = `[图片] <a href="${json.url}" target="_blank">查看</a>`;
-                                else if (m.msgType === 'reply') txt = `回复: ${json.text}`;
-                                else if (m.msgType === 'live_push') txt = `[直播] ${json.liveTitle}`;
-                                else if (m.msgType === 'express') txt = `[表情]`;
-                            } else {
-                                txt = body;
-                            }
-                            if (m.extInfo) {
-                                const ext = JSON.parse(m.extInfo);
-                                if (ext.user && ext.user.roleId > 1) isMember = true;
-                            }
-                        } catch (e) {
-                            txt = m.msgContent || m.bodys || '解析错误';
+            const html = list.map(m => {
+                console.log('正在解析消息:', m); 
+
+                let txt = '[未知类型]';
+                let isMember = false;
+                
+                let senderId = m.senderUserId || m.senderId || m.uid || '';
+
+                try {
+                    let body = m.bodys;
+                    if (m.msgContent) body = m.msgContent;
+                    
+                    if (m.extInfo) {
+                        const ext = JSON.parse(m.extInfo);
+                        if (ext.user) {
+                            if (ext.user.roleId > 1) isMember = true;
+                            if (!senderId) senderId = ext.user.userId || ext.user.id;
                         }
-                        const time = new Date(m.msgTime).toLocaleString();
-                        const nameColor = isMember ? '#ff4d4f' : '#1890ff';
-                        return `<div style="padding:8px 0; border-bottom:1px solid #eee; font-size:13px;">
-                    <div style="color:#999; font-size:11px; margin-bottom:2px;">${time} <span style="color:${nameColor}; font-weight:${isMember?'bold':'normal'}">${m.senderName || (m.extInfo && JSON.parse(m.extInfo).user.nickName) || '未知用户'}</span></div>
-                    <div style="color:#333; line-height:1.4; word-break: break-all;">${txt}</div>
+                    }
+
+                    if (typeof body === 'string' && body.startsWith('{')) {
+                        const json = JSON.parse(body);
+                        if (m.msgType === 'text') txt = json.text;
+                        else if (m.msgType === 'image') txt = `[图片] <a href="${json.url}" target="_blank">查看</a>`;
+                        else if (m.msgType === 'reply') txt = `回复: ${json.text}`;
+                        else if (m.msgType === 'live_push') txt = `[直播] ${json.liveTitle}`;
+                        else if (m.msgType === 'express') txt = `[表情]`;
+                        else if (json.messageType === 'GIFT_TEXT' || m.msgType === 'GIFT_TEXT') {
+                            const info = json.giftInfo || json;
+                            txt = `🎁 送出了 [${info.giftName}] x${info.giftNum}`;
+                        }
+                    } else {
+                        txt = body;
+                    }
+                } catch (e) {
+                    txt = m.msgContent || m.bodys || '解析错误';
+                }
+                const time = new Date(m.msgTime).toLocaleString();
+                const nameColor = isMember ? '#FB7299' : '#333333';
+                
+                const safeTxt = String(txt).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                
+                const displayName = m.senderName || (m.extInfo && JSON.parse(m.extInfo).user.nickName) || '未知用户';
+                
+                const idDisplay = (senderId && String(senderId) !== '0') 
+                    ? `<span style="color:#999; font-size:10px; margin-left:6px; font-family: monospace;">(ID:${senderId})</span>` 
+                    : '';
+
+                return `<div style="padding:8px 0; border-bottom:1px solid #eee; font-size:13px;">
+                    <div style="color:#999; font-size:11px; margin-bottom:2px; display:flex; align-items:center;">
+                        <span style="margin-right: 5px;">${time}</span>
+                        <span style="color:${nameColor}; font-weight:${isMember?'bold':'normal'}">${displayName}</span>
+                        ${idDisplay}
+                    </div>
+                    <div style="color:#333; line-height:1.4; word-break: break-all;">${safeTxt}</div> 
                 </div>`;
-                    }).join('');
+            }).join('');
                     const tempDiv = document.createElement('div');
                     tempDiv.innerHTML = html;
                     box.appendChild(tempDiv);
@@ -4840,21 +5067,32 @@
                 let userHtml = '';
                 let timeStr = '';
                 try {
+
+
                     let avatarUrl = 'https://www.snh48.com/images/logo_snh48.jpg';
                     let nickName = m.senderName || '未知用户';
+                    let exportUserId = ''; 
+                    let exportRoleId = 0; 
+
+                    if (m.senderUserId) exportUserId = m.senderUserId;
+                    
                     if (m.extInfo) {
                         try {
                             const ext = typeof m.extInfo === 'string' ? JSON.parse(m.extInfo) : m.extInfo;
                             if (ext.user) {
                                 nickName = ext.user.nickName;
                                 if (ext.user.avatar) avatarUrl = fix48Url(ext.user.avatar);
+                                if (!exportUserId) exportUserId = ext.user.userId || ext.user.id;
+                                
+                                if (ext.user.roleId) exportRoleId = ext.user.roleId;
                             }
                         } catch (e) {}
                     }
+
                     userHtml = `
                 <div class="mb-2">
                     <img class="avatar avatar-5 mr-2" src="${avatarUrl}" loading="lazy"/>
-                    <span>${nickName}</span>
+                    <span data-userid="${exportUserId}" data-roleid="${exportRoleId}">${nickName}</span> 
                 </div>
             `;
                     let body = m.bodys || m.msgContent;
@@ -4872,6 +5110,17 @@
         </div>
         <div class="mb-2">
         </div>`;
+                            } else if (json.messageType === 'GIFT_TEXT' || m.msgType === 'GIFT_TEXT') {
+                                const info = json.giftInfo || json;
+                                const giftImg = info.picPath ? fix48Url(info.picPath) : '';
+                                contentHtml = `
+                                    <div class="mb-2" style="display:flex; align-items:center; background:#fff0f6; padding:6px 8px; border-radius:6px; border:1px solid #ffadd2; max-width: 300px;">
+                                        ${giftImg ? `<img src="${giftImg}" style="width: 25px !important; height: 25px !important; max-width: 32px !important; max-height: 32px !important; object-fit: contain !important; margin: 0 8px 0 0 !important; border-radius: 4px; box-shadow: none !important;">` : '<span style="font-size:24px; margin-right:8px;">🎁</span>'}
+                                        <div style="flex: 1; overflow: hidden;">
+                                            <div style="color:#eb2f96; font-weight:bold; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">送出礼物：${info.giftName}</div>
+                                            <div style="font-size:11px; color:#888;">数量: x${info.giftNum}</div>
+                                        </div>
+                                    </div>`;
                             } else if (m.msgType === 'VIDEO') {
                                 const url = fix48Url(json.url);
                                 contentHtml = `
