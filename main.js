@@ -394,3 +394,30 @@ ipcMain.on('save-export-html', (event, { memberName, htmlContent }) => {
         console.error('[导出失败]', err);
     }
 });
+
+ipcMain.handle('fetch-flip-list', async (event, { token, pa, beginLimit = 0, limit = 20 }) => {
+    if (!token) return { success: false, msg: '缺少 Token' };
+
+    try {
+        const headers = createHeaders(token, pa);
+        
+        const url = 'https://pocketapi.48.cn/idolanswer/api/idolanswer/v1/user/question/list';
+        
+        const payload = {
+            status: 0,              
+            beginLimit: beginLimit, 
+            limit: limit,           
+            memberId: ""           
+        };
+
+        const res = await axios.post(url, payload, { headers });
+
+        if (res.status === 200 && res.data && res.data.status === 200) {
+            return { success: true, content: res.data.content };
+        }
+        
+        return { success: false, msg: res.data ? res.data.message : 'API 错误' };
+    } catch (e) {
+        return { success: false, msg: e.message };
+    }
+});

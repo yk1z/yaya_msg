@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>牙牙消息 v1.1.6</title>
+    <title>牙牙消息 v1.1.7</title>
     <link rel="icon" href="./icon.png" type="image/x-icon">
     <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.4.0/dist/hls.min.js"></script>
@@ -13,6 +13,10 @@
     <script src="https://wlnimsc0.netease.im/nim-1.8.0.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dplayer/dist/DPlayer.min.js"></script>
     <style>
+        #flip-list-container {
+            transition: opacity 0.3s ease;
+        }
+
         .search-wrapper {
             position: relative;
             margin-bottom: 15px;
@@ -45,15 +49,14 @@
             background-color: #f0f8ff;
         }
 
-/* 👇👇👇 新的胶囊标签样式 (黑夜模式通透版) 👇👇👇 */
         .team-tag {
-            background: rgba(0, 0, 0, 0.06); /* 白天：浅灰背景 */
+            background: rgba(0, 0, 0, 0.06);
             color: var(--text-sub);
             padding: 2px 10px;
             border-radius: 12px;
             font-size: 11px;
             font-weight: 600;
-            border: 1px solid rgba(0,0,0,0.05);
+            border: 1px solid rgba(0, 0, 0, 0.05);
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -62,30 +65,26 @@
             transition: all 0.2s ease;
         }
 
-        /* 🌙 黑夜模式下的默认状态：半透明白色 */
         [data-theme="dark"] .team-tag {
-            background: rgba(255, 255, 255, 0.1); 
+            background: rgba(255, 255, 255, 0.1);
             border-color: rgba(255, 255, 255, 0.05);
             color: var(--text-sub);
         }
 
-        /* 🖱️ 鼠标悬停时 (白天模式) - 保持原样 */
         .suggestion-item:hover .team-tag {
             background: #fff;
             color: var(--primary);
             border-color: var(--primary);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
-        /* 🌙 鼠标悬停时 (黑夜模式 - 修正版) */
-        /* ✅ 重点修改：底色不变成黑色，而是保持默认的半透明，只让文字变白亮 */
         [data-theme="dark"] .suggestion-item:hover .team-tag {
-            background: rgba(255, 255, 255, 0.1); /* 保持半透明底色不变 */
-            color: #ffffff;                        /* 文字变成纯白，清晰醒目 */
-            border-color: rgba(255, 255, 255, 0.3);/* 边框稍微提亮一点点 */
-            box-shadow: none;                      /* 去掉阴影，保持干净通透 */
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+            border-color: rgba(255, 255, 255, 0.3);
+            box-shadow: none;
         }
-        /* 👆👆👆 修改结束 👆👆👆 */
+
         .login-container {
             max-width: 500px;
             margin: 50px auto;
@@ -172,10 +171,10 @@
             padding: 15px;
         }
 
-.msg-item {
-    content-visibility: auto; 
-    contain-intrinsic-size: 60px; 
-}
+        .msg-item {
+            content-visibility: auto;
+            contain-intrinsic-size: 60px;
+        }
 
         .sidebar-btn.active {
             background: rgba(255, 255, 255, 0.1);
@@ -1641,7 +1640,7 @@
                 </svg>
             </div>
             <img src="./icon.png" class="title-logo">
-            <span>牙牙消息 v1.1.6</span>
+            <span>牙牙消息 v1.1.7</span>
         </div>
         <div class="window-controls">
             <div class="control-btn" onclick="ipcRenderer.send('window-min')">
@@ -1673,88 +1672,103 @@
             </div>
             <div class="sidebar-group" id="sb-live-group">
                 <div class="group-title">口袋直播</div>
+
                 <div class="btn-grid" id="live-btns-container">
-                    <button class="btn btn-primary" onclick="switchView('media', 'live')">📺 正在直播</button>
-                    <button class="btn btn-secondary" onclick="switchView('media', 'vod')">📼 录播回放</button>
+                    <button id="btn-sb-live" class="btn btn-secondary" onclick="switchView('media', 'live')">📺
+                        正在直播</button>
+                    <button id="btn-sb-vod" class="btn btn-secondary" onclick="switchView('media', 'vod')">📼
+                        录播回放</button>
                 </div>
-                <button class="btn btn-primary btn-full" id="back-to-msg-btn" style="display: none;" onclick="switchView('messages')">
-                    💬 返回成员消息
-                </button>
-                <button class="btn btn-secondary btn-full" style="margin-top: 8px;" onclick="openInBrowser('https://www.bilibili.com/video/BV1Ba8FzxEje/')">🦷 牙牙回放</button>
+
+                <button class="btn btn-secondary btn-full" style="margin-top: 8px;"
+                    onclick="openInBrowser('https://www.bilibili.com/video/BV1Ba8FzxEje/')">🦷 牙牙回放</button>
             </div>
             <div class="sidebar-group" id="sb-login-group">
                 <div class="group-title">账号登录</div>
-                <button id="btn-open-toolbox" class="btn btn-primary btn-full" onclick="switchView('login')">
-                    抓取房间消息
+
+                <button id="btn-sb-login" class="btn btn-secondary btn-full" style="margin-bottom: 8px;"
+                    onclick="switchView('login')">
+                    账号设置
                 </button>
-                <button id="btn-close-toolbox" class="btn btn-primary btn-full" onclick="switchView('messages')" style="display: none;">
-                    💬 返回成员消息
+
+                <button id="btn-sb-fetch" class="btn btn-secondary btn-full" style="margin-bottom: 8px;"
+                    onclick="switchView('fetch')">
+                    抓取消息
+                </button>
+
+                <button id="btn-sb-flip" class="btn btn-secondary btn-full" onclick="switchView('flip')">
+                    翻牌记录
                 </button>
             </div>
-<div class="sidebar-group" id="sb-search">
-    <div class="group-title">搜索 & 排序</div>
-    
-    <div style="display: flex; align-items: center; margin-bottom: 8px;">
-        <select id="searchTypeSelect" class="input-control" onchange="applyFilters()" 
-            style="width: 80px; padding-left: 5px; padding-right: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; border-right: none; cursor: pointer;">
-            <option value="all">综合</option>
-            <option value="text">内容</option>
-            <option value="name">昵称</option>
-            <option value="id">ID</option>
-        </select>
-        
-        <input type="text" id="searchInput" class="input-control" placeholder="输入关键词..." disabled 
-            style="flex: 1; border-top-left-radius: 0; border-bottom-left-radius: 0;">
-    </div>
-    <button id="sortBtn" class="btn btn-secondary btn-full" onclick="toggleSortOrder()">
-        当前：最新在前
-    </button>
-</div>
+            <div class="sidebar-group" id="sb-search">
+                <div class="group-title">消息搜索</div>
+
+                <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                    <select id="searchTypeSelect" class="input-control" onchange="applyFilters()"
+                        style="width: 80px; padding-left: 5px; padding-right: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; border-right: none; cursor: pointer;">
+                        <option value="all">综合</option>
+                        <option value="text">内容</option>
+                        <option value="name">昵称</option>
+                        <option value="id">ID</option>
+                    </select>
+
+                    <input type="text" id="searchInput" class="input-control" placeholder="输入关键词..." disabled
+                        style="flex: 1; border-top-left-radius: 0; border-bottom-left-radius: 0;">
+                </div>
+                <button id="sortBtn" class="btn btn-secondary btn-full" onclick="toggleSortOrder()">
+                    当前：最新在前
+                </button>
+            </div>
             <div class="sidebar-group" id="sb-members">
-                <div class="group-title">成员消息</div>
-                
+                <div class="group-title">成员选择</div>
+
                 <div style="position: relative;">
-                    <input type="text" id="groupInput" class="input-control" 
-                           placeholder="全部成员" 
-                           value="全部成员"
-                           onfocus="showMemberDropdown()" 
-                           oninput="renderMemberDropdown(this.value)"
-                           onclick="showMemberDropdown()" 
-                           autocomplete="off">
-                    
-                    <div style="position: absolute; right: 10px; top: 10px; pointer-events: none; color: var(--text-sub); font-size: 12px;">▼</div>
+                    <input type="text" id="groupInput" class="input-control" placeholder="全部成员" value="全部成员"
+                        onfocus="showMemberDropdown()" oninput="renderMemberDropdown(this.value)"
+                        onclick="showMemberDropdown()" autocomplete="off">
+
+                    <div
+                        style="position: absolute; right: 10px; top: 10px; pointer-events: none; color: var(--text-sub); font-size: 12px;">
+                        ▼</div>
 
                     <div id="memberDropdownList" class="suggestion-box" style="max-height: 300px;">
-                        </div>
                     </div>
+                </div>
 
-                <button class="btn btn-secondary btn-full" style="margin-top: 8px;" onclick="forceReloadData()">更新/重扫数据</button>
+                <button class="btn btn-secondary btn-full" style="margin-top: 8px;"
+                    onclick="forceReloadData()">更新 / 重扫数据</button>
             </div>
             <div class="sidebar-group" id="sb-date">
                 <div class="group-title">日期筛选</div>
-                
+
                 <div id="year-wrapper" style="position: relative; margin-bottom: 8px;">
                     <input type="hidden" id="yearSelect" value="all">
-                    <input type="text" id="yearSelectDisplay" class="input-control" value="全部" readonly 
-                           onclick="toggleDateDropdown('year')" style="cursor: pointer;" disabled>
-                    <div style="position: absolute; right: 10px; top: 10px; pointer-events: none; color: var(--text-sub); font-size: 12px;">▼</div>
+                    <input type="text" id="yearSelectDisplay" class="input-control" value="全部" readonly
+                        onclick="toggleDateDropdown('year')" style="cursor: pointer;" disabled>
+                    <div
+                        style="position: absolute; right: 10px; top: 10px; pointer-events: none; color: var(--text-sub); font-size: 12px;">
+                        ▼</div>
                     <div id="year-dropdown" class="suggestion-box"></div>
                 </div>
 
                 <div class="btn-grid">
                     <div id="month-wrapper" style="position: relative;">
                         <input type="hidden" id="monthSelect" value="all">
-                        <input type="text" id="monthSelectDisplay" class="input-control" value="全年" readonly 
-                               onclick="toggleDateDropdown('month')" style="cursor: pointer;" disabled>
-                        <div style="position: absolute; right: 10px; top: 10px; pointer-events: none; color: var(--text-sub); font-size: 12px;">▼</div>
+                        <input type="text" id="monthSelectDisplay" class="input-control" value="全年" readonly
+                            onclick="toggleDateDropdown('month')" style="cursor: pointer;" disabled>
+                        <div
+                            style="position: absolute; right: 10px; top: 10px; pointer-events: none; color: var(--text-sub); font-size: 12px;">
+                            ▼</div>
                         <div id="month-dropdown" class="suggestion-box"></div>
                     </div>
 
                     <div id="day-wrapper" style="position: relative;">
                         <input type="hidden" id="daySelect" value="all">
-                        <input type="text" id="daySelectDisplay" class="input-control" value="全月" readonly 
-                               onclick="toggleDateDropdown('day')" style="cursor: pointer;" disabled>
-                        <div style="position: absolute; right: 10px; top: 10px; pointer-events: none; color: var(--text-sub); font-size: 12px;">▼</div>
+                        <input type="text" id="daySelectDisplay" class="input-control" value="全月" readonly
+                            onclick="toggleDateDropdown('day')" style="cursor: pointer;" disabled>
+                        <div
+                            style="position: absolute; right: 10px; top: 10px; pointer-events: none; color: var(--text-sub); font-size: 12px;">
+                            ▼</div>
                         <div id="day-dropdown" class="suggestion-box"></div>
                     </div>
                 </div>
@@ -1765,7 +1779,8 @@
                 <div class="group-title">数据分析</div>
                 <div class="btn-grid">
                     <button class="btn btn-secondary" onclick="openDateAnalysis()" id="dateBtn" disabled>消息统计</button>
-                    <button class="btn btn-secondary" onclick="openUserAnalysis()" id="analysisBtn" disabled>互动榜</button>
+                    <button class="btn btn-secondary" onclick="openUserAnalysis()" id="analysisBtn"
+                        disabled>互动榜</button>
                 </div>
             </div>
             <div class="sidebar-group" id="sb-type">
@@ -1783,16 +1798,20 @@
             <div class="sidebar-group" id="sb-download" style="display: none;">
                 <div class="group-title">下载管理</div>
                 <div id="downloadList" class="download-manager">
-                    <div style="text-align: center; color: var(--text-sub); font-size: 11px; padding: 10px;">暂无下载任务</div>
+                    <div style="text-align: center; color: var(--text-sub); font-size: 11px; padding: 10px;">暂无下载任务
+                    </div>
                 </div>
             </div>
             <div class="sidebar-group">
                 <div class="status-bar" id="statusMsg">软件正在初始化...</div>
-                <a href="javascript:void(0)" onclick="openInBrowser('https://space.bilibili.com/5250403')" class="credit-link">presented by yk1z</a>
+                <a href="javascript:void(0)" onclick="openInBrowser('https://space.bilibili.com/5250403')"
+                    class="credit-link">presented by yk1z</a>
             </div>
         </aside>
         <main class="main-content" id="mainContentArea">
-            <div id="view-messages" style="height: 100%; overflow-y: auto; display: block; padding: 20px 40px; box-sizing: border-box;">
+
+            <div id="view-messages"
+                style="height: 100%; overflow-y: auto; display: block; padding: 20px 40px; box-sizing: border-box;">
                 <div class="list-container" id="outputList">
                     <div class="placeholder-tip">
                         <h2>📚 正在自动读取数据...</h2>
@@ -1801,21 +1820,26 @@
                 </div>
                 <div id="loadingMore">正在加载更多...</div>
             </div>
-            <div id="view-media" style="height: 100%; overflow-y: auto; display: none; padding: 0 20px 20px 20px; box-sizing: border-box;">
-                <div style="display: flex; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-top: 15px;">
+
+            <div id="view-media"
+                style="height: 100%; overflow-y: auto; display: none; padding: 0 20px 20px 20px; box-sizing: border-box;">
+                <div
+                    style="display: flex; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-top: 15px;">
                     <h2 id="live-view-title" style="margin:0; font-size: 18px; white-space: nowrap;">📺 直播/回放</h2>
                 </div>
+
                 <div id="media-list-controls">
                     <div style="display: flex; gap: 12px; margin-bottom: 15px; align-items: center; flex-wrap: wrap;">
-                        
+
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <span style="white-space: nowrap; font-weight: bold; font-size: 14px;">团体</span>
                             <div id="vod-group-wrapper" style="position: relative; width: 120px;">
-                                <input type="text" id="vod-group-display" class="input-control" value="全部团体" readonly 
-                                       onclick="toggleVodGroupDropdown()" style="cursor: pointer;">
-                                <div style="position: absolute; right: 10px; top: 10px; pointer-events: none; color: var(--text-sub); font-size: 12px;">▼</div>
-                                <div id="vod-group-dropdown" class="suggestion-box">
-                                    </div>
+                                <input type="text" id="vod-group-display" class="input-control" value="全部团体" readonly
+                                    onclick="toggleVodGroupDropdown()" style="cursor: pointer;">
+                                <div
+                                    style="position: absolute; right: 10px; top: 10px; pointer-events: none; color: var(--text-sub); font-size: 12px;">
+                                    ▼</div>
+                                <div id="vod-group-dropdown" class="suggestion-box"></div>
                             </div>
                         </div>
 
@@ -1823,11 +1847,11 @@
                             <span style="white-space: nowrap; font-weight: bold; font-size: 14px;">类型</span>
                             <div id="vod-type-wrapper" style="position: relative; width: 100px;">
                                 <input type="hidden" id="vod-type-filter" value="0">
-                                
-                                <input type="text" id="vod-type-display" class="input-control" value="全部" readonly 
-                                       onclick="toggleVodTypeDropdown()" style="cursor: pointer;">
-                                <div style="position: absolute; right: 10px; top: 10px; pointer-events: none; color: var(--text-sub); font-size: 12px;">▼</div>
-                                
+                                <input type="text" id="vod-type-display" class="input-control" value="全部" readonly
+                                    onclick="toggleVodTypeDropdown()" style="cursor: pointer;">
+                                <div
+                                    style="position: absolute; right: 10px; top: 10px; pointer-events: none; color: var(--text-sub); font-size: 12px;">
+                                    ▼</div>
                                 <div id="vod-type-dropdown" class="suggestion-box">
                                     <div class="suggestion-item" onclick="selectVodType('0', '全部')">全部</div>
                                     <div class="suggestion-item" onclick="selectVodType('1', '视频')">视频</div>
@@ -1835,100 +1859,184 @@
                                 </div>
                             </div>
                         </div>
+
                         <div style="position: relative; width: 240px;">
-                            <input type="text" id="vod-member-filter" class="input-control" style="width: 100%;" placeholder="成员名 / 日期" oninput="handleMemberFilter()" autocomplete="off">
+                            <input type="text" id="vod-member-filter" class="input-control" style="width: 100%;"
+                                placeholder="成员名 / 日期" oninput="handleMemberFilter()" autocomplete="off">
                             <div id="member-suggestions" class="suggestion-box"></div>
                         </div>
-                        <button id="refresh-btn" class="btn btn-secondary" onclick="handleRefreshList()" style="white-space: nowrap; padding: 0 15px; height: 38px;">刷新列表</button>
+
+                        <button id="refresh-btn" class="btn btn-secondary" onclick="handleRefreshList()"
+                            style="white-space: nowrap; padding: 0 15px; height: 38px;">刷新列表</button>
                     </div>
                 </div>
-                <div id="media-list-area" style="flex: 1; display: flex; flex-direction: column; justify-content: flex-start;">
-                    <div id="vod-loading" style="text-align: center; padding: 20px; color: var(--text-sub);">正在加载数据...</div>
+
+                <div id="media-list-area"
+                    style="flex: 1; display: flex; flex-direction: column; justify-content: flex-start;">
+                    <div id="vod-loading"
+                        style="text-align: center; padding: 20px; color: var(--text-sub); display: none;">正在加载数据...
+                    </div>
                     <div class="live-card-grid" id="vod-list-container" style="flex: 1;"></div>
                 </div>
+
                 <div id="live-player-view" style="display: none;">
-                    <div style="margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                    <div
+                        style="margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; width: 100%;">
                         <div style="flex: 1; text-align: left;">
-                            <button class="btn btn-secondary" onclick="backToLiveList()" style="height: 32px; font-size: 13px;">&lt; 返回列表</button>
+                            <button class="btn btn-secondary" onclick="backToLiveList()"
+                                style="height: 32px; font-size: 13px;">&lt; 返回列表</button>
                         </div>
                         <div style="flex: 2; text-align: center;">
-                            <span id="current-live-title" style="font-weight: bold; font-size: 15px; color: var(--text); letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; max-width: 100%;"></span>
+                            <span id="current-live-title"
+                                style="font-weight: bold; font-size: 15px; color: var(--text); letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; max-width: 100%;"></span>
                         </div>
                         <div style="flex: 1; text-align: right;">
                             <span id="current-live-time" style="font-size: 12px; color: var(--text-sub);"></span>
                         </div>
                     </div>
+
                     <div id="live-player-area">
                         <div id="live-player-container">
                             <video id="live-video" controls autoplay style="width: 100%; height: 100%;"></video>
                         </div>
                     </div>
-                    <div id="clip-toolbar" style="margin-top: 15px; padding: 15px; background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+
+                    <div id="clip-toolbar"
+                        style="margin-top: 15px; padding: 15px; background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
                         <div style="flex: 1; min-width: 200px;">
                             <div style="font-weight: bold; font-size: 14px; margin-bottom: 5px;">✂️ 视频切片工具</div>
                             <div style="font-size: 12px; color: var(--text-sub); display: flex; gap: 15px;">
                                 <span id="clip-start-display">起点: 未设置</span>
                                 <span id="clip-end-display">终点: 未设置</span>
-                                <span id="clip-duration-display" style="color: var(--primary); font-weight: bold;">时长: 0s</span>
+                                <span id="clip-duration-display" style="color: var(--primary); font-weight: bold;">时长:
+                                    0s</span>
                             </div>
                         </div>
                         <div class="btn-grid" style="grid-template-columns: auto auto auto; gap: 10px; display: flex;">
                             <button class="btn btn-secondary" onclick="setClipStart()">切片开始</button>
                             <button class="btn btn-secondary" onclick="setClipEnd()">切片结束</button>
-                            <button class="btn btn-primary" onclick="executeClip()" id="btn-do-clip" disabled>生成切片</button>
+                            <button class="btn btn-primary" onclick="executeClip()" id="btn-do-clip"
+                                disabled>生成切片</button>
                         </div>
                     </div>
                 </div>
+
                 <div id="vod-pagination-controls" class="pagination-container" style="padding-bottom: 20px;"></div>
             </div>
-            <div id="view-login" style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
+
+            <div id="view-login"
+                style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
                 <div class="list-container">
-                    <div style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-                        <h2 style="margin: 0; color: var(--primary);">抓取房间消息</h2>
-                        <span id="sdk-status" style="font-size: 12px; color: var(--text-sub);">SDK 加载中...</span>
+                    <div style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border);">
+                        <h2 style="margin: 0; color: var(--primary);">口袋账号登录</h2>
+                        <p style="font-size: 13px; color: var(--text-sub); margin-top: 5px;">在此输入 Token 以启用翻牌、消息抓取等功能。
+                        </p>
                     </div>
+
                     <div id="panel-login" class="Box-row">
                         <div style="margin-bottom: 15px;">
-                            <p style="font-size: 14px; font-weight: bold; color: var(--text); margin-bottom: 8px;">请输入 Token:</p>
-                            <textarea id="login-token" class="input-control" style="height: 100px; resize: none; padding: 10px; font-family: monospace;" placeholder="在此粘贴 Token"></textarea>
+                            <p style="font-size: 14px; font-weight: bold; color: var(--text); margin-bottom: 8px;">请输入
+                                Token:</p>
+                            <textarea id="login-token" class="input-control"
+                                style="height: 100px; resize: none; padding: 10px; font-family: monospace;"
+                                placeholder="在此粘贴 Token"></textarea>
                         </div>
-                        <button class="btn btn-primary btn-full" onclick="checkToken()" style="height: 40px; font-size: 15px;">记录并登录</button>
-                        <div id="login-msg" style="margin-top:15px; text-align:center; color:red; font-size:13px;"></div>
+                        <button class="btn btn-primary btn-full" onclick="checkToken()"
+                            style="height: 40px; font-size: 15px;">保存并验证</button>
+                        <div id="login-msg" style="margin-top:15px; text-align:center; color:red; font-size:13px;">
+                        </div>
                     </div>
-                    <div id="panel-tools" style="display: none;">
+
+                    <div id="panel-logged-in" style="display: none;">
                         <div class="Box-row" style="background: rgba(40, 167, 69, 0.1); border-color: #28a745;">
-                            <div style="font-weight: bold; font-size: 15px; color: #28a745; display: flex; justify-content: space-between; align-items: center;">
-                                <span>✅ 已记录 Token (<span id="user-nickname">口袋用户</span>)</span>
-                                <button class="btn btn-secondary" onclick="logout()" style="height: 24px; padding: 0 8px; font-size: 12px;">清除记录并退出</button>
+                            <div
+                                style="font-weight: bold; font-size: 15px; color: #28a745; display: flex; justify-content: space-between; align-items: center;">
+                                <span>✅ 当前已登录 (<span id="user-nickname">用户</span>)</span>
+                                <button class="btn btn-secondary" onclick="logout()"
+                                    style="height: 24px; padding: 0 8px; font-size: 12px;">注销 / 更换 Token</button>
                             </div>
                         </div>
-                        <div class="Box-row">
-                            <h3 style="margin: 0 0 15px 0; font-size: 16px; border-left: 4px solid var(--primary); padding-left: 10px; display: flex; justify-content: space-between; align-items: center;">
-    <span>抓取房间消息</span>
-    <span id="fetch-status" style="font-size: 12px; font-weight: normal; color: var(--text-sub);"></span>
-</h3>
-                            <div class="search-wrapper">
-                                <label style="font-size: 12px; color: var(--text-sub); display:block; margin-bottom:5px;">搜索成员</label>
-                                <input type="text" id="member-search" class="input-control" placeholder="输入成员名字" oninput="handleSearch(this.value)" onfocus="handleSearch(this.value)">
-                                <div id="search-results" class="suggestion-box"></div>
-                            </div>
-                            <div style="display: none;">
-                                <input type="text" id="tool-server">
-                                <input type="text" id="tool-channel">
-                            </div>
-                            <div class="btn-grid" style="margin-bottom: 15px;">
-                                <button class="btn btn-primary" onclick="fetchMsgs()" id="btn-fetch-one">抓取最新</button>
-                                <button class="btn btn-secondary" onclick="fetchAllMsgs()" id="btn-fetch-all">加载全部</button>                           
-                                <button id="btn-toggle-mode" class="btn btn-secondary" onclick="toggleFetchMode()">模式：只看成员</button>
-                                <button class="btn btn-secondary" onclick="exportMsgsToHtml()" id="btn-export-html" disabled>导出至成员消息</button>
-                            </div>
-                            <div id="msg-result" style="margin-top: 15px; height: 300px; overflow-y: auto; background: var(--input-bg); border-radius: 6px; padding: 10px; font-size: 13px; border: 1px solid var(--border);">
-                                <div style="color: var(--text-sub); text-align: center; margin-top: 50px;">暂无消息</div>
+                        <div style="margin-top: 20px; text-align: center; color: var(--text-sub); font-size: 13px;">
+                            <p>登录后可以前往“抓取消息”或“翻牌记录”页面使用功能。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-fetch"
+                style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
+                <div class="list-container">
+                    <div
+                        style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                        <h2 style="margin: 0; color: var(--primary);">抓取房间消息</h2>
+                        <span id="fetch-status"
+                            style="font-size: 12px; font-weight: normal; color: var(--text-sub);"></span>
+                    </div>
+
+                    <div class="Box-row">
+                        <div class="search-wrapper">
+                            <label
+                                style="font-size: 12px; color: var(--text-sub); display:block; margin-bottom:5px;">搜索成员</label>
+                            <input type="text" id="member-search" class="input-control" placeholder="请输入成员名"
+                                oninput="handleSearch(this.value)" onfocus="handleSearch(this.value)">
+                            <div id="search-results" class="suggestion-box"></div>
+                        </div>
+
+                        <div style="display: none;">
+                            <input type="text" id="tool-server">
+                            <input type="text" id="tool-channel">
+                        </div>
+
+                        <div class="btn-grid" style="margin-bottom: 15px;">
+                            <button class="btn btn-primary" onclick="fetchMsgs()" id="btn-fetch-one">抓取最新</button>
+                            <button class="btn btn-secondary" onclick="fetchAllMsgs()" id="btn-fetch-all">加载全部</button>
+                            <button id="btn-toggle-mode" class="btn btn-secondary"
+                                onclick="toggleFetchMode()">模式：只看成员</button>
+                            <button class="btn btn-secondary" onclick="exportMsgsToHtml()" id="btn-export-html"
+                                disabled>导出至成员消息</button>
+                        </div>
+
+                        <div id="msg-result"
+                            style="margin-top: 15px; height: 300px; overflow-y: auto; background: var(--input-bg); border-radius: 6px; padding: 10px; font-size: 13px; border: 1px solid var(--border);">
+                            <div style="color: var(--text-sub); text-align: center; margin-top: 50px;">
+                                暂无消息<br>
+                                <span style="font-size:12px; opacity:0.7">(请先选择成员并点击抓取)</span>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+
+            <div id="view-flip"
+                style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
+                <div class="list-container">
+                    <div
+                        style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                        <h2 style="margin: 0; color: var(--primary);">我的翻牌记录</h2>
+                        <div style="display:flex; gap:10px;">
+                            <span id="flip-status-text"
+                                style="font-size:12px; color:var(--text-sub); line-height:32px;"></span>
+                            <button class="btn btn-secondary" onclick="loadFlipList(0)">刷新列表</button>
+                        </div>
+                    </div>
+
+                    <div id="flip-list-container">
+                        <div class="placeholder-tip">
+                            <h3>👋 准备就绪</h3>
+                            <p>请确保您已在“账号设置”页面登录成功，然后点击刷新。</p>
+                        </div>
+                    </div>
+
+                    <div class="pagination-container" style="margin-top: 20px; padding-bottom: 30px;">
+                        <button class="pagination-btn" onclick="changeFlipPage(-1)">上一页</button>
+                        <span id="flip-page-info"
+                            style="font-size: 13px; color: var(--text-sub); margin: 0 10px; line-height: 32px;">第 1
+                            页</span>
+                        <button class="pagination-btn" onclick="changeFlipPage(1)">下一页</button>
+                    </div>
+                </div>
+            </div>
+
         </main>
     </div>
     <div class="modal-overlay" id="userModal">
@@ -1962,9 +2070,12 @@
             <div class="modal-body" id="contextListContainer" style="background: var(--bg); padding: 20px;"></div>
         </div>
     </div>
-    <div class="modal-overlay" id="imageModal" onclick="closeImageModal()" style="background: rgba(0,0,0,0.9); z-index: 2001;">
-        <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; padding: 20px;">
-            <img id="modalImg" src="" style="max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 4px; box-shadow: 0 0 20px rgba(0,0,0,0.5);">
+    <div class="modal-overlay" id="imageModal" onclick="closeImageModal()"
+        style="background: rgba(0,0,0,0.9); z-index: 2001;">
+        <div
+            style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; padding: 20px;">
+            <img id="modalImg" src=""
+                style="max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 4px; box-shadow: 0 0 20px rgba(0,0,0,0.5);">
         </div>
     </div>
     <div id="global-notice-bar" style="display: none;">
@@ -2020,7 +2131,7 @@
                         
                     </div>
                 `).join('');
-                
+
                 resultBox.innerHTML = html;
                 resultBox.style.display = 'block';
             } else {
@@ -2037,7 +2148,7 @@
             document.getElementById('search-results').style.display = 'none';
             document.getElementById('msg-result').innerHTML = '<div style="text-align:center;padding:20px;color:#999">已选择成员: ' + name + '<br>点击“抓取最新”开始</div>';
         }
-        document.addEventListener('click', function(e) {
+        document.addEventListener('click', function (e) {
             const wrapper = document.querySelector('.search-wrapper');
             if (wrapper && !wrapper.contains(e.target)) {
                 document.getElementById('search-results').style.display = 'none';
@@ -2052,64 +2163,66 @@
 
         function toggleSidebarMode(mode) {
             const idsToHide = ['sb-members', 'sb-analysis', 'sb-search', 'sb-date', 'sb-type', 'statusMsg'];
+
             const downloadModule = document.getElementById('sb-download');
             const loginGroup = document.getElementById('sb-login-group');
-            const liveBtns = document.getElementById('live-btns-container');
-            const backBtn = document.getElementById('back-to-msg-btn');
             const liveGroup = document.getElementById('sb-live-group');
+
             const btnOpenToolbox = document.getElementById('btn-open-toolbox');
             const btnCloseToolbox = document.getElementById('btn-close-toolbox');
+
             idsToHide.forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.style.display = (id === 'statusMsg') ? 'block' : 'flex';
             });
             if (loginGroup) loginGroup.style.display = 'flex';
             if (downloadModule) downloadModule.style.display = 'none';
-            if (liveBtns) liveBtns.style.display = 'grid';
-            if (backBtn) backBtn.style.display = 'none';
             if (liveGroup) liveGroup.style.display = 'flex';
-            if (btnOpenToolbox) btnOpenToolbox.style.display = 'flex';
-            if (btnCloseToolbox) btnCloseToolbox.style.display = 'none';
+
             if (mode === 'media') {
+
                 idsToHide.forEach(id => {
                     const el = document.getElementById(id);
                     if (el) el.style.display = 'none';
                 });
                 if (loginGroup) loginGroup.style.display = 'none';
+
                 if (downloadModule) downloadModule.style.display = 'flex';
-                if (liveBtns) liveBtns.style.display = 'none';
-                if (backBtn) backBtn.style.display = 'block';
-                if (btnOpenToolbox) btnOpenToolbox.style.display = 'none';
-                if (btnCloseToolbox) btnCloseToolbox.style.display = 'none';
+
             } else if (mode === 'login') {
                 idsToHide.forEach(id => {
                     const el = document.getElementById(id);
                     if (el) el.style.display = 'none';
                 });
                 if (liveGroup) liveGroup.style.display = 'none';
-                if (btnOpenToolbox) btnOpenToolbox.style.display = 'none';
-                if (btnCloseToolbox) btnCloseToolbox.style.display = 'flex';
             }
         }
 
-function switchView(viewName, mode = null) {
+        function switchView(viewName, mode = null) {
             const msgView = document.getElementById('view-messages');
             const mediaView = document.getElementById('view-media');
             const loginView = document.getElementById('view-login');
+            const fetchView = document.getElementById('view-fetch');
+            const flipView = document.getElementById('view-flip');
 
-            msgView.style.display = 'none';
-            mediaView.style.display = 'none';
+            if (msgView) msgView.style.display = 'none';
+            if (mediaView) mediaView.style.display = 'none';
             if (loginView) loginView.style.display = 'none';
+            if (fetchView) fetchView.style.display = 'none';
+            if (flipView) flipView.style.display = 'none';
 
             destroyPlayers();
-            if (window.vodState) {
-                window.vodState.isSearchActive = false;
-            }
+            if (window.vodState) window.vodState.isSearchActive = false;
+
+            updateSidebarButtons(viewName, mode);
 
             if (viewName === 'media') {
                 toggleSidebarMode('media');
-                mediaView.style.display = 'flex';
-                mediaView.style.flexDirection = 'column';
+                if (mediaView) {
+                    mediaView.style.display = 'flex';
+                    mediaView.style.flexDirection = 'column';
+                }
+
                 const titleEl = document.getElementById('live-view-title');
                 currentMode = mode;
 
@@ -2118,23 +2231,18 @@ function switchView(viewName, mode = null) {
                     document.getElementById('media-list-controls').style.display = 'none';
                     document.getElementById('vod-pagination-controls').style.display = 'none';
                     fetchLiveList();
-
                 } else if (mode === 'vod') {
                     titleEl.textContent = '📼 录播回放';
                     document.getElementById('media-list-controls').style.display = 'flex';
                     document.getElementById('vod-pagination-controls').style.display = 'flex';
-
                     if (window.vodState) {
                         if (vodState.list.length === 0) {
-                            ensurePageData(2).then(() => {
-                                window.renderVODListUI();
-                            });
+                            ensurePageData(2).then(() => window.renderVODListUI());
                         } else {
                             window.renderVODListUI();
                         }
                     }
                 }
-
                 document.getElementById('live-player-view').style.display = 'none';
                 document.getElementById('media-list-area').style.display = 'block';
 
@@ -2143,14 +2251,84 @@ function switchView(viewName, mode = null) {
                 if (loginView) loginView.style.display = 'block';
                 const savedToken = localStorage.getItem('yaya_p48_token');
                 const tokenInput = document.getElementById('login-token');
-                if (savedToken && tokenInput) {
-                    tokenInput.value = savedToken;
+                if (savedToken && tokenInput) tokenInput.value = savedToken;
+                if (typeof appToken !== 'undefined' && (appToken || savedToken)) {
+                    if (!appToken) appToken = savedToken;
+                    if (typeof updateAuthUI === 'function') updateAuthUI(true);
+                    loadMemberData();
+                } else {
+                    if (typeof updateAuthUI === 'function') updateAuthUI(false);
                 }
-                loadMemberData();
+
+            } else if (viewName === 'fetch') {
+                toggleSidebarMode('login');
+                if (fetchView) fetchView.style.display = 'block';
+
+            } else if (viewName === 'flip') {
+                toggleSidebarMode('login');
+                if (flipView) flipView.style.display = 'block';
+                if (typeof flipCurrentPage !== 'undefined' && flipCurrentPage === 0) loadFlipList(0);
 
             } else {
                 toggleSidebarMode('messages');
-                msgView.style.display = 'block';
+                if (msgView) msgView.style.display = 'block';
+            }
+        }
+
+        function updateSidebarButtons(viewName, mode) {
+            const bottomButtons = [
+                { id: 'btn-sb-login', defaultText: '账号设置', targetView: 'login' },
+                { id: 'btn-sb-fetch', defaultText: '抓取消息', targetView: 'fetch' },
+                { id: 'btn-sb-flip', defaultText: '翻牌记录', targetView: 'flip' }
+            ];
+
+            bottomButtons.forEach(btn => {
+                const el = document.getElementById(btn.id);
+                if (!el) return;
+                if (viewName === btn.targetView) {
+                    el.innerHTML = '返回主页';
+                    el.className = 'btn btn-primary btn-full';
+                    el.onclick = () => switchView('messages');
+                } else {
+                    el.innerHTML = btn.defaultText;
+                    el.className = 'btn btn-secondary btn-full';
+                    el.onclick = () => switchView(btn.targetView);
+                }
+            });
+
+            const btnLive = document.getElementById('btn-sb-live');
+            const btnVod = document.getElementById('btn-sb-vod');
+
+            if (btnLive && btnVod) {
+                if (viewName === 'media' && mode === 'live') {
+                    btnLive.innerHTML = '返回主页';
+                    btnLive.className = 'btn btn-primary';
+                    btnLive.onclick = () => switchView('messages');
+
+                    btnVod.innerHTML = '📼 录播回放';
+                    btnVod.className = 'btn btn-secondary';
+                    btnVod.onclick = () => switchView('media', 'vod');
+
+                } else if (viewName === 'media' && mode === 'vod') {
+
+                    btnLive.innerHTML = '📺 正在直播';
+                    btnLive.className = 'btn btn-secondary';
+                    btnLive.onclick = () => switchView('media', 'live');
+
+                    btnVod.innerHTML = '返回主页';
+                    btnVod.className = 'btn btn-primary';
+                    btnVod.onclick = () => switchView('messages');
+
+                } else {
+
+                    btnLive.innerHTML = '📺 正在直播';
+                    btnLive.className = 'btn btn-secondary';
+                    btnLive.onclick = () => switchView('media', 'live');
+
+                    btnVod.innerHTML = '📼 录播回放';
+                    btnVod.className = 'btn btn-secondary';
+                    btnVod.onclick = () => switchView('media', 'vod');
+                }
             }
         }
 
@@ -2205,10 +2383,10 @@ function switchView(viewName, mode = null) {
 
         async function loadMemberIdMap() {
             const csvPath = path.join(__dirname, 'members_id.csv');
-    
+
             if (!fs.existsSync(csvPath)) {
                 statusMsg.textContent = "⚠️ 本地映射表缺失，正在尝试从云端获取...";
-                await autoUpdateMemberData(); 
+                await autoUpdateMemberData();
             }
 
             try {
@@ -2219,8 +2397,8 @@ function switchView(viewName, mode = null) {
 
                 const data = fs.readFileSync(csvPath, 'utf-8');
                 const lines = data.split('\n');
-        
-                memberNameMap.set('clear_all', true); 
+
+                memberNameMap.set('clear_all', true);
                 memberNameMap.clear();
                 memberIdSet.clear();
                 memberTeamMap.clear();
@@ -2236,7 +2414,7 @@ function switchView(viewName, mode = null) {
                         memberNameMap.set(name, id);
                         if (id) memberIdSet.add(id);
                         if (team) memberTeamMap.set(name, team);
-                
+
                         if (name.includes('-')) {
                             const simpleName = name.split('-')[1];
                             if (!memberNameMap.has(simpleName)) {
@@ -2246,14 +2424,14 @@ function switchView(viewName, mode = null) {
                         }
                     }
                 });
-        
-        initBestNames();
-        statusMsg.textContent = "✅ 成员映射表加载完成";
-    } catch (e) {
-        console.error("加载映射表失败:", e);
-        statusMsg.textContent = "❌ 映射表解析出错";
-    }
-}
+
+                initBestNames();
+                statusMsg.textContent = "✅ 成员映射表加载完成";
+            } catch (e) {
+                console.error("加载映射表失败:", e);
+                statusMsg.textContent = "❌ 映射表解析出错";
+            }
+        }
         let bestNameMapForDisplay = new Map();
 
         async function autoUpdateMemberData() {
@@ -2378,49 +2556,49 @@ function switchView(viewName, mode = null) {
                 };
                 this.hasMore = true;
                 this.groups = [{
-                        apiId: 0,
-                        name: '全部团体'
-                    },
-                    {
-                        apiId: 10,
-                        name: 'SNH48'
-                    },
-                    {
-                        apiId: 11,
-                        name: 'BEJ48'
-                    },
-                    {
-                        apiId: 12,
-                        name: 'GNZ48'
-                    },
-                    {
-                        apiId: 14,
-                        name: 'CKG48'
-                    },
-                    {
-                        apiId: 21,
-                        name: 'CGT48'
-                    },
-                    {
-                        apiId: 15,
-                        name: 'IDFT'
-                    },
-                    {
-                        apiId: 17,
-                        name: 'THE9'
-                    },
-                    {
-                        apiId: 19,
-                        name: '明星殿堂'
-                    },
-                    {
-                        apiId: 20,
-                        name: '丝芭影视'
-                    },
-                    {
-                        apiId: 16,
-                        name: '海外练习生'
-                    },
+                    apiId: 0,
+                    name: '全部团体'
+                },
+                {
+                    apiId: 10,
+                    name: 'SNH48'
+                },
+                {
+                    apiId: 11,
+                    name: 'BEJ48'
+                },
+                {
+                    apiId: 12,
+                    name: 'GNZ48'
+                },
+                {
+                    apiId: 14,
+                    name: 'CKG48'
+                },
+                {
+                    apiId: 21,
+                    name: 'CGT48'
+                },
+                {
+                    apiId: 15,
+                    name: 'IDFT'
+                },
+                {
+                    apiId: 17,
+                    name: 'THE9'
+                },
+                {
+                    apiId: 19,
+                    name: '明星殿堂'
+                },
+                {
+                    apiId: 20,
+                    name: '丝芭影视'
+                },
+                {
+                    apiId: 16,
+                    name: '海外练习生'
+                },
                 ];
                 this.currentPage = 1;
                 this.pageSize = 5;
@@ -2540,10 +2718,10 @@ function switchView(viewName, mode = null) {
         let currentPlayingAudio = null;
         let currentPlayingVideo = null;
 
-        let currentSortOrder = 'desc'; 
+        let currentSortOrder = 'desc';
         function filterGroupOptions(keyword) {
             const select = document.getElementById('groupSelect');
-            const currentVal = select.value; 
+            const currentVal = select.value;
             const term = keyword.trim().toLowerCase();
 
             select.innerHTML = '<option value="all">全部成员</option>';
@@ -2567,13 +2745,13 @@ function switchView(viewName, mode = null) {
             }
             if (!stillExists) {
                 select.value = 'all';
-                applyFilters(); 
+                applyFilters();
             }
         }
 
         function toggleSortOrder() {
             const btn = document.getElementById('sortBtn');
-            
+
             if (currentSortOrder === 'desc') {
                 currentSortOrder = 'asc';
                 btn.innerText = '当前：最早在前';
@@ -2581,7 +2759,7 @@ function switchView(viewName, mode = null) {
                 currentSortOrder = 'desc';
                 btn.innerText = '当前：最新在前';
             }
-            
+
             applyFilters();
         }
 
@@ -2677,7 +2855,7 @@ function switchView(viewName, mode = null) {
                             try {
                                 const post = JSON.parse(line);
                                 tempPosts.push(post);
-                            } catch (e) {}
+                            } catch (e) { }
                         }
                     });
                     rl.on('close', () => {
@@ -2688,7 +2866,7 @@ function switchView(viewName, mode = null) {
                 }
             });
         }
-        window.onload = function() {
+        window.onload = function () {
             autoUpdateMemberData();
             checkGitHubNotice();
             initTheme();
@@ -2704,7 +2882,7 @@ function switchView(viewName, mode = null) {
                 }).catch((e) => {
                     try {
                         fs.unlinkSync(CACHE_FILE);
-                    } catch (err) {}
+                    } catch (err) { }
                     scanFiles();
                 });
             } else {
@@ -2714,13 +2892,13 @@ function switchView(viewName, mode = null) {
                 renderVodGroupOptions();
             }
         };
-        window.forceReloadData = function() {          
+        window.forceReloadData = function () {
             outputList.innerHTML = '<div class="placeholder-tip"><h3>🔄 正在增量更新...</h3><p>正在比对文件变动，请稍候。</p></div>';
             statusMsg.textContent = "⏳ 正在分析新文件...";
-            
+
             setTimeout(() => scanFiles(true), 100);
         }
-const MANIFEST_FILE = 'scan_manifest.json';
+        const MANIFEST_FILE = 'scan_manifest.json';
         let fileManifest = {};
 
         function loadManifest() {
@@ -2734,7 +2912,7 @@ const MANIFEST_FILE = 'scan_manifest.json';
         function saveManifest() {
             try {
                 fs.writeFileSync(MANIFEST_FILE, JSON.stringify(fileManifest), 'utf-8');
-            } catch (e) {}
+            } catch (e) { }
         }
 
         function scanFiles(isIncremental = false) {
@@ -2767,7 +2945,7 @@ const MANIFEST_FILE = 'scan_manifest.json';
                     for (const cachedPath of Object.keys(fileManifest)) {
                         if (!realFilesOnDisk.has(cachedPath)) {
                             console.log(`检测到文件已删除: ${cachedPath}，将触发全量重扫`);
-                            isIncremental = false; 
+                            isIncremental = false;
                             statusMsg.textContent = "🗑️ 发现文件变动，正在重置缓存...";
                             break;
                         }
@@ -2778,12 +2956,12 @@ const MANIFEST_FILE = 'scan_manifest.json';
             }
 
             statusMsg.textContent = isIncremental ? "⏳ 正在扫描新文件..." : "⏳ 正在重建索引...";
-            
+
             if (!isIncremental) {
                 allPosts = [];
-                fileManifest = {}; 
+                fileManifest = {};
             }
-            
+
             let newParsedCount = 0;
             let skippedCount = 0;
 
@@ -2799,17 +2977,17 @@ const MANIFEST_FILE = 'scan_manifest.json';
                                 try {
                                     const fullPath = path.join(dirPath, file);
                                     const stats = fs.statSync(fullPath);
-                                    const fileKey = fullPath; 
+                                    const fileKey = fullPath;
 
                                     if (isIncremental && fileManifest[fileKey] === stats.mtimeMs) {
                                         skippedCount++;
-                                        return; 
+                                        return;
                                     }
 
                                     const text = fs.readFileSync(fullPath, 'utf-8');
                                     const parsed = parseHtmlContent(text, file, groupName);
                                     newPosts = newPosts.concat(parsed);
-  
+
                                     fileManifest[fileKey] = stats.mtimeMs;
                                     newParsedCount++;
                                 } catch (e) {
@@ -2832,8 +3010,8 @@ const MANIFEST_FILE = 'scan_manifest.json';
 
                     if (allPosts.length === 0) {
                         outputList.innerHTML = '<div class="placeholder-tip"><h3>📂 没有找到数据</h3><p>请在"html"文件夹内放入 .html 文件。</p></div>';
-                        if(fs.existsSync(CACHE_FILE)) try { fs.unlinkSync(CACHE_FILE); } catch(e){}
-                        saveManifest(); 
+                        if (fs.existsSync(CACHE_FILE)) try { fs.unlinkSync(CACHE_FILE); } catch (e) { }
+                        saveManifest();
                         return;
                     }
 
@@ -2851,17 +3029,17 @@ const MANIFEST_FILE = 'scan_manifest.json';
                     }
                     allPosts = uniquePosts.reverse();
                     allPosts.sort((a, b) => new Date(a.timeStr) - new Date(b.timeStr));
-                    
+
                     allPosts.forEach((post, index) => {
                         post.originalIndex = index;
                     });
 
                     statusMsg.textContent = "💾 正在保存...";
-                    
+
                     saveCacheOptimized(allPosts).then(() => {
-                        saveManifest(); 
-                        const msg = isIncremental 
-                            ? `✅ 更新: 新增 ${newParsedCount} 个文件` 
+                        saveManifest();
+                        const msg = isIncremental
+                            ? `✅ 更新: 新增 ${newParsedCount} 个文件`
                             : `✅ 重建完成: 共 ${allPosts.length} 条`;
                         statusMsg.textContent = msg;
                     }).catch(e => {
@@ -2879,17 +3057,17 @@ const MANIFEST_FILE = 'scan_manifest.json';
         function initUIWithData() {
             const groups = new Set(allPosts.map(p => p.groupName));
 
-            allMemberOptions = Array.from(groups).sort(); 
-            
+            allMemberOptions = Array.from(groups).sort();
+
             initDateSelectors();
             applyFilters();
 
             const sInput = document.getElementById('searchInput');
-            if(sInput) sInput.disabled = false;
-            if(analysisBtn) analysisBtn.disabled = false;
-            if(dateBtn) dateBtn.disabled = false;
+            if (sInput) sInput.disabled = false;
+            if (analysisBtn) analysisBtn.disabled = false;
+            if (dateBtn) dateBtn.disabled = false;
             const yDisp = document.getElementById('yearSelectDisplay');
-            if(yDisp) yDisp.disabled = false;
+            if (yDisp) yDisp.disabled = false;
         }
 
         function backToLiveList() {
@@ -2930,7 +3108,7 @@ const MANIFEST_FILE = 'scan_manifest.json';
                     box.innerHTML = matches.slice(0, 10).map(name => {
                         const team = memberTeamMap.get(name) || '';
                         const teamHtml = team ? `<span class="team-tag">${team}</span>` : '';
-                        
+
                         return `<div class="suggestion-item" 
                                      onclick="selectMember('${name}')"
                                      style="display: flex; justify-content: space-between; align-items: center;">
@@ -2938,7 +3116,7 @@ const MANIFEST_FILE = 'scan_manifest.json';
                                     ${teamHtml}
                                 </div>`;
                     }).join('');
-                    
+
                     box.style.display = 'block';
                 } else {
                     box.style.display = 'none';
@@ -2955,8 +3133,8 @@ const MANIFEST_FILE = 'scan_manifest.json';
 
         function renderVodGroupOptions() {
             const list = document.getElementById('vod-group-dropdown');
-            if(!list || !window.vodState) return;
-            
+            if (!list || !window.vodState) return;
+
             list.innerHTML = vodState.groups.map(g => `
                 <div class="suggestion-item" onclick="selectVodGroup('${g.apiId}', '${g.name}')">
                     ${g.name}
@@ -2974,7 +3152,7 @@ const MANIFEST_FILE = 'scan_manifest.json';
         function selectVodGroup(apiId, name) {
             document.getElementById('vod-group-display').value = name;
             document.getElementById('vod-group-dropdown').style.display = 'none';
-            handleGroupChange(apiId); 
+            handleGroupChange(apiId);
         }
 
         function toggleVodTypeDropdown() {
@@ -2985,10 +3163,10 @@ const MANIFEST_FILE = 'scan_manifest.json';
         }
 
         function selectVodType(value, name) {
-            document.getElementById('vod-type-display').value = name; 
-            document.getElementById('vod-type-filter').value = value; 
+            document.getElementById('vod-type-display').value = name;
+            document.getElementById('vod-type-filter').value = value;
             document.getElementById('vod-type-dropdown').style.display = 'none';
-            handleVodTypeChange(); 
+            handleVodTypeChange();
         }
 
         function handleVodTypeChange() {
@@ -3112,7 +3290,7 @@ const MANIFEST_FILE = 'scan_manifest.json';
                     vodState.hasMore = res.content.next !== 0 && res.content.next !== null;
                     return newList.length;
                 }
-            } catch (e) {}
+            } catch (e) { }
             return 0;
         }
         async function ensurePageData(page) {
@@ -3130,7 +3308,7 @@ const MANIFEST_FILE = 'scan_manifest.json';
                     if (addedRaw === 0 && !vodState.hasMore) break;
                     loopSafety++;
                 }
-            } catch (e) {} finally {
+            } catch (e) { } finally {
                 vodState.isLoading = false;
                 document.getElementById('vod-loading').style.display = 'none';
                 togglePagination(true);
@@ -3144,7 +3322,7 @@ const MANIFEST_FILE = 'scan_manifest.json';
                 btns.forEach(b => b.disabled = !enabled);
             }
         }
-        window.renderVODListUI = function() {
+        window.renderVODListUI = function () {
             if (!window.vodState) return;
             const container = document.getElementById('vod-list-container');
             const filteredList = getFilteredVODList();
@@ -3243,7 +3421,7 @@ const MANIFEST_FILE = 'scan_manifest.json';
                                 const custom = JSON.parse(msg.custom);
                                 text = custom.text;
                             }
-                        } catch (e) {}
+                        } catch (e) { }
                         if (text && dp && dp.danmaku) dp.danmaku.draw({
                             text: text,
                             color: '#fff',
@@ -3362,7 +3540,7 @@ const MANIFEST_FILE = 'scan_manifest.json';
                             const secureUrl = danmuUrl.replace(/^http:\/\//i, 'https://');
                             const danmuText = await fetchDanmuNative(secureUrl);
                             danmuData = parsePocketDanmu(danmuText);
-                        } catch (e) {}
+                        } catch (e) { }
                     }
                     startPlayer(streamUrl, title, isLive, res.content.chatroomId, danmuData);
                 } else {
@@ -3568,7 +3746,7 @@ const MANIFEST_FILE = 'scan_manifest.json';
                             url: localUrl,
                             type: 'customFlv',
                             customType: {
-                                customFlv: function(video) {
+                                customFlv: function (video) {
                                     flvPlayer = mpegts.createPlayer({
                                         type: 'flv',
                                         url: localUrl,
@@ -3688,113 +3866,113 @@ const MANIFEST_FILE = 'scan_manifest.json';
                     }
                 },
                 settings: [{
-                        html: '字幕颜色',
-                        width: 250,
-                        tooltip: '白色',
-                        selector: [{
-                                html: '<span style="color:#ffffff; font-weight:bold;">白色</span>',
-                                url: '#FFFFFF',
-                                default: true
-                            },
-                            {
-                                html: '<span style="color:#ffff00; font-weight:bold;">黄色</span>',
-                                url: '#FFFF00'
-                            },
-                            {
-                                html: '<span style="color:#00ff00; font-weight:bold;">绿色</span>',
-                                url: '#00FF00'
-                            },
-                            {
-                                html: '<span style="color:#ff0000; font-weight:bold;">红色</span>',
-                                url: '#FF0000'
-                            },
-                            {
-                                html: '<span style="color:#00ffff; font-weight:bold;">青色</span>',
-                                url: '#00FFFF'
-                            },
-                            {
-                                html: '<span style="color:#ff00ff; font-weight:bold;">洋红</span>',
-                                url: '#FF00FF'
-                            }
-                        ],
-                        onSelect: function(item) {
-                            art.subtitle.style('color', item.url);
-                            return item.html;
-                        }
+                    html: '字幕颜色',
+                    width: 250,
+                    tooltip: '白色',
+                    selector: [{
+                        html: '<span style="color:#ffffff; font-weight:bold;">白色</span>',
+                        url: '#FFFFFF',
+                        default: true
                     },
                     {
-                        html: '字幕大小',
-                        width: 250,
-                        tooltip: '30px',
-                        selector: [{
-                                html: '20px (小)',
-                                url: '20px'
-                            },
-                            {
-                                html: '30px (标准)',
-                                url: '30px',
-                                default: true
-                            },
-                            {
-                                html: '40px (大)',
-                                url: '40px'
-                            },
-                            {
-                                html: '50px (特大)',
-                                url: '50px'
-                            },
-                            {
-                                html: '60px (极大)',
-                                url: '60px'
-                            },
-                            {
-                                html: '80px (巨型)',
-                                url: '80px'
-                            }
-                        ],
-                        onSelect: function(item) {
-                            art.subtitle.style('fontSize', item.url);
-                            return item.html;
-                        }
+                        html: '<span style="color:#ffff00; font-weight:bold;">黄色</span>',
+                        url: '#FFFF00'
                     },
                     {
-                        html: '垂直位置',
-                        width: 250,
-                        tooltip: '30px',
-                        selector: [{
-                                html: '0px (最底)',
-                                url: '0px'
-                            },
-                            {
-                                html: '30px (标准)',
-                                url: '30px',
-                                default: true
-                            },
-                            {
-                                html: '60px (偏高)',
-                                url: '60px'
-                            },
-                            {
-                                html: '100px (高)',
-                                url: '100px'
-                            },
-                            {
-                                html: '150px (很高)',
-                                url: '150px'
-                            }
-                        ],
-                        onSelect: function(item) {
-                            art.subtitle.style('marginBottom', item.url);
-                            return item.html;
-                        }
+                        html: '<span style="color:#00ff00; font-weight:bold;">绿色</span>',
+                        url: '#00FF00'
+                    },
+                    {
+                        html: '<span style="color:#ff0000; font-weight:bold;">红色</span>',
+                        url: '#FF0000'
+                    },
+                    {
+                        html: '<span style="color:#00ffff; font-weight:bold;">青色</span>',
+                        url: '#00FFFF'
+                    },
+                    {
+                        html: '<span style="color:#ff00ff; font-weight:bold;">洋红</span>',
+                        url: '#FF00FF'
                     }
+                    ],
+                    onSelect: function (item) {
+                        art.subtitle.style('color', item.url);
+                        return item.html;
+                    }
+                },
+                {
+                    html: '字幕大小',
+                    width: 250,
+                    tooltip: '30px',
+                    selector: [{
+                        html: '20px (小)',
+                        url: '20px'
+                    },
+                    {
+                        html: '30px (标准)',
+                        url: '30px',
+                        default: true
+                    },
+                    {
+                        html: '40px (大)',
+                        url: '40px'
+                    },
+                    {
+                        html: '50px (特大)',
+                        url: '50px'
+                    },
+                    {
+                        html: '60px (极大)',
+                        url: '60px'
+                    },
+                    {
+                        html: '80px (巨型)',
+                        url: '80px'
+                    }
+                    ],
+                    onSelect: function (item) {
+                        art.subtitle.style('fontSize', item.url);
+                        return item.html;
+                    }
+                },
+                {
+                    html: '垂直位置',
+                    width: 250,
+                    tooltip: '30px',
+                    selector: [{
+                        html: '0px (最底)',
+                        url: '0px'
+                    },
+                    {
+                        html: '30px (标准)',
+                        url: '30px',
+                        default: true
+                    },
+                    {
+                        html: '60px (偏高)',
+                        url: '60px'
+                    },
+                    {
+                        html: '100px (高)',
+                        url: '100px'
+                    },
+                    {
+                        html: '150px (很高)',
+                        url: '150px'
+                    }
+                    ],
+                    onSelect: function (item) {
+                        art.subtitle.style('marginBottom', item.url);
+                        return item.html;
+                    }
+                }
                 ],
                 controls: [{
                     name: 'upload-subtitle',
                     position: 'right',
                     html: '字幕',
                     tooltip: '加载本地字幕',
-                    click: function() {
+                    click: function () {
                         subInput.click();
                     }
                 }],
@@ -3815,7 +3993,7 @@ const MANIFEST_FILE = 'scan_manifest.json';
                     points: []
                 })],
                 customType: {
-                    flv: function(video, url) {
+                    flv: function (video, url) {
                         if (window.mpegts && window.mpegts.getIsSupported()) {
                             const player = window.mpegts.createPlayer({
                                 type: 'flv',
@@ -3827,7 +4005,7 @@ const MANIFEST_FILE = 'scan_manifest.json';
                             video.mpegts = player;
                         } else video.src = url;
                     },
-                    m3u8: function(video, url) {
+                    m3u8: function (video, url) {
                         if (window.Hls && window.Hls.isSupported()) {
                             const hls = new window.Hls();
                             hls.loadSource(url);
@@ -4014,7 +4192,7 @@ const MANIFEST_FILE = 'scan_manifest.json';
                     document.body.style.backgroundImage = `url('${ev.target.result}')`;
                     try {
                         localStorage.setItem('custom_bg_data', ev.target.result);
-                    } catch (e) {}
+                    } catch (e) { }
                 };
                 reader.readAsDataURL(file);
             }
@@ -4078,27 +4256,27 @@ const MANIFEST_FILE = 'scan_manifest.json';
                 let avatarHtml = '',
                     nameStr = 'Unknown',
                     userId = null,
-                    isMember = false; 
+                    isMember = false;
 
 
-                const VIP_IDS = []; 
+                const VIP_IDS = [];
 
                 const originalHeader = row.querySelector('div.mb-2');
                 if (originalHeader) {
                     const img = originalHeader.querySelector('img');
                     if (img) avatarHtml = img.outerHTML;
-                    
+
                     const span = originalHeader.querySelector('span');
                     if (span) {
                         nameStr = span.innerText;
-                        userId = span.getAttribute('data-userid'); 
-                        const roleId = span.getAttribute('data-roleid'); 
-                        
+                        userId = span.getAttribute('data-userid');
+                        const roleId = span.getAttribute('data-roleid');
+
 
                         if (roleId && parseInt(roleId) > 1) {
                             isMember = true;
                         }
-                        
+
 
                         const style = span.getAttribute('style') || '';
                         if (style.includes('#ff4d4f') || style.includes('bold') || style.includes('font-weight:700')) {
@@ -4109,8 +4287,8 @@ const MANIFEST_FILE = 'scan_manifest.json';
                         if (userId && VIP_IDS.includes(String(userId))) {
                             isMember = true;
                         }
-                        
-                   
+
+
                     }
                 }
 
@@ -4177,7 +4355,7 @@ const MANIFEST_FILE = 'scan_manifest.json';
                 if (post.userId && String(post.userId) !== 'undefined') {
                     const idTag = document.createElement('div');
                     idTag.innerHTML = `${post.userId}`;
-                    
+
                     idTag.style.cssText = `
                         position: absolute;
                         top: 14px;
@@ -4192,25 +4370,23 @@ const MANIFEST_FILE = 'scan_manifest.json';
                         z-index: 5;
                         display: flex;
                         align-items: center;
-                        
-                        /* ⬇️⬇️⬇️ 关键样式：鼠标变手型，禁止文字选中 ⬇️⬇️⬇️ */
                         cursor: pointer; 
                         user-select: none; 
                         transition: all 0.2s ease;
                         box-shadow: 0 1px 2px rgba(0,0,0,0.02);
                     `;
-                    
+
                     idTag.onclick = (e) => window.filterByUserId(post.userId);
                     idTag.title = "点击筛选此人的所有消息";
 
-                    idTag.onmouseenter = () => { 
-                        idTag.style.borderColor = 'var(--primary)'; 
+                    idTag.onmouseenter = () => {
+                        idTag.style.borderColor = 'var(--primary)';
                         idTag.style.color = 'var(--primary)';
-                        idTag.style.transform = 'translateY(-1px)'; 
+                        idTag.style.transform = 'translateY(-1px)';
                         idTag.style.boxShadow = '0 2px 5px rgba(0,0,0,0.1)';
                     };
-                    idTag.onmouseleave = () => { 
-                        idTag.style.borderColor = 'var(--border)'; 
+                    idTag.onmouseleave = () => {
+                        idTag.style.borderColor = 'var(--border)';
                         idTag.style.color = 'var(--text-sub)';
                         idTag.style.transform = 'none';
                         idTag.style.boxShadow = '0 1px 2px rgba(0,0,0,0.02)';
@@ -4220,18 +4396,18 @@ const MANIFEST_FILE = 'scan_manifest.json';
                 }
                 const header = document.createElement('div');
                 header.className = 'user-header-row';
-                
 
-                const isMemberPost = 
-                    post.isMember ||                                     
-                    (post.nameStr === post.groupName) ||                 
-                    post.isReply ||                                       
-                    (typeof memberNameMap !== 'undefined' && memberNameMap.has(post.nameStr)) || 
-                    (typeof memberIdSet !== 'undefined' && post.userId && memberIdSet.has(String(post.userId))); 
-                
+
+                const isMemberPost =
+                    post.isMember ||
+                    (post.nameStr === post.groupName) ||
+                    post.isReply ||
+                    (typeof memberNameMap !== 'undefined' && memberNameMap.has(post.nameStr)) ||
+                    (typeof memberIdSet !== 'undefined' && post.userId && memberIdSet.has(String(post.userId)));
+
 
                 const nameStyle = isMemberPost ? 'color: #FB7299; font-weight: bold;' : 'color: var(--text); opacity: 0.9;';
- 
+
                 header.innerHTML = `
                     ${post.avatarHtml}
                     <div class="user-info-col">
@@ -4260,7 +4436,7 @@ const MANIFEST_FILE = 'scan_manifest.json';
                             }
                         }
                     });
-                } catch (e) {}
+                } catch (e) { }
                 content.classList.add('message-content-clickable');
                 content.onclick = (e) => {
                     if (e.target.tagName === 'IMG' && !e.target.classList.contains('avatar')) {
@@ -4320,10 +4496,10 @@ const MANIFEST_FILE = 'scan_manifest.json';
             allPosts.forEach(post => {
                 if (post.year) availableYears.add(post.year);
             });
-            
+
             const yearList = document.getElementById('year-dropdown');
             let html = `<div class="suggestion-item" onclick="selectDateItem('year', 'all', '全部')">全部</div>`;
-            
+
             Array.from(availableYears).sort().reverse().forEach(y => {
                 html += `<div class="suggestion-item" onclick="selectDateItem('year', '${y}', '${y}年')">${y}年</div>`;
             });
@@ -4336,12 +4512,12 @@ const MANIFEST_FILE = 'scan_manifest.json';
         function populateMonths(year) {
             const monthList = document.getElementById('month-dropdown');
             let html = `<div class="suggestion-item" onclick="selectDateItem('month', 'all', '全年')">全年</div>`;
-            
+
             const months = new Set();
             allPosts.forEach(p => {
                 if (p.year == year) months.add(p.month);
             });
-            
+
             Array.from(months).sort((a, b) => a - b).forEach(m => {
                 html += `<div class="suggestion-item" onclick="selectDateItem('month', '${m}', '${m}月')">${m}月</div>`;
             });
@@ -4353,12 +4529,12 @@ const MANIFEST_FILE = 'scan_manifest.json';
         function populateDays(year, month) {
             const dayList = document.getElementById('day-dropdown');
             let html = `<div class="suggestion-item" onclick="selectDateItem('day', 'all', '全月')">全月</div>`;
-            
+
             const days = new Set();
             allPosts.forEach(p => {
                 if (p.year == year && p.month == month) days.add(p.day);
             });
-            
+
             Array.from(days).sort((a, b) => a - b).forEach(d => {
                 html += `<div class="suggestion-item" onclick="selectDateItem('day', '${d}', '${d}日')">${d}日</div>`;
             });
@@ -4416,7 +4592,7 @@ const MANIFEST_FILE = 'scan_manifest.json';
 
         function toggleDateDropdown(type) {
             const displayEl = document.getElementById(`${type}SelectDisplay`);
-            if (displayEl && displayEl.disabled) return; 
+            if (displayEl && displayEl.disabled) return;
 
             const list = document.getElementById(`${type}-dropdown`);
             ['year', 'month', 'day'].forEach(t => {
@@ -4442,7 +4618,7 @@ const MANIFEST_FILE = 'scan_manifest.json';
             document.getElementById(`filter-${type}`).classList.add('active');
 
             outputList.innerHTML = '<div style="padding:20px; text-align:center; color:#999;">正在筛选...</div>';
-            
+
             setTimeout(() => {
                 applyFilters();
             }, 50);
@@ -4461,11 +4637,11 @@ const MANIFEST_FILE = 'scan_manifest.json';
             const term = keyword.trim().toLowerCase();
 
             let html = `<div class="suggestion-item" onclick="selectMemberFilter('all')"><span style="font-weight:bold">全部成员</span></div>`;
-            
+
             let matchCount = 0;
             allMemberOptions.forEach(name => {
                 if (term === '' || name.toLowerCase().includes(term)) {
-                    const team = memberTeamMap.get(name) || ''; 
+                    const team = memberTeamMap.get(name) || '';
                     const teamHtml = team ? `<span class="team-tag">${team}</span>` : '';
 
                     html += `<div class="suggestion-item" 
@@ -4488,18 +4664,18 @@ const MANIFEST_FILE = 'scan_manifest.json';
         function selectMemberFilter(value) {
             const input = document.getElementById('groupInput');
             const list = document.getElementById('memberDropdownList');
-            
+
             if (value === 'all') {
                 input.value = '全部成员';
             } else {
                 input.value = value;
             }
-            
-            list.style.display = 'none'; 
-            applyFilters(); 
+
+            list.style.display = 'none';
+            applyFilters();
         }
 
-        document.addEventListener('click', function(e) {
+        document.addEventListener('click', function (e) {
             const container = document.getElementById('sb-members');
             const list = document.getElementById('memberDropdownList');
             if (list.style.display === 'block' && !container.contains(e.target)) {
@@ -4512,7 +4688,7 @@ const MANIFEST_FILE = 'scan_manifest.json';
             }
         });
 
-function applyFilters() {
+        function applyFilters() {
             const keyword = searchInput.value.trim().toLowerCase();
             const sortType = currentSortOrder;
             const groupInputVal = document.getElementById('groupInput').value;
@@ -4520,7 +4696,7 @@ function applyFilters() {
             const selYear = yearSelect.value;
             const selMonth = monthSelect.value;
             const selDay = daySelect.value;
-            
+
             const searchType = document.getElementById('searchTypeSelect').value;
 
             currentFilteredPosts = allPosts.filter(post => {
@@ -4528,7 +4704,7 @@ function applyFilters() {
 
                 if (keyword) {
                     const postUserIdStr = post.userId ? String(post.userId).toLowerCase() : '';
-                    
+
                     const inText = post.text.includes(keyword);
                     const inName = post.nameStr && post.nameStr.toLowerCase().includes(keyword);
                     const inIdPartial = postUserIdStr && postUserIdStr.includes(keyword);
@@ -4552,7 +4728,7 @@ function applyFilters() {
                 else if (filterType === 'reply') matchType = post.isReply;
                 else if (filterType === 'live-record') matchType = (post.liveId || post.isLiveText);
                 else if (filterType === 'text') matchType = !post.hasImg && !post.hasVideo && !post.hasAudio && !post.liveId && !post.isLiveText && !post.isReply;
-                
+
                 if (!matchType) return false;
 
                 if (selYear !== 'all') {
@@ -4570,7 +4746,7 @@ function applyFilters() {
                     tB = new Date(b.timeStr).getTime() || 0;
                 return sortType === 'desc' ? tB - tA : tA - tB;
             });
-            
+
             outputList.innerHTML = '';
             renderedCount = 0;
             renderNextBatch();
@@ -4630,7 +4806,7 @@ function applyFilters() {
             const sourceData = selGroup === 'all' ? allPosts : allPosts.filter(p => p.groupName === selGroup);
             const modalTitle = document.querySelector('#userModal .modal-title');
             if (modalTitle) modalTitle.innerText = selGroup === 'all' ? '互动榜 (全部)' : `互动榜 (${selGroup})`;
-            
+
             sourceData.forEach(post => {
                 const match = post.contentHtml.match(/<blockquote[^>]*>\s*(.*?)[：:]/i);
                 if (match && match[1]) {
@@ -4659,7 +4835,7 @@ function applyFilters() {
 
         function performDateAnalysis() {
             const counts = {};
-            
+
             const groupInput = document.getElementById('groupInput');
             let selGroup = groupInput ? groupInput.value : 'all';
             if (selGroup === '全部成员' || !selGroup) selGroup = 'all';
@@ -4667,20 +4843,20 @@ function applyFilters() {
             const sourceData = selGroup === 'all' ? allPosts : allPosts.filter(p => p.groupName === selGroup);
             const modalTitle = document.querySelector('#dateModal .modal-title');
             if (modalTitle) modalTitle.innerText = selGroup === 'all' ? '每日消息统计 (全部)' : `每日消息统计 (${selGroup})`;
-            
+
             sourceData.forEach(post => {
                 if (post.dateFull) {
                     if (!counts[post.dateFull]) {
                         counts[post.dateFull] = { total: 0, member: 0 };
                     }
-                    
+
                     counts[post.dateFull].total++;
 
-                    const isMemberPost = 
-                        post.isMember ||                                     
-                        (post.nameStr === post.groupName) ||                 
-                        post.isReply ||                                       
-                        (typeof memberNameMap !== 'undefined' && memberNameMap.has(post.nameStr)) || 
+                    const isMemberPost =
+                        post.isMember ||
+                        (post.nameStr === post.groupName) ||
+                        post.isReply ||
+                        (typeof memberNameMap !== 'undefined' && memberNameMap.has(post.nameStr)) ||
                         (typeof memberIdSet !== 'undefined' && post.userId && memberIdSet.has(String(post.userId)));
 
                     if (isMemberPost) {
@@ -4691,8 +4867,8 @@ function applyFilters() {
 
             dateStats = Object.entries(counts).map(([date, val]) => ({
                 date,
-                count: val.total,      
-                memberCount: val.member 
+                count: val.total,
+                memberCount: val.member
             })).sort((a, b) => new Date(b.date) - new Date(a.date));
         }
 
@@ -4702,12 +4878,12 @@ function applyFilters() {
                 return;
             }
             const max = Math.max(...dateStats.map(d => d.count));
-            
+
             let html = '';
             dateStats.forEach((item) => {
                 const totalPct = (item.count / max) * 100;
                 const memberPct = (item.memberCount / max) * 100;
-                
+
                 html += `
                 <div class="list-item" onclick="filterByDate('${item.date}')">
                     <div class="item-main">
@@ -4730,7 +4906,7 @@ function applyFilters() {
             dateListContainer.innerHTML = html;
         }
 
-function filterByUser(username) {
+        function filterByUser(username) {
             closeUserAnalysis();
 
             const searchInput = document.getElementById('searchInput');
@@ -4740,19 +4916,19 @@ function filterByUser(username) {
                 searchInput.value = username;
                 searchInput.disabled = false;
 
-                if (typeSelect) typeSelect.value = 'text'; 
+                if (typeSelect) typeSelect.value = 'text';
 
                 if (typeof setFilter === 'function') setFilter('all');
-                
+
                 if (typeof resetDateFilter === 'function') resetDateFilter();
 
                 applyFilters();
-                
+
                 const view = document.getElementById('view-messages');
                 if (view) view.scrollTop = 0;
             }
         }
-        window.filterByUserId = function(userId) {
+        window.filterByUserId = function (userId) {
             if (window.event) window.event.stopPropagation();
 
             const searchInput = document.getElementById('searchInput');
@@ -4761,14 +4937,14 @@ function filterByUser(username) {
             if (searchInput && userId) {
                 searchInput.value = String(userId).trim();
                 searchInput.disabled = false;
-                
+
                 if (typeSelect) typeSelect.value = 'id';
-                
-                if (typeof setFilter === 'function') setFilter('all'); 
+
+                if (typeof setFilter === 'function') setFilter('all');
                 if (typeof resetDateFilter === 'function') resetDateFilter();
-                
+
                 applyFilters();
-                
+
                 const view = document.getElementById('view-messages');
                 if (view) view.scrollTop = 0;
 
@@ -4826,7 +5002,7 @@ function filterByUser(username) {
                             }
                         }
                     });
-                } catch (e) {}
+                } catch (e) { }
                 let hasVTag = false;
                 content.querySelectorAll('video').forEach(rawV => {
                     const src = rawV.src || rawV.querySelector('source')?.src;
@@ -4900,7 +5076,7 @@ function filterByUser(username) {
             };
             return text.replace(/[&<>"']/g, (m) => map[m]);
         }
-        window.onclick = function(e) {
+        window.onclick = function (e) {
             if (e.target == userModal) closeUserAnalysis();
             if (e.target == dateModal) closeDateAnalysis();
         }
@@ -5019,18 +5195,18 @@ function filterByUser(username) {
                 }).on('error', (e) => reject(e));
             });
         }
-        document.addEventListener('click', function(e) {
+        document.addEventListener('click', function (e) {
             const box = document.getElementById('member-suggestions'),
                 input = document.getElementById('vod-member-filter');
             if (box && input && e.target !== input && !box.contains(e.target)) box.style.display = 'none';
 
-        ['year', 'month', 'day'].forEach(type => {
-            const wrapper = document.getElementById(`${type}-wrapper`);
-            const list = document.getElementById(`${type}-dropdown`);
-            if (list && list.style.display === 'block' && wrapper && !wrapper.contains(e.target)) {
-                list.style.display = 'none';
-            }
-        });
+            ['year', 'month', 'day'].forEach(type => {
+                const wrapper = document.getElementById(`${type}-wrapper`);
+                const list = document.getElementById(`${type}-dropdown`);
+                if (list && list.style.display === 'block' && wrapper && !wrapper.contains(e.target)) {
+                    list.style.display = 'none';
+                }
+            });
         });
 
         async function handleDownloadVOD(event, item) {
@@ -5167,7 +5343,7 @@ function filterByUser(username) {
                     cache: 'no-store'
                 });
                 if (res.status === 200) handleNoticeDisplay(await res.json());
-            } catch (e) {}
+            } catch (e) { }
         }
 
         function handleNoticeDisplay(data) {
@@ -5175,7 +5351,7 @@ function filterByUser(username) {
             const bar = document.getElementById('global-notice-bar');
             const textEl = document.getElementById('notice-text');
             const linkEl = document.getElementById('notice-link');
-            
+
             if (!bar || !textEl || !linkEl) return;
 
             textEl.textContent = data.content;
@@ -5210,7 +5386,7 @@ function filterByUser(username) {
             if (bar.classList.contains('notice-hiding')) return;
 
             bar.classList.add('notice-hiding');
-            
+
             if (window.autoCloseTimer) {
                 clearTimeout(window.autoCloseTimer);
                 window.autoCloseTimer = null;
@@ -5221,6 +5397,255 @@ function filterByUser(username) {
                 bar.classList.remove('notice-hiding');
             }, 500);
         }
+        let flipCurrentPage = 0;
+        const FLIP_PAGE_SIZE = 20;
+
+        function changeFlipPage(delta) {
+            const newPage = flipCurrentPage + delta;
+            if (newPage < 0) return;
+            loadFlipList(newPage); //
+        }
+
+        async function loadFlipList(pageIndex) {
+            const container = document.getElementById('flip-list-container');
+            const statusText = document.getElementById('flip-status-text');
+
+            let token = appToken || localStorage.getItem('yaya_p48_token');
+            if (!token) {
+                container.innerHTML = '<div class="placeholder-tip"><h3>⚠️ 未登录</h3><p>请先前往“账号登录”页面验证 Token。</p></div>';
+                return;
+            }
+
+
+            if (container.children.length > 0 && !container.querySelector('.placeholder-tip')) {
+                container.style.opacity = '0.5';
+                container.style.pointerEvents = 'none';
+            } else {
+                container.innerHTML = '<div class="empty-state">⏳ 正在从服务器拉取数据...</div>';
+            }
+
+            try {
+                const pa = window.getPA ? window.getPA() : null;
+                const res = await ipcRenderer.invoke('fetch-flip-list', {
+                    token: token,
+                    pa: pa,
+                    beginLimit: pageIndex * FLIP_PAGE_SIZE,
+                    limit: FLIP_PAGE_SIZE
+                });
+
+                container.style.opacity = '1';
+                container.style.pointerEvents = 'auto';
+
+                if (res.success) {
+                    renderFlipItems(res.content);
+                    flipCurrentPage = pageIndex;
+
+                    renderFlipPagination(res.content.length);
+
+                    statusText.innerText = '';
+                    document.getElementById('view-flip').scrollTop = 0;
+                } else {
+                    container.innerHTML = `<div class="placeholder-tip"><h3>❌ 加载失败</h3><p>${res.msg}</p></div>`;
+                }
+            } catch (e) {
+                container.style.opacity = '1';
+                container.style.pointerEvents = 'auto';
+                container.innerHTML = `<div class="placeholder-tip"><h3>❌ 发生错误</h3><p>${e.message}</p></div>`;
+            }
+        }
+        function renderFlipPagination(currentCount) {
+            const paginationContainer = document.querySelector('#view-flip .pagination-container');
+            if (!paginationContainer) return;
+
+            paginationContainer.innerHTML = '';
+
+            const prevBtn = document.createElement('button');
+            prevBtn.className = 'pagination-btn';
+            prevBtn.innerText = '上一页';
+            prevBtn.disabled = (flipCurrentPage === 0);
+            prevBtn.onclick = () => changeFlipPage(-1); //
+            paginationContainer.appendChild(prevBtn);
+
+            const startPage = Math.max(0, flipCurrentPage - 2);
+            const endPage = (currentCount < FLIP_PAGE_SIZE) ? flipCurrentPage : flipCurrentPage + 2;
+
+            for (let i = startPage; i <= endPage; i++) {
+                const numBtn = document.createElement('button');
+                numBtn.className = `pagination-btn ${i === flipCurrentPage ? 'active' : ''}`;
+                numBtn.innerText = i + 1;
+                numBtn.onclick = () => {
+                    if (i !== flipCurrentPage) loadFlipList(i);
+                };
+                paginationContainer.appendChild(numBtn);
+            }
+
+            const nextBtn = document.createElement('button');
+            nextBtn.className = 'pagination-btn';
+
+            if (currentCount < FLIP_PAGE_SIZE) {
+                nextBtn.innerText = '尾页';
+                nextBtn.disabled = true;
+                nextBtn.style.opacity = '0.5';
+            } else {
+                nextBtn.innerText = '下一页';
+                nextBtn.onclick = () => changeFlipPage(1); //
+            }
+            paginationContainer.appendChild(nextBtn);
+        }
+
+        function renderFlipItems(list) {
+            const container = document.getElementById('flip-list-container');
+            container.innerHTML = '';
+
+            if (!list || list.length === 0) {
+                container.innerHTML = '<div class="empty-state">本页没有数据 (或已加载完毕)</div>';
+                return;
+            }
+
+            function formatTimeDots(timestamp) {
+                const dateObj = new Date(Number(timestamp));
+                const y = dateObj.getFullYear();
+                const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+                const d = String(dateObj.getDate()).padStart(2, '0');
+                const hh = String(dateObj.getHours()).padStart(2, '0');
+                const mm = String(dateObj.getMinutes()).padStart(2, '0');
+                const ss = String(dateObj.getSeconds()).padStart(2, '0');
+                return `${y}.${m}.${d} ${hh}:${mm}:${ss}`;
+            }
+
+            list.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'Box-row';
+                card.style.marginBottom = '12px';
+                card.style.transition = 'all 0.2s';
+
+                const qTimeStr = formatTimeDots(item.qtime);
+
+                let statusHtml = '';
+                if (item.status === 1) statusHtml = '<span style="color:#faad14; border:1px solid #faad14; padding:0 4px; border-radius:4px; font-size:10px;">待回答</span>';
+                else if (item.status === 2) statusHtml = '<span style="color:#52c41a; border:1px solid #52c41a; padding:0 4px; border-radius:4px; font-size:10px;">已翻牌</span>';
+                else statusHtml = '<span style="color:#ff4d4f; border:1px solid #ff4d4f; padding:0 4px; border-radius:4px; font-size:10px;">已退款</span>';
+
+                let answerTypeHtml = '';
+                if (item.answerType === 1) answerTypeHtml = '<span style="color:#1890ff; border:1px solid #1890ff; padding:0 4px; border-radius:4px; font-size:10px;">文字</span>';
+                else if (item.answerType === 2) answerTypeHtml = '<span style="color:#722ed1; border:1px solid #722ed1; padding:0 4px; border-radius:4px; font-size:10px;">语音</span>';
+                else if (item.answerType === 3) answerTypeHtml = '<span style="color:#eb2f96; border:1px solid #eb2f96; padding:0 4px; border-radius:4px; font-size:10px;">视频</span>';
+                else answerTypeHtml = '<span style="color:#8c8c8c; border:1px solid #8c8c8c; padding:0 4px; border-radius:4px; font-size:10px;">未知</span>';
+
+                let privacyHtml = '';
+                if (item.type === 1) privacyHtml = '<span style="color:#13c2c2; border:1px solid #13c2c2; padding:0 4px; border-radius:4px; font-size:10px;">公开</span>';
+                else if (item.type === 2) privacyHtml = '<span style="color:#f5222d; border:1px solid #f5222d; padding:0 4px; border-radius:4px; font-size:10px;">私密</span>';
+                else if (item.type === 3) privacyHtml = '<span style="color:#595959; border:1px solid #595959; padding:0 4px; border-radius:4px; font-size:10px;">匿名</span>';
+
+                const costHtml = `<span style="color:#fa8c16; border:1px solid #fa8c16; padding:0 4px; border-radius:4px; font-size:10px;">${item.cost}鸡腿</span>`;
+
+                const headerDiv = document.createElement('div');
+                headerDiv.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px dashed var(--border); padding-bottom:8px;';
+
+                headerDiv.innerHTML = `
+            <span style="font-size:14px; font-weight:bold; color:var(--text);">${qTimeStr}</span>
+            <div style="display:flex; gap:6px; align-items:center;">
+                ${answerTypeHtml}
+                ${privacyHtml}
+                ${costHtml}
+                ${statusHtml}
+            </div>
+        `;
+
+                card.appendChild(headerDiv);
+
+                const memberName = item.baseUserInfo ? item.baseUserInfo.nickname : '成员';
+                const questionDiv = document.createElement('div');
+                questionDiv.style.marginBottom = '15px';
+
+                const questionHeader = `
+            <div style="margin-bottom:6px; display:flex; align-items:center;">
+                <span class="flip-label question-tag" style="margin-right:8px;">翻牌提问</span>
+                <span style="font-size:14px; color:var(--text);">向 <strong style="color:var(--primary);">${memberName}</strong> 提问</span>
+            </div>
+        `;
+
+                const questionContent = `
+            <div style="font-size:14px; color:var(--text); line-height:1.6; padding:0 4px;">
+                ${item.content}
+            </div>
+        `;
+
+                questionDiv.innerHTML = questionHeader + questionContent;
+                card.appendChild(questionDiv);
+
+                if (item.status === 2) {
+                    const answerDiv = document.createElement('div');
+                    answerDiv.style.marginTop = '15px';
+
+                    const formattedAnswerTime = formatTimeDots(item.answerTime);
+
+                    const answerHeader = document.createElement('div');
+                    answerHeader.style.cssText = 'margin-bottom:8px; display:flex; align-items:center;';
+
+                    answerHeader.innerHTML = `
+                <span class="flip-label answer-tag" style="margin-right:8px;">翻牌回答</span>
+                <span style="font-size:14px; color:var(--text);">
+                    <strong style="color:var(--primary);">${memberName}</strong> 的回复
+                </span>
+                <span style="font-size:12px; color:var(--text-sub); margin-left: 10px;">
+                    翻牌时间：${formattedAnswerTime}
+                </span>
+            `;
+
+                    answerDiv.appendChild(answerHeader);
+
+                    try {
+                        if (item.answerType === 1) {
+                            const textContent = document.createElement('div');
+                            textContent.style.cssText = 'font-size:14px; color:var(--text); line-height:1.6; padding:0 4px;';
+                            textContent.innerText = item.answerContent;
+                            answerDiv.appendChild(textContent);
+
+                        } else {
+                            const json = JSON.parse(item.answerContent);
+                            let url = json.url;
+                            if (!url.startsWith('http')) {
+                                url = `https://mp4.48.cn${url}`;
+                            }
+
+                            if (item.answerType === 2) {
+                                if (typeof createCustomAudioPlayer === 'function') {
+                                    const player = createCustomAudioPlayer(url);
+                                    answerDiv.appendChild(player);
+                                } else {
+                                    answerDiv.innerHTML += `<audio src="${url}" controls style="width:100%"></audio>`;
+                                }
+
+                            } else if (item.answerType === 3) {
+                                if (typeof createCustomVideoPlayer === 'function') {
+                                    const player = createCustomVideoPlayer(url);
+                                    answerDiv.appendChild(player);
+                                } else {
+                                    const video = document.createElement('video');
+                                    video.src = url;
+                                    video.controls = true;
+                                    video.style.cssText = "max-width:100%; max-height:300px; border-radius:8px; background:#000;";
+                                    answerDiv.appendChild(video);
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        console.error("翻牌内容解析错误:", e);
+                        const errDiv = document.createElement('div');
+                        errDiv.style.color = '#ff4d4f';
+                        errDiv.innerText = '⚠️ 无法解析回答内容';
+                        answerDiv.appendChild(errDiv);
+                    }
+
+                    card.appendChild(answerDiv);
+                }
+
+                container.appendChild(card);
+            });
+        }
+
+
     </script>
     <script type="module">
         import init, { __x6c2adf8__ } from './sdk/rust-wasm.js';
@@ -5234,7 +5659,7 @@ function filterByUser(username) {
                 console.error("SDK Error:", e);
             }
         }
-        window.getPA = function() {
+        window.getPA = function () {
             return window.isWasmReady ? __x6c2adf8__() : null;
         };
         initSDK();
@@ -5244,280 +5669,298 @@ function filterByUser(username) {
         let lastNextTime = 0;
         let isAutoFetching = false;
 
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-async function fetchAllMsgs() {
-    const btn = document.getElementById('btn-fetch-all');
-    const fetchBtn = document.getElementById('btn-fetch-one');
-    const box = document.getElementById('msg-result');
-    const memberSearch = document.getElementById('member-search');
-    const exportBtn = document.getElementById('btn-export-html');
-    const exportLocalBtn = document.getElementById('btn-export-local');
-    const toggleBtn = document.getElementById('btn-toggle-mode');
-
-    if (isAutoFetching) {
-        isAutoFetching = false;
-        btn.innerText = '加载全部';
-        btn.style.background = '';
-        btn.style.color = '';
-        if (fetchBtn) fetchBtn.disabled = false;
-        if (memberSearch) memberSearch.disabled = false;
-        if (toggleBtn) toggleBtn.disabled = false;
-        if (allFetchedMsgs.length > 0) {
-            if (exportBtn) exportBtn.disabled = false;
-            if (exportLocalBtn) exportLocalBtn.disabled = false;
-        }
-        return;
-    }
-    
-
-    const channelId = document.getElementById('tool-channel').value.trim();
-    if (!channelId) {
-        box.innerHTML = `<div style="text-align:center; padding:20px; color:#ff4d4f;">⚠️ 请先在搜索框输入名字并选择成员</div>`;
-        return;
-    }
-
-    isAutoFetching = true;
-    btn.innerText = '停止加载';
-    btn.style.background = '#ff4d4f';
-    btn.style.color = 'white';
-    if (fetchBtn) fetchBtn.disabled = true;
-    if (memberSearch) memberSearch.disabled = true;
-    if (exportBtn) exportBtn.disabled = true;
-    if (exportLocalBtn) exportLocalBtn.disabled = true;
-    if (toggleBtn) toggleBtn.disabled = true;
-
-    try {
-        if (lastNextTime === 0 || box.children.length <= 1) {
-            await fetchMsgs(false);
-            await sleep(10); 
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
         }
 
-        while (isAutoFetching && lastNextTime > 0) {
+        async function fetchAllMsgs() {
+            const btn = document.getElementById('btn-fetch-all');
+            const fetchBtn = document.getElementById('btn-fetch-one');
+            const box = document.getElementById('msg-result');
+            const memberSearch = document.getElementById('member-search');
+            const exportBtn = document.getElementById('btn-export-html');
+            const exportLocalBtn = document.getElementById('btn-export-local');
+            const toggleBtn = document.getElementById('btn-toggle-mode');
 
-            const lastEl = box.lastElementChild;
-            if (lastEl && lastEl.innerText.includes('加载更多')) lastEl.remove();
+            if (isAutoFetching) {
+                isAutoFetching = false;
+                btn.innerText = '加载全部';
+                btn.style.background = '';
+                btn.style.color = '';
+                if (fetchBtn) fetchBtn.disabled = false;
+                if (memberSearch) memberSearch.disabled = false;
+                if (toggleBtn) toggleBtn.disabled = false;
+                if (allFetchedMsgs.length > 0) {
+                    if (exportBtn) exportBtn.disabled = false;
+                    if (exportLocalBtn) exportLocalBtn.disabled = false;
+                }
+                return;
+            }
 
-            await fetchMsgs(true);
-            await sleep(10); 
+
+            const channelId = document.getElementById('tool-channel').value.trim();
+            if (!channelId) {
+                box.innerHTML = `<div style="text-align:center; padding:20px; color:#ff4d4f;">⚠️ 请先在搜索框输入名字并选择成员</div>`;
+                return;
+            }
+
+            isAutoFetching = true;
+            btn.innerText = '停止加载';
+            btn.style.background = '#ff4d4f';
+            btn.style.color = 'white';
+            if (fetchBtn) fetchBtn.disabled = true;
+            if (memberSearch) memberSearch.disabled = true;
+            if (exportBtn) exportBtn.disabled = true;
+            if (exportLocalBtn) exportLocalBtn.disabled = true;
+            if (toggleBtn) toggleBtn.disabled = true;
+
+            try {
+                if (lastNextTime === 0 || box.children.length <= 1) {
+                    await fetchMsgs(false);
+                    await sleep(10);
+                }
+
+                while (isAutoFetching && lastNextTime > 0) {
+
+                    const lastEl = box.lastElementChild;
+                    if (lastEl && lastEl.innerText.includes('加载更多')) lastEl.remove();
+
+                    await fetchMsgs(true);
+                    await sleep(10);
+                }
+            } catch (e) {
+                console.error("自动抓取中断", e);
+            } finally {
+                isAutoFetching = false;
+                btn.innerText = '加载全部';
+                btn.style.background = '';
+                btn.style.color = '';
+                if (fetchBtn) fetchBtn.disabled = false;
+                if (memberSearch) memberSearch.disabled = false;
+                if (toggleBtn) toggleBtn.disabled = false;
+
+                const statusEl = document.getElementById('fetch-status');
+                if (statusEl && statusEl.innerHTML) {
+                    statusEl.innerHTML += ' <b style="color:#28a745; margin-left:5px;">(完成)</b>';
+                }
+                if (allFetchedMsgs.length > 0) {
+                    if (exportBtn) exportBtn.disabled = false;
+                    if (exportLocalBtn) exportLocalBtn.disabled = false;
+                }
+            }
         }
-    } catch (e) {
-        console.error("自动抓取中断", e);
-    } finally {
-        isAutoFetching = false;
-        btn.innerText = '加载全部';
-        btn.style.background = '';
-        btn.style.color = '';
-        if (fetchBtn) fetchBtn.disabled = false;
-        if (memberSearch) memberSearch.disabled = false;
-        if (toggleBtn) toggleBtn.disabled = false;
 
-const statusEl = document.getElementById('fetch-status');
-        if (statusEl && statusEl.innerHTML) {
-            statusEl.innerHTML += ' <b style="color:#28a745; margin-left:5px;">(完成)</b>';
+        let isFetchAllMode = false;
+
+        function toggleFetchMode() {
+            isFetchAllMode = !isFetchAllMode;
+            const btn = document.getElementById('btn-toggle-mode');
+
+            if (isFetchAllMode) {
+                btn.innerHTML = "当前模式：全体消息";
+                btn.classList.remove('btn-secondary');
+                btn.classList.add('btn-primary');
+            } else {
+                btn.innerHTML = "当前模式：只看成员";
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-secondary');
+            }
+
+
         }
-        if (allFetchedMsgs.length > 0) {
-            if (exportBtn) exportBtn.disabled = false;
-            if (exportLocalBtn) exportLocalBtn.disabled = false;
-        }
-    }
-}
-
-let isFetchAllMode = false;
-
-function toggleFetchMode() {
-    isFetchAllMode = !isFetchAllMode;
-    const btn = document.getElementById('btn-toggle-mode');
-    
-    if (isFetchAllMode) {
-        btn.innerHTML = "当前模式：全体消息";
-        btn.classList.remove('btn-secondary');
-        btn.classList.add('btn-primary'); 
-    } else {
-        btn.innerHTML = "当前模式：只看成员";
-        btn.classList.remove('btn-primary');
-        btn.classList.add('btn-secondary');
-    }
-    
-  
-}
 
         async function checkToken() {
             const tokenInput = document.getElementById('login-token').value.trim();
             const msgBox = document.getElementById('login-msg');
+
+            const panelInput = document.getElementById('panel-login');
+            const panelSuccess = document.getElementById('panel-logged-in');
+
             if (!tokenInput) {
                 msgBox.innerText = '请输入 Token';
                 return;
             }
+
             appToken = tokenInput;
             localStorage.setItem('yaya_p48_token', appToken);
-            msgBox.innerText = '正在记录并验证身份...';
+
+            msgBox.innerText = '正在验证身份...';
             msgBox.style.color = '#666';
+
             try {
                 const pa = window.getPA ? window.getPA() : null;
                 const res = await ipcRenderer.invoke('login-check-token', {
                     token: tokenInput,
                     pa
                 });
-                document.getElementById('panel-login').style.display = 'none';
-                document.getElementById('panel-tools').style.display = 'block';
+
+                if (panelInput) panelInput.style.display = 'none';
+                if (panelSuccess) panelSuccess.style.display = 'block';
+
                 if (res.success) {
                     const safeName = res.userInfo?.baseUserInfo?.nickname || res.userInfo?.nickname || '口袋用户';
                     document.getElementById('user-nickname').innerText = safeName;
+                    msgBox.innerText = '';
                 } else {
-                    document.getElementById('user-nickname').innerText = '未验证用户';
-                    document.getElementById('msg-result').innerHTML = `<div style="color:orange; text-align:center; padding:10px;">Token 已记录。</div>`;
+                    document.getElementById('user-nickname').innerText = '未知用户 (Token可能失效)';
                 }
             } catch (e) {
-                document.getElementById('panel-login').style.display = 'none';
-                document.getElementById('panel-tools').style.display = 'block';
+                if (panelInput) panelInput.style.display = 'none';
+                if (panelSuccess) panelSuccess.style.display = 'block';
+                document.getElementById('user-nickname').innerText = '离线/错误';
             }
         }
 
         function logout() {
             localStorage.removeItem('yaya_p48_token');
             appToken = '';
-            document.getElementById('panel-login').style.display = 'block';
-            document.getElementById('panel-tools').style.display = 'none';
+
+            const panelInput = document.getElementById('panel-login');
+            const panelSuccess = document.getElementById('panel-logged-in');
+
+            if (panelSuccess) panelSuccess.style.display = 'none';
+            if (panelInput) panelInput.style.display = 'block';
+
             document.getElementById('login-token').value = '';
-            document.getElementById('login-msg').innerText = '记录已清除';
-            document.getElementById('login-msg').style.color = '#28a745';
+            const msgBox = document.getElementById('login-msg');
+            if (msgBox) {
+                msgBox.innerText = '记录已清除';
+                msgBox.style.color = '#28a745';
+            }
+
             const memberSearch = document.getElementById('member-search');
             if (memberSearch) {
-                memberSearch.disabled = false;
                 memberSearch.value = '';
             }
         }
         let allFetchedMsgs = [];
-async function fetchMsgs(isLoadMore = false) {
-    const channelId = document.getElementById('tool-channel').value.trim();
-    const serverId = document.getElementById('tool-server').value.trim();
-    const box = document.getElementById('msg-result');
-    const exportBtn = document.getElementById('btn-export-html');
-    const exportLocalBtn = document.getElementById('btn-export-local');
+        async function fetchMsgs(isLoadMore = false) {
+            const channelId = document.getElementById('tool-channel').value.trim();
+            const serverId = document.getElementById('tool-server').value.trim();
+            const box = document.getElementById('msg-result');
+            const exportBtn = document.getElementById('btn-export-html');
+            const exportLocalBtn = document.getElementById('btn-export-local');
 
-if (!channelId) {
-        if (!isLoadMore) {
-             box.innerHTML = `<div style="text-align:center; padding:20px; color:#ff4d4f;">⚠️ 请先在搜索框输入名字并选择成员</div>`;
-        } else {
-             console.warn("缺少 Channel ID");
-        }
-        isAutoFetching = false;
-        const btn = document.getElementById('btn-fetch-all');
-        if(btn) {
-            btn.innerText = '加载全部';
-            btn.style.background = '';
-            btn.style.color = '';
-        }
-        return;
-    }
-
-    if (!isLoadMore) {
-        box.innerHTML = '';
-        lastNextTime = 0;
-        allFetchedMsgs = [];
-        const statusEl = document.getElementById('fetch-status');
-        if (statusEl) statusEl.innerHTML = '';
-        if (exportBtn) exportBtn.disabled = true;
-    }
-
-    const loadingDiv = document.createElement('div');
-    loadingDiv.innerText = '加载中...';
-    loadingDiv.style.textAlign = 'center';
-    loadingDiv.style.color = '#999';
-    loadingDiv.id = 'loading-indicator';
-    box.appendChild(loadingDiv);
-
-    try {
-        const pa = window.getPA ? window.getPA() : null;
-        const res = await ipcRenderer.invoke('fetch-room-messages', {
-            token: appToken,
-            serverId,
-            channelId,
-            pa,
-            nextTime: lastNextTime,
-            fetchAll: isFetchAllMode
-        });
-
-        if (document.getElementById('loading-indicator')) {
-            box.removeChild(document.getElementById('loading-indicator'));
-        }
-
-        if (res.success && res.data.content) {
-            if (res.usedServerId) document.getElementById('tool-server').value = res.usedServerId;
-            const content = res.data.content;
-            const list = content.messageList || content.message || [];
-            lastNextTime = content.nextTime;
-            if (list.length === 0) lastNextTime = 0;
-
-            if (list.length === 0 && !isLoadMore) {
-                if (!isLoadMore) box.innerHTML = '<div style="text-align:center;padding:20px;color:#999">暂无新消息</div>';
+            if (!channelId) {
+                if (!isLoadMore) {
+                    box.innerHTML = `<div style="text-align:center; padding:20px; color:#ff4d4f;">⚠️ 请先在搜索框输入名字并选择成员</div>`;
+                } else {
+                    console.warn("缺少 Channel ID");
+                }
+                isAutoFetching = false;
+                const btn = document.getElementById('btn-fetch-all');
+                if (btn) {
+                    btn.innerText = '加载全部';
+                    btn.style.background = '';
+                    btn.style.color = '';
+                }
                 return;
             }
 
-            allFetchedMsgs = allFetchedMsgs.concat(list);
-const statusEl = document.getElementById('fetch-status');
-            if (statusEl) {
-                let timeText = '';
-                if (list.length > 0) {
-                    const lastMsg = list[list.length - 1];
-                    const d = new Date(lastMsg.msgTime);
-                    const pad = (n) => String(n).padStart(2, '0');
-                    
-                    timeText = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-                }
-                statusEl.innerHTML = `已抓取 <b style="color:var(--primary)">${allFetchedMsgs.length}</b> 条 <span style="margin-left:5px; ">${timeText}</span>`;
+            if (!isLoadMore) {
+                box.innerHTML = '';
+                lastNextTime = 0;
+                allFetchedMsgs = [];
+                const statusEl = document.getElementById('fetch-status');
+                if (statusEl) statusEl.innerHTML = '';
+                if (exportBtn) exportBtn.disabled = true;
             }
 
+            const loadingDiv = document.createElement('div');
+            loadingDiv.innerText = '加载中...';
+            loadingDiv.style.textAlign = 'center';
+            loadingDiv.style.color = '#999';
+            loadingDiv.id = 'loading-indicator';
+            box.appendChild(loadingDiv);
 
-            const batchHtml = list.map(m => {
-                console.log('正在解析消息:', m);
+            try {
+                const pa = window.getPA ? window.getPA() : null;
+                const res = await ipcRenderer.invoke('fetch-room-messages', {
+                    token: appToken,
+                    serverId,
+                    channelId,
+                    pa,
+                    nextTime: lastNextTime,
+                    fetchAll: isFetchAllMode
+                });
 
-                let txt = '[未知类型]';
-                let isMember = false;
-                let senderId = m.senderUserId || m.senderId || m.uid || '';
-
-                try {
-                    let body = m.bodys;
-                    if (m.msgContent) body = m.msgContent;
-
-                    if (m.extInfo) {
-                        const ext = JSON.parse(m.extInfo);
-                        if (ext.user) {
-                            if (ext.user.roleId > 1) isMember = true;
-                            if (!senderId) senderId = ext.user.userId || ext.user.id;
-                        }
-                    }
-
-                    if (typeof body === 'string' && body.startsWith('{')) {
-                        const json = JSON.parse(body);
-                        if (m.msgType === 'text') txt = json.text;
-                        else if (m.msgType === 'image') txt = `[图片] <a href="${json.url}" target="_blank">查看</a>`;
-                        else if (m.msgType === 'reply') txt = `回复: ${json.text}`;
-                        else if (m.msgType === 'live_push') txt = `[直播] ${json.liveTitle}`;
-                        else if (m.msgType === 'express') txt = `[表情]`;
-                        else if (json.messageType === 'GIFT_TEXT' || m.msgType === 'GIFT_TEXT') {
-                            const info = json.giftInfo || json;
-                            txt = `🎁 送出了 [${info.giftName}] x${info.giftNum}`;
-                        }
-                    } else {
-                        txt = body;
-                    }
-                } catch (e) {
-                    txt = m.msgContent || m.bodys || '解析错误';
+                if (document.getElementById('loading-indicator')) {
+                    box.removeChild(document.getElementById('loading-indicator'));
                 }
 
-                const time = new Date(m.msgTime).toLocaleString();
-                const nameColor = isMember ? '#FB7299' : '#333333';
-                const safeTxt = String(txt).replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                const displayName = m.senderName || (m.extInfo && JSON.parse(m.extInfo).user.nickName) || '未知用户';
-                const idDisplay = (senderId && String(senderId) !== '0')
-                    ? `<span style="color:#999; font-size:10px; margin-left:6px; font-family: monospace;">(ID:${senderId})</span>`
-                    : '';
+                if (res.success && res.data.content) {
+                    if (res.usedServerId) document.getElementById('tool-server').value = res.usedServerId;
+                    const content = res.data.content;
+                    const list = content.messageList || content.message || [];
+                    lastNextTime = content.nextTime;
+                    if (list.length === 0) lastNextTime = 0;
 
-                return `<div class="msg-item" style="padding:8px 0; border-bottom:1px solid #eee; font-size:13px;">
+                    if (list.length === 0 && !isLoadMore) {
+                        if (!isLoadMore) box.innerHTML = '<div style="text-align:center;padding:20px;color:#999">暂无新消息</div>';
+                        return;
+                    }
+
+                    allFetchedMsgs = allFetchedMsgs.concat(list);
+                    const statusEl = document.getElementById('fetch-status');
+                    if (statusEl) {
+                        let timeText = '';
+                        if (list.length > 0) {
+                            const lastMsg = list[list.length - 1];
+                            const d = new Date(lastMsg.msgTime);
+                            const pad = (n) => String(n).padStart(2, '0');
+
+                            timeText = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+                        }
+                        statusEl.innerHTML = `已抓取 <b style="color:var(--primary)">${allFetchedMsgs.length}</b> 条 <span style="margin-left:5px; ">${timeText}</span>`;
+                    }
+
+
+                    const batchHtml = list.map(m => {
+                        console.log('正在解析消息:', m);
+
+                        let txt = '[未知类型]';
+                        let isMember = false;
+                        let senderId = m.senderUserId || m.senderId || m.uid || '';
+
+                        try {
+                            let body = m.bodys;
+                            if (m.msgContent) body = m.msgContent;
+
+                            if (m.extInfo) {
+                                const ext = JSON.parse(m.extInfo);
+                                if (ext.user) {
+                                    if (ext.user.roleId > 1) isMember = true;
+                                    if (!senderId) senderId = ext.user.userId || ext.user.id;
+                                }
+                            }
+
+                            if (typeof body === 'string' && body.startsWith('{')) {
+                                const json = JSON.parse(body);
+                                if (m.msgType === 'text') txt = json.text;
+                                else if (m.msgType === 'image') txt = `[图片] <a href="${json.url}" target="_blank">查看</a>`;
+                                else if (m.msgType === 'reply') txt = `回复: ${json.text}`;
+                                else if (m.msgType === 'live_push') txt = `[直播] ${json.liveTitle}`;
+                                else if (m.msgType === 'express') txt = `[表情]`;
+                                else if (json.messageType === 'GIFT_TEXT' || m.msgType === 'GIFT_TEXT') {
+                                    const info = json.giftInfo || json;
+                                    txt = `🎁 送出了 [${info.giftName}] x${info.giftNum}`;
+                                }
+                            } else {
+                                txt = body;
+                            }
+                        } catch (e) {
+                            txt = m.msgContent || m.bodys || '解析错误';
+                        }
+
+                        const time = new Date(m.msgTime).toLocaleString();
+                        const nameColor = isMember ? '#FB7299' : '#333333';
+                        const safeTxt = String(txt).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                        const displayName = m.senderName || (m.extInfo && JSON.parse(m.extInfo).user.nickName) || '未知用户';
+                        const idDisplay = (senderId && String(senderId) !== '0')
+                            ? `<span style="color:#999; font-size:10px; margin-left:6px; font-family: monospace;">(ID:${senderId})</span>`
+                            : '';
+
+                        return `<div class="msg-item" style="padding:8px 0; border-bottom:1px solid #eee; font-size:13px;">
                     <div style="color:#999; font-size:11px; margin-bottom:2px; display:flex; align-items:center;">
                         <span style="margin-right: 5px;">${time}</span>
                         <span style="color:${nameColor}; font-weight:${isMember ? 'bold' : 'normal'}">${displayName}</span>
@@ -5525,45 +5968,45 @@ const statusEl = document.getElementById('fetch-status');
                     </div>
                     <div style="color:#333; line-height:1.4; word-break: break-all;">${safeTxt}</div> 
                 </div>`;
-            }).join('');
+                    }).join('');
 
-            const range = document.createRange();
-            range.selectNodeContents(box);
-            const fragment = range.createContextualFragment(batchHtml);
+                    const range = document.createRange();
+                    range.selectNodeContents(box);
+                    const fragment = range.createContextualFragment(batchHtml);
 
-            const oldBtn = document.getElementById('btn-load-more-msg');
-            if (oldBtn) oldBtn.remove();
+                    const oldBtn = document.getElementById('btn-load-more-msg');
+                    if (oldBtn) oldBtn.remove();
 
-            box.appendChild(fragment);
-            const MAX_DISPLAY_COUNT = 1000; 
-            const msgItems = box.getElementsByClassName('msg-item');
-            
-            if (msgItems.length > MAX_DISPLAY_COUNT) {
-                const removeCount = msgItems.length - MAX_DISPLAY_COUNT;
-                for (let i = 0; i < removeCount; i++) {
-                    if (msgItems[0]) msgItems[0].remove();
-                }
-            }
+                    box.appendChild(fragment);
+                    const MAX_DISPLAY_COUNT = 1000;
+                    const msgItems = box.getElementsByClassName('msg-item');
 
-            if (lastNextTime > 0) {
-                const moreBtnFragment = document.createRange().createContextualFragment(`
+                    if (msgItems.length > MAX_DISPLAY_COUNT) {
+                        const removeCount = msgItems.length - MAX_DISPLAY_COUNT;
+                        for (let i = 0; i < removeCount; i++) {
+                            if (msgItems[0]) msgItems[0].remove();
+                        }
+                    }
+
+                    if (lastNextTime > 0) {
+                        const moreBtnFragment = document.createRange().createContextualFragment(`
                     <div id="btn-load-more-msg">
                         <button style="width:100%; margin-top:10px; padding:8px; cursor:pointer; background:#f0f0f0; border:1px solid #ddd; border-radius:4px;" onclick="fetchMsgs(true)">加载更多...</button>
                     </div>
                 `);
-                box.appendChild(moreBtnFragment);
+                        box.appendChild(moreBtnFragment);
+                    }
+                    if (!isAutoFetching) {
+                        if (exportBtn) exportBtn.disabled = false;
+                        if (exportLocalBtn) exportLocalBtn.disabled = false;
+                    }
+                } else {
+                    if (!isLoadMore) box.innerText = '获取失败: ' + (res.msg || 'API Error');
+                }
+            } catch (e) {
+                if (!isLoadMore) box.innerText = '出错: ' + e.message;
             }
-            if (!isAutoFetching) { 
-                if (exportBtn) exportBtn.disabled = false;
-                if (exportLocalBtn) exportLocalBtn.disabled = false;
-            }
-        } else {
-            if (!isLoadMore) box.innerText = '获取失败: ' + (res.msg || 'API Error');
         }
-    } catch (e) {
-        if (!isLoadMore) box.innerText = '出错: ' + e.message;
-    }
-}
 
         function exportMsgsToHtml() {
             if (allFetchedMsgs.length === 0) return alert('没有消息可导出');
@@ -5611,11 +6054,11 @@ const statusEl = document.getElementById('fetch-status');
 
                     let avatarUrl = 'https://www.snh48.com/images/logo_snh48.jpg';
                     let nickName = m.senderName || '未知用户';
-                    let exportUserId = ''; 
-                    let exportRoleId = 0; 
+                    let exportUserId = '';
+                    let exportRoleId = 0;
 
                     if (m.senderUserId) exportUserId = m.senderUserId;
-                    
+
                     if (m.extInfo) {
                         try {
                             const ext = typeof m.extInfo === 'string' ? JSON.parse(m.extInfo) : m.extInfo;
@@ -5623,10 +6066,10 @@ const statusEl = document.getElementById('fetch-status');
                                 nickName = ext.user.nickName;
                                 if (ext.user.avatar) avatarUrl = fix48Url(ext.user.avatar);
                                 if (!exportUserId) exportUserId = ext.user.userId || ext.user.id;
-                                
+
                                 if (ext.user.roleId) exportRoleId = ext.user.roleId;
                             }
-                        } catch (e) {}
+                        } catch (e) { }
                     }
 
                     userHtml = `
@@ -5753,7 +6196,7 @@ const statusEl = document.getElementById('fetch-status');
                     }
                     const d = new Date(m.msgTime);
                     const pad = (n) => String(n).padStart(2, '0');
-                    timeStr = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+                    timeStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
                 } catch (e) {
                     console.error(e);
                     contentHtml = `<p class="mb-2" style="color:red">解析错误</p>`;
@@ -5797,7 +6240,7 @@ const statusEl = document.getElementById('fetch-status');
                 exportBtn.disabled = false;
                 tip.remove();
 
-                switchView('messages'); 
+                switchView('messages');
 
                 const outputList = document.getElementById('outputList');
                 if (outputList) {
@@ -5812,7 +6255,7 @@ const statusEl = document.getElementById('fetch-status');
                     });
                 }
 
-            }, 2000); 
+            }, 2000);
         }
     </script>
 </body>
