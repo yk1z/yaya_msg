@@ -74,4 +74,4 @@
 anyway，感谢使用。
 
 ---
-灵感来源：Gemini 48tools msg48 Partner48 </br>向以上致谢
+灵感来源：Gemini 48tools msg48 WebPocket48Assistant Partner48 </br>向以上致谢
