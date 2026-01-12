@@ -353,7 +353,7 @@ ipcMain.handle('fetch-room-messages', async (event, { channelId, serverId, token
             channelId: parseInt(channelId),
             serverId: parseInt(finalServerId),
             nextTime: nextTime,
-            limit: 20
+            limit: 50
         };
 
         const res = await axios.post(url, payload, { headers });

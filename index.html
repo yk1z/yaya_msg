@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>牙牙消息 v1.1.5</title>
+    <title>牙牙消息 v1.1.6</title>
     <link rel="icon" href="./icon.png" type="image/x-icon">
     <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.4.0/dist/hls.min.js"></script>
@@ -45,14 +45,47 @@
             background-color: #f0f8ff;
         }
 
-        .search-item .team-tag {
-            background: #f0f0f0;
-            color: #666;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 12px;
+/* 👇👇👇 新的胶囊标签样式 (黑夜模式通透版) 👇👇👇 */
+        .team-tag {
+            background: rgba(0, 0, 0, 0.06); /* 白天：浅灰背景 */
+            color: var(--text-sub);
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            border: 1px solid rgba(0,0,0,0.05);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 20px;
+            white-space: nowrap;
+            transition: all 0.2s ease;
         }
 
+        /* 🌙 黑夜模式下的默认状态：半透明白色 */
+        [data-theme="dark"] .team-tag {
+            background: rgba(255, 255, 255, 0.1); 
+            border-color: rgba(255, 255, 255, 0.05);
+            color: var(--text-sub);
+        }
+
+        /* 🖱️ 鼠标悬停时 (白天模式) - 保持原样 */
+        .suggestion-item:hover .team-tag {
+            background: #fff;
+            color: var(--primary);
+            border-color: var(--primary);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        /* 🌙 鼠标悬停时 (黑夜模式 - 修正版) */
+        /* ✅ 重点修改：底色不变成黑色，而是保持默认的半透明，只让文字变白亮 */
+        [data-theme="dark"] .suggestion-item:hover .team-tag {
+            background: rgba(255, 255, 255, 0.1); /* 保持半透明底色不变 */
+            color: #ffffff;                        /* 文字变成纯白，清晰醒目 */
+            border-color: rgba(255, 255, 255, 0.3);/* 边框稍微提亮一点点 */
+            box-shadow: none;                      /* 去掉阴影，保持干净通透 */
+        }
+        /* 👆👆👆 修改结束 👆👆👆 */
         .login-container {
             max-width: 500px;
             margin: 50px auto;
@@ -138,6 +171,11 @@
             background: #fafafa;
             padding: 15px;
         }
+
+.msg-item {
+    content-visibility: auto; 
+    contain-intrinsic-size: 60px; 
+}
 
         .sidebar-btn.active {
             background: rgba(255, 255, 255, 0.1);
@@ -1603,7 +1641,7 @@
                 </svg>
             </div>
             <img src="./icon.png" class="title-logo">
-            <span>牙牙消息 v1.1.5</span>
+            <span>牙牙消息 v1.1.6</span>
         </div>
         <div class="window-controls">
             <div class="control-btn" onclick="ipcRenderer.send('window-min')">
@@ -1644,7 +1682,7 @@
                 </button>
                 <button class="btn btn-secondary btn-full" style="margin-top: 8px;" onclick="openInBrowser('https://www.bilibili.com/video/BV1Ba8FzxEje/')">🦷 牙牙回放</button>
             </div>
-            <div class="sidebar-group">
+            <div class="sidebar-group" id="sb-login-group">
                 <div class="group-title">账号登录</div>
                 <button id="btn-open-toolbox" class="btn btn-primary btn-full" onclick="switchView('login')">
                     抓取房间消息
@@ -1668,31 +1706,59 @@
         <input type="text" id="searchInput" class="input-control" placeholder="输入关键词..." disabled 
             style="flex: 1; border-top-left-radius: 0; border-bottom-left-radius: 0;">
     </div>
-    <select class="input-control" id="sortSelect" onchange="applyFilters()">
-        <option value="desc" selected>最新消息在前</option>
-        <option value="asc">最早消息在前</option>
-    </select>
+    <button id="sortBtn" class="btn btn-secondary btn-full" onclick="toggleSortOrder()">
+        当前：最新在前
+    </button>
 </div>
             <div class="sidebar-group" id="sb-members">
                 <div class="group-title">成员消息</div>
-                <select class="input-control" id="groupSelect" onchange="applyFilters()">
-                    <option value="all" selected>全部成员</option>
-                </select>
+                
+                <div style="position: relative;">
+                    <input type="text" id="groupInput" class="input-control" 
+                           placeholder="全部成员" 
+                           value="全部成员"
+                           onfocus="showMemberDropdown()" 
+                           oninput="renderMemberDropdown(this.value)"
+                           onclick="showMemberDropdown()" 
+                           autocomplete="off">
+                    
+                    <div style="position: absolute; right: 10px; top: 10px; pointer-events: none; color: var(--text-sub); font-size: 12px;">▼</div>
+
+                    <div id="memberDropdownList" class="suggestion-box" style="max-height: 300px;">
+                        </div>
+                    </div>
+
                 <button class="btn btn-secondary btn-full" style="margin-top: 8px;" onclick="forceReloadData()">更新/重扫数据</button>
             </div>
             <div class="sidebar-group" id="sb-date">
                 <div class="group-title">日期筛选</div>
-                <select id="yearSelect" class="input-control" disabled onchange="handleDateChange('year')">
-                    <option value="all">全部</option>
-                </select>
-                <div class="btn-grid">
-                    <select id="monthSelect" class="input-control" disabled onchange="handleDateChange('month')">
-                        <option value="all">全年</option>
-                    </select>
-                    <select id="daySelect" class="input-control" disabled onchange="handleDateChange('day')">
-                        <option value="all">全月</option>
-                    </select>
+                
+                <div id="year-wrapper" style="position: relative; margin-bottom: 8px;">
+                    <input type="hidden" id="yearSelect" value="all">
+                    <input type="text" id="yearSelectDisplay" class="input-control" value="全部" readonly 
+                           onclick="toggleDateDropdown('year')" style="cursor: pointer;" disabled>
+                    <div style="position: absolute; right: 10px; top: 10px; pointer-events: none; color: var(--text-sub); font-size: 12px;">▼</div>
+                    <div id="year-dropdown" class="suggestion-box"></div>
                 </div>
+
+                <div class="btn-grid">
+                    <div id="month-wrapper" style="position: relative;">
+                        <input type="hidden" id="monthSelect" value="all">
+                        <input type="text" id="monthSelectDisplay" class="input-control" value="全年" readonly 
+                               onclick="toggleDateDropdown('month')" style="cursor: pointer;" disabled>
+                        <div style="position: absolute; right: 10px; top: 10px; pointer-events: none; color: var(--text-sub); font-size: 12px;">▼</div>
+                        <div id="month-dropdown" class="suggestion-box"></div>
+                    </div>
+
+                    <div id="day-wrapper" style="position: relative;">
+                        <input type="hidden" id="daySelect" value="all">
+                        <input type="text" id="daySelectDisplay" class="input-control" value="全月" readonly 
+                               onclick="toggleDateDropdown('day')" style="cursor: pointer;" disabled>
+                        <div style="position: absolute; right: 10px; top: 10px; pointer-events: none; color: var(--text-sub); font-size: 12px;">▼</div>
+                        <div id="day-dropdown" class="suggestion-box"></div>
+                    </div>
+                </div>
+
                 <button class="btn btn-secondary btn-full" onclick="resetDateFilter()">重置日期</button>
             </div>
             <div class="sidebar-group" id="sb-analysis">
@@ -1741,17 +1807,33 @@
                 </div>
                 <div id="media-list-controls">
                     <div style="display: flex; gap: 12px; margin-bottom: 15px; align-items: center; flex-wrap: wrap;">
+                        
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <span style="white-space: nowrap; font-weight: bold; font-size: 14px;">团体</span>
-                            <select id="vod-group-select" class="input-control" style="width: 120px;" onchange="handleGroupChange(this.value)"></select>
+                            <div id="vod-group-wrapper" style="position: relative; width: 120px;">
+                                <input type="text" id="vod-group-display" class="input-control" value="全部团体" readonly 
+                                       onclick="toggleVodGroupDropdown()" style="cursor: pointer;">
+                                <div style="position: absolute; right: 10px; top: 10px; pointer-events: none; color: var(--text-sub); font-size: 12px;">▼</div>
+                                <div id="vod-group-dropdown" class="suggestion-box">
+                                    </div>
+                            </div>
                         </div>
+
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <span style="white-space: nowrap; font-weight: bold; font-size: 14px;">类型</span>
-                            <select id="vod-type-filter" class="input-control" style="width: 100px;" onchange="handleVodTypeChange()">
-                                <option value="0">全部</option>
-                                <option value="1">视频</option>
-                                <option value="2">电台</option>
-                            </select>
+                            <div id="vod-type-wrapper" style="position: relative; width: 100px;">
+                                <input type="hidden" id="vod-type-filter" value="0">
+                                
+                                <input type="text" id="vod-type-display" class="input-control" value="全部" readonly 
+                                       onclick="toggleVodTypeDropdown()" style="cursor: pointer;">
+                                <div style="position: absolute; right: 10px; top: 10px; pointer-events: none; color: var(--text-sub); font-size: 12px;">▼</div>
+                                
+                                <div id="vod-type-dropdown" class="suggestion-box">
+                                    <div class="suggestion-item" onclick="selectVodType('0', '全部')">全部</div>
+                                    <div class="suggestion-item" onclick="selectVodType('1', '视频')">视频</div>
+                                    <div class="suggestion-item" onclick="selectVodType('2', '电台')">电台</div>
+                                </div>
+                            </div>
                         </div>
                         <div style="position: relative; width: 240px;">
                             <input type="text" id="vod-member-filter" class="input-control" style="width: 100%;" placeholder="成员名 / 日期" oninput="handleMemberFilter()" autocomplete="off">
@@ -1821,11 +1903,14 @@
                             </div>
                         </div>
                         <div class="Box-row">
-                            <h3 style="margin: 0 0 15px 0; font-size: 16px; border-left: 4px solid var(--primary); padding-left: 10px;">抓取房间消息</h3>
+                            <h3 style="margin: 0 0 15px 0; font-size: 16px; border-left: 4px solid var(--primary); padding-left: 10px; display: flex; justify-content: space-between; align-items: center;">
+    <span>抓取房间消息</span>
+    <span id="fetch-status" style="font-size: 12px; font-weight: normal; color: var(--text-sub);"></span>
+</h3>
                             <div class="search-wrapper">
-                                <label style="font-size: 12px; color: var(--text-sub); display:block; margin-bottom:5px;">🔍 搜索成员</label>
+                                <label style="font-size: 12px; color: var(--text-sub); display:block; margin-bottom:5px;">搜索成员</label>
                                 <input type="text" id="member-search" class="input-control" placeholder="输入成员名字" oninput="handleSearch(this.value)" onfocus="handleSearch(this.value)">
-                                <div id="search-results" class="search-results"></div>
+                                <div id="search-results" class="suggestion-box"></div>
                             </div>
                             <div style="display: none;">
                                 <input type="text" id="tool-server">
@@ -1926,15 +2011,20 @@
             const matches = memberData.filter(m => m.ownerName.includes(keyword));
             if (matches.length > 0) {
                 const html = matches.map(m => `
-                    <div class="search-item" onclick="selectToolMember('${m.ownerName}', '${m.serverId}', '${m.channelId}')">
-                        <span style="font-weight:bold; color:#333;">${m.ownerName}</span>
+                    <div class="suggestion-item" 
+                         onclick="selectToolMember('${m.ownerName}', '${m.serverId}', '${m.channelId}')"
+                         style="display: flex; justify-content: space-between; align-items: center;">
+                        
+                        <span style="font-weight:bold;">${m.ownerName}</span>
                         <span class="team-tag">${m.team}</span>
+                        
                     </div>
                 `).join('');
+                
                 resultBox.innerHTML = html;
                 resultBox.style.display = 'block';
             } else {
-                resultBox.innerHTML = '<div style="padding:10px;color:#999;text-align:center;">未找到该成员</div>';
+                resultBox.innerHTML = '<div class="suggestion-item" style="cursor:default; color:var(--text-sub);">未找到该成员</div>';
                 resultBox.style.display = 'block';
             }
         }
@@ -1963,6 +2053,7 @@
         function toggleSidebarMode(mode) {
             const idsToHide = ['sb-members', 'sb-analysis', 'sb-search', 'sb-date', 'sb-type', 'statusMsg'];
             const downloadModule = document.getElementById('sb-download');
+            const loginGroup = document.getElementById('sb-login-group');
             const liveBtns = document.getElementById('live-btns-container');
             const backBtn = document.getElementById('back-to-msg-btn');
             const liveGroup = document.getElementById('sb-live-group');
@@ -1972,6 +2063,7 @@
                 const el = document.getElementById(id);
                 if (el) el.style.display = (id === 'statusMsg') ? 'block' : 'flex';
             });
+            if (loginGroup) loginGroup.style.display = 'flex';
             if (downloadModule) downloadModule.style.display = 'none';
             if (liveBtns) liveBtns.style.display = 'grid';
             if (backBtn) backBtn.style.display = 'none';
@@ -1983,6 +2075,7 @@
                     const el = document.getElementById(id);
                     if (el) el.style.display = 'none';
                 });
+                if (loginGroup) loginGroup.style.display = 'none';
                 if (downloadModule) downloadModule.style.display = 'flex';
                 if (liveBtns) liveBtns.style.display = 'none';
                 if (backBtn) backBtn.style.display = 'block';
@@ -1999,37 +2092,40 @@
             }
         }
 
-        function switchView(viewName, mode = null) {
+function switchView(viewName, mode = null) {
             const msgView = document.getElementById('view-messages');
             const mediaView = document.getElementById('view-media');
             const loginView = document.getElementById('view-login');
+
             msgView.style.display = 'none';
             mediaView.style.display = 'none';
             if (loginView) loginView.style.display = 'none';
+
             destroyPlayers();
             if (window.vodState) {
                 window.vodState.isSearchActive = false;
             }
+
             if (viewName === 'media') {
                 toggleSidebarMode('media');
                 mediaView.style.display = 'flex';
                 mediaView.style.flexDirection = 'column';
                 const titleEl = document.getElementById('live-view-title');
                 currentMode = mode;
+
                 if (mode === 'live') {
                     titleEl.textContent = '📺 正在直播';
                     document.getElementById('media-list-controls').style.display = 'none';
                     document.getElementById('vod-pagination-controls').style.display = 'none';
                     fetchLiveList();
+
                 } else if (mode === 'vod') {
                     titleEl.textContent = '📼 录播回放';
-                    document.getElementById('media-list-controls').style.display = '';
+                    document.getElementById('media-list-controls').style.display = 'flex';
                     document.getElementById('vod-pagination-controls').style.display = 'flex';
+
                     if (window.vodState) {
-                        const currentGroupId = parseInt(document.getElementById('vod-group-select').value) || 0;
-                        if (vodState.currentGroup !== currentGroupId || vodState.list.length === 0) {
-                            vodState.currentGroup = currentGroupId;
-                            vodState.resetPagination(currentGroupId);
+                        if (vodState.list.length === 0) {
                             ensurePageData(2).then(() => {
                                 window.renderVODListUI();
                             });
@@ -2038,8 +2134,10 @@
                         }
                     }
                 }
+
                 document.getElementById('live-player-view').style.display = 'none';
                 document.getElementById('media-list-area').style.display = 'block';
+
             } else if (viewName === 'login') {
                 toggleSidebarMode('login');
                 if (loginView) loginView.style.display = 'block';
@@ -2049,6 +2147,7 @@
                     tokenInput.value = savedToken;
                 }
                 loadMemberData();
+
             } else {
                 toggleSidebarMode('messages');
                 msgView.style.display = 'block';
@@ -2102,6 +2201,7 @@
         window.ipcRenderer = ipcRenderer;
         const memberNameMap = new Map();
         const memberIdSet = new Set();
+        const memberTeamMap = new Map();
 
         async function loadMemberIdMap() {
             const csvPath = path.join(__dirname, 'members_id.csv');
@@ -2123,6 +2223,7 @@
                 memberNameMap.set('clear_all', true); 
                 memberNameMap.clear();
                 memberIdSet.clear();
+                memberTeamMap.clear();
 
                 lines.forEach(line => {
                     const trimmed = line.trim();
@@ -2131,13 +2232,16 @@
                     if (parts.length >= 2) {
                         const name = parts[0].trim();
                         const id = parts[1].trim();
+                        const team = parts[2] ? parts[2].trim() : '';
                         memberNameMap.set(name, id);
                         if (id) memberIdSet.add(id);
+                        if (team) memberTeamMap.set(name, team);
                 
                         if (name.includes('-')) {
                             const simpleName = name.split('-')[1];
                             if (!memberNameMap.has(simpleName)) {
                                 memberNameMap.set(simpleName, id);
+                                if (team) memberTeamMap.set(simpleName, team);
                             }
                         }
                     }
@@ -2416,26 +2520,70 @@
         const themeBtn = document.getElementById('themeBtn');
         const contextModal = document.getElementById('contextModal');
         const contextListContainer = document.getElementById('contextListContainer');
-        const groupSelect = document.getElementById('groupSelect');
         const livePlayerView = document.getElementById('live-player-view');
         const currentLiveTitle = document.getElementById('current-live-title');
         const liveVideo = document.getElementById('live-video');
         const livePlayerArea = document.getElementById('live-player-area');
         const mediaListControls = document.getElementById('media-list-controls');
-        const vodGroupSelect = document.getElementById('vod-group-select');
         const vodListContainer = document.getElementById('vod-list-container');
         const vodLoading = document.getElementById('vod-loading');
         const mediaListArea = document.getElementById('media-list-area');
         let allPosts = [];
+        let allMemberOptions = [];
         let currentFilteredPosts = [];
         let renderedCount = 0;
-        const getBatchSize = () => (filterType === 'video' || filterType === 'image') ? 50 : 100;
+        const getBatchSize = () => (filterType === 'video' || filterType === 'image') ? 15 : 50;
         let filterType = 'all';
         let userStats = [];
         let dateStats = [];
         let availableYears = new Set();
         let currentPlayingAudio = null;
         let currentPlayingVideo = null;
+
+        let currentSortOrder = 'desc'; 
+        function filterGroupOptions(keyword) {
+            const select = document.getElementById('groupSelect');
+            const currentVal = select.value; 
+            const term = keyword.trim().toLowerCase();
+
+            select.innerHTML = '<option value="all">全部成员</option>';
+
+            allMemberOptions.forEach(name => {
+                if (name.toLowerCase().includes(term)) {
+                    const opt = document.createElement('option');
+                    opt.value = name;
+                    opt.textContent = name;
+                    select.appendChild(opt);
+                }
+            });
+
+            let stillExists = false;
+            for (let i = 0; i < select.options.length; i++) {
+                if (select.options[i].value === currentVal) {
+                    select.value = currentVal;
+                    stillExists = true;
+                    break;
+                }
+            }
+            if (!stillExists) {
+                select.value = 'all';
+                applyFilters(); 
+            }
+        }
+
+        function toggleSortOrder() {
+            const btn = document.getElementById('sortBtn');
+            
+            if (currentSortOrder === 'desc') {
+                currentSortOrder = 'asc';
+                btn.innerText = '当前：最早在前';
+            } else {
+                currentSortOrder = 'desc';
+                btn.innerText = '当前：最新在前';
+            }
+            
+            applyFilters();
+        }
 
         function triggerBgInput() {
             bgInput.click();
@@ -2563,80 +2711,165 @@
                 scanFiles();
             }
             if (window.vodState) {
-                vodGroupSelect.innerHTML = '';
-                vodState.groups.forEach(group => {
-                    const opt = document.createElement('option');
-                    opt.value = group.apiId;
-                    opt.textContent = group.name;
-                    vodGroupSelect.appendChild(opt);
-                });
+                renderVodGroupOptions();
             }
         };
-        window.forceReloadData = function() {
-            if (fs.existsSync(CACHE_FILE)) {
-                try {
-                    fs.unlinkSync(CACHE_FILE);
-                } catch (e) {}
-            }
-            outputList.innerHTML = '<div class="placeholder-tip"><h3>🔄 正在重新扫描...</h3><p>请稍候，不要关闭软件。</p></div>';
-            statusMsg.textContent = "⏳ 正在重新建立索引...";
-            setTimeout(scanFiles, 100);
+        window.forceReloadData = function() {          
+            outputList.innerHTML = '<div class="placeholder-tip"><h3>🔄 正在增量更新...</h3><p>正在比对文件变动，请稍候。</p></div>';
+            statusMsg.textContent = "⏳ 正在分析新文件...";
+            
+            setTimeout(() => scanFiles(true), 100);
+        }
+const MANIFEST_FILE = 'scan_manifest.json';
+        let fileManifest = {};
+
+        function loadManifest() {
+            try {
+                if (fs.existsSync(MANIFEST_FILE)) {
+                    fileManifest = JSON.parse(fs.readFileSync(MANIFEST_FILE, 'utf-8'));
+                }
+            } catch (e) { fileManifest = {}; }
         }
 
-        function scanFiles() {
+        function saveManifest() {
+            try {
+                fs.writeFileSync(MANIFEST_FILE, JSON.stringify(fileManifest), 'utf-8');
+            } catch (e) {}
+        }
+
+        function scanFiles(isIncremental = false) {
             if (!fs.existsSync(FIXED_PATH)) {
                 statusMsg.textContent = "❌ 路径不存在";
-                outputList.innerHTML = `<div class="placeholder-tip"><h3>❌ 路径配置错误</h3><p>找不到文件夹：<br><b>${FIXED_PATH}</b></p><p>请确认已创建"html"文件夹。</p></div>`;
+                outputList.innerHTML = `<div class="placeholder-tip"><h3>❌ 路径配置错误</h3><p>找不到文件夹：<br><b>${FIXED_PATH}</b></p></div>`;
                 return;
             }
-            statusMsg.textContent = "⏳ 正在扫描文件夹...";
+
+
+            loadManifest();
+
+
+            if (isIncremental) {
+                let realFilesOnDisk = new Set();
+                try {
+                    const gatherPaths = (dir) => {
+                        if (fs.existsSync(dir)) {
+                            const files = fs.readdirSync(dir, { withFileTypes: true });
+                            files.forEach(f => {
+                                if (f.isDirectory()) gatherPaths(path.join(dir, f.name));
+                                else if (f.isFile() && f.name.endsWith('.html')) {
+                                    realFilesOnDisk.add(path.join(dir, f.name));
+                                }
+                            });
+                        }
+                    };
+                    gatherPaths(FIXED_PATH);
+
+                    for (const cachedPath of Object.keys(fileManifest)) {
+                        if (!realFilesOnDisk.has(cachedPath)) {
+                            console.log(`检测到文件已删除: ${cachedPath}，将触发全量重扫`);
+                            isIncremental = false; 
+                            statusMsg.textContent = "🗑️ 发现文件变动，正在重置缓存...";
+                            break;
+                        }
+                    }
+                } catch (e) {
+                    isIncremental = false;
+                }
+            }
+
+            statusMsg.textContent = isIncremental ? "⏳ 正在扫描新文件..." : "⏳ 正在重建索引...";
+            
+            if (!isIncremental) {
+                allPosts = [];
+                fileManifest = {}; 
+            }
+            
+            let newParsedCount = 0;
+            let skippedCount = 0;
+
             setTimeout(() => {
                 try {
-                    const items = fs.readdirSync(FIXED_PATH, {
-                        withFileTypes: true
-                    });
-                    allPosts = [];
+                    const items = fs.readdirSync(FIXED_PATH, { withFileTypes: true });
+                    let newPosts = [];
+
                     const readFilesFromDir = (dirPath, groupName) => {
                         const files = fs.readdirSync(dirPath);
                         files.forEach(file => {
                             if (file.endsWith('.html')) {
                                 try {
                                     const fullPath = path.join(dirPath, file);
+                                    const stats = fs.statSync(fullPath);
+                                    const fileKey = fullPath; 
+
+                                    if (isIncremental && fileManifest[fileKey] === stats.mtimeMs) {
+                                        skippedCount++;
+                                        return; 
+                                    }
+
                                     const text = fs.readFileSync(fullPath, 'utf-8');
-                                    allPosts = allPosts.concat(parseHtmlContent(text, file, groupName));
-                                } catch (e) {}
+                                    const parsed = parseHtmlContent(text, file, groupName);
+                                    newPosts = newPosts.concat(parsed);
+  
+                                    fileManifest[fileKey] = stats.mtimeMs;
+                                    newParsedCount++;
+                                } catch (e) {
+                                    console.error("解析失败:", file, e);
+                                }
                             }
                         });
                     };
+
                     items.forEach(item => {
                         if (item.isDirectory()) readFilesFromDir(path.join(FIXED_PATH, item.name), item.name);
                         else if (item.isFile() && item.name.endsWith('.html')) readFilesFromDir(FIXED_PATH, '默认');
                     });
+
+                    if (isIncremental) {
+                        allPosts = allPosts.concat(newPosts);
+                    } else {
+                        allPosts = newPosts;
+                    }
+
                     if (allPosts.length === 0) {
                         outputList.innerHTML = '<div class="placeholder-tip"><h3>📂 没有找到数据</h3><p>请在"html"文件夹内放入 .html 文件。</p></div>';
+                        if(fs.existsSync(CACHE_FILE)) try { fs.unlinkSync(CACHE_FILE); } catch(e){}
+                        saveManifest(); 
                         return;
                     }
+
+                    statusMsg.textContent = "🧹 正在整理数据...";
+
                     const uniqueMap = new Map();
                     const uniquePosts = [];
-                    allPosts.forEach(post => {
-                        const uniqueKey = `${post.timeStr}_${post.nameStr}_${post.text.substring(0, 50)}`;
+                    for (let i = allPosts.length - 1; i >= 0; i--) {
+                        const post = allPosts[i];
+                        const uniqueKey = `${post.timeStr}_${post.nameStr}_${(post.text || '').substring(0, 50)}`;
                         if (!uniqueMap.has(uniqueKey)) {
                             uniqueMap.set(uniqueKey, true);
                             uniquePosts.push(post);
                         }
-                    });
-                    allPosts = uniquePosts;
+                    }
+                    allPosts = uniquePosts.reverse();
                     allPosts.sort((a, b) => new Date(a.timeStr) - new Date(b.timeStr));
+                    
                     allPosts.forEach((post, index) => {
                         post.originalIndex = index;
                     });
-                    statusMsg.textContent = "💾 正在写入缓存...";
+
+                    statusMsg.textContent = "💾 正在保存...";
+                    
                     saveCacheOptimized(allPosts).then(() => {
-                        statusMsg.textContent = `✅ 扫描完成: ${allPosts.length} 条`;
+                        saveManifest(); 
+                        const msg = isIncremental 
+                            ? `✅ 更新: 新增 ${newParsedCount} 个文件` 
+                            : `✅ 重建完成: 共 ${allPosts.length} 条`;
+                        statusMsg.textContent = msg;
                     }).catch(e => {
-                        statusMsg.textContent = `⚠️ 缓存写入失败，但数据已加载`;
+                        statusMsg.textContent = `⚠️ 缓存写入失败`;
                     });
+
                     initUIWithData();
+
                 } catch (err) {
                     outputList.innerHTML = `<div class="placeholder-tip"><h3>❌ 读取错误</h3><p>${err.message}</p></div>`;
                 }
@@ -2645,19 +2878,18 @@
 
         function initUIWithData() {
             const groups = new Set(allPosts.map(p => p.groupName));
-            groupSelect.innerHTML = '<option value="all" selected>全部成员</option>';
-            Array.from(groups).sort().forEach(g => {
-                const opt = document.createElement('option');
-                opt.value = g;
-                opt.textContent = g;
-                groupSelect.appendChild(opt);
-            });
+
+            allMemberOptions = Array.from(groups).sort(); 
+            
             initDateSelectors();
             applyFilters();
-            searchInput.disabled = false;
-            analysisBtn.disabled = false;
-            dateBtn.disabled = false;
-            yearSelect.disabled = false;
+
+            const sInput = document.getElementById('searchInput');
+            if(sInput) sInput.disabled = false;
+            if(analysisBtn) analysisBtn.disabled = false;
+            if(dateBtn) dateBtn.disabled = false;
+            const yDisp = document.getElementById('yearSelectDisplay');
+            if(yDisp) yDisp.disabled = false;
         }
 
         function backToLiveList() {
@@ -2695,9 +2927,22 @@
                     if (name.toLowerCase().includes(val)) matches.push(name);
                 }
                 if (matches.length > 0) {
-                    box.innerHTML = matches.slice(0, 10).map(name => `<div class="suggestion-item" onclick="selectMember('${name}')">${name}</div>`).join('');
+                    box.innerHTML = matches.slice(0, 10).map(name => {
+                        const team = memberTeamMap.get(name) || '';
+                        const teamHtml = team ? `<span class="team-tag">${team}</span>` : '';
+                        
+                        return `<div class="suggestion-item" 
+                                     onclick="selectMember('${name}')"
+                                     style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span style="font-weight:bold">${name}</span>
+                                    ${teamHtml}
+                                </div>`;
+                    }).join('');
+                    
                     box.style.display = 'block';
-                } else box.style.display = 'none';
+                } else {
+                    box.style.display = 'none';
+                }
             }
             clearTimeout(filterTimeout);
             filterTimeout = setTimeout(() => {
@@ -2706,6 +2951,44 @@
                     ensurePageData(2).then(() => renderVODListUI());
                 }
             }, 500);
+        }
+
+        function renderVodGroupOptions() {
+            const list = document.getElementById('vod-group-dropdown');
+            if(!list || !window.vodState) return;
+            
+            list.innerHTML = vodState.groups.map(g => `
+                <div class="suggestion-item" onclick="selectVodGroup('${g.apiId}', '${g.name}')">
+                    ${g.name}
+                </div>
+            `).join('');
+        }
+
+        function toggleVodGroupDropdown() {
+            const list = document.getElementById('vod-group-dropdown');
+            if (list) list.style.display = (list.style.display === 'block') ? 'none' : 'block';
+            const typeList = document.getElementById('vod-type-dropdown');
+            if (typeList) typeList.style.display = 'none';
+        }
+
+        function selectVodGroup(apiId, name) {
+            document.getElementById('vod-group-display').value = name;
+            document.getElementById('vod-group-dropdown').style.display = 'none';
+            handleGroupChange(apiId); 
+        }
+
+        function toggleVodTypeDropdown() {
+            const list = document.getElementById('vod-type-dropdown');
+            if (list) list.style.display = (list.style.display === 'block') ? 'none' : 'block';
+            const groupList = document.getElementById('vod-group-dropdown');
+            if (groupList) groupList.style.display = 'none';
+        }
+
+        function selectVodType(value, name) {
+            document.getElementById('vod-type-display').value = name; 
+            document.getElementById('vod-type-filter').value = value; 
+            document.getElementById('vod-type-dropdown').style.display = 'none';
+            handleVodTypeChange(); 
         }
 
         function handleVodTypeChange() {
@@ -4037,96 +4320,206 @@
             allPosts.forEach(post => {
                 if (post.year) availableYears.add(post.year);
             });
-            yearSelect.innerHTML = '<option value="all">全部</option>';
+            
+            const yearList = document.getElementById('year-dropdown');
+            let html = `<div class="suggestion-item" onclick="selectDateItem('year', 'all', '全部')">全部</div>`;
+            
             Array.from(availableYears).sort().reverse().forEach(y => {
-                const opt = document.createElement('option');
-                opt.value = y;
-                opt.textContent = `${y}年`;
-                yearSelect.appendChild(opt);
+                html += `<div class="suggestion-item" onclick="selectDateItem('year', '${y}', '${y}年')">${y}年</div>`;
             });
+            yearList.innerHTML = html;
+
             resetMonthSelect();
             resetDaySelect();
         }
 
-        function handleDateChange(level) {
-            if (level === 'year') {
-                if (yearSelect.value === 'all') {
-                    resetMonthSelect();
-                    resetDaySelect();
-                } else {
-                    populateMonths(yearSelect.value);
-                    monthSelect.disabled = false;
-                }
-            } else if (level === 'month') {
-                if (monthSelect.value === 'all') resetDaySelect();
-                else {
-                    populateDays(yearSelect.value, monthSelect.value);
-                    daySelect.disabled = false;
-                }
-            }
-            applyFilters();
-        }
-
         function populateMonths(year) {
-            monthSelect.innerHTML = '<option value="all">全年</option>';
+            const monthList = document.getElementById('month-dropdown');
+            let html = `<div class="suggestion-item" onclick="selectDateItem('month', 'all', '全年')">全年</div>`;
+            
             const months = new Set();
             allPosts.forEach(p => {
                 if (p.year == year) months.add(p.month);
             });
+            
             Array.from(months).sort((a, b) => a - b).forEach(m => {
-                const opt = document.createElement('option');
-                opt.value = m;
-                opt.textContent = `${m}月`;
-                monthSelect.appendChild(opt);
+                html += `<div class="suggestion-item" onclick="selectDateItem('month', '${m}', '${m}月')">${m}月</div>`;
             });
+            monthList.innerHTML = html;
+
             resetDaySelect();
         }
 
         function populateDays(year, month) {
-            daySelect.innerHTML = '<option value="all">全月</option>';
+            const dayList = document.getElementById('day-dropdown');
+            let html = `<div class="suggestion-item" onclick="selectDateItem('day', 'all', '全月')">全月</div>`;
+            
             const days = new Set();
             allPosts.forEach(p => {
                 if (p.year == year && p.month == month) days.add(p.day);
             });
+            
             Array.from(days).sort((a, b) => a - b).forEach(d => {
-                const opt = document.createElement('option');
-                opt.value = d;
-                opt.textContent = `${d}日`;
-                daySelect.appendChild(opt);
+                html += `<div class="suggestion-item" onclick="selectDateItem('day', '${d}', '${d}日')">${d}日</div>`;
             });
+            dayList.innerHTML = html;
         }
 
         function resetMonthSelect() {
-            monthSelect.innerHTML = '<option value="all">全年</option>';
-            monthSelect.disabled = true;
+            document.getElementById('monthSelect').value = 'all';
+            document.getElementById('monthSelectDisplay').value = '全年';
+            document.getElementById('monthSelectDisplay').disabled = true;
+            document.getElementById('month-dropdown').style.display = 'none';
         }
 
         function resetDaySelect() {
-            daySelect.innerHTML = '<option value="all">全月</option>';
-            daySelect.disabled = true;
+            document.getElementById('daySelect').value = 'all';
+            document.getElementById('daySelectDisplay').value = '全月';
+            document.getElementById('daySelectDisplay').disabled = true;
+            document.getElementById('day-dropdown').style.display = 'none';
         }
 
         function resetDateFilter() {
-            yearSelect.value = 'all';
-            resetMonthSelect();
-            resetDaySelect();
+            selectDateItem('year', 'all', '全部');
+            const view = document.getElementById('view-messages');
+            if (view) {
+                view.scrollTop = 0;
+            }
+        }
+
+        function handleDateChange(level) {
+            const yearVal = document.getElementById('yearSelect').value;
+            const monthVal = document.getElementById('monthSelect').value;
+
+            if (level === 'year') {
+                if (yearVal === 'all') {
+                    resetMonthSelect();
+                    resetDaySelect();
+                } else {
+                    populateMonths(yearVal);
+                    document.getElementById('monthSelectDisplay').disabled = false;
+                }
+            } else if (level === 'month') {
+                if (monthVal === 'all') {
+                    resetDaySelect();
+                } else {
+                    populateDays(yearVal, monthVal);
+                    document.getElementById('daySelectDisplay').disabled = false;
+                }
+            }
             applyFilters();
+            const view = document.getElementById('view-messages');
+            if (view) {
+                view.scrollTop = 0;
+            }
+        }
+
+        function toggleDateDropdown(type) {
+            const displayEl = document.getElementById(`${type}SelectDisplay`);
+            if (displayEl && displayEl.disabled) return; 
+
+            const list = document.getElementById(`${type}-dropdown`);
+            ['year', 'month', 'day'].forEach(t => {
+                if (t !== type) {
+                    const other = document.getElementById(`${t}-dropdown`);
+                    if (other) other.style.display = 'none';
+                }
+            });
+
+            if (list) list.style.display = (list.style.display === 'block') ? 'none' : 'block';
+        }
+
+        function selectDateItem(type, value, text) {
+            document.getElementById(`${type}Select`).value = value;
+            document.getElementById(`${type}SelectDisplay`).value = text;
+            document.getElementById(`${type}-dropdown`).style.display = 'none';
+            handleDateChange(type);
         }
 
         function setFilter(type) {
             filterType = type;
             document.querySelectorAll('.filter-chip').forEach(el => el.classList.remove('active'));
             document.getElementById(`filter-${type}`).classList.add('active');
-            applyFilters();
+
+            outputList.innerHTML = '<div style="padding:20px; text-align:center; color:#999;">正在筛选...</div>';
+            
+            setTimeout(() => {
+                applyFilters();
+            }, 50);
         }
+
+        function showMemberDropdown() {
+            const list = document.getElementById('memberDropdownList');
+            const input = document.getElementById('groupInput');
+            list.style.display = 'block';
+            const keyword = (input.value === '全部成员') ? '' : input.value;
+            renderMemberDropdown(keyword);
+        }
+
+        function renderMemberDropdown(keyword) {
+            const list = document.getElementById('memberDropdownList');
+            const term = keyword.trim().toLowerCase();
+
+            let html = `<div class="suggestion-item" onclick="selectMemberFilter('all')"><span style="font-weight:bold">全部成员</span></div>`;
+            
+            let matchCount = 0;
+            allMemberOptions.forEach(name => {
+                if (term === '' || name.toLowerCase().includes(term)) {
+                    const team = memberTeamMap.get(name) || ''; 
+                    const teamHtml = team ? `<span class="team-tag">${team}</span>` : '';
+
+                    html += `<div class="suggestion-item" 
+                                 onclick="selectMemberFilter('${name}')"
+                                 style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-weight:bold">${name}</span>
+                                ${teamHtml}
+                             </div>`;
+                    matchCount++;
+                }
+            });
+
+            if (matchCount === 0 && term !== '') {
+                html += `<div class="suggestion-item" style="cursor:default; color:var(--text-sub);">无匹配成员</div>`;
+            }
+
+            list.innerHTML = html;
+        }
+
+        function selectMemberFilter(value) {
+            const input = document.getElementById('groupInput');
+            const list = document.getElementById('memberDropdownList');
+            
+            if (value === 'all') {
+                input.value = '全部成员';
+            } else {
+                input.value = value;
+            }
+            
+            list.style.display = 'none'; 
+            applyFilters(); 
+        }
+
+        document.addEventListener('click', function(e) {
+            const container = document.getElementById('sb-members');
+            const list = document.getElementById('memberDropdownList');
+            if (list.style.display === 'block' && !container.contains(e.target)) {
+                list.style.display = 'none';
+
+                const input = document.getElementById('groupInput');
+                const val = input.value;
+                if (val !== '全部成员' && !allMemberOptions.includes(val)) {
+                }
+            }
+        });
 
 function applyFilters() {
             const keyword = searchInput.value.trim().toLowerCase();
-            const sortType = sortSelect.value;
+            const sortType = currentSortOrder;
+            const groupInputVal = document.getElementById('groupInput').value;
+            const selGroup = (groupInputVal === '全部成员' || groupInputVal === '') ? 'all' : groupInputVal;
             const selYear = yearSelect.value;
             const selMonth = monthSelect.value;
             const selDay = daySelect.value;
-            const selGroup = groupSelect.value;
             
             const searchType = document.getElementById('searchTypeSelect').value;
 
@@ -4228,11 +4621,16 @@ function applyFilters() {
         }
 
         function performUserAnalysis() {
-            const counts = {},
-                selGroup = groupSelect.value,
-                sourceData = selGroup === 'all' ? allPosts : allPosts.filter(p => p.groupName === selGroup);
+            const counts = {};
+
+            const groupInput = document.getElementById('groupInput');
+            let selGroup = groupInput ? groupInput.value : 'all';
+            if (selGroup === '全部成员' || !selGroup) selGroup = 'all';
+
+            const sourceData = selGroup === 'all' ? allPosts : allPosts.filter(p => p.groupName === selGroup);
             const modalTitle = document.querySelector('#userModal .modal-title');
             if (modalTitle) modalTitle.innerText = selGroup === 'all' ? '互动榜 (全部)' : `互动榜 (${selGroup})`;
+            
             sourceData.forEach(post => {
                 const match = post.contentHtml.match(/<blockquote[^>]*>\s*(.*?)[：:]/i);
                 if (match && match[1]) {
@@ -4260,17 +4658,41 @@ function applyFilters() {
         }
 
         function performDateAnalysis() {
-            const counts = {},
-                selGroup = groupSelect.value,
-                sourceData = selGroup === 'all' ? allPosts : allPosts.filter(p => p.groupName === selGroup);
+            const counts = {};
+            
+            const groupInput = document.getElementById('groupInput');
+            let selGroup = groupInput ? groupInput.value : 'all';
+            if (selGroup === '全部成员' || !selGroup) selGroup = 'all';
+
+            const sourceData = selGroup === 'all' ? allPosts : allPosts.filter(p => p.groupName === selGroup);
             const modalTitle = document.querySelector('#dateModal .modal-title');
             if (modalTitle) modalTitle.innerText = selGroup === 'all' ? '每日消息统计 (全部)' : `每日消息统计 (${selGroup})`;
+            
             sourceData.forEach(post => {
-                if (post.dateFull) counts[post.dateFull] = (counts[post.dateFull] || 0) + 1;
+                if (post.dateFull) {
+                    if (!counts[post.dateFull]) {
+                        counts[post.dateFull] = { total: 0, member: 0 };
+                    }
+                    
+                    counts[post.dateFull].total++;
+
+                    const isMemberPost = 
+                        post.isMember ||                                     
+                        (post.nameStr === post.groupName) ||                 
+                        post.isReply ||                                       
+                        (typeof memberNameMap !== 'undefined' && memberNameMap.has(post.nameStr)) || 
+                        (typeof memberIdSet !== 'undefined' && post.userId && memberIdSet.has(String(post.userId)));
+
+                    if (isMemberPost) {
+                        counts[post.dateFull].member++;
+                    }
+                }
             });
-            dateStats = Object.entries(counts).map(([date, count]) => ({
+
+            dateStats = Object.entries(counts).map(([date, val]) => ({
                 date,
-                count
+                count: val.total,      
+                memberCount: val.member 
             })).sort((a, b) => new Date(b.date) - new Date(a.date));
         }
 
@@ -4280,9 +4702,30 @@ function applyFilters() {
                 return;
             }
             const max = Math.max(...dateStats.map(d => d.count));
+            
             let html = '';
             dateStats.forEach((item) => {
-                html += `<div class="list-item" onclick="filterByDate('${item.date}')"><div class="item-main"><span class="item-title">${item.date}</span><div class="stat-bar-container"><div class="stat-bar" style="width: ${(item.count / max) * 100}%"></div></div></div><div class="item-count">${item.count}条</div></div>`;
+                const totalPct = (item.count / max) * 100;
+                const memberPct = (item.memberCount / max) * 100;
+                
+                html += `
+                <div class="list-item" onclick="filterByDate('${item.date}')">
+                    <div class="item-main">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                            <span class="item-title">${item.date}</span>
+                            <span style="font-size:11px; color:var(--text-sub);">
+                                <span style="color:#FB7299; font-weight:bold;">成员: ${item.memberCount}</span> 
+                                <span style="opacity:0.3; margin:0 4px;">|</span> 
+                                总: ${item.count}
+                            </span>
+                        </div>
+                        
+                        <div class="stat-bar-container" style="position:relative; background:var(--bar-bg); height:6px; border-radius:3px; overflow:hidden;">
+                            <div class="stat-bar" style="width: ${totalPct}%; background:var(--text-sub); opacity:0.25; position:absolute; top:0; left:0; height:100%;"></div>
+                            <div class="stat-bar" style="width: ${memberPct}%; background:#FB7299; position:absolute; top:0; left:0; height:100%; z-index:2;"></div>
+                        </div>
+                    </div>
+                </div>`;
             });
             dateListContainer.innerHTML = html;
         }
@@ -4580,6 +5023,14 @@ function filterByUser(username) {
             const box = document.getElementById('member-suggestions'),
                 input = document.getElementById('vod-member-filter');
             if (box && input && e.target !== input && !box.contains(e.target)) box.style.display = 'none';
+
+        ['year', 'month', 'day'].forEach(type => {
+            const wrapper = document.getElementById(`${type}-wrapper`);
+            const list = document.getElementById(`${type}-dropdown`);
+            if (list && list.style.display === 'block' && wrapper && !wrapper.contains(e.target)) {
+                list.style.display = 'none';
+            }
+        });
         });
 
         async function handleDownloadVOD(event, item) {
@@ -4721,9 +5172,12 @@ function filterByUser(username) {
 
         function handleNoticeDisplay(data) {
             if (!data.show) return;
-            const bar = document.getElementById('global-notice-bar'),
-                textEl = document.getElementById('notice-text'),
-                linkEl = document.getElementById('notice-link');
+            const bar = document.getElementById('global-notice-bar');
+            const textEl = document.getElementById('notice-text');
+            const linkEl = document.getElementById('notice-link');
+            
+            if (!bar || !textEl || !linkEl) return;
+
             textEl.textContent = data.content;
             if (data.link) {
                 linkEl.href = "javascript:void(0)";
@@ -4732,21 +5186,36 @@ function filterByUser(username) {
                     openInBrowser(data.link);
                 };
                 linkEl.style.display = 'inline';
-            } else linkEl.style.display = 'none';
+            } else {
+                linkEl.style.display = 'none';
+            }
+
             bar.classList.remove('notice-hiding');
             bar.style.display = 'flex';
-            if (autoCloseTimer) clearTimeout(autoCloseTimer);
-            autoCloseTimer = setTimeout(() => closeNotice(), 5000);
+
+            if (window.autoCloseTimer) {
+                clearTimeout(window.autoCloseTimer);
+                window.autoCloseTimer = null;
+            }
+
+            window.autoCloseTimer = setTimeout(() => {
+                closeNotice();
+            }, 5000);
         }
 
         function closeNotice() {
             const bar = document.getElementById('global-notice-bar');
-            if (!bar || bar.classList.contains('notice-hiding')) return;
+            if (!bar) return;
+
+            if (bar.classList.contains('notice-hiding')) return;
+
             bar.classList.add('notice-hiding');
-            if (autoCloseTimer) {
-                clearTimeout(autoCloseTimer);
-                autoCloseTimer = null;
+            
+            if (window.autoCloseTimer) {
+                clearTimeout(window.autoCloseTimer);
+                window.autoCloseTimer = null;
             }
+
             setTimeout(() => {
                 bar.style.display = 'none';
                 bar.classList.remove('notice-hiding');
@@ -4775,67 +5244,86 @@ function filterByUser(username) {
         let lastNextTime = 0;
         let isAutoFetching = false;
 
-        async function fetchAllMsgs() {
-            const btn = document.getElementById('btn-fetch-all');
-            const fetchBtn = document.getElementById('btn-fetch-one');
-            const box = document.getElementById('msg-result');
-            const memberSearch = document.getElementById('member-search');
-            if (isAutoFetching) {
-                isAutoFetching = false;
-                btn.innerText = '加载全部';
-                btn.style.background = '';
-                btn.style.color = '';
-                if (fetchBtn) fetchBtn.disabled = false;
-                if (memberSearch) memberSearch.disabled = false;
-                return;
-            }
-            const channelId = document.getElementById('tool-channel').value.trim();
-            if (!channelId) {
-                box.innerHTML = `<div style="text-align:center; padding:20px; color:#ff4d4f;">⚠️ 请先在搜索框输入名字并选择成员</div>`;
-                isAutoFetching = false;
-                btn.innerText = '加载全部';
-                btn.style.background = '';
-                if (fetchBtn) fetchBtn.disabled = false;
-                if (memberSearch) memberSearch.disabled = false;
-                return;
-            }
-            isAutoFetching = true;
-            btn.innerText = '停止加载';
-            btn.style.background = '#ff4d4f';
-            btn.style.color = 'white';
-            if (fetchBtn) fetchBtn.disabled = true;
-            if (memberSearch) memberSearch.disabled = true;
-            if (lastNextTime === 0 || box.children.length <= 1) {
-                await fetchMsgs(false);
-                await sleep(10);
-            }
-            while (isAutoFetching && lastNextTime > 0) {
-                box.scrollTop = box.scrollHeight;
-                const lastEl = box.lastElementChild;
-                if (lastEl && lastEl.innerText.includes('加载更多')) lastEl.remove();
-                await fetchMsgs(true);
-                await sleep(10);
-            }
-            isAutoFetching = false;
-            btn.innerText = '加载全部';
-            btn.style.background = '';
-            btn.style.color = '';
-            if (fetchBtn) fetchBtn.disabled = false;
-            if (memberSearch) memberSearch.disabled = false;
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function fetchAllMsgs() {
+    const btn = document.getElementById('btn-fetch-all');
+    const fetchBtn = document.getElementById('btn-fetch-one');
+    const box = document.getElementById('msg-result');
+    const memberSearch = document.getElementById('member-search');
+    const exportBtn = document.getElementById('btn-export-html');
+    const exportLocalBtn = document.getElementById('btn-export-local');
+    const toggleBtn = document.getElementById('btn-toggle-mode');
+
+    if (isAutoFetching) {
+        isAutoFetching = false;
+        btn.innerText = '加载全部';
+        btn.style.background = '';
+        btn.style.color = '';
+        if (fetchBtn) fetchBtn.disabled = false;
+        if (memberSearch) memberSearch.disabled = false;
+        if (toggleBtn) toggleBtn.disabled = false;
+        if (allFetchedMsgs.length > 0) {
+            if (exportBtn) exportBtn.disabled = false;
+            if (exportLocalBtn) exportLocalBtn.disabled = false;
+        }
+        return;
+    }
+    
+
+    const channelId = document.getElementById('tool-channel').value.trim();
+    if (!channelId) {
+        box.innerHTML = `<div style="text-align:center; padding:20px; color:#ff4d4f;">⚠️ 请先在搜索框输入名字并选择成员</div>`;
+        return;
+    }
+
+    isAutoFetching = true;
+    btn.innerText = '停止加载';
+    btn.style.background = '#ff4d4f';
+    btn.style.color = 'white';
+    if (fetchBtn) fetchBtn.disabled = true;
+    if (memberSearch) memberSearch.disabled = true;
+    if (exportBtn) exportBtn.disabled = true;
+    if (exportLocalBtn) exportLocalBtn.disabled = true;
+    if (toggleBtn) toggleBtn.disabled = true;
+
+    try {
+        if (lastNextTime === 0 || box.children.length <= 1) {
+            await fetchMsgs(false);
+            await sleep(10); 
         }
 
-        function stopAutoFetching(btn, fetchBtn) {
-            isAutoFetching = false;
-            btn.innerText = '加载全部';
-            btn.style.background = '';
-            btn.style.color = '';
-            if (fetchBtn) fetchBtn.disabled = false;
-        }
+        while (isAutoFetching && lastNextTime > 0) {
 
-        function sleep(ms) {
-            return new Promise(resolve => setTimeout(resolve, ms));
-        }
+            const lastEl = box.lastElementChild;
+            if (lastEl && lastEl.innerText.includes('加载更多')) lastEl.remove();
 
+            await fetchMsgs(true);
+            await sleep(10); 
+        }
+    } catch (e) {
+        console.error("自动抓取中断", e);
+    } finally {
+        isAutoFetching = false;
+        btn.innerText = '加载全部';
+        btn.style.background = '';
+        btn.style.color = '';
+        if (fetchBtn) fetchBtn.disabled = false;
+        if (memberSearch) memberSearch.disabled = false;
+        if (toggleBtn) toggleBtn.disabled = false;
+
+const statusEl = document.getElementById('fetch-status');
+        if (statusEl && statusEl.innerHTML) {
+            statusEl.innerHTML += ' <b style="color:#28a745; margin-left:5px;">(完成)</b>';
+        }
+        if (allFetchedMsgs.length > 0) {
+            if (exportBtn) exportBtn.disabled = false;
+            if (exportLocalBtn) exportLocalBtn.disabled = false;
+        }
+    }
+}
 
 let isFetchAllMode = false;
 
@@ -4903,66 +5391,98 @@ function toggleFetchMode() {
             }
         }
         let allFetchedMsgs = [];
-        async function fetchMsgs(isLoadMore = false) {
-            const channelId = document.getElementById('tool-channel').value.trim();
-            const serverId = document.getElementById('tool-server').value.trim();
-            const box = document.getElementById('msg-result');
-            const exportBtn = document.getElementById('btn-export-html');
-            const exportLocalBtn = document.getElementById('btn-export-local');
-            if (!channelId) {
-                box.innerHTML = `<div style="text-align:center; padding:20px; color:#ff4d4f;">⚠️ 请先选择成员再进行抓取</div>`;
-                return;
-            }
-            if (!channelId) return alert('请输入 Channel ID');
-            if (!isLoadMore) {
-                box.innerHTML = '';
-                lastNextTime = 0;
-                allFetchedMsgs = [];
-                if (exportBtn) exportBtn.disabled = true;
-            }
-            const loadingDiv = document.createElement('div');
-            loadingDiv.innerText = '加载中...';
-            loadingDiv.style.textAlign = 'center';
-            loadingDiv.style.color = '#999';
-            loadingDiv.id = 'loading-indicator';
-            box.appendChild(loadingDiv);
-            try {
-                const pa = window.getPA ? window.getPA() : null;
-                const res = await ipcRenderer.invoke('fetch-room-messages', {
+async function fetchMsgs(isLoadMore = false) {
+    const channelId = document.getElementById('tool-channel').value.trim();
+    const serverId = document.getElementById('tool-server').value.trim();
+    const box = document.getElementById('msg-result');
+    const exportBtn = document.getElementById('btn-export-html');
+    const exportLocalBtn = document.getElementById('btn-export-local');
+
+if (!channelId) {
+        if (!isLoadMore) {
+             box.innerHTML = `<div style="text-align:center; padding:20px; color:#ff4d4f;">⚠️ 请先在搜索框输入名字并选择成员</div>`;
+        } else {
+             console.warn("缺少 Channel ID");
+        }
+        isAutoFetching = false;
+        const btn = document.getElementById('btn-fetch-all');
+        if(btn) {
+            btn.innerText = '加载全部';
+            btn.style.background = '';
+            btn.style.color = '';
+        }
+        return;
+    }
+
+    if (!isLoadMore) {
+        box.innerHTML = '';
+        lastNextTime = 0;
+        allFetchedMsgs = [];
+        const statusEl = document.getElementById('fetch-status');
+        if (statusEl) statusEl.innerHTML = '';
+        if (exportBtn) exportBtn.disabled = true;
+    }
+
+    const loadingDiv = document.createElement('div');
+    loadingDiv.innerText = '加载中...';
+    loadingDiv.style.textAlign = 'center';
+    loadingDiv.style.color = '#999';
+    loadingDiv.id = 'loading-indicator';
+    box.appendChild(loadingDiv);
+
+    try {
+        const pa = window.getPA ? window.getPA() : null;
+        const res = await ipcRenderer.invoke('fetch-room-messages', {
             token: appToken,
             serverId,
             channelId,
             pa,
             nextTime: lastNextTime,
-            fetchAll: isFetchAllMode  
+            fetchAll: isFetchAllMode
         });
-                if (document.getElementById('loading-indicator')) {
-                    box.removeChild(document.getElementById('loading-indicator'));
+
+        if (document.getElementById('loading-indicator')) {
+            box.removeChild(document.getElementById('loading-indicator'));
+        }
+
+        if (res.success && res.data.content) {
+            if (res.usedServerId) document.getElementById('tool-server').value = res.usedServerId;
+            const content = res.data.content;
+            const list = content.messageList || content.message || [];
+            lastNextTime = content.nextTime;
+            if (list.length === 0) lastNextTime = 0;
+
+            if (list.length === 0 && !isLoadMore) {
+                if (!isLoadMore) box.innerHTML = '<div style="text-align:center;padding:20px;color:#999">暂无新消息</div>';
+                return;
+            }
+
+            allFetchedMsgs = allFetchedMsgs.concat(list);
+const statusEl = document.getElementById('fetch-status');
+            if (statusEl) {
+                let timeText = '';
+                if (list.length > 0) {
+                    const lastMsg = list[list.length - 1];
+                    const d = new Date(lastMsg.msgTime);
+                    const pad = (n) => String(n).padStart(2, '0');
+                    
+                    timeText = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
                 }
-                if (res.success && res.data.content) {
-                    if (res.usedServerId) document.getElementById('tool-server').value = res.usedServerId;
-                    const content = res.data.content;
-                    const list = content.messageList || content.message || [];
-                    lastNextTime = content.nextTime;
-                    if (list.length === 0 && !isLoadMore) {
-                        if (!isLoadMore) box.innerHTML = '<div style="text-align:center;padding:20px;color:#999">暂无新消息</div>';
-                        return;
-                    }
-                    allFetchedMsgs = allFetchedMsgs.concat(list);
-                    if (exportBtn) exportBtn.disabled = false;
-                    if (exportLocalBtn) exportLocalBtn.disabled = false;
-            const html = list.map(m => {
-                console.log('正在解析消息:', m); 
+                statusEl.innerHTML = `已抓取 <b style="color:var(--primary)">${allFetchedMsgs.length}</b> 条 <span style="margin-left:5px; ">${timeText}</span>`;
+            }
+
+
+            const batchHtml = list.map(m => {
+                console.log('正在解析消息:', m);
 
                 let txt = '[未知类型]';
                 let isMember = false;
-                
                 let senderId = m.senderUserId || m.senderId || m.uid || '';
 
                 try {
                     let body = m.bodys;
                     if (m.msgContent) body = m.msgContent;
-                    
+
                     if (m.extInfo) {
                         const ext = JSON.parse(m.extInfo);
                         if (ext.user) {
@@ -4988,44 +5508,62 @@ function toggleFetchMode() {
                 } catch (e) {
                     txt = m.msgContent || m.bodys || '解析错误';
                 }
+
                 const time = new Date(m.msgTime).toLocaleString();
                 const nameColor = isMember ? '#FB7299' : '#333333';
-                
                 const safeTxt = String(txt).replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                
                 const displayName = m.senderName || (m.extInfo && JSON.parse(m.extInfo).user.nickName) || '未知用户';
-                
-                const idDisplay = (senderId && String(senderId) !== '0') 
-                    ? `<span style="color:#999; font-size:10px; margin-left:6px; font-family: monospace;">(ID:${senderId})</span>` 
+                const idDisplay = (senderId && String(senderId) !== '0')
+                    ? `<span style="color:#999; font-size:10px; margin-left:6px; font-family: monospace;">(ID:${senderId})</span>`
                     : '';
 
-                return `<div style="padding:8px 0; border-bottom:1px solid #eee; font-size:13px;">
+                return `<div class="msg-item" style="padding:8px 0; border-bottom:1px solid #eee; font-size:13px;">
                     <div style="color:#999; font-size:11px; margin-bottom:2px; display:flex; align-items:center;">
                         <span style="margin-right: 5px;">${time}</span>
-                        <span style="color:${nameColor}; font-weight:${isMember?'bold':'normal'}">${displayName}</span>
+                        <span style="color:${nameColor}; font-weight:${isMember ? 'bold' : 'normal'}">${displayName}</span>
                         ${idDisplay}
                     </div>
                     <div style="color:#333; line-height:1.4; word-break: break-all;">${safeTxt}</div> 
                 </div>`;
             }).join('');
-                    const tempDiv = document.createElement('div');
-                    tempDiv.innerHTML = html;
-                    box.appendChild(tempDiv);
-                    const oldBtn = document.getElementById('btn-load-more-msg');
-                    if (oldBtn) oldBtn.remove();
-                    if (lastNextTime > 0) {
-                        const moreBtn = document.createElement('div');
-                        moreBtn.id = 'btn-load-more-msg';
-                        moreBtn.innerHTML = '<button style="width:100%; margin-top:10px; padding:8px; cursor:pointer; background:#f0f0f0; border:1px solid #ddd; border-radius:4px;" onclick="fetchMsgs(true)">加载更多...</button>';
-                        box.appendChild(moreBtn);
-                    }
-                } else {
-                    if (!isLoadMore) box.innerText = '获取失败: ' + (res.msg || 'API Error');
+
+            const range = document.createRange();
+            range.selectNodeContents(box);
+            const fragment = range.createContextualFragment(batchHtml);
+
+            const oldBtn = document.getElementById('btn-load-more-msg');
+            if (oldBtn) oldBtn.remove();
+
+            box.appendChild(fragment);
+            const MAX_DISPLAY_COUNT = 1000; 
+            const msgItems = box.getElementsByClassName('msg-item');
+            
+            if (msgItems.length > MAX_DISPLAY_COUNT) {
+                const removeCount = msgItems.length - MAX_DISPLAY_COUNT;
+                for (let i = 0; i < removeCount; i++) {
+                    if (msgItems[0]) msgItems[0].remove();
                 }
-            } catch (e) {
-                if (!isLoadMore) box.innerText = '出错: ' + e.message;
             }
+
+            if (lastNextTime > 0) {
+                const moreBtnFragment = document.createRange().createContextualFragment(`
+                    <div id="btn-load-more-msg">
+                        <button style="width:100%; margin-top:10px; padding:8px; cursor:pointer; background:#f0f0f0; border:1px solid #ddd; border-radius:4px;" onclick="fetchMsgs(true)">加载更多...</button>
+                    </div>
+                `);
+                box.appendChild(moreBtnFragment);
+            }
+            if (!isAutoFetching) { 
+                if (exportBtn) exportBtn.disabled = false;
+                if (exportLocalBtn) exportLocalBtn.disabled = false;
+            }
+        } else {
+            if (!isLoadMore) box.innerText = '获取失败: ' + (res.msg || 'API Error');
         }
+    } catch (e) {
+        if (!isLoadMore) box.innerText = '出错: ' + e.message;
+    }
+}
 
         function exportMsgsToHtml() {
             if (allFetchedMsgs.length === 0) return alert('没有消息可导出');
@@ -5243,7 +5781,7 @@ function toggleFetchMode() {
                 memberName: memberName,
                 htmlContent: htmlContent
             });
-            exportBtn.innerText = "✅ 导出成功";
+            exportBtn.innerText = "导出成功";
             exportBtn.style.backgroundColor = "#28a745";
             exportBtn.style.color = "white";
             exportBtn.disabled = true;
@@ -5258,10 +5796,23 @@ function toggleFetchMode() {
                 exportBtn.style.color = "";
                 exportBtn.disabled = false;
                 tip.remove();
-                if (typeof forceReloadData === 'function') {
-                    forceReloadData();
+
+                switchView('messages'); 
+
+                const outputList = document.getElementById('outputList');
+                if (outputList) {
+                    outputList.innerHTML = '<div class="placeholder-tip"><h3>🔄 正在读取新数据...</h3><p>由于包含新导出的文件，分析可能需要一点时间。</p></div>';
                 }
-            }, 3000);
+
+                if (typeof forceReloadData === 'function') {
+                    requestAnimationFrame(() => {
+                        setTimeout(() => {
+                            forceReloadData();
+                        }, 50);
+                    });
+                }
+
+            }, 2000); 
         }
     </script>
 </body>
