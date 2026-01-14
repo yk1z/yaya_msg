@@ -120,7 +120,7 @@ ipcMain.on('stop-record', (event, { taskId, fileName }) => {
                 event.reply('download-status', { taskId, msg: '录制完成，正在封装...', status: 'processing' });
             })
             .on('end', () => {
-                try { fs.unlinkSync(task.tempPath); } catch (e) {}
+                try { fs.unlinkSync(task.tempPath); } catch (e) { }
                 recordCommands.delete(taskId);
                 event.reply('download-status', { taskId, msg: '完成', status: 'success' });
             })
@@ -135,12 +135,12 @@ ipcMain.on('stop-record', (event, { taskId, fileName }) => {
 ipcMain.on('cancel-download', (event, { taskId }) => {
     const task = activeCommands.get(taskId) || recordCommands.get(taskId);
     if (task) {
-        try { task.command.kill('SIGKILL'); } catch (e) {}
+        try { task.command.kill('SIGKILL'); } catch (e) { }
         activeCommands.delete(taskId);
         recordCommands.delete(taskId);
         setTimeout(() => {
-            if (task.path && fs.existsSync(task.path)) try { fs.unlinkSync(task.path); } catch (e) {}
-            if (task.tempPath && fs.existsSync(task.tempPath)) try { fs.unlinkSync(task.tempPath); } catch (e) {}
+            if (task.path && fs.existsSync(task.path)) try { fs.unlinkSync(task.path); } catch (e) { }
+            if (task.tempPath && fs.existsSync(task.tempPath)) try { fs.unlinkSync(task.tempPath); } catch (e) { }
         }, 1000);
         event.reply('download-status', { taskId, msg: '任务已取消', status: 'canceled' });
     }
@@ -158,22 +158,22 @@ ipcMain.on('clip-vod', (event, { url, fileName, startTime, duration, taskId }) =
             .inputOptions(['-y'])
             .outputOptions(['-c copy', '-bsf:a aac_adtstoasc', '-movflags faststart'])
             .output(finalOutputPath);
-        
+
         activeCommands.set(taskId, { command: command2, path: finalOutputPath, tempPath: tempTsPath });
-        
+
         command2.on('end', () => {
             activeCommands.delete(taskId);
-            try { fs.unlinkSync(tempTsPath); } catch (e) {}
+            try { fs.unlinkSync(tempTsPath); } catch (e) { }
             event.reply('download-status', { taskId, msg: '切片完成', status: 'success' });
         }).on('error', (err) => {
             activeCommands.delete(taskId);
-            try { fs.unlinkSync(tempTsPath); } catch (e) {}
+            try { fs.unlinkSync(tempTsPath); } catch (e) { }
             if (!err.message.includes('SIGKILL')) event.reply('download-status', { taskId, msg: '封装失败', status: 'error' });
         }).run();
     };
 
     event.reply('download-status', { taskId, msg: '正在截取片段...', status: 'processing' });
-    
+
     const command = ffmpeg(url)
         .inputOptions([`-ss ${startTime}`, '-protocol_whitelist', 'file,http,https,tcp,tls,crypto'])
         .outputOptions([`-t ${duration}`, '-c copy', '-f mpegts', '-avoid_negative_ts make_zero'])
@@ -186,10 +186,10 @@ ipcMain.on('clip-vod', (event, { url, fileName, startTime, duration, taskId }) =
         let percent = (currentSeconds / duration) * 100;
         event.reply('download-progress', { taskId, percent: Math.min(99, percent.toFixed(1)) });
     }).on('end', runPhase2_Transcode)
-      .on('error', (err) => {
-        activeCommands.delete(taskId);
-        if (!err.message.includes('SIGKILL')) event.reply('download-status', { taskId, msg: '下载失败', status: 'error' });
-      }).run();
+        .on('error', (err) => {
+            activeCommands.delete(taskId);
+            if (!err.message.includes('SIGKILL')) event.reply('download-status', { taskId, msg: '下载失败', status: 'error' });
+        }).run();
 });
 
 const nmsConfig = {
@@ -203,19 +203,19 @@ let currentLiveCommand = null;
 
 ipcMain.handle('start-live-proxy', async (event, remoteUrl) => {
     if (currentLiveCommand) {
-        try { currentLiveCommand.kill('SIGKILL'); } catch (e) {}
+        try { currentLiveCommand.kill('SIGKILL'); } catch (e) { }
         currentLiveCommand = null;
     }
     const streamId = 'live_' + Date.now();
     const localRtmp = `rtmp://localhost:1935/live/${streamId}`;
     const localHttpFlv = `http://localhost:8888/live/${streamId}.flv`;
-    
+
     return new Promise((resolve) => {
         let command = ffmpeg(remoteUrl)
             .inputOptions(['-re', '-rw_timeout 5000000'])
             .outputOptions(['-c copy', '-f flv'])
             .output(localRtmp);
-            
+
         currentLiveCommand = command
             .on('start', () => resolve(localHttpFlv))
             .on('error', (err) => console.error(err.message));
@@ -225,7 +225,7 @@ ipcMain.handle('start-live-proxy', async (event, remoteUrl) => {
 
 ipcMain.handle('stop-live-proxy', () => {
     if (currentLiveCommand) {
-        try { currentLiveCommand.kill('SIGKILL'); } catch (e) {}
+        try { currentLiveCommand.kill('SIGKILL'); } catch (e) { }
         currentLiveCommand = null;
     }
 });
@@ -305,15 +305,15 @@ function createHeaders(token, pa) {
         })
     };
     if (token) headers['token'] = token;
-    if (pa) headers['pa'] = pa; 
+    if (pa) headers['pa'] = pa;
     return headers;
 }
 
 ipcMain.handle('login-check-token', async (event, { token, pa }) => {
     try {
         const url = 'https://pocketapi.48.cn/user/api/v1/user/info/reload';
-        const res = await axios.post(url, { from: 'appstart' }, { 
-            headers: createHeaders(token, pa) 
+        const res = await axios.post(url, { from: 'appstart' }, {
+            headers: createHeaders(token, pa)
         });
 
         if (res.status === 200 && res.data.success) {
@@ -326,9 +326,9 @@ ipcMain.handle('login-check-token', async (event, { token, pa }) => {
     }
 });
 
-ipcMain.handle('fetch-room-messages', async (event, { channelId, serverId, token, pa, nextTime = 0, fetchAll = false }) => { 
+ipcMain.handle('fetch-room-messages', async (event, { channelId, serverId, token, pa, nextTime = 0, fetchAll = false }) => {
     if (!token) return { success: false, msg: '缺少 Token' };
-    
+
     try {
         const headers = createHeaders(token, pa);
         let finalServerId = serverId;
@@ -345,9 +345,9 @@ ipcMain.handle('fetch-room-messages', async (event, { channelId, serverId, token
             }
         }
 
-        const url = fetchAll 
-            ? 'https://pocketapi.48.cn/im/api/v1/team/message/list/all'       
-            : 'https://pocketapi.48.cn/im/api/v1/team/message/list/homeowner'; 
+        const url = fetchAll
+            ? 'https://pocketapi.48.cn/im/api/v1/team/message/list/all'
+            : 'https://pocketapi.48.cn/im/api/v1/team/message/list/homeowner';
 
         const payload = {
             channelId: parseInt(channelId),
@@ -361,7 +361,7 @@ ipcMain.handle('fetch-room-messages', async (event, { channelId, serverId, token
         if (res.status === 200 && res.data && res.data.status === 200) {
             return { success: true, data: res.data, usedServerId: finalServerId };
         }
-        
+
         return { success: false, msg: res.data ? res.data.message : 'API 错误' };
     } catch (e) {
         return { success: false, msg: e.message };
@@ -373,21 +373,21 @@ ipcMain.on('save-export-html', (event, { memberName, htmlContent }) => {
         const baseDir = path.join(process.cwd(), 'html');
         const safeMemberName = memberName.replace(/[\\/:*?"<>|]/g, '_');
         const memberDir = path.join(baseDir, safeMemberName);
-        
+
         if (!fs.existsSync(baseDir)) {
             fs.mkdirSync(baseDir);
         }
-        
+
         if (!fs.existsSync(memberDir)) {
             fs.mkdirSync(memberDir);
         }
-        
+
         const now = new Date();
         const pad = (n) => String(n).padStart(2, '0');
-        const timeStr = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`;
+        const timeStr = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`;
         const fileName = `yaya_html_${timeStr}.html`;
         const filePath = path.join(memberDir, fileName);
-        
+
         fs.writeFileSync(filePath, htmlContent, 'utf8');
         console.log(`[导出成功] ${filePath}`);
     } catch (err) {
@@ -400,14 +400,14 @@ ipcMain.handle('fetch-flip-list', async (event, { token, pa, beginLimit = 0, lim
 
     try {
         const headers = createHeaders(token, pa);
-        
+
         const url = 'https://pocketapi.48.cn/idolanswer/api/idolanswer/v1/user/question/list';
-        
+
         const payload = {
-            status: 0,              
-            beginLimit: beginLimit, 
-            limit: limit,           
-            memberId: ""           
+            status: 0,
+            beginLimit: beginLimit,
+            limit: limit,
+            memberId: ""
         };
 
         const res = await axios.post(url, payload, { headers });
@@ -415,9 +415,132 @@ ipcMain.handle('fetch-flip-list', async (event, { token, pa, beginLimit = 0, lim
         if (res.status === 200 && res.data && res.data.status === 200) {
             return { success: true, content: res.data.content };
         }
-        
+
         return { success: false, msg: res.data ? res.data.message : 'API 错误' };
     } catch (e) {
         return { success: false, msg: e.message };
+    }
+});
+ipcMain.handle('fetch-star-archives', async (event, { token, pa, memberId }) => {
+    if (!token) return { success: false, msg: '缺少 Token' };
+
+    try {
+        const headers = createHeaders(token, pa);
+        const url = 'https://pocketapi.48.cn/user/api/v1/user/star/archives';
+
+        if (!memberId || memberId === 'undefined') {
+            return { success: false, msg: '未获取到有效的成员ID，请重新搜索选择' };
+        }
+
+        const payload = {
+            memberId: Number(memberId)
+        };
+
+        console.log(`正在查询档案, MemberID: ${payload.memberId}`);
+
+        const res = await axios.post(url, payload, { headers });
+
+        if (res.status === 200 && res.data && res.data.status === 200) {
+            return { success: true, content: res.data.content };
+        }
+
+        return { success: false, msg: res.data ? res.data.message : 'API 错误' };
+    } catch (e) {
+        console.error('Fetch Archives Error:', e);
+        return { success: false, msg: e.message };
+    }
+});
+
+ipcMain.handle('fetch-star-history', async (event, { token, pa, memberId }) => {
+    if (!token) return { success: false, msg: '缺少 Token' };
+
+    try {
+        const headers = createHeaders(token, pa);
+        const url = 'https://pocketapi.48.cn/user/api/v1/user/star/history';
+
+        const payload = {
+            memberId: Number(memberId),
+            limit: 100,
+            lastTime: 0
+        };
+
+        const res = await axios.post(url, payload, { headers });
+
+        if (res.status === 200 && res.data && res.data.status === 200) {
+            return { success: true, content: res.data.content };
+        }
+
+        return { success: false, msg: res.data ? res.data.message : 'API 错误' };
+    } catch (e) {
+        console.error('Fetch History Error:', e);
+        return { success: false, msg: e.message };
+    }
+});
+
+ipcMain.handle('fetch-open-live', async (event, { token, pa, memberId, nextTime }) => {
+    if (!token) return { success: false, msg: '缺少 Token' };
+
+    try {
+        const headers = createHeaders(token, pa);
+        const url = 'https://pocketapi.48.cn/im/api/v1/chatroom/msg/list/aim/type';
+
+        const payload = {
+            extMsgType: 'OPEN_LIVE',
+            roomId: '',
+            ownerId: String(memberId),
+            nextTime: nextTime || 0
+        };
+
+        const res = await axios.post(url, payload, { headers });
+
+        if (res.status === 200 && res.data && res.data.status === 200) {
+            return { success: true, content: res.data.content };
+        }
+
+        return { success: false, msg: res.data ? res.data.message : 'API 错误' };
+    } catch (e) {
+        console.error('Fetch Open Live Error:', e);
+        return { success: false, msg: e.message };
+    }
+});
+
+ipcMain.handle('fetch-open-live-one', async (event, { token, pa, liveId }) => {
+    if (!token) return { success: false, msg: '缺少 Token' };
+
+    try {
+        const headers = createHeaders(token, pa);
+        const url = 'https://pocketapi.48.cn/live/api/v1/live/getOpenLiveOne';
+
+        const payload = {
+            liveId: String(liveId)
+        };
+
+        const res = await axios.post(url, payload, { headers });
+
+        if (res.status === 200 && res.data && res.data.status === 200) {
+            return { success: true, content: res.data.content };
+        }
+
+        return { success: false, msg: res.data ? res.data.message : 'API 错误' };
+    } catch (e) {
+        console.error('Fetch Open Live One Error:', e);
+        return { success: false, msg: e.message };
+    }
+});
+
+ipcMain.on('download-danmu', async (event, { url, fileName }) => {
+    try {
+        const downloadFolder = app.getPath('downloads');
+        const safeName = fileName.replace(/[\\/:*?"<>|]/g, '_');
+        const outputPath = path.join(downloadFolder, safeName);
+
+        const res = await axios.get(url, { responseType: 'text' });
+
+        fs.writeFileSync(outputPath, res.data);
+
+        event.reply('danmu-download-reply', { success: true, path: outputPath });
+    } catch (e) {
+        console.error('Download Danmu Error:', e);
+        event.reply('danmu-download-reply', { success: false, msg: e.message });
     }
 });

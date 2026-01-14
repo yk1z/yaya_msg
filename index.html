@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>牙牙消息 v1.1.7</title>
+    <title>牙牙消息 v1.1.8</title>
     <link rel="icon" href="./icon.png" type="image/x-icon">
     <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.4.0/dist/hls.min.js"></script>
@@ -311,6 +311,14 @@
             color: white !important;
             border-color: #28a745 !important;
             cursor: default;
+        }
+
+
+        [data-theme="dark"] .btn-success {
+            background: #238636 !important;
+            border-color: #238636 !important;
+            color: #ffffff !important;
+            box-shadow: 0 0 5px rgba(35, 134, 54, 0.4);
         }
 
         .window-controls {
@@ -1490,7 +1498,7 @@
             box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
             max-height: 300px;
             overflow-y: auto;
-            z-index: 2000;
+            z-index: 9999;
             display: none;
             margin-top: 4px;
             box-sizing: border-box;
@@ -1640,7 +1648,7 @@
                 </svg>
             </div>
             <img src="./icon.png" class="title-logo">
-            <span>牙牙消息 v1.1.7</span>
+            <span>牙牙消息 v1.1.8</span>
         </div>
         <div class="window-controls">
             <div class="control-btn" onclick="ipcRenderer.send('window-min')">
@@ -1666,7 +1674,7 @@
             <div class="sidebar-group">
                 <div class="group-title">个性化</div>
                 <div class="btn-grid">
-                    <button class="btn btn-bg-change" onclick="triggerBgInput()">🖼️ 背景</button>
+                    <button class="btn btn-secondary" onclick="triggerBgInput()">🖼️ 背景</button>
                     <button class="btn btn-secondary" onclick="toggleTheme()" id="themeBtn">🌞 模式</button>
                 </div>
             </div>
@@ -1674,9 +1682,9 @@
                 <div class="group-title">口袋直播</div>
 
                 <div class="btn-grid" id="live-btns-container">
-                    <button id="btn-sb-live" class="btn btn-secondary" onclick="switchView('media', 'live')">📺
+                    <button id="btn-sb-live" class="btn btn-secondary" onclick="switchView('media', 'live')">
                         正在直播</button>
-                    <button id="btn-sb-vod" class="btn btn-secondary" onclick="switchView('media', 'vod')">📼
+                    <button id="btn-sb-vod" class="btn btn-secondary" onclick="switchView('media', 'vod')">
                         录播回放</button>
                 </div>
 
@@ -1698,6 +1706,16 @@
 
                 <button id="btn-sb-flip" class="btn btn-secondary btn-full" onclick="switchView('flip')">
                     翻牌记录
+                </button>
+
+                <button id="btn-sb-profile" class="btn btn-secondary btn-full" style="margin-top: 8px;"
+                    onclick="switchView('profile')">
+                    成员档案
+                </button>
+
+                <button id="btn-sb-open-live" class="btn btn-secondary btn-full" style="margin-top: 8px;"
+                    onclick="switchView('openlive')">
+                    公演记录
                 </button>
             </div>
             <div class="sidebar-group" id="sb-search">
@@ -1735,8 +1753,8 @@
                     </div>
                 </div>
 
-                <button class="btn btn-secondary btn-full" style="margin-top: 8px;"
-                    onclick="forceReloadData()">更新 / 重扫数据</button>
+                <button class="btn btn-secondary btn-full" style="margin-top: 8px;" onclick="forceReloadData()">更新 /
+                    重扫数据</button>
             </div>
             <div class="sidebar-group" id="sb-date">
                 <div class="group-title">日期筛选</div>
@@ -1825,7 +1843,7 @@
                 style="height: 100%; overflow-y: auto; display: none; padding: 0 20px 20px 20px; box-sizing: border-box;">
                 <div
                     style="display: flex; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-top: 15px;">
-                    <h2 id="live-view-title" style="margin:0; font-size: 18px; white-space: nowrap;">📺 直播/回放</h2>
+                    <h2 id="live-view-title" style="margin:0; font-size: 18px; white-space: nowrap;">直播/回放</h2>
                 </div>
 
                 <div id="media-list-controls">
@@ -1929,7 +1947,7 @@
                 <div class="list-container">
                     <div style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border);">
                         <h2 style="margin: 0; color: var(--primary);">口袋账号登录</h2>
-                        <p style="font-size: 13px; color: var(--text-sub); margin-top: 5px;">在此输入 Token 以启用翻牌、消息抓取等功能。
+                        <p style="font-size: 13px; color: var(--text-sub); margin-top: 5px;">在此输入 Token 以启用需要登录的功能。
                         </p>
                     </div>
 
@@ -1982,9 +2000,24 @@
                             <div id="search-results" class="suggestion-box"></div>
                         </div>
 
-                        <div style="display: none;">
-                            <input type="text" id="tool-server">
-                            <input type="text" id="tool-channel">
+                        <div
+                            style="margin-bottom: 15px; padding: 10px; background: rgba(0,0,0,0.03); border-radius: 6px; border: 1px dashed var(--border);">
+                            <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 8px;">房间参数
+                                (小房间Channel ID可在此填入)</div>
+                            <div style="display: flex; gap: 10px;">
+                                <div style="flex: 1;">
+                                    <label style="font-size: 11px; color: var(--text-sub); display:block;">Server
+                                        ID</label>
+                                    <input type="text" id="tool-server" class="input-control" placeholder="Server ID"
+                                        style="font-family: monospace;">
+                                </div>
+                                <div style="flex: 1;">
+                                    <label style="font-size: 11px; color: var(--text-sub); display:block;">Channel ID
+                                    </label>
+                                    <input type="text" id="tool-channel" class="input-control" placeholder="Channel ID"
+                                        style="font-family: monospace;">
+                                </div>
+                            </div>
                         </div>
 
                         <div class="btn-grid" style="margin-bottom: 15px;">
@@ -2036,7 +2069,71 @@
                     </div>
                 </div>
             </div>
+            <div id="view-profile"
+                style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
+                <div class="list-container">
+                    <div style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border);">
+                        <h2 style="margin: 0; color: var(--primary);">成员详细档案</h2>
+                    </div>
 
+                    <div class="Box-row" style="z-index: 100; position: relative;">
+                        <div class="search-wrapper">
+                            <label
+                                style="font-size: 12px; color: var(--text-sub); display:block; margin-bottom:5px;">搜索成员</label>
+                            <input type="text" id="profile-member-input" class="input-control" placeholder="输入成员名搜索..."
+                                oninput="handleProfileSearch(this.value)" onfocus="handleProfileSearch(this.value)">
+                            <input type="hidden" id="profile-member-id">
+                            <div id="profile-search-results" class="suggestion-box"></div>
+                        </div>
+                        <button class="btn btn-primary" onclick="loadStarProfile()" style="width: 100%;">获取档案</button>
+                    </div>
+
+                    <div id="profile-result-container" style="margin-top: 20px;">
+                        <div class="placeholder-tip">
+                            <h3>等待查询</h3>
+                            <p>搜索并选择成员，查看详细资料和公式照。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="view-open-live"
+                style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
+                <div class="list-container">
+                    <div
+                        style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                        <h2 style="margin: 0; color: var(--primary);">成员公演记录</h2>
+                        <span id="openlive-status"
+                            style="font-size: 15px; font-weight: bold; color: var(--primary); margin-left: 10px;"></span>
+                    </div>
+
+                    <div class="Box-row" style="z-index: 100; position: relative;">
+                        <div class="search-wrapper">
+                            <label
+                                style="font-size: 12px; color: var(--text-sub); display:block; margin-bottom:5px;">搜索成员</label>
+                            <input type="text" id="openlive-member-input" class="input-control" placeholder="输入成员名搜索..."
+                                oninput="handleOpenLiveSearch(this.value)" onfocus="handleOpenLiveSearch(this.value)">
+                            <input type="hidden" id="openlive-member-id">
+                            <div id="openlive-search-results" class="suggestion-box"></div>
+                        </div>
+
+                        <div class="btn-grid" style="margin-top: 10px;">
+                            <button class="btn btn-primary" onclick="fetchOpenLiveList(false)">查询最新</button>
+                            <button id="btn-openlive-all" class="btn btn-secondary"
+                                onclick="fetchAllOpenLive()">加载全部</button>
+                        </div>
+
+                        <div id="openlive-list-container" style="margin-top: 20px;">
+                            <div class="placeholder-tip">
+                                <h3>等待查询</h3>
+                                <p>请选择成员并点击查询，将显示参加的公演列表。</p>
+                            </div>
+                        </div>
+
+                        <div id="openlive-load-more" style="text-align: center; margin: 20px 0; display: none;">
+                            <button class="btn btn-secondary" onclick="fetchOpenLiveList(true)">加载更多</button>
+                        </div>
+                    </div>
+                </div>
         </main>
     </div>
     <div class="modal-overlay" id="userModal">
@@ -2204,12 +2301,16 @@
             const loginView = document.getElementById('view-login');
             const fetchView = document.getElementById('view-fetch');
             const flipView = document.getElementById('view-flip');
+            const profileView = document.getElementById('view-profile');
+            const openLiveView = document.getElementById('view-open-live');
 
             if (msgView) msgView.style.display = 'none';
             if (mediaView) mediaView.style.display = 'none';
             if (loginView) loginView.style.display = 'none';
             if (fetchView) fetchView.style.display = 'none';
             if (flipView) flipView.style.display = 'none';
+            if (profileView) profileView.style.display = 'none';
+            if (openLiveView) openLiveView.style.display = 'none';
 
             destroyPlayers();
             if (window.vodState) window.vodState.isSearchActive = false;
@@ -2227,12 +2328,12 @@
                 currentMode = mode;
 
                 if (mode === 'live') {
-                    titleEl.textContent = '📺 正在直播';
+                    titleEl.textContent = '正在直播';
                     document.getElementById('media-list-controls').style.display = 'none';
                     document.getElementById('vod-pagination-controls').style.display = 'none';
                     fetchLiveList();
                 } else if (mode === 'vod') {
-                    titleEl.textContent = '📼 录播回放';
+                    titleEl.textContent = '录播回放';
                     document.getElementById('media-list-controls').style.display = 'flex';
                     document.getElementById('vod-pagination-controls').style.display = 'flex';
                     if (window.vodState) {
@@ -2269,6 +2370,16 @@
                 if (flipView) flipView.style.display = 'block';
                 if (typeof flipCurrentPage !== 'undefined' && flipCurrentPage === 0) loadFlipList(0);
 
+            } else if (viewName === 'profile') {
+                toggleSidebarMode('login');
+                const profileView = document.getElementById('view-profile');
+                if (profileView) profileView.style.display = 'block';
+
+            } else if (viewName === 'openlive') {
+                toggleSidebarMode('login');
+                const openLiveView = document.getElementById('view-open-live');
+                if (openLiveView) openLiveView.style.display = 'block';
+
             } else {
                 toggleSidebarMode('messages');
                 if (msgView) msgView.style.display = 'block';
@@ -2279,7 +2390,10 @@
             const bottomButtons = [
                 { id: 'btn-sb-login', defaultText: '账号设置', targetView: 'login' },
                 { id: 'btn-sb-fetch', defaultText: '抓取消息', targetView: 'fetch' },
-                { id: 'btn-sb-flip', defaultText: '翻牌记录', targetView: 'flip' }
+                { id: 'btn-sb-flip', defaultText: '翻牌记录', targetView: 'flip' },
+                { id: 'btn-sb-profile', defaultText: '成员档案', targetView: 'profile' },
+                { id: 'btn-sb-open-live', defaultText: '公演记录', targetView: 'openlive' },
+
             ];
 
             bottomButtons.forEach(btn => {
@@ -2305,13 +2419,13 @@
                     btnLive.className = 'btn btn-primary';
                     btnLive.onclick = () => switchView('messages');
 
-                    btnVod.innerHTML = '📼 录播回放';
+                    btnVod.innerHTML = '录播回放';
                     btnVod.className = 'btn btn-secondary';
                     btnVod.onclick = () => switchView('media', 'vod');
 
                 } else if (viewName === 'media' && mode === 'vod') {
 
-                    btnLive.innerHTML = '📺 正在直播';
+                    btnLive.innerHTML = '正在直播';
                     btnLive.className = 'btn btn-secondary';
                     btnLive.onclick = () => switchView('media', 'live');
 
@@ -2321,11 +2435,11 @@
 
                 } else {
 
-                    btnLive.innerHTML = '📺 正在直播';
+                    btnLive.innerHTML = '正在直播';
                     btnLive.className = 'btn btn-secondary';
                     btnLive.onclick = () => switchView('media', 'live');
 
-                    btnVod.innerHTML = '📼 录播回放';
+                    btnVod.innerHTML = '录播回放';
                     btnVod.className = 'btn btn-secondary';
                     btnVod.onclick = () => switchView('media', 'vod');
                 }
@@ -3070,16 +3184,30 @@
             if (yDisp) yDisp.disabled = false;
         }
 
+        let returnToOpenLive = false;
+
         function backToLiveList() {
+            if (returnToOpenLive) {
+                livePlayerView.style.display = 'none';
+                destroyPlayers();
+                returnToOpenLive = false;
+                switchView('openlive');
+                return;
+            }
+
             livePlayerView.style.display = 'none';
             document.getElementById('media-list-area').style.display = 'block';
+
             if (currentMode === 'vod') {
                 document.getElementById('vod-pagination-controls').style.display = 'flex';
                 document.getElementById('media-list-controls').style.display = 'flex';
             }
+
             destroyPlayers();
+
             const oldNotice = document.querySelector('#live-player-area .live-link-info');
             if (oldNotice) oldNotice.remove();
+
             if (currentMode === 'vod' && window.vodState) window.renderVODListUI();
             else if (currentMode === 'live') fetchLiveList();
         }
@@ -3179,17 +3307,23 @@
             if (!window.vodState) return;
             const btn = document.getElementById('refresh-btn');
             const originalText = btn.textContent;
-            btn.textContent = '刷新中';
+            btn.textContent = '刷新中...';
             btn.disabled = true;
+
             vodState.searchPageToken = 0;
             const groupId = vodState.currentGroup;
             vodState.nextPageTokens[groupId] = 0;
             vodState.hasMore = true;
             vodState.currentPage = 1;
+
             try {
                 await fetchVODPageInternal();
+
+                await ensurePageData(4);
+
                 window.renderVODListUI();
             } catch (e) {
+                console.error(e);
                 window.renderVODListUI();
             } finally {
                 btn.textContent = originalText;
@@ -3342,7 +3476,7 @@
                 const card = document.createElement('div');
                 card.className = 'vod-card-row';
                 const status = downloadStatusMap[item.liveId];
-                let btnText = "下载",
+                let btnText = "视频下载",
                     btnStyleClass = "btn-secondary",
                     btnDisabled = "";
                 if (status === 'downloading') {
@@ -3351,7 +3485,7 @@
                     btnDisabled = "disabled";
                 } else if (status === 'success') {
                     btnText = "已完成";
-                    btnStyleClass = "btn-primary btn-success";
+                    btnStyleClass = "btn-success";
                     btnDisabled = "disabled";
                 }
                 const isLive = item.liveStatus === 1;
@@ -3374,12 +3508,21 @@
                     <div class="vod-row-info">
                         <div class="vod-row-name">
                             ${name}
-                            <button class="btn ${btnStyleClass} vod-btn-${item.liveId}" ${btnDisabled} 
-                                    style="margin-left:auto; padding: 2px 8px; font-size: 11px; height: 24px;" 
-                                    onclick="handleDownloadVOD(event, ${JSON.stringify(item).replace(/"/g, '&quot;')})">
-                                ${btnText}
-                            </button>
+                            <div style="margin-left:auto; display:flex; gap:5px;">
+                                <button class="btn btn-secondary"
+                                        style="padding: 2px 8px; font-size: 11px; height: 24px;" 
+                                        onclick="handleDownloadDanmu(event, ${JSON.stringify(item).replace(/"/g, '&quot;')})">
+                                    弹幕下载
+                                </button>
+                                
+                                <button class="btn ${btnStyleClass} vod-btn-${item.liveId}" ${btnDisabled} 
+                                        style="padding: 2px 8px; font-size: 11px; height: 24px;" 
+                                        onclick="handleDownloadVOD(event, ${JSON.stringify(item).replace(/"/g, '&quot;')})">
+                                    ${btnText}
+                                </button>
+                            </div>
                         </div>
+                        
                         <div class="vod-row-title">${titleText}</div>
                         <div class="vod-row-time">${timeStr}</div>
                     </div>
@@ -4459,7 +4602,7 @@
                     const liveBtn = document.createElement('button');
                     liveBtn.className = 'btn btn-primary';
                     liveBtn.style.cssText = 'margin-top: 8px; padding: 5px 15px; font-size: 13px; display: block;';
-                    liveBtn.innerHTML = '📺 观看直播回放';
+                    liveBtn.innerHTML = '观看直播回放';
                     liveBtn.onclick = (e) => {
                         e.stopPropagation();
                         playArchiveFromMessage(post.liveId, post.nameStr, post.timeStr);
@@ -5016,7 +5159,7 @@
                     const btn = document.createElement('button');
                     btn.className = 'btn btn-primary';
                     btn.style.cssText = 'margin-top: 8px; padding: 5px 15px; font-size: 13px; display: block;';
-                    btn.innerHTML = '📺 观看直播回放';
+                    btn.innerHTML = '观看直播回放';
                     btn.onclick = (e) => {
                         e.stopPropagation();
                         playArchiveFromMessage(post.liveId, post.nameStr, post.timeStr);
@@ -5100,7 +5243,7 @@
             } finally {
                 e.target.style.cursor = 'pointer';
                 if (titleEl) setTimeout(() => {
-                    if (document.body.contains(titleEl)) titleEl.textContent = oTitle || (currentMode === 'live' ? '📺 正在直播' : '📼 录播回放');
+                    if (document.body.contains(titleEl)) titleEl.textContent = oTitle || (currentMode === 'live' ? '正在直播' : '录播回放');
                 }, 2000);
             }
         }
@@ -5209,14 +5352,102 @@
             });
         });
 
+        async function handleDownloadDanmu(event, item) {
+            event.stopPropagation();
+            const btn = event.target;
+            const originalText = btn.textContent;
+
+            if (btn.disabled) return;
+
+            btn.textContent = "获取中...";
+            btn.disabled = true;
+
+            const nickname = item.userInfo ? item.userInfo.nickname : (item.nickname || '未知成员');
+
+            let timeStr = '00000000_00.00.00';
+            const rawT = item.startTime || item.ctime;
+            if (rawT) {
+                const d = new Date(Number(rawT));
+                const pad = (n) => String(n).padStart(2, '0');
+                const datePart = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
+                const timePart = `${pad(d.getHours())}.${pad(d.getMinutes())}.${pad(d.getSeconds())}`;
+
+                timeStr = `${datePart}_${timePart}`;
+            }
+
+            const fileName = `【${nickname}】${timeStr}.lrc`;
+
+            try {
+                const res = await fetchPocketAPI('/live/api/v1/live/getLiveOne', JSON.stringify({
+                    liveId: item.liveId
+                }));
+
+                if (res.status === 200 && res.content && res.content.msgFilePath) {
+                    let danmuUrl = res.content.msgFilePath;
+                    if (danmuUrl.startsWith('http://')) {
+                        danmuUrl = danmuUrl.replace('http://', 'https://');
+                    }
+
+                    btn.textContent = "下载中...";
+
+                    ipcRenderer.send('download-danmu', {
+                        url: danmuUrl,
+                        fileName: fileName
+                    });
+
+                    window.lastDanmuBtn = btn;
+                    window.lastDanmuBtnOriginalText = originalText;
+
+                } else {
+                    alert('该录播没有弹幕文件 (可能已过期或未生成)');
+                    btn.textContent = originalText;
+                    btn.disabled = false;
+                }
+            } catch (e) {
+                console.error(e);
+                alert('获取弹幕地址失败');
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        ipcRenderer.on('danmu-download-reply', (event, data) => {
+            if (window.lastDanmuBtn) {
+                if (data.success) {
+                    window.lastDanmuBtn.textContent = "已保存";
+                    window.lastDanmuBtn.classList.remove('btn-secondary');
+                    window.lastDanmuBtn.classList.add('btn-primary');
+
+                    setTimeout(() => {
+                        if (window.lastDanmuBtn) {
+                            window.lastDanmuBtn.textContent = "弹幕下载";
+                            window.lastDanmuBtn.classList.add('btn-secondary');
+                            window.lastDanmuBtn.classList.remove('btn-primary');
+                            window.lastDanmuBtn.disabled = false;
+                        }
+                    }, 3000);
+
+                    console.log('弹幕已保存至:', data.path);
+                } else {
+                    alert('下载失败: ' + data.msg);
+                    window.lastDanmuBtn.textContent = window.lastDanmuBtnOriginalText || "弹幕下载";
+                    window.lastDanmuBtn.disabled = false;
+                }
+            }
+        });
+
         async function handleDownloadVOD(event, item) {
             if (event) event.stopPropagation();
             const btn = event.currentTarget,
                 liveId = item.liveId;
+
             if (downloadStatusMap[liveId] === 'downloading' || downloadStatusMap[liveId] === 'success') return;
+
             downloadStatusMap[liveId] = 'downloading';
             btn.textContent = "下载中";
-            btn.className = "btn btn-secondary btn-downloading";
+
+            btn.className = `btn btn-secondary btn-downloading vod-btn-${liveId}`;
+
             btn.disabled = true;
             const nickname = item.userInfo ? item.userInfo.nickname : (item.nickname || '未知成员'),
                 title = item.liveTitle || item.title || '无标题';
@@ -5232,7 +5463,9 @@
             const taskId = 'task_' + Date.now();
             const downloadList = document.getElementById('downloadList');
             if (downloadList.innerText.includes('暂无下载任务')) downloadList.innerHTML = '';
+
             downloadList.insertAdjacentHTML('afterbegin', `<div class="download-item" id="${taskId}" data-liveid="${liveId}"><div class="download-title-row"><div class="download-title-line" title="${title}" style="flex:1;">${title}</div><button class="btn-cancel" onclick="cancelDownloadTask('${taskId}')">取消</button></div><div class="download-detail-row"><span>👤 ${nickname}</span><b class="download-percent">0%</b></div><div class="download-detail-row"><span>📅 ${tLabel}</span></div><div class="progress-container" style="margin: 5px 0;"><div class="progress-fill"></div></div><span class="download-status-text">正在请求下载地址...</span></div>`);
+
             try {
                 const res = await fetchPocketAPI('/live/api/v1/live/getLiveOne', JSON.stringify({
                     liveId: liveId
@@ -5246,14 +5479,15 @@
                     });
                 } else {
                     downloadStatusMap[liveId] = 'error';
-                    btn.textContent = "下载";
-                    btn.className = "btn btn-secondary";
+                    btn.textContent = "视频下载";
+                    btn.className = `btn btn-secondary vod-btn-${liveId}`;
                     btn.disabled = false;
+                    alert('无法获取下载地址');
                 }
             } catch (err) {
                 downloadStatusMap[liveId] = 'error';
-                btn.textContent = "下载";
-                btn.className = "btn btn-secondary";
+                btn.textContent = "视频下载";
+                btn.className = `btn btn-secondary vod-btn-${liveId}`;
                 btn.disabled = false;
             }
         }
@@ -5282,23 +5516,31 @@
         ipcRenderer.on('download-status', (event, data) => {
             const taskEl = document.getElementById(data.taskId);
             if (!taskEl) return;
+
             const liveId = taskEl.getAttribute('data-liveid');
             const statusText = taskEl.querySelector('.download-status-text');
+
             if (data.status === 'success') {
                 downloadStatusMap[liveId] = 'success';
             } else if (data.status === 'error' || data.status === 'canceled') {
                 downloadStatusMap[liveId] = 'error';
             }
-            const listBtn = document.querySelector(`.vod-card-row[onclick*="${liveId}"] .btn`) || document.querySelector(`button[onclick*="${liveId}"]`);
+
+            const listBtn = document.querySelector(`.vod-btn-${liveId}`);
+
             if (data.status === 'success') {
                 statusText.textContent = "完成";
                 statusText.style.color = '#28a745';
                 taskEl.querySelector('.progress-fill').style.background = '#28a745';
+
                 if (listBtn) {
                     listBtn.textContent = "已完成";
-                    listBtn.className = "btn btn-primary btn-success";
+                    listBtn.className = `btn btn-success vod-btn-${liveId}`;
                     listBtn.disabled = true;
+                    listBtn.style.opacity = '1';
+                    listBtn.blur();
                 }
+
                 setTimeout(() => {
                     taskEl.style.transition = 'all 0.5s ease';
                     taskEl.style.opacity = '0';
@@ -5310,18 +5552,22 @@
                         }
                     }, 500);
                 }, 1000);
+
             } else if (data.status === 'error' || data.status === 'canceled') {
                 if (listBtn) {
-                    listBtn.textContent = "下载";
-                    listBtn.className = "btn btn-secondary";
+                    listBtn.textContent = "视频下载";
+                    listBtn.className = `btn btn-secondary vod-btn-${liveId}`;
                     listBtn.disabled = false;
                 }
+
                 if (data.status === 'canceled') {
                     taskEl.remove();
                 } else {
                     statusText.textContent = data.msg || "下载失败";
                     statusText.style.color = '#e81123';
                 }
+
+                delete downloadStatusMap[liveId];
             }
         });
         const sidebarEl = document.querySelector('.sidebar');
@@ -5403,7 +5649,7 @@
         function changeFlipPage(delta) {
             const newPage = flipCurrentPage + delta;
             if (newPage < 0) return;
-            loadFlipList(newPage); //
+            loadFlipList(newPage);
         }
 
         async function loadFlipList(pageIndex) {
@@ -5463,7 +5709,7 @@
             prevBtn.className = 'pagination-btn';
             prevBtn.innerText = '上一页';
             prevBtn.disabled = (flipCurrentPage === 0);
-            prevBtn.onclick = () => changeFlipPage(-1); //
+            prevBtn.onclick = () => changeFlipPage(-1);
             paginationContainer.appendChild(prevBtn);
 
             const startPage = Math.max(0, flipCurrentPage - 2);
@@ -5488,7 +5734,7 @@
                 nextBtn.style.opacity = '0.5';
             } else {
                 nextBtn.innerText = '下一页';
-                nextBtn.onclick = () => changeFlipPage(1); //
+                nextBtn.onclick = () => changeFlipPage(1);
             }
             paginationContainer.appendChild(nextBtn);
         }
@@ -5645,6 +5891,574 @@
             });
         }
 
+        function handleProfileSearch(keyword) {
+            const resultBox = document.getElementById('profile-search-results');
+            if (!keyword.trim()) {
+                resultBox.style.display = 'none';
+                return;
+            }
+            if (!window.isMemberDataLoaded && typeof loadMemberData === 'function') loadMemberData();
+
+            const matches = memberData.filter(m => m.ownerName.includes(keyword));
+            if (matches.length > 0) {
+
+                const html = matches.map(m => `
+    <div class="suggestion-item" 
+         onclick="selectProfileMember('${m.ownerName}', '${m.id || m.userId || m.memberId}')"
+         style="display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-weight:bold;">${m.ownerName}</span>
+        <span class="team-tag">${m.team}</span>
+    </div>
+`).join('');
+                resultBox.innerHTML = html;
+                resultBox.style.display = 'block';
+            } else {
+                resultBox.style.display = 'none';
+            }
+        }
+
+        function selectProfileMember(name, userId) {
+            document.getElementById('profile-member-input').value = name;
+            document.getElementById('profile-member-id').value = userId;
+            document.getElementById('profile-search-results').style.display = 'none';
+        }
+
+        async function loadStarProfile() {
+            const container = document.getElementById('profile-result-container');
+            const memberId = document.getElementById('profile-member-id').value;
+            let token = appToken || localStorage.getItem('yaya_p48_token');
+
+            if (!token) {
+                container.innerHTML = `
+            <div class="placeholder-tip">
+                <h3 style="color: #ff4d4f;">⚠️ 未登录</h3>
+                <p>请先在左侧“账号设置”中登录。</p>
+            </div>`;
+                return;
+            }
+
+            if (!memberId) {
+                container.innerHTML = `
+            <div class="placeholder-tip">
+                <h3 style="color: #ff4d4f;">⚠️ 未选择成员</h3>
+                <p>请在上方输入框搜索成员名字，并点击下拉项选中。</p>
+            </div>`;
+                return;
+            }
+
+            container.innerHTML = '<div class="empty-state">⏳ 正在读取完整档案...</div>';
+
+            try {
+                const pa = window.getPA ? window.getPA() : null;
+
+                const [archiveRes, historyRes] = await Promise.all([
+                    ipcRenderer.invoke('fetch-star-archives', { token, pa, memberId }),
+                    ipcRenderer.invoke('fetch-star-history', { token, pa, memberId })
+                ]);
+
+                if (archiveRes.success && archiveRes.content) {
+                    const data = archiveRes.content;
+
+                    if (historyRes.success && historyRes.content && historyRes.content.history) {
+                        data.fullHistory = historyRes.content.history;
+                        console.log(`获取到完整履历 ${data.fullHistory.length} 条`);
+                    } else {
+                        data.fullHistory = data.history;
+                    }
+
+                    renderProfile(data, container);
+                } else {
+                    container.innerHTML = `<div class="placeholder-tip"><h3>❌ 获取失败</h3><p>${archiveRes.msg || '未知错误'}</p></div>`;
+                }
+            } catch (e) {
+                container.innerHTML = `<div class="placeholder-tip"><h3>❌ 发生错误</h3><p>${e.message}</p></div>`;
+            }
+        }
+
+        function renderProfile(data, container) {
+            const info = data.starInfo || data;
+
+            const photos = [];
+            if (info.fullPhoto1) photos.push(info.fullPhoto1);
+            if (info.fullPhoto2) photos.push(info.fullPhoto2);
+            if (info.fullPhoto3) photos.push(info.fullPhoto3);
+            if (info.fullPhoto4) photos.push(info.fullPhoto4);
+
+            const photosHtml = photos.map(url => {
+                const safeUrl = url.startsWith('http') ? url : 'https://source.48.cn' + url;
+                return `<img src="${safeUrl}" style="width:100%; border-radius:8px; margin-bottom:10px; box-shadow:0 2px 8px rgba(0,0,0,0.1);">`;
+            }).join('');
+
+            let historyHtml = '';
+            const historyList = data.fullHistory || data.history;
+
+            if (historyList && historyList.length > 0) {
+                const historyItems = historyList.map(h => {
+                    const dateStr = h.showTime || h.ctime;
+                    return `
+            <div style="margin-bottom: 6px; display: flex; align-items: baseline;">
+                <span style="color: var(--primary); font-weight:bold; font-size:12px; margin-right:12px; min-width:85px; text-align: right;">${dateStr}</span>
+                <span style="color: var(--text); flex: 1; word-break: break-word;">${h.content}</span>
+            </div>`;
+                }).join('');
+
+                historyHtml = `
+            <div style="margin-top:20px; padding-top:15px; border-top:1px dashed var(--border);">
+                <div style="font-weight: bold; font-size: 15px; margin-bottom: 10px; color: var(--text);">成员编年史</div>
+                <div style="font-size:13px; line-height: 1.6; background: var(--input-bg); padding: 12px; border-radius: 8px;">
+                    ${historyItems}
+                </div>
+            </div>
+        `;
+            }
+
+            const displayName = info.starName || info.nickname;
+            const htmlContent = `
+        <div class="Box-row" style="margin-bottom: 20px;">
+            <div style="font-size: 20px; font-weight: bold; margin-bottom: 15px; border-left: 4px solid var(--primary); padding-left: 10px;">
+                ${displayName} <span style="font-size:14px; color:var(--text-sub); font-weight:normal;">(${info.pinyin || ''})</span>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 14px; color: var(--text);">
+                <div><strong>昵称:</strong> ${info.nickname || '-'}</div>
+                <div><strong>身高:</strong> ${info.height || '-'} cm</div>
+                <div><strong>血型:</strong> ${info.bloodType || '-'}</div>
+                <div><strong>出生地:</strong> ${info.birthplace || '-'}</div>
+                <div><strong>生日:</strong> ${info.birthday || '-'}</div>
+                <div><strong>星座:</strong> ${info.constellation || '-'}</div>
+                <div><strong>所属队伍:</strong> ${info.starTeamName || '-'}</div>
+                <div><strong>加入期数:</strong> ${info.periodName || '-'}</div>
+                <div><strong>入团时间:</strong> ${info.joinTime || '-'}</div>             
+                <div><strong>特长:</strong> ${info.specialty || '-'}</div>
+            </div>
+            <div style="margin-top: 10px; font-size: 14px; color: var(--text);">
+                <strong>爱好:</strong> ${info.hobbies || '-'}
+            </div>
+
+            ${historyHtml}
+        </div>
+
+        <div style="margin-top: 25px; margin-bottom: 15px; font-weight: bold; font-size: 16px; border-left: 4px solid var(--primary); padding-left: 10px; color: var(--text);">
+            公式照
+        </div>
+
+        <div style="column-count: 2; column-gap: 15px;">
+            ${photosHtml}
+        </div>
+    `;
+
+            container.innerHTML = htmlContent;
+        }
+
+        document.addEventListener('click', function (e) {
+
+            const dropDownConfigs = [
+
+                { inputId: 'groupInput', dropdownId: 'memberDropdownList' },
+
+                { inputId: 'member-search', dropdownId: 'search-results' },
+
+                { inputId: 'profile-member-input', dropdownId: 'profile-search-results' },
+
+                { inputId: 'openlive-member-input', dropdownId: 'openlive-search-results' },
+
+                { inputId: 'vod-member-filter', dropdownId: 'member-suggestions' },
+
+                { wrapperId: 'vod-group-wrapper', dropdownId: 'vod-group-dropdown' },
+
+                { wrapperId: 'vod-type-wrapper', dropdownId: 'vod-type-dropdown' },
+
+                { wrapperId: 'year-wrapper', dropdownId: 'year-dropdown' },
+                { wrapperId: 'month-wrapper', dropdownId: 'month-dropdown' },
+                { wrapperId: 'day-wrapper', dropdownId: 'day-dropdown' }
+            ];
+
+            dropDownConfigs.forEach(cfg => {
+                const dropdown = document.getElementById(cfg.dropdownId);
+                if (!dropdown || dropdown.style.display === 'none') return;
+
+                let keepOpen = false;
+
+                if (dropdown.contains(e.target)) {
+                    keepOpen = true;
+                }
+
+                if (cfg.wrapperId) {
+                    const wrapper = document.getElementById(cfg.wrapperId);
+                    if (wrapper && wrapper.contains(e.target)) keepOpen = true;
+                } else if (cfg.inputId) {
+                    const input = document.getElementById(cfg.inputId);
+                    if (input && input.parentElement && input.parentElement.contains(e.target)) {
+                        keepOpen = true;
+                    }
+                }
+
+                if (!keepOpen) {
+                    dropdown.style.display = 'none';
+                }
+            });
+        });
+
+
+        let openLiveNextTime = 0;
+
+        function handleOpenLiveSearch(keyword) {
+            const resultBox = document.getElementById('openlive-search-results');
+            if (!keyword.trim()) {
+                resultBox.style.display = 'none';
+                return;
+            }
+            if (!window.isMemberDataLoaded && typeof loadMemberData === 'function') loadMemberData();
+
+            const matches = memberData.filter(m => m.ownerName.includes(keyword));
+            if (matches.length > 0) {
+                const html = matches.map(m => `
+            <div class="suggestion-item" 
+                 onclick="selectOpenLiveMember('${m.ownerName}', '${m.id || m.userId}')"
+                 style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-weight:bold;">${m.ownerName}</span>
+                <span class="team-tag">${m.team}</span>
+            </div>
+        `).join('');
+                resultBox.innerHTML = html;
+                resultBox.style.display = 'block';
+            } else {
+                resultBox.style.display = 'none';
+            }
+        }
+
+        function selectOpenLiveMember(name, userId) {
+            document.getElementById('openlive-member-input').value = name;
+            document.getElementById('openlive-member-id').value = userId;
+            document.getElementById('openlive-search-results').style.display = 'none';
+        }
+
+        async function fetchOpenLiveList(isLoadMore) {
+            const container = document.getElementById('openlive-list-container');
+            const loadMoreBtn = document.getElementById('openlive-load-more');
+            const memberId = document.getElementById('openlive-member-id').value;
+            const token = appToken || localStorage.getItem('yaya_p48_token');
+            const statusEl = document.getElementById('openlive-status');
+
+            if (!token) {
+                if (statusEl) statusEl.innerHTML = '<span style="color:red">⚠️ 请先登录账号</span>';
+                return;
+            }
+            if (!memberId) {
+                if (statusEl) statusEl.innerHTML = '<span style="color:red">⚠️ 请先搜索并选择成员</span>';
+                return;
+            }
+
+            if (!isLoadMore) {
+                openLiveNextTime = 0;
+                container.innerHTML = '<div class="empty-state">⏳ 正在加载...</div>';
+                loadMoreBtn.style.display = 'none';
+                if (statusEl) statusEl.innerText = '';
+            }
+
+            try {
+                const pa = window.getPA ? window.getPA() : null;
+                const res = await ipcRenderer.invoke('fetch-open-live', {
+                    token,
+                    pa,
+                    memberId,
+                    nextTime: openLiveNextTime
+                });
+
+                if (res.success && res.content) {
+                    const list = res.content.message || [];
+                    openLiveNextTime = res.content.nextTime;
+
+                    if (!isLoadMore) container.innerHTML = '';
+
+                    if (list.length === 0) {
+                        if (!isLoadMore) container.innerHTML = '<div class="empty-state">未找到相关记录</div>';
+                        loadMoreBtn.style.display = 'none';
+                        return;
+                    }
+
+                    renderOpenLiveItems(list, container);
+
+                    const totalCount = container.querySelectorAll('.vod-card-row').length;
+                    if (statusEl) statusEl.innerText = `共 ${totalCount} 场`;
+
+                    if (openLiveNextTime && openLiveNextTime !== 0 && !isOpenLiveAutoLoading) {
+                        loadMoreBtn.style.display = 'block';
+                    } else {
+                        loadMoreBtn.style.display = 'none';
+                    }
+                } else {
+                    if (!isLoadMore) container.innerHTML = `<div class="placeholder-tip"><h3>❌ 加载失败</h3><p>${res.msg}</p></div>`;
+                }
+            } catch (e) {
+                console.error(e);
+                if (!isLoadMore) container.innerHTML = `<div class="placeholder-tip"><h3>❌ 发生错误</h3><p>${e.message}</p></div>`;
+            }
+        }
+
+
+        let isOpenLiveAutoLoading = false;
+        async function fetchAllOpenLive() {
+            const btn = document.getElementById('btn-openlive-all');
+
+            if (isOpenLiveAutoLoading) {
+                isOpenLiveAutoLoading = false;
+                btn.innerText = '加载全部';
+                btn.style.background = '';
+                btn.style.color = '';
+                return;
+            }
+
+            const memberId = document.getElementById('openlive-member-id').value;
+            if (!memberId) {
+                if (statusEl) statusEl.innerHTML = '<span style="color:red">⚠️ 请先搜索并选择成员</span>';
+                return;
+            }
+
+            isOpenLiveAutoLoading = true;
+            btn.innerText = '停止加载';
+            btn.style.background = '#ff4d4f';
+            btn.style.color = 'white';
+
+            if (openLiveNextTime === 0) {
+                await fetchOpenLiveList(false);
+            }
+
+            while (isOpenLiveAutoLoading) {
+                if (!openLiveNextTime || openLiveNextTime === 0 || openLiveNextTime === '0') {
+                    break;
+                }
+
+                const prevTime = openLiveNextTime;
+
+                await fetchOpenLiveList(true);
+
+                await new Promise(r => setTimeout(r, 50));
+
+                if (openLiveNextTime === prevTime && openLiveNextTime !== 0) {
+                    console.warn("游标未更新，强制停止");
+                    break;
+                }
+            }
+
+            isOpenLiveAutoLoading = false;
+            btn.innerText = '加载全部';
+            btn.style.background = '';
+            btn.style.color = '';
+
+            const statusEl = document.getElementById('openlive-status');
+            if (statusEl && (!openLiveNextTime || openLiveNextTime === 0)) {
+                statusEl.innerHTML += ' <span style="font-size:12px; color:#28a745">(已加载全部)</span>';
+            }
+        }
+
+        function renderOpenLiveItems(list, container) {
+            list.forEach(item => {
+                const msgId = item.msgidClient || item.msgId;
+                if (document.getElementById(`openlive-card-${msgId}`)) return;
+
+                let info = {};
+                try {
+                    const safeExtInfo = item.extInfo.replace(/:\s*([0-9]{16,})/g, ': "$1"');
+                    info = JSON.parse(safeExtInfo);
+                } catch (e) {
+                    try { info = JSON.parse(item.extInfo); } catch (err) { return; }
+                }
+
+                const title = info.title || '未知公演';
+                const liveId = info.liveId || info.id;
+                const nickname = info.user ? info.user.nickname : '';
+
+                let cover = './icon.png';
+                if (info.coverUrl) {
+                    cover = info.coverUrl.startsWith('http') ? info.coverUrl : `https://source.48.cn${info.coverUrl}`;
+                }
+
+                const d = new Date(item.msgTime);
+                const offset = d.getTimezoneOffset() * 60000;
+                const utcTime = d.getTime() + offset;
+                const bjTime = new Date(utcTime + 3600000 * 8);
+                const timeStr = `${bjTime.getFullYear()}-${String(bjTime.getMonth() + 1).padStart(2, '0')}-${String(bjTime.getDate()).padStart(2, '0')} ${String(bjTime.getHours()).padStart(2, '0')}:${String(bjTime.getMinutes()).padStart(2, '0')}`;
+
+                const card = document.createElement('div');
+                card.className = 'vod-card-row';
+                card.style.marginBottom = '10px';
+                card.style.cursor = 'pointer';
+                card.id = `openlive-card-${msgId}`;
+
+                card.innerHTML = `
+            <div class="vod-row-cover-container">
+                <img src="${cover}" class="vod-row-cover" loading="lazy"
+                     title="点击调用 PotPlayer 播放"
+                     style="cursor: pointer;"
+                     onclick="openOpenLiveInPotPlayer(event, '${liveId}')">
+            </div>
+            <div class="vod-row-info">
+                <div class="vod-row-name" style="white-space: normal; line-height: 1.4; margin-bottom: 2px;">
+                    ${title}
+                </div>
+                <div style="font-size: 13px; color: var(--text-sub);">
+                    ${nickname}
+                </div>
+                <div class="vod-row-time" style="color:#999; font-size:12px; margin-top: auto;">
+                    ${timeStr}
+                </div>
+            </div>
+        `;
+
+                card.onclick = (e) => {
+                    if (!liveId) return;
+                    playOpenLiveVideo(liveId, title, nickname, item.msgTime);
+                };
+
+                container.appendChild(card);
+            });
+        }
+
+        async function playOpenLiveVideo(liveId, title, nickname, startTime) {
+            document.getElementById('view-open-live').style.display = 'none';
+            const mediaView = document.getElementById('view-media');
+            mediaView.style.display = 'flex';
+            mediaView.style.flexDirection = 'column';
+
+            document.getElementById('media-list-controls').style.display = 'none';
+            document.getElementById('vod-pagination-controls').style.display = 'none';
+            document.getElementById('media-list-area').style.display = 'none';
+
+            returnToOpenLive = true;
+
+            const playerView = document.getElementById('live-player-view');
+            playerView.style.display = 'block';
+
+            const sectionTitle = document.getElementById('live-view-title');
+            if (sectionTitle) {
+                sectionTitle.textContent = '剧场公演';
+            }
+
+            const titleEl = document.getElementById('current-live-title');
+            const timeEl = document.getElementById('current-live-time');
+
+            if (titleEl) titleEl.textContent = `${nickname} - ${title}`;
+
+            if (timeEl) {
+                if (startTime) {
+                    const d = new Date(Number(startTime));
+                    const offset = d.getTimezoneOffset() * 60000;
+                    const utcTime = d.getTime() + offset;
+                    const bjTime = new Date(utcTime + 3600000 * 8);
+
+                    const timeStr = `${bjTime.getFullYear()}-${String(bjTime.getMonth() + 1).padStart(2, '0')}-${String(bjTime.getDate()).padStart(2, '0')} ${String(bjTime.getHours()).padStart(2, '0')}:${String(bjTime.getMinutes()).padStart(2, '0')}`;
+
+                    timeEl.textContent = `公演时间：${timeStr}`;
+                } else {
+                    timeEl.textContent = '';
+                }
+            }
+
+            currentPlayingItem = { liveId, title, nickname, startTime };
+
+            try {
+                const token = appToken || localStorage.getItem('yaya_p48_token');
+                const pa = window.getPA ? window.getPA() : null;
+
+                const res = await ipcRenderer.invoke('fetch-open-live-one', { token, pa, liveId });
+
+                if (res.success && res.content && res.content.playStreams) {
+                    let streamUrl = '';
+                    const highQuality = res.content.playStreams.find(s => s.streamType === 2);
+                    streamUrl = highQuality ? highQuality.streamPath : res.content.playStreams[0].streamPath;
+
+                    if (streamUrl) {
+                        startPlayer(streamUrl, title, false, null, []);
+                    } else {
+                        console.warn(`[播放失败] liveId:${liveId} 无可用流`);
+                    }
+                } else {
+                    console.warn(`[API获取失败] ${res.msg}`);
+                }
+            } catch (e) {
+                console.error('[网络/系统错误]', e);
+            }
+        }
+
+        function getGroupCode(memberId, teamName, nickname) {
+            if (window.memberData && memberId) {
+                const m = window.memberData.find(x => x.id == memberId || x.userId == memberId);
+                if (m && m.team) {
+                    const t = m.team.toUpperCase();
+                    if (t.includes('GNZ')) return 'gnz';
+                    if (t.includes('BEJ')) return 'bej';
+                    if (t.includes('CKG')) return 'ckg';
+                    if (t.includes('CGT')) return 'cgt';
+                    if (t.includes('IDFT')) return 'idft';
+                    if (t.includes('SNH')) return 'snh';
+                }
+            }
+
+            if (teamName) {
+                const t = teamName.toUpperCase();
+                if (t.includes('GNZ') || t.includes('TEAM G') || t.includes('NIII') || t.includes('TEAM Z')) return 'gnz';
+                if (t.includes('BEJ') || t.includes('TEAM B') || t.includes('TEAM E') || t.includes('TEAM J')) return 'bej';
+                if (t.includes('CKG') || t.includes('TEAM C') || t.includes('TEAM K')) return 'ckg';
+                if (t.includes('CGT') || t.includes('CII') || t.includes('GII')) return 'cgt';
+                if (t.includes('IDFT')) return 'idft';
+                if (t.includes('SNH')) return 'snh';
+            }
+
+            if (nickname) {
+                const n = nickname.toUpperCase();
+                if (n.startsWith('GNZ')) return 'gnz';
+                if (n.startsWith('BEJ')) return 'bej';
+                if (n.startsWith('CKG')) return 'ckg';
+                if (n.startsWith('CGT')) return 'cgt';
+            }
+
+            return 'snh';
+        }
+
+        function getCompactDate(timestamp) {
+            const d = new Date(Number(timestamp));
+            const offset = d.getTimezoneOffset() * 60000;
+            const utcTime = d.getTime() + offset;
+            const beijingTime = new Date(utcTime + 3600000 * 8);
+
+            const y = beijingTime.getFullYear();
+            const m = String(beijingTime.getMonth() + 1).padStart(2, '0');
+            const day = String(beijingTime.getDate()).padStart(2, '0');
+            return `${y}${m}${day}`;
+        }
+        async function openOpenLiveInPotPlayer(e, liveId) {
+            e.stopPropagation();
+
+            const imgEl = e.target;
+            const originalCursor = imgEl.style.cursor;
+            imgEl.style.cursor = 'wait';
+
+            try {
+                const token = appToken || localStorage.getItem('yaya_p48_token');
+                const pa = window.getPA ? window.getPA() : null;
+
+                const res = await ipcRenderer.invoke('fetch-open-live-one', { token, pa, liveId });
+
+                if (res.success && res.content && res.content.playStreams) {
+                    let streamUrl = '';
+                    const highQuality = res.content.playStreams.find(s => s.streamType === 2);
+                    streamUrl = highQuality ? highQuality.streamPath : res.content.playStreams[0].streamPath;
+
+                    if (streamUrl) {
+                        window.location.href = `potplayer://${encodeURIComponent(streamUrl)}`;
+                    } else {
+                        console.warn('[PotPlayer] 未找到流地址');
+                    }
+                } else {
+                    console.warn('[PotPlayer] API返回错误:', res.msg);
+                }
+            } catch (err) {
+                console.error('[PotPlayer] 调用异常:', err);
+            } finally {
+                imgEl.style.cursor = originalCursor;
+            }
+        }
 
     </script>
     <script type="module">
@@ -5717,7 +6531,7 @@
             try {
                 if (lastNextTime === 0 || box.children.length <= 1) {
                     await fetchMsgs(false);
-                    await sleep(10);
+                    await sleep(30);
                 }
 
                 while (isAutoFetching && lastNextTime > 0) {
@@ -5726,7 +6540,7 @@
                     if (lastEl && lastEl.innerText.includes('加载更多')) lastEl.remove();
 
                     await fetchMsgs(true);
-                    await sleep(10);
+                    await sleep(30);
                 }
             } catch (e) {
                 console.error("自动抓取中断", e);
