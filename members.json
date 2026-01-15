@@ -15,6 +15,14 @@
       "liveRoomId": 4614061
     },
     {
+      "id": 2,
+      "ownerName": "赵嘉敏",
+      "team": "TEAM SII",
+      "teamId": 1001,
+      "groupName": "SNH48",
+      "periodName": "SNH48 一期生"
+    },
+    {
       "id": 3,
       "ownerName": "陈观慧",
       "team": "荣誉毕业生",
@@ -35,6 +43,14 @@
       "ownerName": "袁雨桢",
       "team": "TEAM SII",
       "teamId": 1001,
+      "groupName": "SNH48",
+      "periodName": "SNH48 二期生"
+    },
+    {
+      "id": 6,
+      "ownerName": "董艳芸",
+      "team": "TEAM NII",
+      "teamId": 1002,
       "groupName": "SNH48",
       "periodName": "SNH48 二期生"
     },
@@ -81,6 +97,14 @@
       "periodName": "SNH48 二期生"
     },
     {
+      "id": 12,
+      "ownerName": "唐安琪",
+      "team": "TEAM NII",
+      "teamId": 1002,
+      "groupName": "SNH48",
+      "periodName": "SNH48 二期生"
+    },
+    {
       "id": 14,
       "ownerName": "徐子轩",
       "team": "TEAM SII",
@@ -91,8 +115,8 @@
     {
       "id": 16,
       "ownerName": "李艺彤",
-      "team": "TEAM HII",
-      "teamId": 1003,
+      "team": "明星殿堂",
+      "teamId": 1008,
       "groupName": "SNH48",
       "periodName": "SNH48 二期生"
     },
@@ -180,6 +204,14 @@
       "ownerName": "万丽娜",
       "team": "TEAM HII",
       "teamId": 1003,
+      "groupName": "SNH48",
+      "periodName": "SNH48 二期生"
+    },
+    {
+      "id": 26,
+      "ownerName": "龚诗淇",
+      "team": "TEAM NII",
+      "teamId": 1002,
       "groupName": "SNH48",
       "periodName": "SNH48 二期生"
     },
@@ -334,6 +366,22 @@
       "periodName": "SNH48 三期生"
     },
     {
+      "id": 48,
+      "ownerName": "鞠婧祎",
+      "team": "明星殿堂",
+      "teamId": 1008,
+      "groupName": "SNH48",
+      "periodName": "SNH48 二期生"
+    },
+    {
+      "id": 49,
+      "ownerName": "曾艳芬",
+      "team": "TEAM NII",
+      "teamId": 1002,
+      "groupName": "SNH48",
+      "periodName": "SNH48 二期生"
+    },
+    {
       "id": 63,
       "roomId": "67236601",
       "account": "20190415141405_g39rcll22gft9h5",
@@ -431,7 +479,7 @@
       "roomId": "67217613",
       "account": "20190415141916_2fsz5gzc9gco89w",
       "ownerName": "张雨鑫",
-      "team": "Team NII",
+      "team": "TEAM NII",
       "teamId": 1002,
       "groupName": "SNH48",
       "periodName": "SNH48 三期生",
@@ -600,6 +648,14 @@
       "liveRoomId": 3868295
     },
     {
+      "id": 6746,
+      "ownerName": "杨韫玉",
+      "team": "TEAM X",
+      "teamId": 1004,
+      "groupName": "SNH48",
+      "periodName": "SNH48 四期生"
+    },
+    {
       "id": 6747,
       "ownerName": "张丹三",
       "team": "TEAM X",
@@ -685,7 +741,7 @@
     {
       "id": 63552,
       "ownerName": "陈雨琪",
-      "team": "Team XII",
+      "team": "TEAM XII",
       "teamId": 1005,
       "groupName": "GNZ48",
       "periodName": "SNH48 五期生"
@@ -785,8 +841,24 @@
       "periodName": "SNH48 五期生"
     },
     {
+      "id": 63563,
+      "ownerName": "刘梦雅",
+      "team": "TEAM XII",
+      "teamId": 1005,
+      "groupName": "GNZ48",
+      "periodName": "SNH48 五期生"
+    },
+    {
       "id": 63564,
       "ownerName": "李沁洁",
+      "team": "TEAM G",
+      "teamId": 1201,
+      "groupName": "GNZ48",
+      "periodName": "SNH48 五期生"
+    },
+    {
+      "id": 63565,
+      "ownerName": "刘筱筱",
       "team": "TEAM G",
       "teamId": 1201,
       "groupName": "GNZ48",
@@ -911,6 +983,14 @@
       "liveRoomId": 3872026
     },
     {
+      "id": 63579,
+      "ownerName": "邹佳佳",
+      "team": "TEAM XII",
+      "teamId": 1005,
+      "groupName": "SNH48",
+      "periodName": "SNH48 五期生"
+    },
+    {
       "id": 63580,
       "roomId": "67246084",
       "account": "20190415141921_3887wlx6ymx5dea",
@@ -969,6 +1049,14 @@
       "periodName": "SNH48 六期生",
       "pinyin": "sun zhenni",
       "liveRoomId": 3866821
+    },
+    {
+      "id": 286978,
+      "ownerName": "王金铭",
+      "team": "TEAM HIII",
+      "teamId": 1302,
+      "groupName": "SHY48",
+      "periodName": "SNH48 六期生"
     },
     {
       "id": 286979,
@@ -1280,8 +1368,24 @@
       "liveRoomId": 3871128
     },
     {
+      "id": 327582,
+      "ownerName": "孙姗",
+      "team": "TEAM B",
+      "teamId": 1101,
+      "groupName": "BEJ48",
+      "periodName": "SNH48 六期生"
+    },
+    {
       "id": 327585,
       "ownerName": "夏越",
+      "team": "TEAM B",
+      "teamId": 1101,
+      "groupName": "BEJ48",
+      "periodName": "SNH48 六期生"
+    },
+    {
+      "id": 327586,
+      "ownerName": "牛聪聪",
       "team": "TEAM B",
       "teamId": 1101,
       "groupName": "BEJ48",
@@ -1328,6 +1432,14 @@
     {
       "id": 327592,
       "ownerName": "李媛媛",
+      "team": "TEAM E",
+      "teamId": 1102,
+      "groupName": "BEJ48",
+      "periodName": "SNH48 六期生"
+    },
+    {
+      "id": 327593,
+      "ownerName": "李诗彦",
       "team": "TEAM E",
       "teamId": 1102,
       "groupName": "BEJ48",
@@ -1695,6 +1807,14 @@
       "pinyin": "Zhang HanZiMo"
     },
     {
+      "id": 407132,
+      "ownerName": "李娜（李尚颐）",
+      "team": "TEAM E",
+      "teamId": 1102,
+      "groupName": "BEJ48",
+      "periodName": "BEJ48 一期生"
+    },
+    {
       "id": 407135,
       "ownerName": "杨一帆",
       "team": "TEAM E",
@@ -1716,6 +1836,14 @@
       "team": "IDFT",
       "teamId": 1501,
       "groupName": "IDFT",
+      "periodName": "GNZ48 一期生"
+    },
+    {
+      "id": 410177,
+      "ownerName": "向芸",
+      "team": "TEAM G",
+      "teamId": 1201,
+      "groupName": "GNZ48",
       "periodName": "GNZ48 一期生"
     },
     {
@@ -1765,6 +1893,14 @@
       "periodName": "GNZ48 一期生"
     },
     {
+      "id": 417318,
+      "ownerName": "刘嘉怡",
+      "team": "TEAM Z",
+      "teamId": 1203,
+      "groupName": "GNZ48",
+      "periodName": "GNZ48 一期生"
+    },
+    {
       "id": 417320,
       "roomId": "67390893",
       "account": "20190415141155_ug9s7o3dm3lchx8",
@@ -1807,14 +1943,6 @@
       "liveRoomId": 5083254
     },
     {
-      "id": 417324,
-      "ownerName": "王翠菲",
-      "team": "TEAM Z",
-      "teamId": 1203,
-      "groupName": "GNZ48",
-      "periodName": "GNZ48 一期生"
-    },
-    {
       "id": 417325,
       "ownerName": "王炯义",
       "team": "TEAM Z",
@@ -1835,6 +1963,14 @@
       "periodName": "GNZ48 一期生",
       "pinyin": "wang siyue",
       "liveRoomId": 5080436
+    },
+    {
+      "id": 417328,
+      "ownerName": "王盈",
+      "team": "TEAM Z",
+      "teamId": 1203,
+      "groupName": "GNZ48",
+      "periodName": "GNZ48 一期生"
     },
     {
       "id": 417329,
@@ -1879,6 +2015,14 @@
     {
       "id": 417332,
       "ownerName": "于珊珊",
+      "team": "TEAM Z",
+      "teamId": 1203,
+      "groupName": "GNZ48",
+      "periodName": "GNZ48 一期生"
+    },
+    {
+      "id": 417333,
+      "ownerName": "张心雨",
       "team": "TEAM Z",
       "teamId": 1203,
       "groupName": "GNZ48",
@@ -2069,14 +2213,6 @@
       "periodName": "SHY48 一期生",
       "pinyin": "Zhao JiaRui",
       "liveRoomId": 6486104
-    },
-    {
-      "id": 460005,
-      "ownerName": "赵佳蕊",
-      "team": "TEAM SIII",
-      "teamId": 1301,
-      "groupName": "SHY48",
-      "periodName": "SHY48 一期生"
     },
     {
       "id": 460007,
@@ -2513,6 +2649,14 @@
       "periodName": "GNZ48 二期生"
     },
     {
+      "id": 530444,
+      "ownerName": "刘小末",
+      "team": "TEAM G",
+      "teamId": 1201,
+      "groupName": "GNZ48",
+      "periodName": "GNZ48 二期生"
+    },
+    {
       "id": 530446,
       "ownerName": "唐诗怡",
       "team": "TEAM NIII",
@@ -2608,6 +2752,11 @@
       "teamId": 1007,
       "groupName": "SNH48",
       "periodName": "SNH48 八期生"
+    },
+    {
+      "id": 565225,
+      "ownerName": "CKG48",
+      "groupName": "官方"
     },
     {
       "id": 593820,
@@ -3043,6 +3192,14 @@
       "periodName": "CKG48 一期生"
     },
     {
+      "id": 614752,
+      "ownerName": "樊曦月",
+      "team": "CKG48",
+      "teamId": 1404,
+      "groupName": "CKG48",
+      "periodName": "CKG48 一期生"
+    },
+    {
       "id": 614753,
       "roomId": "67236680",
       "account": "20190415142643_021m06msuv8q31d",
@@ -3100,6 +3257,14 @@
       "periodName": "CKG48 一期生"
     },
     {
+      "id": 614758,
+      "ownerName": "石勤",
+      "team": "CKG48",
+      "teamId": 1404,
+      "groupName": "CKG48",
+      "periodName": "CKG48 一期生"
+    },
+    {
       "id": 614760,
       "ownerName": "田祯臻",
       "team": "IDFT",
@@ -3134,6 +3299,14 @@
       "ownerName": "章宇阳",
       "team": "TEAM K",
       "teamId": 1402,
+      "groupName": "CKG48",
+      "periodName": "CKG48 一期生"
+    },
+    {
+      "id": 614772,
+      "ownerName": "郑阳莹",
+      "team": "CKG48",
+      "teamId": 1404,
       "groupName": "CKG48",
       "periodName": "CKG48 一期生"
     },
@@ -3302,7 +3475,7 @@
     {
       "id": 677397,
       "ownerName": "李星羽",
-      "team": "Team X",
+      "team": "TEAM X",
       "teamId": 1004,
       "groupName": "SNH48",
       "periodName": "SNH48 九期生"
@@ -3470,6 +3643,14 @@
       "team": "IDFT",
       "teamId": 1501,
       "groupName": "IDFT",
+      "periodName": "CKG48 二期生"
+    },
+    {
+      "id": 707367,
+      "ownerName": "吴晓桐",
+      "team": "CKG48",
+      "teamId": 1404,
+      "groupName": "CKG48",
       "periodName": "CKG48 二期生"
     },
     {
@@ -3647,6 +3828,14 @@
       "liveRoomId": 25442930
     },
     {
+      "id": 722778,
+      "ownerName": "郭铱宁",
+      "team": "TEAM Z",
+      "teamId": 1203,
+      "groupName": "GNZ48",
+      "periodName": "GNZ48 五期生"
+    },
+    {
       "id": 722780,
       "roomId": "67284489",
       "account": "20190415143019_rha433dvu4cxtt1",
@@ -3675,6 +3864,14 @@
       "liveRoomId": 26657866
     },
     {
+      "id": 722782,
+      "ownerName": "门秀天",
+      "team": "IDFT",
+      "teamId": 1501,
+      "groupName": "IDFT",
+      "periodName": "GNZ48 五期生"
+    },
+    {
       "id": 722784,
       "roomId": "67352360",
       "account": "20190415142957_qbf9u5132wfanc1",
@@ -3687,6 +3884,14 @@
       "periodName": "GNZ48 五期生",
       "pinyin": "xie feifei",
       "liveRoomId": 25749010
+    },
+    {
+      "id": 722787,
+      "ownerName": "章泽婷",
+      "team": "IDFT",
+      "teamId": 1501,
+      "groupName": "IDFT",
+      "periodName": "GNZ48 五期生"
     },
     {
       "id": 820988,
@@ -3724,7 +3929,7 @@
       "id": 844544,
       "roomId": "67303327",
       "account": "20190415143014_12c9aremsgs1vzw",
-      "ownerName": "SHY48-浪崽儿",
+      "ownerName": "SHY48-六崽儿",
       "groupName": "官方"
     },
     {
@@ -3740,6 +3945,14 @@
       "account": "20190415143008_nfwfip007p3nggv",
       "ownerName": "袋王活动直播",
       "groupName": "官方"
+    },
+    {
+      "id": 867888,
+      "ownerName": "曹露丹",
+      "team": "CKG48",
+      "teamId": 1404,
+      "groupName": "CKG48",
+      "periodName": "CKG48 三期生"
     },
     {
       "id": 867891,
@@ -3770,6 +3983,14 @@
       "liveRoomId": 58309213
     },
     {
+      "id": 867894,
+      "ownerName": "康兆薇",
+      "team": "IDFT",
+      "teamId": 1501,
+      "groupName": "IDFT",
+      "periodName": "CKG48 三期生"
+    },
+    {
       "id": 867895,
       "roomId": "67236697",
       "account": "20190415143033_5a9uk5ncojh4b9w",
@@ -3798,6 +4019,22 @@
       "liveRoomId": 58377416
     },
     {
+      "id": 867899,
+      "ownerName": "赵思雨",
+      "team": "IDFT",
+      "teamId": 1501,
+      "groupName": "IDFT",
+      "periodName": "CKG48 三期生"
+    },
+    {
+      "id": 868351,
+      "ownerName": "周睿林",
+      "team": "TEAM NII",
+      "teamId": 1002,
+      "groupName": "SNH48",
+      "periodName": "SNH48 十期生"
+    },
+    {
       "id": 868352,
       "roomId": "67284493",
       "account": "20190415143049_wiayb4t2ht3b2lt",
@@ -3810,6 +4047,14 @@
       "periodName": "SNH48 十期生",
       "pinyin": "Liu Jie",
       "liveRoomId": 59601083
+    },
+    {
+      "id": 869171,
+      "ownerName": "鲁静萍",
+      "team": "TEAM X",
+      "teamId": 1004,
+      "groupName": "SNH48",
+      "periodName": "SNH48 十期生"
     },
     {
       "id": 874497,
@@ -3867,6 +4112,14 @@
       "liveRoomId": 63147326
     },
     {
+      "id": 874508,
+      "ownerName": "尚官",
+      "team": "IDFT",
+      "teamId": 1501,
+      "groupName": "IDFT",
+      "periodName": "SHY48 四期生"
+    },
+    {
       "id": 874512,
       "roomId": "147264238",
       "account": "20200109174548_85q3kutg0dhhrc2",
@@ -3879,6 +4132,14 @@
       "periodName": "SHY48 四期生",
       "pinyin": "wang  qiuru",
       "liveRoomId": 161954294
+    },
+    {
+      "id": 874693,
+      "ownerName": "邓熳慧",
+      "team": "TEAM NIII",
+      "teamId": 1202,
+      "groupName": "GNZ48",
+      "periodName": "GNZ48 六期生"
     },
     {
       "id": 874696,
@@ -3923,6 +4184,14 @@
       "liveRoomId": 61565785
     },
     {
+      "id": 874717,
+      "ownerName": "武晓迪",
+      "team": "IDFT",
+      "teamId": 1501,
+      "groupName": "IDFT",
+      "periodName": "SHY48 四期生"
+    },
+    {
       "id": 874720,
       "roomId": "1983874513",
       "account": "20220802141633_bt99g42xoxqmwqz",
@@ -3965,6 +4234,22 @@
       "liveRoomId": 59553648
     },
     {
+      "id": 39911921,
+      "ownerName": "陈妮亚",
+      "team": "CKG48",
+      "teamId": 1404,
+      "groupName": "CKG48",
+      "periodName": "CKG48 四期生"
+    },
+    {
+      "id": 39911922,
+      "ownerName": "黄歆源",
+      "team": "IDFT",
+      "teamId": 1501,
+      "groupName": "IDFT",
+      "periodName": "CKG48 四期生"
+    },
+    {
       "id": 39911923,
       "roomId": "224670690",
       "account": "20200901180537_86386ao1d9ddf9w",
@@ -3993,6 +4278,46 @@
       "liveRoomId": 248749245
     },
     {
+      "id": 42402769,
+      "ownerName": "李星彦",
+      "team": "TEAM X",
+      "teamId": 1004,
+      "groupName": "SNH48",
+      "periodName": "SNH48 十四期生"
+    },
+    {
+      "id": 42402792,
+      "ownerName": "邓歆玥",
+      "team": "预备生",
+      "teamId": 1007,
+      "groupName": "SNH48",
+      "periodName": "SNH48 十四期生"
+    },
+    {
+      "id": 42402868,
+      "ownerName": "陆叶卉",
+      "team": "TEAM SII",
+      "teamId": 1001,
+      "groupName": "SNH48",
+      "periodName": "SNH48 十四期生"
+    },
+    {
+      "id": 42402886,
+      "ownerName": "卞楚娴",
+      "team": "TEAM SII",
+      "teamId": 1001,
+      "groupName": "SNH48",
+      "periodName": "SNH48 十四期生"
+    },
+    {
+      "id": 42402897,
+      "ownerName": "吕曼菲",
+      "team": "TEAM NIII",
+      "teamId": 1202,
+      "groupName": "GNZ48",
+      "periodName": "GNZ48 八期生"
+    },
+    {
       "id": 45285669,
       "roomId": "261502235",
       "account": "20201208135207_k46mfva6fg3tzcn",
@@ -4005,6 +4330,30 @@
       "periodName": "BEJ48 九期生",
       "pinyin": "chen zhenzhen",
       "liveRoomId": 262927035
+    },
+    {
+      "id": 45285672,
+      "ownerName": "范璐元",
+      "team": "BEJ48",
+      "teamId": 1105,
+      "groupName": "BEJ48",
+      "periodName": "BEJ48 九期生"
+    },
+    {
+      "id": 45285674,
+      "ownerName": "胡雪迎",
+      "team": "BEJ48",
+      "teamId": 1105,
+      "groupName": "BEJ48",
+      "periodName": "BEJ48 九期生"
+    },
+    {
+      "id": 45285677,
+      "ownerName": "黄妍菲",
+      "team": "BEJ48",
+      "teamId": 1105,
+      "groupName": "BEJ48",
+      "periodName": "BEJ48 九期生"
     },
     {
       "id": 45285682,
@@ -4063,6 +4412,14 @@
       "liveRoomId": 262958689
     },
     {
+      "id": 45285702,
+      "ownerName": "赵嘉丽",
+      "team": "BEJ48",
+      "teamId": 1105,
+      "groupName": "BEJ48",
+      "periodName": "BEJ48 九期生"
+    },
+    {
       "id": 52494479,
       "roomId": "387978713",
       "account": "20210506162958_350utut1hz1hzst",
@@ -4102,6 +4459,14 @@
       "periodName": "GNZ48 九期生",
       "pinyin": "lv siqi",
       "liveRoomId": 384280615
+    },
+    {
+      "id": 52494487,
+      "ownerName": "王琰",
+      "team": "预备生",
+      "teamId": 1207,
+      "groupName": "GNZ48",
+      "periodName": "GNZ48 九期生"
     },
     {
       "id": 54526093,
@@ -4144,6 +4509,14 @@
       "periodName": "SNH48 十五期生",
       "pinyin": "yu jiawei",
       "liveRoomId": 378299581
+    },
+    {
+      "id": 54526098,
+      "ownerName": "张冉冉",
+      "team": "预备生",
+      "teamId": 1007,
+      "groupName": "SNH48",
+      "periodName": "SNH48 十五期生"
     },
     {
       "id": 54526100,
@@ -4355,6 +4728,14 @@
       "liveRoomId": 464202451
     },
     {
+      "id": 69861663,
+      "ownerName": "刘宇婷",
+      "team": "CKG48",
+      "teamId": 1404,
+      "groupName": "CKG48",
+      "periodName": "CKG48 五期生"
+    },
+    {
       "id": 69861665,
       "roomId": "464191729",
       "account": "20211205183657_b5uva998swptzib",
@@ -4420,6 +4801,14 @@
       "periodName": "BEJ48 十期生",
       "pinyin": "li siao",
       "liveRoomId": 669009760
+    },
+    {
+      "id": 70385987,
+      "ownerName": "林滢",
+      "team": "BEJ48",
+      "teamId": 1105,
+      "groupName": "BEJ48",
+      "periodName": "BEJ48 十期生"
     },
     {
       "id": 70385989,
@@ -4543,6 +4932,14 @@
       "periodName": "BEJ48 十一期生",
       "pinyin": "wu ruisha",
       "liveRoomId": 1780991004
+    },
+    {
+      "id": 83099897,
+      "ownerName": "朱力维",
+      "team": "BEJ48",
+      "teamId": 1105,
+      "groupName": "BEJ48",
+      "periodName": "BEJ48 十一期生"
     },
     {
       "id": 83231314,
@@ -5157,6 +5554,11 @@
       "periodName": "GNZ48 十四期生",
       "pinyin": "taohui",
       "liveRoomId": 4281255785
+    },
+    {
+      "id": 105578951,
+      "ownerName": "CGT48",
+      "groupName": "官方"
     },
     {
       "id": 105709986,
@@ -7371,6 +7773,14 @@
       "pinyin": "zhong yanan"
     },
     {
+      "id": 151126114,
+      "ownerName": "易思桐",
+      "team": "预备生",
+      "teamId": 2103,
+      "groupName": "CGT48",
+      "periodName": "CGT48 四期生"
+    },
+    {
       "id": 151126135,
       "ownerName": "程怡雯",
       "serverId": 27758935,
@@ -7690,6 +8100,14 @@
       "pinyin": "lijiaqi"
     },
     {
+      "id": 161415233,
+      "ownerName": "梁艺馨",
+      "team": "预备生",
+      "teamId": 2103,
+      "groupName": "CGT48",
+      "periodName": "CGT48 五期生"
+    },
+    {
       "id": 161415234,
       "ownerName": "吴婳祎",
       "serverId": 29298697,
@@ -7798,6 +8216,14 @@
       "groupName": "SNH48",
       "periodName": "SNH48 二十三期生",
       "pinyin": "zeng xinyan"
+    },
+    {
+      "id": 161808453,
+      "ownerName": "邓甲楠",
+      "team": "预备生",
+      "teamId": 1007,
+      "groupName": "SNH48",
+      "periodName": "SNH48 二十三期生"
     },
     {
       "id": 161808454,
@@ -8023,6 +8449,46 @@
       "liveRoomId": 148014351
     },
     {
+      "id": 4344250372,
+      "ownerName": "刘丽千",
+      "team": "TEAM SII",
+      "teamId": 1001,
+      "groupName": "SNH48",
+      "periodName": "SNH48 十二期生"
+    },
+    {
+      "id": 4344250373,
+      "ownerName": "江鑫",
+      "team": "CKG48",
+      "teamId": 1404,
+      "groupName": "CKG48",
+      "periodName": "SNH48 十二期生"
+    },
+    {
+      "id": 4344250374,
+      "ownerName": "潘璐瑶",
+      "team": "TEAM X",
+      "teamId": 1004,
+      "groupName": "SNH48",
+      "periodName": "SNH48 十二期生"
+    },
+    {
+      "id": 4528799749,
+      "ownerName": "陈亿杉",
+      "team": "TEAM E",
+      "teamId": 1102,
+      "groupName": "BEJ48",
+      "periodName": "BEJ48 七期生"
+    },
+    {
+      "id": 4528799750,
+      "ownerName": "曾洁",
+      "team": "TEAM E",
+      "teamId": 1102,
+      "groupName": "BEJ48",
+      "periodName": "BEJ48 七期生"
+    },
+    {
       "id": 4528799751,
       "roomId": "143189214",
       "account": "20191219151620_m7fm0foqvjuv7tt",
@@ -8035,6 +8501,14 @@
       "periodName": "BEJ48 七期生",
       "pinyin": "zhang zhijie",
       "liveRoomId": 143217705
+    },
+    {
+      "id": 4998561801,
+      "ownerName": "吕蕊",
+      "team": "BEJ48",
+      "teamId": 1105,
+      "groupName": "BEJ48",
+      "periodName": "BEJ48 七期生"
     },
     {
       "id": 4998561802,
@@ -8065,6 +8539,22 @@
       "liveRoomId": 157053036
     },
     {
+      "id": 5585764355,
+      "ownerName": "杜亚轩",
+      "team": "TEAM J",
+      "teamId": 1103,
+      "groupName": "BEJ48",
+      "periodName": "BEJ48 七期生"
+    },
+    {
+      "id": 5585764356,
+      "ownerName": "熊文婕",
+      "team": "TEAM J",
+      "teamId": 1103,
+      "groupName": "BEJ48",
+      "periodName": "BEJ48 七期生"
+    },
+    {
       "id": 5602541574,
       "roomId": "159822189",
       "account": "20200228121100_h2iumsjcpjnpkht",
@@ -8077,6 +8567,14 @@
       "periodName": "SNH48 十三期生",
       "pinyin": "you miao",
       "liveRoomId": 160147195
+    },
+    {
+      "id": 6827278356,
+      "ownerName": "刘果",
+      "team": "TEAM NIII",
+      "teamId": 1202,
+      "groupName": "GNZ48",
+      "periodName": "GNZ48 七期生"
     },
     {
       "id": 6827278357,
@@ -8107,6 +8605,14 @@
       "liveRoomId": 155425159
     },
     {
+      "id": 7179599898,
+      "ownerName": "莫昕",
+      "team": "TEAM NIII",
+      "teamId": 1202,
+      "groupName": "GNZ48",
+      "periodName": "GNZ48 七期生"
+    },
+    {
       "id": 7984906291,
       "roomId": "180129550",
       "account": "20200609135010_3w3eujald6fv6hc",
@@ -8119,6 +8625,14 @@
       "periodName": "BEJ48 八期生",
       "pinyin": "wang ruoshilan",
       "liveRoomId": 180176795
+    },
+    {
+      "id": 7984906292,
+      "ownerName": "张睿怡",
+      "team": "BEJ48",
+      "teamId": 1105,
+      "groupName": "BEJ48",
+      "periodName": "BEJ48 八期生"
     },
     {
       "id": 8957984817,
@@ -8188,6 +8702,684 @@
       "periodName": "CKG48 四期生",
       "pinyin": "liang jingjin",
       "liveRoomId": 187874323
+    },
+    {
+      "id": 9276751978,
+      "ownerName": "涂秀文",
+      "team": "IDFT",
+      "teamId": 1501,
+      "groupName": "IDFT",
+      "periodName": "CKG48 四期生"
+    },
+    {
+      "ownerName": "胡博文",
+      "team": "TEAM B",
+      "teamId": 1101,
+      "groupName": "BEJ48",
+      "periodName": "SNH48 六期生"
+    },
+    {
+      "ownerName": "文妍",
+      "team": "TEAM B",
+      "teamId": 1101,
+      "groupName": "BEJ48",
+      "periodName": "SNH48 六期生"
+    },
+    {
+      "ownerName": "毕梦媛",
+      "team": "TEAM E",
+      "teamId": 1102,
+      "groupName": "BEJ48",
+      "periodName": "SNH48 六期生"
+    },
+    {
+      "ownerName": "林堃",
+      "team": "TEAM E",
+      "teamId": 1102,
+      "groupName": "BEJ48",
+      "periodName": "SNH48 六期生"
+    },
+    {
+      "ownerName": "易妍倩",
+      "team": "TEAM E",
+      "teamId": 1102,
+      "groupName": "BEJ48",
+      "periodName": "SNH48 六期生"
+    },
+    {
+      "ownerName": "张菡筱",
+      "team": "TEAM B",
+      "teamId": 1101,
+      "groupName": "BEJ48",
+      "periodName": "SNH48 五期生"
+    },
+    {
+      "ownerName": "徐佳丽",
+      "team": "TEAM SII",
+      "teamId": 1001,
+      "groupName": "BEJ48",
+      "periodName": "SNH48 五期生"
+    },
+    {
+      "ownerName": "冯雪莹",
+      "team": "TEAM XII",
+      "teamId": 1005,
+      "groupName": "BEJ48",
+      "periodName": "SNH48 五期生"
+    },
+    {
+      "ownerName": "罗恩妮",
+      "team": "CKG48",
+      "teamId": 1404,
+      "groupName": "CKG48",
+      "periodName": "CKG48 五期生"
+    },
+    {
+      "ownerName": "谢慧先",
+      "team": "预备生",
+      "teamId": 1207,
+      "groupName": "GNZ48",
+      "periodName": "GNZ48 八期生"
+    },
+    {
+      "ownerName": "陈乐添",
+      "team": "TEAM G",
+      "teamId": 1201,
+      "groupName": "GNZ48",
+      "periodName": "GNZ48 二期生"
+    },
+    {
+      "ownerName": "郑奕雯",
+      "team": "预备生",
+      "teamId": 1207,
+      "groupName": "GNZ48",
+      "periodName": "GNZ48 九期生"
+    },
+    {
+      "ownerName": "侯祎冉",
+      "team": "预备生",
+      "teamId": 1207,
+      "groupName": "GNZ48",
+      "periodName": "GNZ48 十二期生"
+    },
+    {
+      "ownerName": "戴欣佚",
+      "team": "TEAM NIII",
+      "teamId": 1202,
+      "groupName": "GNZ48",
+      "periodName": "GNZ48 一期生"
+    },
+    {
+      "ownerName": "胡怡莹",
+      "team": "TEAM G",
+      "teamId": 1201,
+      "groupName": "GNZ48",
+      "periodName": "SNH48 六期生"
+    },
+    {
+      "ownerName": "王馨悦",
+      "team": "TEAM G",
+      "teamId": 1201,
+      "groupName": "GNZ48",
+      "periodName": "SNH48 六期生"
+    },
+    {
+      "ownerName": "周倩玉",
+      "team": "TEAM G",
+      "teamId": 1201,
+      "groupName": "GNZ48",
+      "periodName": "SNH48 六期生"
+    },
+    {
+      "ownerName": "李海淋",
+      "team": "IDFT",
+      "teamId": 1501,
+      "groupName": "IDFT",
+      "periodName": "BEJ48 六期生"
+    },
+    {
+      "ownerName": "熊依依",
+      "team": "IDFT",
+      "teamId": 1501,
+      "groupName": "IDFT",
+      "periodName": "BEJ48 六期生"
+    },
+    {
+      "ownerName": "张语倩",
+      "team": "IDFT",
+      "teamId": 1501,
+      "groupName": "IDFT",
+      "periodName": "BEJ48 六期生"
+    },
+    {
+      "ownerName": "程一",
+      "team": "IDFT",
+      "teamId": 1501,
+      "groupName": "IDFT",
+      "periodName": "SHY48 四期生"
+    },
+    {
+      "ownerName": "张瑾瑜",
+      "team": "IDFT",
+      "teamId": 1501,
+      "groupName": "IDFT",
+      "periodName": "SHY48 四期生"
+    },
+    {
+      "ownerName": "张雨晴",
+      "team": "TEAM HIII",
+      "teamId": 1302,
+      "groupName": "SHY48",
+      "periodName": "SHY48 一期生"
+    },
+    {
+      "ownerName": "陈婧文",
+      "team": "TEAM SIII",
+      "teamId": 1301,
+      "groupName": "SHY48",
+      "periodName": "SHY48 一期生"
+    },
+    {
+      "ownerName": "南翎璞",
+      "team": "TEAM SIII",
+      "teamId": 1301,
+      "groupName": "SHY48",
+      "periodName": "SHY48 一期生"
+    },
+    {
+      "ownerName": "徐静妍",
+      "team": "TEAM SIII",
+      "teamId": 1301,
+      "groupName": "SHY48",
+      "periodName": "SHY48 一期生"
+    },
+    {
+      "ownerName": "葛佳慧",
+      "team": "TEAM NII",
+      "teamId": 1002,
+      "groupName": "SNH48",
+      "periodName": "SNH48 八期生"
+    },
+    {
+      "ownerName": "许嘉怡",
+      "team": "Team XII",
+      "teamId": 1005,
+      "groupName": "SNH48",
+      "periodName": "SNH48 八期生"
+    },
+    {
+      "ownerName": "陈嘉瑶",
+      "team": "TEAM NII",
+      "teamId": 1002,
+      "groupName": "SNH48",
+      "periodName": "SNH48 二期生"
+    },
+    {
+      "ownerName": "胡思奕",
+      "team": "TEAM NII",
+      "teamId": 1002,
+      "groupName": "SNH48",
+      "periodName": "SNH48 二期生"
+    },
+    {
+      "ownerName": "罗兰",
+      "team": "TEAM NII",
+      "teamId": 1002,
+      "groupName": "SNH48",
+      "periodName": "SNH48 二期生"
+    },
+    {
+      "ownerName": "吕思琴",
+      "team": "TEAM NII",
+      "teamId": 1002,
+      "groupName": "SNH48",
+      "periodName": "SNH48 二期生"
+    },
+    {
+      "ownerName": "孟玥",
+      "team": "TEAM NII",
+      "teamId": 1002,
+      "groupName": "SNH48",
+      "periodName": "SNH48 二期生"
+    },
+    {
+      "ownerName": "王佳路",
+      "team": "TEAM NII",
+      "teamId": 1002,
+      "groupName": "SNH48",
+      "periodName": "SNH48 二期生"
+    },
+    {
+      "ownerName": "王依君",
+      "team": "TEAM NII",
+      "teamId": 1002,
+      "groupName": "SNH48",
+      "periodName": "SNH48 二期生"
+    },
+    {
+      "ownerName": "徐言雨",
+      "team": "TEAM NII",
+      "teamId": 1002,
+      "groupName": "SNH48",
+      "periodName": "SNH48 二期生"
+    },
+    {
+      "ownerName": "杨雅如",
+      "team": "TEAM NII",
+      "teamId": 1002,
+      "groupName": "SNH48",
+      "periodName": "SNH48 二期生"
+    },
+    {
+      "ownerName": "王奕雯",
+      "team": "非正式成员",
+      "groupName": "SNH48",
+      "periodName": "SNH48 二期生"
+    },
+    {
+      "ownerName": "徐彤",
+      "team": "非正式成员",
+      "groupName": "SNH48",
+      "periodName": "SNH48 二期生"
+    },
+    {
+      "ownerName": "杨海赆",
+      "team": "非正式成员",
+      "groupName": "SNH48",
+      "periodName": "SNH48 二期生"
+    },
+    {
+      "ownerName": "张瑜纹",
+      "team": "非正式成员",
+      "groupName": "SNH48",
+      "periodName": "SNH48 二期生"
+    },
+    {
+      "ownerName": "邓艳秋菲",
+      "team": "TEAM NII",
+      "teamId": 1002,
+      "groupName": "SNH48",
+      "periodName": "SNH48 六期生"
+    },
+    {
+      "ownerName": "钱艺",
+      "team": "TEAM NII",
+      "teamId": 1002,
+      "groupName": "SNH48",
+      "periodName": "SNH48 六期生"
+    },
+    {
+      "ownerName": "程文路",
+      "team": "TEAM XII",
+      "teamId": 1005,
+      "groupName": "SNH48",
+      "periodName": "SNH48 六期生"
+    },
+    {
+      "ownerName": "徐真",
+      "team": "TEAM NII",
+      "teamId": 1002,
+      "groupName": "SNH48",
+      "periodName": "SNH48 七期生"
+    },
+    {
+      "ownerName": "张雅梦",
+      "team": "TEAM NII",
+      "teamId": 1002,
+      "groupName": "SNH48",
+      "periodName": "SNH48 七期生"
+    },
+    {
+      "ownerName": "赵韩倩",
+      "team": "TEAM SII",
+      "teamId": 1001,
+      "groupName": "SNH48",
+      "periodName": "SNH48 七期生"
+    },
+    {
+      "ownerName": "陈怡馨",
+      "team": "TEAM HII",
+      "teamId": 1003,
+      "groupName": "SNH48",
+      "periodName": "SNH48 三期生"
+    },
+    {
+      "ownerName": "韩萌",
+      "team": "TEAM HII",
+      "teamId": 1003,
+      "groupName": "SNH48",
+      "periodName": "SNH48 三期生"
+    },
+    {
+      "ownerName": "康欣",
+      "team": "TEAM HII",
+      "teamId": 1003,
+      "groupName": "SNH48",
+      "periodName": "SNH48 三期生"
+    },
+    {
+      "ownerName": "李豆豆",
+      "team": "TEAM HII",
+      "teamId": 1003,
+      "groupName": "SNH48",
+      "periodName": "SNH48 三期生"
+    },
+    {
+      "ownerName": "梁慧雯",
+      "team": "TEAM HII",
+      "teamId": 1003,
+      "groupName": "SNH48",
+      "periodName": "SNH48 三期生"
+    },
+    {
+      "ownerName": "王璐",
+      "team": "TEAM HII",
+      "teamId": 1003,
+      "groupName": "SNH48",
+      "periodName": "SNH48 三期生"
+    },
+    {
+      "ownerName": "杨吟雨",
+      "team": "TEAM HII",
+      "teamId": 1003,
+      "groupName": "SNH48",
+      "periodName": "SNH48 三期生"
+    },
+    {
+      "ownerName": "周秋均",
+      "team": "TEAM HII",
+      "teamId": 1003,
+      "groupName": "SNH48",
+      "periodName": "SNH48 三期生"
+    },
+    {
+      "ownerName": "张曦尹",
+      "team": "TEAM HII",
+      "teamId": 1003,
+      "groupName": "SNH48",
+      "periodName": "SNH48 三期生"
+    },
+    {
+      "ownerName": "李璇",
+      "team": "TEAM NII",
+      "teamId": 1002,
+      "groupName": "SNH48",
+      "periodName": "SNH48 三期生"
+    },
+    {
+      "ownerName": "周淑妍",
+      "team": "TEAM NII",
+      "teamId": 1002,
+      "groupName": "SNH48",
+      "periodName": "SNH48 三期生"
+    },
+    {
+      "ownerName": "宫小荷",
+      "team": "TEAM SII",
+      "teamId": 1001,
+      "groupName": "SNH48",
+      "periodName": "SNH48 三期生"
+    },
+    {
+      "ownerName": "曾琳瑜",
+      "team": "TEAM SII",
+      "teamId": 1001,
+      "groupName": "SNH48",
+      "periodName": "SNH48 三期生"
+    },
+    {
+      "ownerName": "李怡文",
+      "team": "非正式成员",
+      "groupName": "SNH48",
+      "periodName": "SNH48 三期生"
+    },
+    {
+      "ownerName": "栾嘉仪",
+      "team": "TEAM NII",
+      "teamId": 1002,
+      "groupName": "SNH48",
+      "periodName": "SNH48 十期生"
+    },
+    {
+      "ownerName": "陆婧华",
+      "team": "预备生",
+      "teamId": 1007,
+      "groupName": "SNH48",
+      "periodName": "SNH48 十期生"
+    },
+    {
+      "ownerName": "王贝妮",
+      "team": "TEAM SII",
+      "teamId": 1001,
+      "groupName": "SNH48",
+      "periodName": "SNH48 十三期生"
+    },
+    {
+      "ownerName": "冯雨停",
+      "team": "TEAM SII",
+      "teamId": 1001,
+      "groupName": "SNH48",
+      "periodName": "SNH48 十四期生"
+    },
+    {
+      "ownerName": "刘晨雪",
+      "team": "TEAM SII",
+      "teamId": 1001,
+      "groupName": "SNH48",
+      "periodName": "SNH48 十四期生"
+    },
+    {
+      "ownerName": "曲晨语",
+      "team": "TEAM X",
+      "teamId": 1004,
+      "groupName": "SNH48",
+      "periodName": "SNH48 十四期生"
+    },
+    {
+      "ownerName": "张韵雯",
+      "team": "TEAM X",
+      "teamId": 1004,
+      "groupName": "SNH48",
+      "periodName": "SNH48 四期生"
+    },
+    {
+      "ownerName": "孙静怡",
+      "team": "TEAM X",
+      "teamId": 1004,
+      "groupName": "SNH48",
+      "periodName": "SNH48 四期生"
+    },
+    {
+      "ownerName": "张瑾",
+      "team": "非正式成员",
+      "groupName": "SNH48",
+      "periodName": "SNH48 四期生"
+    },
+    {
+      "ownerName": "刘诗蕾",
+      "team": "TEAM NII",
+      "teamId": 1002,
+      "groupName": "SNH48",
+      "periodName": "SNH48 五期生"
+    },
+    {
+      "ownerName": "刘力玮",
+      "team": "TEAM SII",
+      "teamId": 1001,
+      "groupName": "SNH48",
+      "periodName": "SNH48 五期生"
+    },
+    {
+      "ownerName": "申月姣",
+      "team": "TEAM SII",
+      "teamId": 1001,
+      "groupName": "SNH48",
+      "periodName": "SNH48 五期生"
+    },
+    {
+      "ownerName": "陈音",
+      "team": "TEAM XII",
+      "teamId": 1005,
+      "groupName": "SNH48",
+      "periodName": "SNH48 五期生"
+    },
+    {
+      "ownerName": "时语婕",
+      "team": "TEAM XII",
+      "teamId": 1005,
+      "groupName": "SNH48",
+      "periodName": "SNH48 五期生"
+    },
+    {
+      "ownerName": "董芷依",
+      "team": "TEAM SII",
+      "teamId": 1001,
+      "groupName": "SNH48",
+      "periodName": "SNH48 一期生"
+    },
+    {
+      "ownerName": "顾香君",
+      "team": "TEAM SII",
+      "teamId": 1001,
+      "groupName": "SNH48",
+      "periodName": "SNH48 一期生"
+    },
+    {
+      "ownerName": "汤敏",
+      "team": "TEAM SII",
+      "teamId": 1001,
+      "groupName": "SNH48",
+      "periodName": "SNH48 一期生"
+    },
+    {
+      "ownerName": "陈丽",
+      "team": "非正式成员",
+      "groupName": "SNH48",
+      "periodName": "SNH48 一期生"
+    },
+    {
+      "ownerName": "何轶琛",
+      "team": "非正式成员",
+      "groupName": "SNH48",
+      "periodName": "SNH48 一期生"
+    },
+    {
+      "ownerName": "胡美婷",
+      "team": "非正式成员",
+      "groupName": "SNH48",
+      "periodName": "SNH48 一期生"
+    },
+    {
+      "ownerName": "俞慧文",
+      "team": "非正式成员",
+      "groupName": "SNH48",
+      "periodName": "SNH48 一期生"
+    },
+    {
+      "ownerName": "雨婷儿",
+      "team": "非正式成员",
+      "groupName": "SNH48",
+      "periodName": "SNH48 一期生"
+    },
+    {
+      "ownerName": "曾誉嘉",
+      "team": "非正式成员",
+      "groupName": "SNH48",
+      "periodName": "SNH48 一期生"
+    },
+    {
+      "ownerName": "张馨方",
+      "team": "非正式成员",
+      "groupName": "SNH48",
+      "periodName": "SNH48 一期生"
+    },
+    {
+      "ownerName": "王费澌",
+      "team": "非正式成员",
+      "groupName": "SNH48",
+      "periodName": "SNH48 一期生"
+    },
+    {
+      "ownerName": "丁紫妍",
+      "team": "未配属",
+      "groupName": "SNH48",
+      "periodName": "SNH48 一期生"
+    },
+    {
+      "ownerName": "蒋羽熙",
+      "team": "未配属",
+      "groupName": "SNH48",
+      "periodName": "SNH48 一期生"
+    },
+    {
+      "ownerName": "赵梦婷",
+      "team": "TEAM HII",
+      "teamId": 1003,
+      "groupName": "SNH48",
+      "periodName": "SNH48 八期生"
+    },
+    {
+      "ownerName": "文文",
+      "team": "TEAM HII",
+      "teamId": 1003,
+      "groupName": "SNH48",
+      "periodName": "SNH48 八期生"
+    },
+    {
+      "ownerName": "李沐遥",
+      "team": "TEAM B",
+      "teamId": 1101,
+      "groupName": "BEJ48",
+      "periodName": "BEJ48 二期生"
+    },
+    {
+      "ownerName": "郑依灵",
+      "team": "TEAM B",
+      "teamId": 1101,
+      "groupName": "BEJ48",
+      "periodName": "BEJ48 二期生"
+    },
+    {
+      "ownerName": "李烨",
+      "team": "TEAM E",
+      "teamId": 1102,
+      "groupName": "BEJ48",
+      "periodName": "BEJ48 二期生"
+    },
+    {
+      "ownerName": "徐静",
+      "team": "TEAM E",
+      "teamId": 1102,
+      "groupName": "BEJ48",
+      "periodName": "BEJ48 二期生"
+    },
+    {
+      "ownerName": "郑心雨",
+      "team": "TEAM J",
+      "teamId": 1103,
+      "groupName": "BEJ48",
+      "periodName": "BEJ48 二期生"
+    },
+    {
+      "ownerName": "陈逸菲",
+      "team": "TEAM B",
+      "teamId": 1101,
+      "groupName": "BEJ48",
+      "periodName": "BEJ48 一期生"
+    },
+    {
+      "ownerName": "吴月黎",
+      "team": "TEAM B",
+      "teamId": 1101,
+      "groupName": "BEJ48",
+      "periodName": "BEJ48 一期生"
+    },
+    {
+      "ownerName": "单习文",
+      "team": "TEAM J",
+      "teamId": 1103,
+      "groupName": "BEJ48",
+      "periodName": "BEJ48 一期生"
     }
   ]
 }
