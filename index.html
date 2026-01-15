@@ -2193,7 +2193,7 @@
             const statusSpan = document.getElementById('sdk-status');
             if (statusSpan) statusSpan.innerText = '正在更新成员列表...';
             try {
-                const url = "https://fastly.jsdelivr.net/gh/duan602728596/qqtools@main/packages/NIMTest/node/roomId.json";
+                const url = "https://fastly.jsdelivr.net/gh/yk1z/yaya_msg@master/members.json";
                 const res = await fetch(url);
                 const data = await res.json();
                 if (data && data.roomId) {
@@ -2549,7 +2549,7 @@
         let bestNameMapForDisplay = new Map();
 
         async function autoUpdateMemberData() {
-            const url = "https://fastly.jsdelivr.net/gh/duan602728596/qqtools@main/packages/NIMTest/node/roomId.json";
+            const url = "https://fastly.jsdelivr.net/gh/yk1z/yaya_msg@master/members.json";
             const csvPath = path.join(__dirname, 'members_id.csv');
             if (statusMsg) statusMsg.textContent = "⏳ 正在更新成员列表...";
             try {
