@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>牙牙消息 v1.1.8</title>
+    <title>牙牙消息 v1.1.9</title>
     <link rel="icon" href="./icon.png" type="image/x-icon">
     <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.4.0/dist/hls.min.js"></script>
@@ -13,6 +13,44 @@
     <script src="https://wlnimsc0.netease.im/nim-1.8.0.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dplayer/dist/DPlayer.min.js"></script>
     <style>
+        .danmu-row {
+            display: flex;
+            padding: 6px 15px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.03);
+            cursor: pointer;
+            font-size: 13px;
+            transition: background-color 0.2s;
+        }
+
+        .danmu-row:hover {
+            background-color: var(--chip-hover);
+        }
+
+        .danmu-row.active {
+            background-color: rgba(155, 106, 156, 0.15);
+            border-left: 3px solid var(--primary);
+        }
+
+        [data-theme="dark"] .danmu-row.active {
+            background-color: rgba(181, 131, 182, 0.2);
+        }
+
+        .danmu-time-col {
+            color: var(--primary);
+            margin-right: 10px;
+            font-weight: bold;
+            min-width: 95px;
+            flex-shrink: 0;
+        }
+
+        .danmu-text-col {
+            color: var(--text);
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
         #flip-list-container {
             transition: opacity 0.3s ease;
         }
@@ -1648,7 +1686,7 @@
                 </svg>
             </div>
             <img src="./icon.png" class="title-logo">
-            <span>牙牙消息 v1.1.8</span>
+            <span>牙牙消息 v1.1.9</span>
         </div>
         <div class="window-controls">
             <div class="control-btn" onclick="ipcRenderer.send('window-min')">
@@ -1670,7 +1708,9 @@
     </div>
     <div class="app-container">
         <aside class="sidebar">
-            <h2 style="margin: 0 0 10px 0; font-size: 20px; color: var(--primary); text-align: center;">牙牙消息</h2>
+            <h2 id="sidebar-title" onclick="triggerEasterEgg()"
+                style="margin: 0 0 10px 0; font-size: 20px; color: var(--primary); text-align: center; user-select: none;">
+                牙牙消息</h2>
             <div class="sidebar-group">
                 <div class="group-title">个性化</div>
                 <div class="btn-grid">
@@ -1937,6 +1977,18 @@
                                 disabled>生成切片</button>
                         </div>
                     </div>
+                    <div id="danmu-timeline-wrapper"
+                        style="display: none; margin-top: 15px; border: 1px solid var(--border); border-radius: 8px; background: var(--input-bg); overflow: hidden; display: flex; flex-direction: column;">
+                        <div
+                            style="padding: 10px 15px; background: rgba(0,0,0,0.03); border-bottom: 1px solid var(--border); font-weight: bold; font-size: 14px; color: var(--text); display: flex; justify-content: space-between; align-items: center;">
+                            <span>💬 弹幕时间轴</span>
+                            <span id="danmu-count-display"
+                                style="font-weight:normal; font-size:12px; color:var(--text-sub);"></span>
+                        </div>
+                        <div id="danmu-list-body" style="height: 300px; overflow-y: auto; padding: 0;">
+                            <div style="text-align: center; padding: 20px; color: var(--text-sub);">暂无弹幕数据</div>
+                        </div>
+                    </div>
                 </div>
 
                 <div id="vod-pagination-controls" class="pagination-container" style="padding-bottom: 20px;"></div>
@@ -2193,7 +2245,7 @@
             const statusSpan = document.getElementById('sdk-status');
             if (statusSpan) statusSpan.innerText = '正在更新成员列表...';
             try {
-                const url = "https://fastly.jsdelivr.net/gh/yk1z/yaya_msg@master/members.json";
+                const url = `https://fastly.jsdelivr.net/gh/yk1z/yaya_msg@master/members.json?t=${Date.now()}`;
                 const res = await fetch(url);
                 const data = await res.json();
                 if (data && data.roomId) {
@@ -2549,30 +2601,57 @@
         let bestNameMapForDisplay = new Map();
 
         async function autoUpdateMemberData() {
-            const url = "https://fastly.jsdelivr.net/gh/yk1z/yaya_msg@master/members.json";
+            const url = `https://fastly.jsdelivr.net/gh/yk1z/yaya_msg@master/members.json?t=${Date.now()}`;
             const csvPath = path.join(__dirname, 'members_id.csv');
-            if (statusMsg) statusMsg.textContent = "⏳ 正在更新成员列表...";
+
+            if (statusMsg) statusMsg.textContent = "⏳ 正在更新完整成员列表...";
+
             try {
                 const response = await fetch(url);
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
                 const data = await response.json();
-                if (!data.roomId || !Array.isArray(data.roomId)) {
+                if (!data.roomId && !Array.isArray(data.roomId)) {
                     throw new Error("JSON 数据格式不正确");
                 }
-                let csvContent = '\uFEFFownerName,id,team,roomId\n';
-                data.roomId.forEach(member => {
+
+                let csvContent = '\uFEFFownerName,id,team,roomId,serverId,channelId,groupName,periodName,teamId,pinyin,account,liveRoomId\n';
+
+                let allMembers = [];
+                if (Array.isArray(data.roomId)) allMembers = allMembers.concat(data.roomId);
+                if (Array.isArray(data.members)) allMembers = allMembers.concat(data.members);
+                if (Array.isArray(data.retired)) allMembers = allMembers.concat(data.retired);
+
+                allMembers.forEach(member => {
                     const name = member.ownerName || '';
                     const id = member.id || '';
                     const team = member.team || '';
                     const roomId = member.roomId || '';
-                    csvContent += `${name},${id},${team},${roomId}\n`;
+
+                    const serverId = member.serverId || '';
+                    const channelId = member.channelId || '';
+                    const groupName = member.groupName || '';
+                    const periodName = member.periodName || '';
+                    const teamId = member.teamId || '';
+                    const pinyin = member.pinyin || '';
+                    const account = member.account || '';
+                    const liveRoomId = member.liveRoomId || '';
+
+                    if (id) {
+                        csvContent += `${name},${id},${team},${roomId},${serverId},${channelId},${groupName},${periodName},${teamId},${pinyin},${account},${liveRoomId}\n`;
+                    }
                 });
+
                 fs.writeFileSync(csvPath, csvContent, 'utf8');
+
                 loadMemberIdMap();
-                if (statusMsg) statusMsg.textContent = `成员列表自动更新完成 (${data.roomId.length}人)`;
+
+                if (statusMsg) statusMsg.textContent = `成员列表更新完成 (${allMembers.length}人)`;
+
                 setTimeout(() => {
                     if (statusMsg) statusMsg.textContent = "软件已就绪";
                 }, 3000);
+
             } catch (err) {
                 console.error("自动更新成员 ID 失败:", err);
                 if (statusMsg) statusMsg.textContent = "成员列表更新失败，使用本地缓存";
@@ -2780,6 +2859,7 @@
                         const nickname = parts[0];
                         const text = parts.slice(1).join('');
                         result.push({
+                            name: nickname,
                             text: text,
                             time: seconds,
                             color: '#FFFFFF',
@@ -2981,6 +3061,11 @@
             });
         }
         window.onload = function () {
+            window.addEventListener('keydown', function (e) {
+                if (e.key === 'F11') {
+                    e.preventDefault();
+                }
+            });
             autoUpdateMemberData();
             checkGitHubNotice();
             initTheme();
@@ -3188,6 +3273,8 @@
 
         function backToLiveList() {
             if (returnToOpenLive) {
+                const dmWrapper = document.getElementById('danmu-timeline-wrapper');
+                if (dmWrapper) dmWrapper.style.display = 'none';
                 livePlayerView.style.display = 'none';
                 destroyPlayers();
                 returnToOpenLive = false;
@@ -3685,6 +3772,7 @@
                             danmuData = parsePocketDanmu(danmuText);
                         } catch (e) { }
                     }
+                    renderDanmuListUI(danmuData);
                     startPlayer(streamUrl, title, isLive, res.content.chatroomId, danmuData);
                 } else {
                     alert('无法获取流地址');
@@ -4179,6 +4267,9 @@
                 };
                 removeInput();
                 setTimeout(removeInput, 500);
+                art.on('timeupdate', (currentTime) => {
+                    syncDanmuHighlight(currentTime);
+                });
                 art.play();
             });
         }
@@ -5903,13 +5994,13 @@
             if (matches.length > 0) {
 
                 const html = matches.map(m => `
-    <div class="suggestion-item" 
-         onclick="selectProfileMember('${m.ownerName}', '${m.id || m.userId || m.memberId}')"
-         style="display: flex; justify-content: space-between; align-items: center;">
-        <span style="font-weight:bold;">${m.ownerName}</span>
-        <span class="team-tag">${m.team}</span>
-    </div>
-`).join('');
+                    <div class="suggestion-item" 
+                         onclick="selectProfileMember('${m.ownerName}', '${m.id || m.userId || m.memberId}')"
+                         style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight:bold;">${m.ownerName}</span>
+                        <span class="team-tag">${m.team}</span>
+                    </div>
+                `).join('');
                 resultBox.innerHTML = html;
                 resultBox.style.display = 'block';
             } else {
@@ -6009,12 +6100,12 @@
                     ${historyItems}
                 </div>
             </div>
-        `;
+            `;
             }
 
             const displayName = info.starName || info.nickname;
             const htmlContent = `
-        <div class="Box-row" style="margin-bottom: 20px;">
+            <div class="Box-row" style="margin-bottom: 20px;">
             <div style="font-size: 20px; font-weight: bold; margin-bottom: 15px; border-left: 4px solid var(--primary); padding-left: 10px;">
                 ${displayName} <span style="font-size:14px; color:var(--text-sub); font-weight:normal;">(${info.pinyin || ''})</span>
             </div>
@@ -6369,6 +6460,7 @@
                     streamUrl = highQuality ? highQuality.streamPath : res.content.playStreams[0].streamPath;
 
                     if (streamUrl) {
+                        renderDanmuListUI([]);
                         startPlayer(streamUrl, title, false, null, []);
                     } else {
                         console.warn(`[播放失败] liveId:${liveId} 无可用流`);
@@ -6457,6 +6549,113 @@
                 console.error('[PotPlayer] 调用异常:', err);
             } finally {
                 imgEl.style.cursor = originalCursor;
+            }
+        }
+        let currentDanmuList = [];
+
+        function renderDanmuListUI(danmuData) {
+            const wrapper = document.getElementById('danmu-timeline-wrapper');
+            const container = document.getElementById('danmu-list-body');
+            const countDisplay = document.getElementById('danmu-count-display');
+
+            lastActiveIndex = -1;
+
+            currentDanmuList = danmuData || [];
+
+            if (!wrapper || !container) return;
+
+            if (currentMode === 'live' || currentDanmuList.length === 0) {
+                wrapper.style.display = 'none';
+                return;
+            }
+
+            wrapper.style.display = 'flex';
+            container.innerHTML = '';
+
+            container.scrollTop = 0;
+
+
+            if (countDisplay) countDisplay.innerText = `共 ${currentDanmuList.length} 条`;
+
+            const fragment = document.createDocumentFragment();
+
+            currentDanmuList.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'danmu-row';
+                div.id = `dm-row-${index}`;
+                div.dataset.time = item.time;
+
+                const s = Math.floor(item.time);
+                const ms = Math.floor((item.time % 1) * 1000);
+                const h = Math.floor(s / 3600);
+                const m = Math.floor((s % 3600) / 60);
+                const sec = s % 60;
+
+                const pad = (n, w = 2) => String(n).padStart(w, '0');
+                const timeStr = `${pad(h)}:${pad(m)}:${pad(sec)}.${pad(ms, 3)}`;
+
+                const nameStr = item.name || '???';
+
+                div.innerHTML = `
+            <span class="danmu-time-col">${timeStr}</span>
+            <span style="color: var(--text-sub); font-weight: bold; margin-right: 10px; white-space: nowrap;">${nameStr}</span>
+            <span class="danmu-text-col" title="${item.text}">${item.text}</span>
+        `;
+
+                div.onclick = () => {
+                    if (art) {
+                        art.seek = item.time;
+                        art.play();
+                    }
+                };
+
+                fragment.appendChild(div);
+            });
+
+            container.appendChild(fragment);
+        }
+
+        let lastActiveIndex = -1;
+        function syncDanmuHighlight(currentTime) {
+            if (!currentDanmuList.length) return;
+
+            let activeIndex = -1;
+            for (let i = 0; i < currentDanmuList.length; i++) {
+                if (currentDanmuList[i].time > currentTime) {
+                    break;
+                }
+                activeIndex = i;
+            }
+
+            if (activeIndex !== lastActiveIndex) {
+                if (lastActiveIndex !== -1) {
+                    const oldRow = document.getElementById(`dm-row-${lastActiveIndex}`);
+                    if (oldRow) oldRow.classList.remove('active');
+                }
+
+                if (activeIndex !== -1) {
+                    const newRow = document.getElementById(`dm-row-${activeIndex}`);
+                    if (newRow) {
+                        newRow.classList.add('active');
+                        newRow.scrollIntoView({ behavior: "smooth", block: "center" });
+                    }
+                }
+                lastActiveIndex = activeIndex;
+            }
+        }
+
+        let eggClickCount = 0;
+
+        function triggerEasterEgg() {
+            eggClickCount++;
+
+            if (eggClickCount === 43) {
+                const titleEl = document.getElementById('sidebar-title');
+                if (titleEl) {
+                    titleEl.innerText = "AY4EVER - yk1z";
+                    titleEl.style.color = "#1edfe9";
+                }
+
             }
         }
 
@@ -6775,13 +6974,13 @@
                             : '';
 
                         return `<div class="msg-item" style="padding:8px 0; border-bottom:1px solid #eee; font-size:13px;">
-                    <div style="color:#999; font-size:11px; margin-bottom:2px; display:flex; align-items:center;">
+                        <div style="color:#999; font-size:11px; margin-bottom:2px; display:flex; align-items:center;">
                         <span style="margin-right: 5px;">${time}</span>
                         <span style="color:${nameColor}; font-weight:${isMember ? 'bold' : 'normal'}">${displayName}</span>
                         ${idDisplay}
-                    </div>
-                    <div style="color:#333; line-height:1.4; word-break: break-all;">${safeTxt}</div> 
-                </div>`;
+                        </div>
+                        <div style="color:#333; line-height:1.4; word-break: break-all;">${safeTxt}</div> 
+                    </div>`;
                     }).join('');
 
                     const range = document.createRange();
@@ -6834,31 +7033,31 @@
                 return path.startsWith('/') ? `${baseUrl}${path}` : `${baseUrl}/${path}`;
             };
             const styleValue = `
-        body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; background-color: #f6f8fa; padding: 20px; }
-        .template-body { width: 100%; max-width: 900px; margin: 0 auto; }
-        .template-media { max-width: 600px; border-radius: 6px; margin-top: 5px; }
-        .template-image-express-image { max-width: 85px; }
-        .template-pre { white-space: pre-wrap; word-break: break-all; margin-bottom: 8px; }
-        .avatar-5 { width: 32px; height: 32px; } 
-        .color-bg-accent { background-color: #f6f8fa; } 
-        .color-fg-accent { color: #0969da; text-decoration: none; }
-    `;
+                    body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; background-color: #f6f8fa; padding: 20px; }
+                    .template-body { width: 100%; max-width: 900px; margin: 0 auto; }
+                    .template-media { max-width: 600px; border-radius: 6px; margin-top: 5px; }
+                    .template-image-express-image { max-width: 85px; }
+                    .template-pre { white-space: pre-wrap; word-break: break-all; margin-bottom: 8px; }
+                    .avatar-5 { width: 32px; height: 32px; } 
+                    .color-bg-accent { background-color: #f6f8fa; } 
+                    .color-fg-accent { color: #0969da; text-decoration: none; }
+                `;
             let htmlContent = `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>口袋消息导出</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="https://unpkg.com/@primer/css@20.8.3/dist/primer.css" />
-    <style>${styleValue}</style>
-</head>
-<body class="template-body">
-    <div class="d-flex flex-column">
-        <div class="flex-auto p-2">
-            <div class="Box">
-                <ul class="f5" style="list-style: none; padding: 0; margin: 0;">
-`;
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>口袋消息导出</title>
+                <meta name="viewport" content="width=device-width, initial-scale=1">
+                <link rel="stylesheet" href="https://unpkg.com/@primer/css@20.8.3/dist/primer.css" />
+                <style>${styleValue}</style>
+            </head>
+            <body class="template-body">
+                <div class="d-flex flex-column">
+                    <div class="flex-auto p-2">
+                        <div class="Box">
+                            <ul class="f5" style="list-style: none; padding: 0; margin: 0;">
+            `;
             allFetchedMsgs.forEach(m => {
                 let contentHtml = '';
                 let userHtml = '';
@@ -6902,11 +7101,11 @@
                             } else if (m.msgType === 'IMAGE') {
                                 const url = fix48Url(json.url);
                                 contentHtml = `
-        <div class="mb-2">
-            <img class="template-media" src="${url}" loading="lazy" style="cursor: default;"/>
-        </div>
-        <div class="mb-2">
-        </div>`;
+                                            <div class="mb-2">
+                                            <img class="template-media" src="${url}" loading="lazy" style="cursor: default;"/>
+                                            </div>
+                                            <div class="mb-2">
+                                            </div>`;
                             } else if (json.messageType === 'GIFT_TEXT' || m.msgType === 'GIFT_TEXT') {
                                 const info = json.giftInfo || json;
                                 const giftImg = info.picPath ? fix48Url(info.picPath) : '';
@@ -6995,10 +7194,10 @@
                                     }
                                 }
                                 contentHtml = `
-        <p class="mb-2"><strong>翻牌问题：</strong>${q}</p>
-        <p class="mb-2"><strong>回答：</strong>${a}</p>
-        ${mediaHtml}
-    `;
+                                        <p class="mb-2"><strong>翻牌问题：</strong>${q}</p>
+                                        <p class="mb-2"><strong>回答：</strong>${a}</p>
+                                        ${mediaHtml}
+                                    `;
                             } else {
                                 contentHtml = `<p class="mb-2 template-pre">${body}</p>`;
                             }
@@ -7024,12 +7223,12 @@
         `;
             });
             htmlContent += `
-                </ul>
-            </div>
-        </div>
-    </div>
-</body>
-</html>`;
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </body>
+            </html>`;
 
             const memberName = currentSelectedMemberName || document.getElementById('member-search').value.trim() || '未命名成员';
             const exportBtn = document.getElementById('btn-export-html');
