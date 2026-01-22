@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>牙牙消息 v1.1.9</title>
+    <title>牙牙消息 v1.2.0</title>
     <link rel="icon" href="./icon.png" type="image/x-icon">
     <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.4.0/dist/hls.min.js"></script>
@@ -718,8 +718,8 @@
         }
 
         .Box-row:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            border-color: var(--primary);
         }
 
         .user-header-row {
@@ -769,8 +769,7 @@
         .context-highlight {
             border: 2px solid var(--primary);
             background-color: rgba(155, 106, 156, 0.1) !important;
-            transform: scale(1.02);
-            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 20px rgba(155, 106, 156, 0.3);
             z-index: 1;
         }
 
@@ -1326,8 +1325,9 @@
             font-size: 12px;
             color: var(--text-sub);
             display: -webkit-box;
-            -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+            line-clamp: 2;
             overflow: hidden;
             height: 32px;
         }
@@ -1686,7 +1686,7 @@
                 </svg>
             </div>
             <img src="./icon.png" class="title-logo">
-            <span>牙牙消息 v1.1.9</span>
+            <span>牙牙消息 v1.2.0</span>
         </div>
         <div class="window-controls">
             <div class="control-btn" onclick="ipcRenderer.send('window-min')">
@@ -1761,18 +1761,31 @@
             <div class="sidebar-group" id="sb-search">
                 <div class="group-title">消息搜索</div>
 
-                <div style="display: flex; align-items: center; margin-bottom: 8px;">
-                    <select id="searchTypeSelect" class="input-control" onchange="applyFilters()"
-                        style="width: 80px; padding-left: 5px; padding-right: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; border-right: none; cursor: pointer;">
-                        <option value="all">综合</option>
-                        <option value="text">内容</option>
-                        <option value="name">昵称</option>
-                        <option value="id">ID</option>
-                    </select>
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                    <div id="search-type-wrapper" style="position: relative; width: 90px;">
+                        <input type="hidden" id="searchTypeSelect" value="all">
+
+                        <input type="text" id="search-type-display" class="input-control" value="综合" readonly
+                            onclick="toggleSearchTypeDropdown()"
+                            style="cursor: pointer; text-align: left; padding-right: 20px;">
+
+                        <div
+                            style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text-sub); font-size: 10px;">
+                            ▼
+                        </div>
+
+                        <div id="search-type-dropdown" class="suggestion-box" style="display: none; top: 40px;">
+                            <div class="suggestion-item" onclick="selectSearchType('all', '综合')">综合</div>
+                            <div class="suggestion-item" onclick="selectSearchType('text', '内容')">内容</div>
+                            <div class="suggestion-item" onclick="selectSearchType('name', '昵称')">昵称</div>
+                            <div class="suggestion-item" onclick="selectSearchType('id', 'ID')">ID</div>
+                        </div>
+                    </div>
 
                     <input type="text" id="searchInput" class="input-control" placeholder="输入关键词..." disabled
-                        style="flex: 1; border-top-left-radius: 0; border-bottom-left-radius: 0;">
+                        style="flex: 1;">
                 </div>
+
                 <button id="sortBtn" class="btn btn-secondary btn-full" onclick="toggleSortOrder()">
                     当前：最新在前
                 </button>
@@ -1840,6 +1853,8 @@
                     <button class="btn btn-secondary" onclick="openUserAnalysis()" id="analysisBtn"
                         disabled>互动榜</button>
                 </div>
+                <button class="btn btn-secondary btn-full" style="margin-top: 8px;"
+                    onclick="openInBrowser('https://yk1z.github.io/')">其它数据</button>
             </div>
             <div class="sidebar-group" id="sb-type">
                 <div class="group-title">类型筛选</div>
@@ -2097,11 +2112,38 @@
                 <div class="list-container">
                     <div
                         style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-                        <h2 style="margin: 0; color: var(--primary);">我的翻牌记录</h2>
-                        <div style="display:flex; gap:10px;">
-                            <span id="flip-status-text"
-                                style="font-size:12px; color:var(--text-sub); line-height:32px;"></span>
-                            <button class="btn btn-secondary" onclick="loadFlipList(0)">刷新列表</button>
+
+                        <div style="display: flex; align-items: baseline; gap: 12px;">
+                            <h2 style="margin: 0; color: var(--primary);">我的翻牌记录</h2>
+                            <span id="flip-status-text" style="font-size: 12px; color: var(--text-sub);"></span>
+                        </div>
+
+                        <div style="display: flex; gap: 10px; align-items: center;">
+
+                            <div id="flip-type-wrapper" style="position: relative; width: 110px;">
+                                <input type="text" id="flip-type-display" class="input-control" value="全部类型" readonly
+                                    onclick="toggleFlipTypeDropdown()"
+                                    style="cursor: pointer; text-align: left; padding-right: 25px;">
+
+                                <div
+                                    style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text-sub); font-size: 12px;">
+                                    ▼
+                                </div>
+
+                                <div id="flip-type-dropdown" class="suggestion-box" style="display: none; top: 42px;">
+                                    <div class="suggestion-item" onclick="selectFlipType('0', '全部类型')">全部类型</div>
+                                    <div class="suggestion-item" onclick="selectFlipType('1', '文字')">文字</div>
+                                    <div class="suggestion-item" onclick="selectFlipType('2', '语音')">语音</div>
+                                    <div class="suggestion-item" onclick="selectFlipType('3', '视频')">视频</div>
+                                </div>
+                            </div>
+
+                            <input type="text" id="flipSearchInput" class="input-control" style="width: 180px;"
+                                placeholder="搜索成员或内容..." oninput="applyFlipSearch()">
+
+                            <button class="btn btn-secondary" style="padding: 0 20px;" onclick="forceReloadFlips()">
+                                刷新
+                            </button>
                         </div>
                     </div>
 
@@ -2213,7 +2255,7 @@
     <div class="modal-overlay" id="contextModal">
         <div class="modal-content" style="max-width: 700px;">
             <div class="modal-header">
-                <span class="modal-title">📖 消息上下文</span>
+                <span class="modal-title">消息上下文</span>
                 <span class="close-btn" onclick="closeContextModal()">×</span>
             </div>
             <div class="modal-body" id="contextListContainer" style="background: var(--bg); padding: 20px;"></div>
@@ -2258,28 +2300,120 @@
             }
         }
 
+
+        const TEAM_COLORS = {
+            'SII': '#A1D5ED', 'TEAM SII': '#A1D5ED',
+            'NII': '#BE98C7', 'TEAM NII': '#BE98C7',
+            'HII': '#F8941D', 'TEAM HII': '#F8941D',
+            'X': '#B1D61B', 'TEAM X': '#B1D61B',
+            'B': '#FF4083', 'TEAM B': '#FF4083',
+            'E': '#0CC8C3', 'TEAM E': '#0CC8C3',
+            'G': '#9FBF40', 'TEAM G': '#9FBF40',
+            'NIII': '#FFE249', 'TEAM NIII': '#FFE249',
+            'Z': '#EA617B', 'TEAM Z': '#EA617B',
+            'C': '#FEB90D', 'TEAM C': '#FEB90D',
+            'K': '#FF5043', 'TEAM K': '#FF5043',
+            'CII': '#D21217', 'TEAM CII': '#D21217',
+            'GII': '#0061C0', 'TEAM GII': '#0061C0',
+            'IDFT': '#666666'
+        };
+
+        function hexToRgb(hex) {
+            if (!hex) return '0, 0, 0';
+            let c = hex.substring(1).split('');
+            if (c.length === 3) c = [c[0], c[0], c[1], c[1], c[2], c[2]];
+            c = '0x' + c.join('');
+            return [(c >> 16) & 255, (c >> 8) & 255, c & 255].join(', ');
+        }
+
+        (function injectTeamCss() {
+            const oldStyle = document.getElementById('team-dynamic-css');
+            if (oldStyle) oldStyle.remove();
+
+            const style = document.createElement('style');
+            style.id = 'team-dynamic-css';
+            style.innerHTML = `
+
+        .team-tag[style*="--team-rgb"] {
+            background-color: rgba(var(--team-rgb), 0.15) !important;
+            color: rgb(var(--team-rgb)) !important;
+            border: 1px solid rgba(var(--team-rgb), 0.5) !important;
+            text-shadow: none !important;
+            font-weight: 700 !important; 
+        }
+
+
+        html[data-theme="light"] .team-tag[style*="--team-rgb"] {
+             filter: brightness(0.9);
+        }
+
+
+        html[data-theme="dark"] .team-tag[style*="--team-rgb"] {
+            background-color: rgba(var(--team-rgb), 0.2) !important;
+            box-shadow: 0 0 8px rgba(var(--team-rgb), 0.2);
+        }
+    `;
+            document.head.appendChild(style);
+        })();
+
+        function getTeamStyle(teamName, isInactive) {
+            if (!teamName || isInactive) return '';
+
+            const upperName = teamName.toUpperCase();
+            const color = TEAM_COLORS[upperName] || TEAM_COLORS[upperName.replace('TEAM ', '')];
+
+            if (color) {
+                const rgb = hexToRgb(color);
+                return `--team-rgb: ${rgb};`;
+            }
+            return '';
+        }
+
         function handleSearch(keyword) {
             const resultBox = document.getElementById('search-results');
-            if (!keyword.trim()) {
+            if (!keyword || !keyword.trim()) {
                 resultBox.style.display = 'none';
                 return;
             }
+
             if (!isMemberDataLoaded) {
-                loadMemberData();
+                if (typeof loadMemberData === 'function') loadMemberData();
                 return;
             }
-            const matches = memberData.filter(m => m.ownerName.includes(keyword));
+
+            const lowerKw = keyword.toLowerCase();
+
+            let matches = memberData.filter(m => {
+                const matchName = m.ownerName.includes(keyword);
+
+                const pinyin = m.pinyin || "";
+                const matchPinyin = pinyin.toLowerCase().includes(lowerKw);
+
+                const initials = getPinyinInitials(pinyin);
+                const matchInitials = initials.toLowerCase().includes(lowerKw);
+
+                return matchName || matchPinyin || matchInitials;
+            });
+
+            matches.sort(memberSortLogic);
+
             if (matches.length > 0) {
-                const html = matches.map(m => `
-                    <div class="suggestion-item" 
-                         onclick="selectToolMember('${m.ownerName}', '${m.serverId}', '${m.channelId}')"
-                         style="display: flex; justify-content: space-between; align-items: center;">
-                        
-                        <span style="font-weight:bold;">${m.ownerName}</span>
-                        <span class="team-tag">${m.team}</span>
-                        
-                    </div>
-                `).join('');
+                const html = matches.map(m => {
+                    const isInactive = m.isInGroup === false;
+                    const baseStyle = isInactive ? 'opacity:0.6; color:#999;' : '';
+
+                    let colorStyle = '';
+                    if (typeof getTeamStyle === 'function') {
+                        colorStyle = getTeamStyle(m.team, isInactive);
+                    }
+
+                    return `<div class="suggestion-item" 
+                 onclick="selectToolMember('${m.ownerName}', '${m.serverId}', '${m.channelId}')"
+                 style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-weight:bold; ${baseStyle}">${m.ownerName}</span>
+                <span class="team-tag" style="${baseStyle} ${colorStyle}">${m.team}</span>
+            </div>`;
+                }).join('');
 
                 resultBox.innerHTML = html;
                 resultBox.style.display = 'block';
@@ -3060,15 +3194,20 @@
                 }
             });
         }
-        window.onload = function () {
+        window.onload = async function () {
             window.addEventListener('keydown', function (e) {
                 if (e.key === 'F11') {
                     e.preventDefault();
                 }
             });
+
+            await loadMemberIdMap();
+
             autoUpdateMemberData();
+
             checkGitHubNotice();
             initTheme();
+
             if (fs.existsSync(CACHE_FILE)) {
                 statusMsg.textContent = "🚀 正在流式读取缓存...";
                 loadCacheOptimized().then((data) => {
@@ -3087,10 +3226,12 @@
             } else {
                 scanFiles();
             }
+
             if (window.vodState) {
                 renderVodGroupOptions();
             }
         };
+
         window.forceReloadData = function () {
             outputList.innerHTML = '<div class="placeholder-tip"><h3>🔄 正在增量更新...</h3><p>正在比对文件变动，请稍候。</p></div>';
             statusMsg.textContent = "⏳ 正在分析新文件...";
@@ -3313,30 +3454,69 @@
             const input = document.getElementById('vod-member-filter');
             const box = document.getElementById('member-suggestions');
             const val = input.value.trim().toLowerCase();
-            if (val.length === 0) box.style.display = 'none';
-            else {
-                let matches = [];
+
+            if (!window.isMemberDataLoaded && typeof loadMemberData === 'function') {
+                loadMemberData();
+            }
+
+            if (document.activeElement !== input) {
+                box.style.display = 'none';
+                return;
+            }
+
+            if (val.length === 0) {
+                box.style.display = 'none';
+            } else {
+                let matchNames = [];
+
                 for (let name of bestNameMapForDisplay.values()) {
-                    if (name.toLowerCase().includes(val)) matches.push(name);
+                    const matchName = name.toLowerCase().includes(val);
+                    let matchPinyin = false;
+                    let matchInitials = false;
+                    if (typeof memberData !== 'undefined') {
+                        const mObj = memberData.find(m => m.ownerName === name);
+                        if (mObj && mObj.pinyin) {
+                            if (mObj.pinyin.toLowerCase().includes(val)) matchPinyin = true;
+                            const initials = getPinyinInitials(mObj.pinyin);
+                            if (initials.toLowerCase().includes(val)) matchInitials = true;
+                        }
+                    }
+                    if (matchName || matchPinyin || matchInitials) {
+                        matchNames.push(name);
+                    }
                 }
-                if (matches.length > 0) {
-                    box.innerHTML = matches.slice(0, 10).map(name => {
+
+                if (typeof memberData !== 'undefined' && memberData.length > 0) {
+                    matchNames.sort((nameA, nameB) => {
+                        const mA = memberData.find(m => m.ownerName === nameA);
+                        const mB = memberData.find(m => m.ownerName === nameB);
+                        return typeof memberSortLogic === 'function' ? memberSortLogic(mA, mB) : 0;
+                    });
+                }
+
+                if (matchNames.length > 0) {
+                    box.innerHTML = matchNames.slice(0, 10).map(name => {
                         const team = memberTeamMap.get(name) || '';
-                        const teamHtml = team ? `<span class="team-tag">${team}</span>` : '';
+                        const mObj = (typeof memberData !== 'undefined') ? memberData.find(m => m.ownerName === name) : null;
+                        const isInactive = mObj && mObj.isInGroup === false;
+                        const baseStyle = isInactive ? 'opacity:0.6; color:#999;' : '';
+
+                        const colorStyle = getTeamStyle(team, isInactive);
+                        const teamHtml = team ? `<span class="team-tag" style="${baseStyle} ${colorStyle}">${team}</span>` : '';
 
                         return `<div class="suggestion-item" 
-                                     onclick="selectMember('${name}')"
-                                     style="display: flex; justify-content: space-between; align-items: center;">
-                                    <span style="font-weight:bold">${name}</span>
-                                    ${teamHtml}
-                                </div>`;
+                             onclick="selectMember('${name}')"
+                             style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-weight:bold; ${baseStyle}">${name}</span>
+                            ${teamHtml}
+                        </div>`;
                     }).join('');
-
                     box.style.display = 'block';
                 } else {
                     box.style.display = 'none';
                 }
             }
+
             clearTimeout(filterTimeout);
             filterTimeout = setTimeout(() => {
                 if (window.vodState) {
@@ -4327,34 +4507,51 @@
             const wrapper = document.createElement('div');
             wrapper.className = 'audio-wrapper';
             wrapper.innerHTML = `<div class="audio-control-icon">▶</div><div class="audio-wave-box"><div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div></div><span class="audio-duration">语音</span><audio style="display:none" preload="metadata" src="${url}"></audio>`;
+
             const audio = wrapper.querySelector('audio'),
                 icon = wrapper.querySelector('.audio-control-icon'),
                 timeDisplay = wrapper.querySelector('.audio-duration');
+
             audio.onloadedmetadata = () => {
                 timeDisplay.innerText = `${Math.floor(audio.duration / 60)}:${Math.floor(audio.duration % 60).toString().padStart(2, '0')}`;
             };
+
+            audio.onpause = () => {
+                wrapper.classList.remove('playing');
+                icon.innerText = '▶';
+            };
+
+            audio.onplay = () => {
+                wrapper.classList.add('playing');
+                icon.innerText = '⏸';
+            };
+
             wrapper.onclick = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
+
                 if (audio.paused) {
                     if (currentPlayingAudio && currentPlayingAudio !== audio) {
                         currentPlayingAudio.pause();
+                        currentPlayingAudio.currentTime = 0;
                     }
+
+                    audio.currentTime = 0;
+
                     audio.play();
                     currentPlayingAudio = audio;
-                    wrapper.classList.add('playing');
-                    icon.innerText = '⏸';
                 } else {
                     audio.pause();
-                    wrapper.classList.remove('playing');
-                    icon.innerText = '▶';
+                    audio.currentTime = 0;
                 }
             };
+
             audio.onended = () => {
                 wrapper.classList.remove('playing');
                 icon.innerText = '▶';
-                currentPlayingAudio = null;
+                if (currentPlayingAudio === audio) currentPlayingAudio = null;
             };
+
             return wrapper;
         }
 
@@ -4876,14 +5073,28 @@
             allMemberOptions.forEach(name => {
                 if (term === '' || name.toLowerCase().includes(term)) {
                     const team = memberTeamMap.get(name) || '';
-                    const teamHtml = team ? `<span class="team-tag">${team}</span>` : '';
+
+                    let isInactive = false;
+                    if (typeof memberData !== 'undefined') {
+                        const mObj = memberData.find(m => m.ownerName === name);
+                        if (mObj && mObj.isInGroup === false) isInactive = true;
+                    }
+
+                    const baseStyle = isInactive ? 'opacity:0.6; color:#999;' : '';
+
+                    let colorStyle = '';
+                    if (typeof getTeamStyle === 'function') {
+                        colorStyle = getTeamStyle(team, isInactive);
+                    }
+
+                    const teamHtml = team ? `<span class="team-tag" style="${baseStyle} ${colorStyle}">${team}</span>` : '';
 
                     html += `<div class="suggestion-item" 
-                                 onclick="selectMemberFilter('${name}')"
-                                 style="display: flex; justify-content: space-between; align-items: center;">
-                                <span style="font-weight:bold">${name}</span>
-                                ${teamHtml}
-                             </div>`;
+                         onclick="selectMemberFilter('${name}')"
+                         style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight:bold; ${baseStyle}">${name}</span>
+                        ${teamHtml}
+                     </div>`;
                     matchCount++;
                 }
             });
@@ -5141,19 +5352,22 @@
         }
 
         function filterByUser(username) {
-            closeUserAnalysis();
+            if (typeof closeUserAnalysis === 'function') closeUserAnalysis();
 
             const searchInput = document.getElementById('searchInput');
+
             const typeSelect = document.getElementById('searchTypeSelect');
+
+            const typeDisplay = document.getElementById('search-type-display');
 
             if (searchInput) {
                 searchInput.value = username;
                 searchInput.disabled = false;
 
                 if (typeSelect) typeSelect.value = 'text';
+                if (typeDisplay) typeDisplay.value = '内容';
 
                 if (typeof setFilter === 'function') setFilter('all');
-
                 if (typeof resetDateFilter === 'function') resetDateFilter();
 
                 applyFilters();
@@ -5162,17 +5376,20 @@
                 if (view) view.scrollTop = 0;
             }
         }
+
         window.filterByUserId = function (userId) {
             if (window.event) window.event.stopPropagation();
 
             const searchInput = document.getElementById('searchInput');
             const typeSelect = document.getElementById('searchTypeSelect');
+            const typeDisplay = document.getElementById('search-type-display');
 
             if (searchInput && userId) {
                 searchInput.value = String(userId).trim();
                 searchInput.disabled = false;
 
                 if (typeSelect) typeSelect.value = 'id';
+                if (typeDisplay) typeDisplay.value = 'ID';
 
                 if (typeof setFilter === 'function') setFilter('all');
                 if (typeof resetDateFilter === 'function') resetDateFilter();
@@ -5277,7 +5494,7 @@
                 div.appendChild(content);
                 contextListContainer.appendChild(div);
             });
-            document.querySelector('#contextModal .modal-title').innerText = `📖 上下文: ${targetPost.groupName}`;
+            document.querySelector('#contextModal .modal-title').innerText = `上下文: ${targetPost.groupName}`;
             contextModal.style.display = 'flex';
             setTimeout(() => {
                 const tEl = document.getElementById('target-message-scroll-anchor');
@@ -5290,7 +5507,7 @@
 
         function closeContextModal() {
             contextModal.style.display = 'none';
-            document.querySelector('#contextModal .modal-title').innerText = `📖 消息上下文`;
+            document.querySelector('#contextModal .modal-title').innerText = `消息上下文`;
             if (currentPlayingAudio) {
                 currentPlayingAudio.pause();
                 currentPlayingAudio = null;
@@ -5734,18 +5951,205 @@
                 bar.classList.remove('notice-hiding');
             }, 500);
         }
+
         let flipCurrentPage = 0;
         const FLIP_PAGE_SIZE = 20;
+
+        let allFlipData = [];
+        let isFetchingFlips = false;
+        let currentFlipFilterType = "0";
+        let currentSearchKeyword = "";
+
+        function formatFlipTime(timestamp) {
+            const dateObj = new Date(Number(timestamp));
+            const y = dateObj.getFullYear();
+            const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const d = String(dateObj.getDate()).padStart(2, '0');
+            const hh = String(dateObj.getHours()).padStart(2, '0');
+            const mm = String(dateObj.getMinutes()).padStart(2, '0');
+            const ss = String(dateObj.getSeconds()).padStart(2, '0');
+            return `${y}.${m}.${d} ${hh}:${mm}:${ss}`;
+        }
+
+        function createFlipCardDOM(item) {
+            const card = document.createElement('div');
+            card.className = 'Box-row';
+            card.style.marginBottom = '12px';
+            card.style.transition = 'all 0.2s';
+
+            const qTimeStr = formatFlipTime(item.qtime);
+
+            const tagStyle = 'padding: 2px 6px; border-radius: 4px; font-size: 12px; border-width: 1px; border-style: solid; display: inline-flex; align-items: center; justify-content: center; height: 20px; box-sizing: border-box;';
+
+            let statusHtml = '';
+            if (item.status === 1) statusHtml = `<span style="color:#faad14; border-color:#faad14; ${tagStyle}">待回答</span>`;
+            else if (item.status === 2) statusHtml = `<span style="color:#52c41a; border-color:#52c41a; ${tagStyle}">已翻牌</span>`;
+            else statusHtml = `<span style="color:#ff4d4f; border-color:#ff4d4f; ${tagStyle}">已退款</span>`;
+
+            let answerTypeHtml = '';
+            if (item.answerType === 1) answerTypeHtml = `<span style="color:#1890ff; border-color:#1890ff; ${tagStyle}">文字</span>`;
+            else if (item.answerType === 2) answerTypeHtml = `<span style="color:#722ed1; border-color:#722ed1; ${tagStyle}">语音</span>`;
+            else if (item.answerType === 3) answerTypeHtml = `<span style="color:#eb2f96; border-color:#eb2f96; ${tagStyle}">视频</span>`;
+            else answerTypeHtml = `<span style="color:#8c8c8c; border-color:#8c8c8c; ${tagStyle}">未知</span>`;
+
+            let privacyHtml = '';
+            if (item.type === 1) privacyHtml = `<span style="color:#13c2c2; border-color:#13c2c2; ${tagStyle}">公开</span>`;
+            else if (item.type === 2) privacyHtml = `<span style="color:#f5222d; border-color:#f5222d; ${tagStyle}">私密</span>`;
+            else if (item.type === 3) privacyHtml = `<span style="color:#595959; border-color:#595959; ${tagStyle}">匿名</span>`;
+
+            const costHtml = `<span style="color:#fa8c16; border-color:#fa8c16; ${tagStyle}">${item.cost}鸡腿</span>`;
+
+            const headerDiv = document.createElement('div');
+            headerDiv.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px dashed var(--border); padding-bottom:8px;';
+            headerDiv.innerHTML = `
+                <span style="font-size:14px; font-weight:bold; color:var(--text);">${qTimeStr}</span>
+                <div style="display:flex; gap:8px; align-items:center;">${answerTypeHtml} ${privacyHtml} ${costHtml} ${statusHtml}</div>`;
+            card.appendChild(headerDiv);
+
+            const memberName = item.baseUserInfo ? item.baseUserInfo.nickname : '成员';
+
+            const questionDiv = document.createElement('div');
+            questionDiv.style.marginBottom = '15px';
+            questionDiv.innerHTML = `
+                <div style="margin-bottom:6px; display:flex; align-items:center;">
+                    <span class="flip-label question-tag" style="margin-right:8px; margin-top:0; margin-bottom:0; transform:none;">翻牌提问</span>
+                    <span style="font-size:14px; color:var(--text); line-height: 20px;">向 <strong style="color:var(--primary);">${memberName}</strong> 提问</span>
+                </div>
+                <div style="font-size:14px; color:var(--text); line-height:1.6; padding:0 4px;">${item.content}</div>`;
+            card.appendChild(questionDiv);
+
+            if (item.status === 2) {
+                const answerDiv = document.createElement('div');
+                answerDiv.style.marginTop = '15px';
+                const formattedAnswerTime = formatFlipTime(item.answerTime);
+
+                answerDiv.innerHTML = `
+                    <div style="margin-bottom:8px; display:flex; align-items:center;">
+                        <span class="flip-label answer-tag" style="margin-right:8px; margin-top:0; margin-bottom:0; transform:none;">翻牌回答</span>
+                        <span style="font-size:14px; color:var(--text); line-height: 20px;"><strong style="color:var(--primary);">${memberName}</strong> 的回复</span>
+                        <span style="font-size:12px; color:var(--text-sub); margin-left: 10px;">翻牌时间：${formattedAnswerTime}</span>
+                    </div>`;
+
+                try {
+                    if (item.answerType === 1) {
+                        const textContent = document.createElement('div');
+                        textContent.style.cssText = 'font-size:14px; color:var(--text); line-height:1.6; padding:0 4px;';
+                        textContent.innerText = item.answerContent;
+                        answerDiv.appendChild(textContent);
+                    } else {
+                        const json = JSON.parse(item.answerContent);
+                        let url = json.url;
+                        if (!url.startsWith('http')) url = `https://mp4.48.cn${url}`;
+
+                        if (item.answerType === 2) {
+                            if (typeof createCustomAudioPlayer === 'function') {
+                                answerDiv.appendChild(createCustomAudioPlayer(url));
+                            } else {
+                                answerDiv.innerHTML += `<audio src="${url}" controls style="width:100%"></audio>`;
+                            }
+                        } else if (item.answerType === 3) {
+                            if (typeof createCustomVideoPlayer === 'function') {
+                                answerDiv.appendChild(createCustomVideoPlayer(url));
+                            } else {
+                                const video = document.createElement('video');
+                                video.src = url;
+                                video.controls = true;
+                                video.style.cssText = "max-width:100%; max-height:300px; border-radius:8px; background:#000;";
+                                answerDiv.appendChild(video);
+                            }
+                        }
+                    }
+                } catch (e) {
+                    const errDiv = document.createElement('div');
+                    errDiv.style.color = '#ff4d4f';
+                    errDiv.innerText = '⚠️ 无法解析回答内容';
+                    answerDiv.appendChild(errDiv);
+                }
+                card.appendChild(answerDiv);
+            }
+            return card;
+        }
+
+        function toggleFlipTypeDropdown() {
+            const list = document.getElementById('flip-type-dropdown');
+            if (list) list.style.display = (list.style.display === 'block') ? 'none' : 'block';
+        }
+
+        function selectFlipType(value, text) {
+            const displayInput = document.getElementById('flip-type-display');
+            if (displayInput) displayInput.value = text;
+
+            document.getElementById('flip-type-dropdown').style.display = 'none';
+
+            applyFlipFilter(value);
+        }
+
+        function applyFlipFilter(val) {
+            currentFlipFilterType = val;
+            flipCurrentPage = 0;
+            renderLocalPage(0);
+        }
+
+        function applyFlipSearch() {
+            const input = document.getElementById('flipSearchInput');
+            if (input) {
+                currentSearchKeyword = input.value.trim();
+                flipCurrentPage = 0;
+                renderLocalPage(0);
+            }
+        }
 
         function changeFlipPage(delta) {
             const newPage = flipCurrentPage + delta;
             if (newPage < 0) return;
-            loadFlipList(newPage);
+            renderLocalPage(newPage);
+        }
+
+        function getFilteredData() {
+            let result = allFlipData;
+
+            if (currentFlipFilterType !== "0") {
+                result = result.filter(item => item.answerType == currentFlipFilterType);
+            }
+
+            if (currentSearchKeyword) {
+                const lowerKey = currentSearchKeyword.toLowerCase();
+                result = result.filter(item => {
+                    const qContent = (item.content || "").toLowerCase();
+                    const aContent = (item.answerContent || "").toLowerCase();
+                    const memberName = (item.baseUserInfo && item.baseUserInfo.nickname || "").toLowerCase();
+
+                    return qContent.includes(lowerKey) ||
+                        aContent.includes(lowerKey) ||
+                        memberName.includes(lowerKey);
+                });
+            }
+
+            return result;
         }
 
         async function loadFlipList(pageIndex) {
+            if (allFlipData.length === 0 && !isFetchingFlips) {
+                await startAutoFetchAll();
+            } else {
+                renderLocalPage(pageIndex);
+            }
+        }
+
+        function forceReloadFlips() {
+            allFlipData = [];
+            flipCurrentPage = 0;
+            currentSearchKeyword = "";
+            const input = document.getElementById('flipSearchInput');
+            if (input) input.value = "";
+
+            loadFlipList(0);
+        }
+
+        async function startAutoFetchAll() {
             const container = document.getElementById('flip-list-container');
             const statusText = document.getElementById('flip-status-text');
+            const pagination = document.querySelector('#view-flip .pagination-container');
 
             let token = appToken || localStorage.getItem('yaya_p48_token');
             if (!token) {
@@ -5753,254 +6157,204 @@
                 return;
             }
 
+            isFetchingFlips = true;
+            if (pagination) pagination.style.display = 'none';
+            container.innerHTML = '<div class="empty-state" style="padding:40px;"><h3>正在同步数据...</h3><p>正在拉取所有历史记录，完成后将自动显示。</p></div>';
 
-            if (container.children.length > 0 && !container.querySelector('.placeholder-tip')) {
-                container.style.opacity = '0.5';
-                container.style.pointerEvents = 'none';
-            } else {
-                container.innerHTML = '<div class="empty-state">⏳ 正在从服务器拉取数据...</div>';
-            }
+            let beginLimit = 0;
+            let hasMore = true;
+            const pa = window.getPA ? window.getPA() : null;
 
             try {
-                const pa = window.getPA ? window.getPA() : null;
-                const res = await ipcRenderer.invoke('fetch-flip-list', {
-                    token: token,
-                    pa: pa,
-                    beginLimit: pageIndex * FLIP_PAGE_SIZE,
-                    limit: FLIP_PAGE_SIZE
-                });
+                while (hasMore) {
+                    statusText.innerText = `正在下载... 已获取 ${allFlipData.length} 条`;
 
-                container.style.opacity = '1';
-                container.style.pointerEvents = 'auto';
+                    const res = await ipcRenderer.invoke('fetch-flip-list', {
+                        token: token,
+                        pa: pa,
+                        beginLimit: beginLimit,
+                        limit: 20
+                    });
 
-                if (res.success) {
-                    renderFlipItems(res.content);
-                    flipCurrentPage = pageIndex;
-
-                    renderFlipPagination(res.content.length);
-
-                    statusText.innerText = '';
-                    document.getElementById('view-flip').scrollTop = 0;
-                } else {
-                    container.innerHTML = `<div class="placeholder-tip"><h3>❌ 加载失败</h3><p>${res.msg}</p></div>`;
+                    if (res.success) {
+                        const list = res.content || [];
+                        if (list.length === 0) {
+                            hasMore = false;
+                        } else {
+                            allFlipData = allFlipData.concat(list);
+                            beginLimit += list.length;
+                            if (list.length < 20) {
+                                hasMore = false;
+                            } else {
+                                await new Promise(r => setTimeout(r, 50));
+                            }
+                        }
+                    } else {
+                        statusText.innerText = `同步中断: ${res.msg}`;
+                        hasMore = false;
+                    }
                 }
             } catch (e) {
-                container.style.opacity = '1';
-                container.style.pointerEvents = 'auto';
-                container.innerHTML = `<div class="placeholder-tip"><h3>❌ 发生错误</h3><p>${e.message}</p></div>`;
+                statusText.innerText = `错误: ${e.message}`;
+            } finally {
+                isFetchingFlips = false;
+                statusText.innerText = `共 ${allFlipData.length} 条记录`;
+                renderLocalPage(0);
             }
         }
-        function renderFlipPagination(currentCount) {
+
+        function renderLocalPage(pageIndex) {
+            const container = document.getElementById('flip-list-container');
+            const statusText = document.getElementById('flip-status-text');
+            const pagination = document.querySelector('#view-flip .pagination-container');
+
+            const filteredData = getFilteredData();
+
+            let totalCost = 0;
+            filteredData.forEach(item => {
+                totalCost += (Number(item.cost) || 0);
+            });
+
+            const start = pageIndex * FLIP_PAGE_SIZE;
+            const end = start + FLIP_PAGE_SIZE;
+            const pageData = filteredData.slice(start, end);
+
+            flipCurrentPage = pageIndex;
+
+            const costText = ` (共 ${totalCost} 🍗)`;
+
+            if (currentSearchKeyword) {
+                statusText.innerText = `搜索: ${filteredData.length} 条` + costText;
+            } else {
+                statusText.innerText = `共 ${filteredData.length} 条` + costText;
+            }
+
+            container.innerHTML = '';
+            if (pageData.length === 0) {
+                container.innerHTML = '<div class="empty-state">没有符合条件的数据</div>';
+            } else {
+                const fragment = document.createDocumentFragment();
+                pageData.forEach(item => {
+                    fragment.appendChild(createFlipCardDOM(item));
+                });
+                container.appendChild(fragment);
+            }
+
+            document.getElementById('view-flip').scrollTop = 0;
+
+            if (pagination) {
+                pagination.style.display = 'flex';
+                renderFlipPagination(filteredData.length);
+            }
+        }
+
+        function renderFlipPagination(totalCount) {
             const paginationContainer = document.querySelector('#view-flip .pagination-container');
             if (!paginationContainer) return;
 
             paginationContainer.innerHTML = '';
+            const totalPages = Math.ceil(totalCount / FLIP_PAGE_SIZE) || 1;
+
+            const firstBtn = document.createElement('button');
+            firstBtn.className = 'pagination-btn';
+            firstBtn.innerText = '首页';
+            firstBtn.disabled = (flipCurrentPage === 0);
+            if (firstBtn.disabled) firstBtn.style.opacity = '0.5';
+            firstBtn.onclick = () => renderLocalPage(0);
+            paginationContainer.appendChild(firstBtn);
 
             const prevBtn = document.createElement('button');
             prevBtn.className = 'pagination-btn';
             prevBtn.innerText = '上一页';
             prevBtn.disabled = (flipCurrentPage === 0);
+            if (prevBtn.disabled) prevBtn.style.opacity = '0.5';
             prevBtn.onclick = () => changeFlipPage(-1);
             paginationContainer.appendChild(prevBtn);
 
             const startPage = Math.max(0, flipCurrentPage - 2);
-            const endPage = (currentCount < FLIP_PAGE_SIZE) ? flipCurrentPage : flipCurrentPage + 2;
+            const endPage = Math.min(totalPages - 1, flipCurrentPage + 2);
 
             for (let i = startPage; i <= endPage; i++) {
                 const numBtn = document.createElement('button');
                 numBtn.className = `pagination-btn ${i === flipCurrentPage ? 'active' : ''}`;
                 numBtn.innerText = i + 1;
-                numBtn.onclick = () => {
-                    if (i !== flipCurrentPage) loadFlipList(i);
-                };
+                numBtn.onclick = () => renderLocalPage(i);
                 paginationContainer.appendChild(numBtn);
             }
 
             const nextBtn = document.createElement('button');
             nextBtn.className = 'pagination-btn';
-
-            if (currentCount < FLIP_PAGE_SIZE) {
-                nextBtn.innerText = '尾页';
-                nextBtn.disabled = true;
-                nextBtn.style.opacity = '0.5';
-            } else {
-                nextBtn.innerText = '下一页';
-                nextBtn.onclick = () => changeFlipPage(1);
-            }
+            nextBtn.innerText = '下一页';
+            nextBtn.disabled = (flipCurrentPage >= totalPages - 1);
+            if (nextBtn.disabled) nextBtn.style.opacity = '0.5';
+            nextBtn.onclick = () => changeFlipPage(1);
             paginationContainer.appendChild(nextBtn);
+
+            const lastBtn = document.createElement('button');
+            lastBtn.className = 'pagination-btn';
+            lastBtn.innerText = '尾页';
+            lastBtn.disabled = (flipCurrentPage >= totalPages - 1);
+            if (lastBtn.disabled) lastBtn.style.opacity = '0.5';
+            lastBtn.onclick = () => renderLocalPage(totalPages - 1);
+            paginationContainer.appendChild(lastBtn);
         }
 
-        function renderFlipItems(list) {
-            const container = document.getElementById('flip-list-container');
-            container.innerHTML = '';
-
-            if (!list || list.length === 0) {
-                container.innerHTML = '<div class="empty-state">本页没有数据 (或已加载完毕)</div>';
-                return;
-            }
-
-            function formatTimeDots(timestamp) {
-                const dateObj = new Date(Number(timestamp));
-                const y = dateObj.getFullYear();
-                const m = String(dateObj.getMonth() + 1).padStart(2, '0');
-                const d = String(dateObj.getDate()).padStart(2, '0');
-                const hh = String(dateObj.getHours()).padStart(2, '0');
-                const mm = String(dateObj.getMinutes()).padStart(2, '0');
-                const ss = String(dateObj.getSeconds()).padStart(2, '0');
-                return `${y}.${m}.${d} ${hh}:${mm}:${ss}`;
-            }
-
-            list.forEach(item => {
-                const card = document.createElement('div');
-                card.className = 'Box-row';
-                card.style.marginBottom = '12px';
-                card.style.transition = 'all 0.2s';
-
-                const qTimeStr = formatTimeDots(item.qtime);
-
-                let statusHtml = '';
-                if (item.status === 1) statusHtml = '<span style="color:#faad14; border:1px solid #faad14; padding:0 4px; border-radius:4px; font-size:10px;">待回答</span>';
-                else if (item.status === 2) statusHtml = '<span style="color:#52c41a; border:1px solid #52c41a; padding:0 4px; border-radius:4px; font-size:10px;">已翻牌</span>';
-                else statusHtml = '<span style="color:#ff4d4f; border:1px solid #ff4d4f; padding:0 4px; border-radius:4px; font-size:10px;">已退款</span>';
-
-                let answerTypeHtml = '';
-                if (item.answerType === 1) answerTypeHtml = '<span style="color:#1890ff; border:1px solid #1890ff; padding:0 4px; border-radius:4px; font-size:10px;">文字</span>';
-                else if (item.answerType === 2) answerTypeHtml = '<span style="color:#722ed1; border:1px solid #722ed1; padding:0 4px; border-radius:4px; font-size:10px;">语音</span>';
-                else if (item.answerType === 3) answerTypeHtml = '<span style="color:#eb2f96; border:1px solid #eb2f96; padding:0 4px; border-radius:4px; font-size:10px;">视频</span>';
-                else answerTypeHtml = '<span style="color:#8c8c8c; border:1px solid #8c8c8c; padding:0 4px; border-radius:4px; font-size:10px;">未知</span>';
-
-                let privacyHtml = '';
-                if (item.type === 1) privacyHtml = '<span style="color:#13c2c2; border:1px solid #13c2c2; padding:0 4px; border-radius:4px; font-size:10px;">公开</span>';
-                else if (item.type === 2) privacyHtml = '<span style="color:#f5222d; border:1px solid #f5222d; padding:0 4px; border-radius:4px; font-size:10px;">私密</span>';
-                else if (item.type === 3) privacyHtml = '<span style="color:#595959; border:1px solid #595959; padding:0 4px; border-radius:4px; font-size:10px;">匿名</span>';
-
-                const costHtml = `<span style="color:#fa8c16; border:1px solid #fa8c16; padding:0 4px; border-radius:4px; font-size:10px;">${item.cost}鸡腿</span>`;
-
-                const headerDiv = document.createElement('div');
-                headerDiv.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px dashed var(--border); padding-bottom:8px;';
-
-                headerDiv.innerHTML = `
-            <span style="font-size:14px; font-weight:bold; color:var(--text);">${qTimeStr}</span>
-            <div style="display:flex; gap:6px; align-items:center;">
-                ${answerTypeHtml}
-                ${privacyHtml}
-                ${costHtml}
-                ${statusHtml}
-            </div>
-        `;
-
-                card.appendChild(headerDiv);
-
-                const memberName = item.baseUserInfo ? item.baseUserInfo.nickname : '成员';
-                const questionDiv = document.createElement('div');
-                questionDiv.style.marginBottom = '15px';
-
-                const questionHeader = `
-            <div style="margin-bottom:6px; display:flex; align-items:center;">
-                <span class="flip-label question-tag" style="margin-right:8px;">翻牌提问</span>
-                <span style="font-size:14px; color:var(--text);">向 <strong style="color:var(--primary);">${memberName}</strong> 提问</span>
-            </div>
-        `;
-
-                const questionContent = `
-            <div style="font-size:14px; color:var(--text); line-height:1.6; padding:0 4px;">
-                ${item.content}
-            </div>
-        `;
-
-                questionDiv.innerHTML = questionHeader + questionContent;
-                card.appendChild(questionDiv);
-
-                if (item.status === 2) {
-                    const answerDiv = document.createElement('div');
-                    answerDiv.style.marginTop = '15px';
-
-                    const formattedAnswerTime = formatTimeDots(item.answerTime);
-
-                    const answerHeader = document.createElement('div');
-                    answerHeader.style.cssText = 'margin-bottom:8px; display:flex; align-items:center;';
-
-                    answerHeader.innerHTML = `
-                <span class="flip-label answer-tag" style="margin-right:8px;">翻牌回答</span>
-                <span style="font-size:14px; color:var(--text);">
-                    <strong style="color:var(--primary);">${memberName}</strong> 的回复
-                </span>
-                <span style="font-size:12px; color:var(--text-sub); margin-left: 10px;">
-                    翻牌时间：${formattedAnswerTime}
-                </span>
-            `;
-
-                    answerDiv.appendChild(answerHeader);
-
-                    try {
-                        if (item.answerType === 1) {
-                            const textContent = document.createElement('div');
-                            textContent.style.cssText = 'font-size:14px; color:var(--text); line-height:1.6; padding:0 4px;';
-                            textContent.innerText = item.answerContent;
-                            answerDiv.appendChild(textContent);
-
-                        } else {
-                            const json = JSON.parse(item.answerContent);
-                            let url = json.url;
-                            if (!url.startsWith('http')) {
-                                url = `https://mp4.48.cn${url}`;
-                            }
-
-                            if (item.answerType === 2) {
-                                if (typeof createCustomAudioPlayer === 'function') {
-                                    const player = createCustomAudioPlayer(url);
-                                    answerDiv.appendChild(player);
-                                } else {
-                                    answerDiv.innerHTML += `<audio src="${url}" controls style="width:100%"></audio>`;
-                                }
-
-                            } else if (item.answerType === 3) {
-                                if (typeof createCustomVideoPlayer === 'function') {
-                                    const player = createCustomVideoPlayer(url);
-                                    answerDiv.appendChild(player);
-                                } else {
-                                    const video = document.createElement('video');
-                                    video.src = url;
-                                    video.controls = true;
-                                    video.style.cssText = "max-width:100%; max-height:300px; border-radius:8px; background:#000;";
-                                    answerDiv.appendChild(video);
-                                }
-                            }
-                        }
-                    } catch (e) {
-                        console.error("翻牌内容解析错误:", e);
-                        const errDiv = document.createElement('div');
-                        errDiv.style.color = '#ff4d4f';
-                        errDiv.innerText = '⚠️ 无法解析回答内容';
-                        answerDiv.appendChild(errDiv);
-                    }
-
-                    card.appendChild(answerDiv);
-                }
-
-                container.appendChild(card);
-            });
+        function getPinyinInitials(pinyinStr) {
+            if (!pinyinStr) return "";
+            return pinyinStr.replace(/[^A-Z]/g, "");
         }
+
+        function getMemberWeight(m) {
+            if (!m) return 1;
+            return (m.isInGroup !== false) ? 1 : 0;
+        }
+
+        function memberSortLogic(a, b) {
+            const weightA = getMemberWeight(a);
+            const weightB = getMemberWeight(b);
+            return weightB - weightA;
+        }
+
+        function renderFlipItems(list) { }
 
         function handleProfileSearch(keyword) {
             const resultBox = document.getElementById('profile-search-results');
-            if (!keyword.trim()) {
+            if (!keyword || !keyword.trim()) {
                 resultBox.style.display = 'none';
                 return;
             }
             if (!window.isMemberDataLoaded && typeof loadMemberData === 'function') loadMemberData();
 
-            const matches = memberData.filter(m => m.ownerName.includes(keyword));
-            if (matches.length > 0) {
+            const lowerKw = keyword.toLowerCase();
 
-                const html = matches.map(m => `
-                    <div class="suggestion-item" 
-                         onclick="selectProfileMember('${m.ownerName}', '${m.id || m.userId || m.memberId}')"
-                         style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-weight:bold;">${m.ownerName}</span>
-                        <span class="team-tag">${m.team}</span>
-                    </div>
-                `).join('');
+            let matches = memberData.filter(m => {
+                const matchName = m.ownerName.includes(keyword);
+                const pinyin = m.pinyin || "";
+                const matchPinyin = pinyin.toLowerCase().includes(lowerKw);
+                const initials = getPinyinInitials(pinyin);
+                const matchInitials = initials.toLowerCase().includes(lowerKw);
+                return matchName || matchPinyin || matchInitials;
+            });
+
+            matches.sort(memberSortLogic);
+
+            if (matches.length > 0) {
+                const html = matches.map(m => {
+                    const isInactive = m.isInGroup === false;
+                    const baseStyle = isInactive ? 'opacity:0.6; color:#999;' : '';
+
+                    let colorStyle = '';
+                    if (typeof getTeamStyle === 'function') {
+                        colorStyle = getTeamStyle(m.team, isInactive);
+                    }
+
+                    return `<div class="suggestion-item" 
+                 onclick="selectProfileMember('${m.ownerName}', '${m.id || m.userId || m.memberId}')"
+                 style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-weight:bold; ${baseStyle}">${m.ownerName}</span>
+                <span class="team-tag" style="${baseStyle} ${colorStyle}">${m.team}</span>
+            </div>`;
+                }).join('');
                 resultBox.innerHTML = html;
                 resultBox.style.display = 'block';
             } else {
@@ -6161,7 +6515,10 @@
 
                 { wrapperId: 'year-wrapper', dropdownId: 'year-dropdown' },
                 { wrapperId: 'month-wrapper', dropdownId: 'month-dropdown' },
-                { wrapperId: 'day-wrapper', dropdownId: 'day-dropdown' }
+                { wrapperId: 'day-wrapper', dropdownId: 'day-dropdown' },
+                { wrapperId: 'flip-type-wrapper', dropdownId: 'flip-type-dropdown' },
+                { wrapperId: 'search-type-wrapper', dropdownId: 'search-type-dropdown' }
+
             ];
 
             dropDownConfigs.forEach(cfg => {
@@ -6195,22 +6552,42 @@
 
         function handleOpenLiveSearch(keyword) {
             const resultBox = document.getElementById('openlive-search-results');
-            if (!keyword.trim()) {
+            if (!keyword || !keyword.trim()) {
                 resultBox.style.display = 'none';
                 return;
             }
             if (!window.isMemberDataLoaded && typeof loadMemberData === 'function') loadMemberData();
 
-            const matches = memberData.filter(m => m.ownerName.includes(keyword));
+            const lowerKw = keyword.toLowerCase();
+
+            let matches = memberData.filter(m => {
+                const matchName = m.ownerName.includes(keyword);
+                const pinyin = m.pinyin || "";
+                const matchPinyin = pinyin.toLowerCase().includes(lowerKw);
+                const initials = getPinyinInitials(pinyin);
+                const matchInitials = initials.toLowerCase().includes(lowerKw);
+                return matchName || matchPinyin || matchInitials;
+            });
+
+            matches.sort(memberSortLogic);
+
             if (matches.length > 0) {
-                const html = matches.map(m => `
-            <div class="suggestion-item" 
+                const html = matches.map(m => {
+                    const isInactive = m.isInGroup === false;
+                    const baseStyle = isInactive ? 'opacity:0.6; color:#999;' : '';
+
+                    let colorStyle = '';
+                    if (typeof getTeamStyle === 'function') {
+                        colorStyle = getTeamStyle(m.team, isInactive);
+                    }
+
+                    return `<div class="suggestion-item" 
                  onclick="selectOpenLiveMember('${m.ownerName}', '${m.id || m.userId}')"
                  style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-weight:bold;">${m.ownerName}</span>
-                <span class="team-tag">${m.team}</span>
-            </div>
-        `).join('');
+                <span style="font-weight:bold; ${baseStyle}">${m.ownerName}</span>
+                <span class="team-tag" style="${baseStyle} ${colorStyle}">${m.team}</span>
+            </div>`;
+                }).join('');
                 resultBox.innerHTML = html;
                 resultBox.style.display = 'block';
             } else {
@@ -6657,6 +7034,22 @@
                 }
 
             }
+        }
+
+        function toggleSearchTypeDropdown() {
+            const list = document.getElementById('search-type-dropdown');
+            if (list) list.style.display = (list.style.display === 'block') ? 'none' : 'block';
+        }
+
+        function selectSearchType(value, text) {
+            const hiddenInput = document.getElementById('searchTypeSelect');
+            if (hiddenInput) hiddenInput.value = value;
+
+            const displayInput = document.getElementById('search-type-display');
+            if (displayInput) displayInput.value = text;
+
+            document.getElementById('search-type-dropdown').style.display = 'none';
+            applyFilters();
         }
 
     </script>
