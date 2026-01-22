@@ -8,10 +8,13 @@
 - **抓取消息**：抓取成员房间消息并一键导入至软件内。
 - **消息检索**：根据关键词查找成员房间中的历史消息，可根据日期及消息类型进行筛选。
 - **数据统计**：统计成员房间每日消息条数及互动次数。
-- **直播**：观看口袋48成员直播。
-- **回放**：观看、下载成员直播回放。
+- **公演记录**：查询成员公演记录，观看历史公演。
+- **成员档案**：查询成员详细资料和公式照。
+- **直播**：观看成员直播。
+- **回放**：观看、下载成员直播回放。点击弹幕时间轴可跳转对应时间点。
 - **切片**：直播实时切片及录播回放切片。
 - **翻牌**：查看账号历史翻牌。
+
 
 ## 📺 使用说明
 
@@ -41,8 +44,7 @@
 
 | 平台 | 链接 |
 | :--- | :--- |
-| **GitHub** | [xifangczy/URLProtocol](https://github.com/xifangczy/URLProtocol/releases/tag/0.4) |
-| **百度网盘** | [点击前往下载页](https://pan.baidu.com/s/18bPJH1f6BoSOSjaCijrNIw?pwd=0403) |
+| **GitHub** | [xifangczy/URLProtocol](https://github.com/xifangczy/URLProtocol/releases/tag/0.4) ||
 
 2.  **打开配置工具**：运行下载好的 `URLProtocol` 工具。
 3.  **配置参数：**
@@ -64,8 +66,8 @@
     ```bash
     xattr -cr 
     ```
-4.  **拖拽应用：** 将文件夹里的 `yaya-message.app` 图标直接**拖进**终端窗口里。
-    > 最终命令类似于：`xattr -cr /Users/xxx/Desktop/yayamsg/yaya-message.app`
+4.  **拖拽应用：** 将文件夹里的 `牙牙消息.app` 图标直接**拖进**终端窗口里。
+    > 最终命令类似于：`xattr -cr /Users/xxx/Desktop/yaya_msg/牙牙消息.app`
 5.  **运行命令：** 按 **回车 (Enter)** 运行。
 6.  **重启软件：** 彻底关闭并重新双击打开软件即可。
 ---
