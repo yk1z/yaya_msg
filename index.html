@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>牙牙消息 v1.2.0</title>
+    <title>牙牙消息 v1.2.1</title>
     <link rel="icon" href="./icon.png" type="image/x-icon">
     <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.4.0/dist/hls.min.js"></script>
@@ -1671,6 +1671,89 @@
             animation: slideUpFade 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards !important;
             pointer-events: none;
         }
+
+        .account-card {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            background: var(--card) !important;
+            backdrop-filter: blur(10px) !important;
+            -webkit-backdrop-filter: blur(10px) !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: left;
+            margin-bottom: 0;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .account-card:hover {
+            background: var(--input-bg) !important;
+            border-color: var(--primary) !important;
+            transform: translateY(-1px);
+        }
+
+        .account-card:active {
+            transform: translateY(0);
+            opacity: 0.8;
+        }
+
+        #account-switcher-area .account-card .account-card-avatar {
+            width: 35px !important;
+            height: 35px !important;
+            min-width: 35px !important;
+            border-radius: 50%;
+            margin-right: 12px;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            object-fit: cover;
+            flex-shrink: 0;
+            background-color: #f0f0f0;
+            display: block !important;
+        }
+
+        .account-card-info {
+            flex: 1;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+            min-width: 0;
+        }
+
+        .account-card-name {
+            font-size: 15px;
+            font-weight: bold;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-right: 10px;
+        }
+
+        .tag-badge {
+            display: inline-block;
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            line-height: 1.2;
+            flex-shrink: 0;
+            margin: 0;
+        }
+
+        .tag-small {
+            background: rgba(230, 247, 255, 0.8);
+            color: #1890ff;
+            border: 1px solid rgba(145, 213, 255, 0.5);
+        }
+
+        .tag-big {
+            background: rgba(246, 255, 237, 0.8);
+            color: #52c41a;
+            border: 1px solid rgba(183, 235, 143, 0.5);
+        }
     </style>
 </head>
 
@@ -1686,7 +1769,7 @@
                 </svg>
             </div>
             <img src="./icon.png" class="title-logo">
-            <span>牙牙消息 v1.2.0</span>
+            <span>牙牙消息 v1.2.1</span>
         </div>
         <div class="window-controls">
             <div class="control-btn" onclick="ipcRenderer.send('window-min')">
@@ -1901,6 +1984,58 @@
                     <h2 id="live-view-title" style="margin:0; font-size: 18px; white-space: nowrap;">直播/回放</h2>
                 </div>
 
+                <div id="live-list-controls"
+                    style="display: none; gap: 12px; margin-bottom: 15px; align-items: center; flex-wrap: wrap;">
+
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="white-space: nowrap; font-weight: bold; font-size: 14px;">团体</span>
+                        <div id="live-group-wrapper" style="position: relative; width: 120px;">
+                            <input type="hidden" id="live-group-value" value="all">
+                            <input type="text" id="live-group-display" class="input-control" value="全部团体" readonly
+                                onclick="toggleLiveGroupDropdown()" style="cursor: pointer; padding-right: 20px;">
+                            <div
+                                style="position: absolute; right: 10px; top: 10px; pointer-events: none; color: var(--text-sub); font-size: 12px;">
+                                ▼</div>
+                            <div id="live-group-dropdown" class="suggestion-box">
+                                <div class="suggestion-item" onclick="selectLiveGroup('all', '全部')">全部团体</div>
+                                <div class="suggestion-item" onclick="selectLiveGroup('snh', 'SNH48')">SNH48</div>
+                                <div class="suggestion-item" onclick="selectLiveGroup('gnz', 'GNZ48')">GNZ48</div>
+                                <div class="suggestion-item" onclick="selectLiveGroup('bej', 'BEJ48')">BEJ48</div>
+                                <div class="suggestion-item" onclick="selectLiveGroup('ckg', 'CKG48')">CKG48</div>
+                                <div class="suggestion-item" onclick="selectLiveGroup('cgt', 'CGT48')">CGT48</div>
+                                <div class="suggestion-item" onclick="selectLiveGroup('idft', 'IDFT')">IDFT</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="white-space: nowrap; font-weight: bold; font-size: 14px;">类型</span>
+                        <div id="live-type-wrapper" style="position: relative; width: 100px;">
+                            <input type="hidden" id="live-type-value" value="all">
+                            <input type="text" id="live-type-display" class="input-control" value="全部" readonly
+                                onclick="toggleLiveTypeDropdown()" style="cursor: pointer; padding-right: 20px;">
+                            <div
+                                style="position: absolute; right: 10px; top: 10px; pointer-events: none; color: var(--text-sub); font-size: 12px;">
+                                ▼</div>
+                            <div id="live-type-dropdown" class="suggestion-box">
+                                <div class="suggestion-item" onclick="selectLiveType('all', '全部')">全部</div>
+                                <div class="suggestion-item" onclick="selectLiveType('video', '视频')">视频</div>
+                                <div class="suggestion-item" onclick="selectLiveType('radio', '电台')">电台</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="flex: 1; min-width: 200px;">
+                        <input type="text" id="live-search-input" class="input-control" style="width: 100%;"
+                            placeholder="搜索成员名 / 房间标题" oninput="handleLiveFilter()">
+                    </div>
+
+                    <button class="btn btn-secondary" onclick="fetchLiveList()"
+                        style="white-space: nowrap; padding: 0 15px; height: 38px;">
+                        刷新列表
+                    </button>
+                </div>
+
                 <div id="media-list-controls">
                     <div style="display: flex; gap: 12px; margin-bottom: 15px; align-items: center; flex-wrap: wrap;">
 
@@ -1995,10 +2130,15 @@
                     <div id="danmu-timeline-wrapper"
                         style="display: none; margin-top: 15px; border: 1px solid var(--border); border-radius: 8px; background: var(--input-bg); overflow: hidden; display: flex; flex-direction: column;">
                         <div
-                            style="padding: 10px 15px; background: rgba(0,0,0,0.03); border-bottom: 1px solid var(--border); font-weight: bold; font-size: 14px; color: var(--text); display: flex; justify-content: space-between; align-items: center;">
-                            <span>💬 弹幕时间轴</span>
+                            style="padding: 10px 15px; background: rgba(0,0,0,0.03); border-bottom: 1px solid var(--border); font-weight: bold; font-size: 14px; color: var(--text); display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+                            <span style="white-space: nowrap;">💬 弹幕时间轴</span>
+
+                            <input type="text" id="danmu-search-input" class="input-control" placeholder="搜索内容 / 发送者"
+                                style="flex: 1; height: 26px; font-size: 12px; padding: 0 8px;"
+                                oninput="handleDanmuSearch(this.value)">
+
                             <span id="danmu-count-display"
-                                style="font-weight:normal; font-size:12px; color:var(--text-sub);"></span>
+                                style="font-weight:normal; font-size:12px; color:var(--text-sub); white-space: nowrap;"></span>
                         </div>
                         <div id="danmu-list-body" style="height: 300px; overflow-y: auto; padding: 0;">
                             <div style="text-align: center; padding: 20px; color: var(--text-sub);">暂无弹幕数据</div>
@@ -2012,23 +2152,89 @@
             <div id="view-login"
                 style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
                 <div class="list-container">
+
                     <div style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border);">
                         <h2 style="margin: 0; color: var(--primary);">口袋账号登录</h2>
-                        <p style="font-size: 13px; color: var(--text-sub); margin-top: 5px;">在此输入 Token 以启用需要登录的功能。
-                        </p>
                     </div>
 
                     <div id="panel-login" class="Box-row">
-                        <div style="margin-bottom: 15px;">
-                            <p style="font-size: 14px; font-weight: bold; color: var(--text); margin-bottom: 8px;">请输入
-                                Token:</p>
-                            <textarea id="login-token" class="input-control"
-                                style="height: 100px; resize: none; padding: 10px; font-family: monospace;"
-                                placeholder="在此粘贴 Token"></textarea>
+                        <div style="display: flex; border-bottom: 1px solid var(--border); margin-bottom: 20px;">
+                            <div id="tab-sms" onclick="switchLoginTab('sms')"
+                                style="padding: 10px 20px; cursor: pointer; color: var(--primary); border-bottom: 2px solid var(--primary); font-weight: bold; transition: all 0.2s;">
+                                验证码登录
+                            </div>
+                            <div id="tab-token" onclick="switchLoginTab('token')"
+                                style="padding: 10px 20px; cursor: pointer; color: var(--text-sub); border-bottom: 2px solid transparent; transition: all 0.2s;">
+                                Token 登录
+                            </div>
                         </div>
-                        <button class="btn btn-primary btn-full" onclick="checkToken()"
-                            style="height: 40px; font-size: 15px;">保存并验证</button>
-                        <div id="login-msg" style="margin-top:15px; text-align:center; color:red; font-size:13px;">
+
+                        <div id="login-forms-container" style="min-height: 200px;">
+                            <div id="form-sms">
+                                <div style="margin-bottom: 15px;">
+                                    <label
+                                        style="font-size: 13px; font-weight: bold; color: var(--text); display: block; margin-bottom: 8px;">
+                                        手机号
+                                    </label>
+                                    <div style="display: flex; gap: 8px;">
+                                        <div style="position: relative; width: 70px;">
+                                            <span
+                                                style="position: absolute; left: 8px; top: 50%; transform: translateY(-55%); color: var(--text-sub); pointer-events: none; line-height: 1;">+</span>
+                                            <input type="text" id="login-area" class="input-control" value="86"
+                                                style="padding-left: 20px; text-align: center;" placeholder="86">
+                                        </div>
+                                        <input type="text" id="login-mobile" class="input-control" placeholder="请输入手机号"
+                                            style="flex: 1;">
+                                        <button id="btn-send-sms" class="btn btn-secondary" onclick="handleSendSms()"
+                                            style="width: 100px;">
+                                            获取验证码
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div id="sms-verification-area" class="Box-row"
+                                    style="display: none; background: #fffbe6; border-color: #ffe58f; margin-bottom: 15px; padding: 10px;">
+                                    <div
+                                        style="font-weight: bold; font-size: 13px; color: #faad14; margin-bottom: 8px;">
+                                        安全验证: <span id="verify-question-text" style="color: #333;"></span>
+                                    </div>
+                                    <div id="verify-options-container"
+                                        style="display: flex; flex-wrap: wrap; gap: 8px;">
+                                    </div>
+                                </div>
+
+                                <div style="margin-bottom: 20px;">
+                                    <label
+                                        style="font-size: 13px; font-weight: bold; color: var(--text); display: block; margin-bottom: 8px;">
+                                        验证码
+                                    </label>
+                                    <input type="text" id="login-code" class="input-control" placeholder="请输入短信验证码"
+                                        maxlength="6">
+                                </div>
+                                <button class="btn btn-primary btn-full" onclick="handleLoginByCode()"
+                                    style="height: 40px; font-size: 15px;">
+                                    登 录
+                                </button>
+                            </div>
+
+                            <div id="form-token" style="display: none;">
+                                <div style="margin-bottom: 15px;">
+                                    <p style="font-size: 13px; color: var(--text-sub); margin-bottom: 8px;">
+                                        如果您已通过抓包获取了 Token，可直接粘贴：
+                                    </p>
+                                    <textarea id="login-token" class="input-control"
+                                        style="height: 100px; resize: none; padding: 10px; font-family: monospace;"
+                                        placeholder="在此粘贴 Token"></textarea>
+                                </div>
+                                <button class="btn btn-primary btn-full" onclick="checkToken()"
+                                    style="height: 40px; font-size: 15px;">
+                                    保存并验证
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="login-msg"
+                            style="margin-top:15px; text-align:center; color:#ff4d4f; font-size:13px; min-height: 20px;">
                         </div>
                     </div>
 
@@ -2037,12 +2243,31 @@
                             <div
                                 style="font-weight: bold; font-size: 15px; color: #28a745; display: flex; justify-content: space-between; align-items: center;">
                                 <span>✅ 当前已登录 (<span id="user-nickname">用户</span>)</span>
-                                <button class="btn btn-secondary" onclick="logout()"
-                                    style="height: 24px; padding: 0 8px; font-size: 12px;">注销 / 更换 Token</button>
+                                <div style="display: flex; gap: 8px;">
+                                    <button class="btn btn-secondary" id="btn-copy-token" onclick="copyToken()"
+                                        style="height: 28px; padding: 0 12px; font-size: 12px; background: white; border-color: #28a745; color: #28a745;">
+                                        复制 Token
+                                    </button>
+                                    <button class="btn btn-secondary" onclick="logout()"
+                                        style="height: 28px; padding: 0 12px; font-size: 12px;">
+                                        注销 / 更换账号
+                                    </button>
+                                </div>
                             </div>
                         </div>
+
+                        <div id="account-switcher-area" class="Box-row"
+                            style="margin-top: 15px; display: none; background: rgba(127, 127, 127, 0.05); border-color: var(--border);">
+                            <div
+                                style="font-weight: bold; font-size: 13px; color: var(--text); margin-bottom: 12px; display: flex; align-items: center;">
+                                <span>切换其他账号</span>
+                            </div>
+                            <div id="account-list" class="btn-grid" style="grid-template-columns: 1fr; gap: 10px;">
+                            </div>
+                        </div>
+
                         <div style="margin-top: 20px; text-align: center; color: var(--text-sub); font-size: 13px;">
-                            <p>登录后可以前往“抓取消息”或“翻牌记录”页面使用功能。</p>
+                            <p>您现在可以前往“抓取消息”、“翻牌记录”或“公演记录”页面使用功能。</p>
                         </div>
                     </div>
                 </div>
@@ -2281,6 +2506,7 @@
         let memberData = [];
         let isMemberDataLoaded = false;
         let currentSelectedMemberName = '';
+        let currentLiveListRaw = [];
 
         async function loadMemberData() {
             if (isMemberDataLoaded) return;
@@ -2513,15 +2739,27 @@
                 const titleEl = document.getElementById('live-view-title');
                 currentMode = mode;
 
+                const vodControls = document.getElementById('media-list-controls');
+                const vodPagination = document.getElementById('vod-pagination-controls');
+                const liveControls = document.getElementById('live-list-controls');
+
                 if (mode === 'live') {
                     titleEl.textContent = '正在直播';
-                    document.getElementById('media-list-controls').style.display = 'none';
-                    document.getElementById('vod-pagination-controls').style.display = 'none';
+
+                    if (vodControls) vodControls.style.display = 'none';
+                    if (vodPagination) vodPagination.style.display = 'none';
+
+                    if (liveControls) liveControls.style.display = 'flex';
+
                     fetchLiveList();
                 } else if (mode === 'vod') {
                     titleEl.textContent = '录播回放';
-                    document.getElementById('media-list-controls').style.display = 'flex';
-                    document.getElementById('vod-pagination-controls').style.display = 'flex';
+
+                    if (vodControls) vodControls.style.display = 'flex';
+                    if (vodPagination) vodPagination.style.display = 'flex';
+
+                    if (liveControls) liveControls.style.display = 'none';
+
                     if (window.vodState) {
                         if (vodState.list.length === 0) {
                             ensurePageData(2).then(() => window.renderVODListUI());
@@ -2536,15 +2774,21 @@
             } else if (viewName === 'login') {
                 toggleSidebarMode('login');
                 if (loginView) loginView.style.display = 'block';
+
                 const savedToken = localStorage.getItem('yaya_p48_token');
                 const tokenInput = document.getElementById('login-token');
+
                 if (savedToken && tokenInput) tokenInput.value = savedToken;
+
                 if (typeof appToken !== 'undefined' && (appToken || savedToken)) {
                     if (!appToken) appToken = savedToken;
-                    if (typeof updateAuthUI === 'function') updateAuthUI(true);
+                    checkToken();
                     loadMemberData();
                 } else {
-                    if (typeof updateAuthUI === 'function') updateAuthUI(false);
+                    const panelInput = document.getElementById('panel-login');
+                    const panelSuccess = document.getElementById('panel-logged-in');
+                    if (panelInput) panelInput.style.display = 'block';
+                    if (panelSuccess) panelSuccess.style.display = 'none';
                 }
 
             } else if (viewName === 'fetch') {
@@ -2571,7 +2815,6 @@
                 if (msgView) msgView.style.display = 'block';
             }
         }
-
         function updateSidebarButtons(viewName, mode) {
             const bottomButtons = [
                 { id: 'btn-sb-login', defaultText: '账号设置', targetView: 'login' },
@@ -3230,6 +3473,14 @@
             if (window.vodState) {
                 renderVodGroupOptions();
             }
+            const savedToken = localStorage.getItem('yaya_p48_token');
+            if (savedToken) {
+                appToken = savedToken;
+                console.log("启动自动登录...");
+                setTimeout(() => {
+                    checkToken();
+                }, 500);
+            }
         };
 
         window.forceReloadData = function () {
@@ -3426,18 +3677,30 @@
             livePlayerView.style.display = 'none';
             document.getElementById('media-list-area').style.display = 'block';
 
-            if (currentMode === 'vod') {
-                document.getElementById('vod-pagination-controls').style.display = 'flex';
-                document.getElementById('media-list-controls').style.display = 'flex';
-            }
-
             destroyPlayers();
-
             const oldNotice = document.querySelector('#live-player-area .live-link-info');
             if (oldNotice) oldNotice.remove();
 
-            if (currentMode === 'vod' && window.vodState) window.renderVODListUI();
-            else if (currentMode === 'live') fetchLiveList();
+            const liveControls = document.getElementById('live-list-controls');
+            const vodPagination = document.getElementById('vod-pagination-controls');
+            const mediaControls = document.getElementById('media-list-controls');
+
+            if (currentMode === 'vod') {
+                if (vodPagination) vodPagination.style.display = 'flex';
+                if (mediaControls) mediaControls.style.display = 'flex';
+
+                if (liveControls) liveControls.style.display = 'none';
+
+                if (window.vodState) window.renderVODListUI();
+
+            } else if (currentMode === 'live') {
+                if (liveControls) liveControls.style.display = 'flex';
+
+                if (vodPagination) vodPagination.style.display = 'none';
+                if (mediaControls) mediaControls.style.display = 'none';
+
+                fetchLiveList();
+            }
         }
 
         function handleGroupChange(apiId) {
@@ -3872,8 +4135,12 @@
             return `<button class="pagination-btn ${activeClass}" onclick="goToPage(${pageNum})">${pageNum}</button>`;
         }
         async function fetchLiveList() {
+            const vodLoading = document.getElementById('vod-loading');
+            const vodListContainer = document.getElementById('vod-list-container');
+
             vodLoading.style.display = 'block';
             vodListContainer.innerHTML = '';
+
             try {
                 const res = await fetchPocketAPI('/live/api/v1/live/getLiveList', JSON.stringify({
                     debug: true,
@@ -3881,13 +4148,101 @@
                     groupId: 0,
                     record: false
                 }));
+
                 vodLoading.style.display = 'none';
-                if (res && res.status === 200 && res.content && res.content.liveList && res.content.liveList.length > 0) renderLiveList(res.content.liveList);
-                else vodListContainer.innerHTML = '<div style="width:100%; text-align:center; color:#888;">当前没有成员在直播</div>';
+
+                if (res && res.status === 200 && res.content && res.content.liveList) {
+                    currentLiveListRaw = res.content.liveList;
+                    handleLiveFilter();
+                } else {
+                    currentLiveListRaw = [];
+                    vodListContainer.innerHTML = '<div style="width:100%; text-align:center; color:#888;">当前没有成员在直播</div>';
+                }
             } catch (err) {
+                console.error(err);
+                vodLoading.style.display = 'none';
                 vodLoading.textContent = '获取失败，请检查网络';
             }
         }
+
+
+        function toggleLiveGroupDropdown() {
+            const list = document.getElementById('live-group-dropdown');
+            if (list) list.style.display = (list.style.display === 'block') ? 'none' : 'block';
+            document.getElementById('live-type-dropdown').style.display = 'none';
+        }
+
+        function selectLiveGroup(val, text) {
+            document.getElementById('live-group-value').value = val;
+            document.getElementById('live-group-display').value = text;
+            document.getElementById('live-group-dropdown').style.display = 'none';
+            handleLiveFilter();
+        }
+
+        function toggleLiveTypeDropdown() {
+            const list = document.getElementById('live-type-dropdown');
+            if (list) list.style.display = (list.style.display === 'block') ? 'none' : 'block';
+            document.getElementById('live-group-dropdown').style.display = 'none';
+        }
+
+        function selectLiveType(val, text) {
+            document.getElementById('live-type-value').value = val;
+            document.getElementById('live-type-display').value = text;
+            document.getElementById('live-type-dropdown').style.display = 'none';
+            handleLiveFilter();
+        }
+
+
+        function handleLiveFilter() {
+            const groupVal = document.getElementById('live-group-value').value;
+            const typeVal = document.getElementById('live-type-value').value;
+
+            const searchInput = document.getElementById('live-search-input');
+            const container = document.getElementById('vod-list-container');
+            const keyword = searchInput ? searchInput.value.trim().toLowerCase() : '';
+
+            if (!currentLiveListRaw || currentLiveListRaw.length === 0) {
+                container.innerHTML = '<div style="width:100%; text-align:center; color:#888;">当前没有成员在直播</div>';
+                return;
+            }
+
+            const filtered = currentLiveListRaw.filter(item => {
+                let matchGroup = true;
+                if (groupVal !== 'all') {
+                    const memberId = item.userInfo ? item.userInfo.userId : item.userId;
+                    const teamName = item.userInfo ? item.userInfo.teamName : '';
+                    const nickname = item.userInfo ? item.userInfo.nickname : '';
+                    const code = getGroupCode(memberId, teamName, nickname);
+                    if (code !== groupVal) matchGroup = false;
+                }
+
+                let matchType = true;
+                if (typeVal !== 'all') {
+                    const isRadio = (item.liveType === 2);
+                    if (typeVal === 'video' && isRadio) matchType = false;
+                    if (typeVal === 'radio' && !isRadio) matchType = false;
+                }
+
+                let matchKeyword = true;
+                if (keyword) {
+                    const name = (item.userInfo ? item.userInfo.nickname : '').toLowerCase();
+                    const title = (item.title || item.liveTitle || '').toLowerCase();
+                    if (!name.includes(keyword) && !title.includes(keyword)) {
+                        matchKeyword = false;
+                    }
+                }
+
+                return matchGroup && matchType && matchKeyword;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<div style="width:100%; text-align:center; color:#888; padding: 20px;">没有匹配的直播间</div>';
+            } else {
+                renderLiveList(filtered);
+            }
+        }
+
+
 
         function renderLiveList(list) {
             vodListContainer.className = 'live-card-grid';
@@ -3919,6 +4274,8 @@
             document.getElementById('media-list-area').style.display = 'none';
             document.getElementById('vod-pagination-controls').style.display = 'none';
             document.getElementById('media-list-controls').style.display = 'none';
+            const liveControls = document.getElementById('live-list-controls');
+            if (liveControls) liveControls.style.display = 'none';
             livePlayerView.style.display = 'block';
             const titleContainer = document.getElementById('current-live-title');
             const timeContainer = document.getElementById('current-live-time');
@@ -4152,7 +4509,10 @@
                         container: document.getElementById('dplayer-container'),
                         live: false,
                         autoplay: true,
-                        theme: '#9b6a9c',
+                        screenshot: true,
+                        hotkey: false,
+                        playbackSpeed: [1],
+                        theme: '#FF8EBF',
                         video: {
                             url: localUrl,
                             type: 'customFlv',
@@ -4837,7 +5197,12 @@
                     (typeof memberIdSet !== 'undefined' && post.userId && memberIdSet.has(String(post.userId)));
 
 
-                const nameStyle = isMemberPost ? 'color: #FB7299; font-weight: bold;' : 'color: var(--text); opacity: 0.9;';
+                let nameStyle = '';
+                if (String(post.userId) === '121569667') {
+                    nameStyle = 'color: #056de8; font-weight: bold;';
+                } else {
+                    nameStyle = isMemberPost ? 'color: #FB7299; font-weight: bold;' : 'color: var(--text); opacity: 0.9;';
+                }
 
                 header.innerHTML = `
                     ${post.avatarHtml}
@@ -5201,7 +5566,7 @@
         function updateStatus() {
             const names = {
                 'all': '全部',
-                'text': '纯文字',
+                'text': '文字',
                 'image': '图片',
                 'video': '视频',
                 'audio': '语音',
@@ -5544,7 +5909,10 @@
                 }));
                 if (res && res.status === 200 && res.content && res.content.playStreamPath) {
                     if (titleEl) titleEl.textContent = '🚀 正在唤起 PotPlayer...';
-                    window.location.href = `potplayer://${encodeURIComponent(res.content.playStreamPath)}`;
+
+                    const { shell } = require('electron');
+                    shell.openExternal(`potplayer://${res.content.playStreamPath}`);
+
                 } else if (titleEl) titleEl.textContent = '❌ 无法获取流地址 (可能已失效)';
             } catch (err) {
                 if (titleEl) titleEl.textContent = '❌ 网络请求失败';
@@ -6517,6 +6885,8 @@
                 { wrapperId: 'month-wrapper', dropdownId: 'month-dropdown' },
                 { wrapperId: 'day-wrapper', dropdownId: 'day-dropdown' },
                 { wrapperId: 'flip-type-wrapper', dropdownId: 'flip-type-dropdown' },
+                { wrapperId: 'live-group-wrapper', dropdownId: 'live-group-dropdown' },
+                { wrapperId: 'live-type-wrapper', dropdownId: 'live-type-dropdown' },
                 { wrapperId: 'search-type-wrapper', dropdownId: 'search-type-dropdown' }
 
             ];
@@ -6793,6 +7163,9 @@
             document.getElementById('vod-pagination-controls').style.display = 'none';
             document.getElementById('media-list-area').style.display = 'none';
 
+            const liveControls = document.getElementById('live-list-controls');
+            if (liveControls) liveControls.style.display = 'none';
+
             returnToOpenLive = true;
 
             const playerView = document.getElementById('live-player-view');
@@ -6915,7 +7288,8 @@
                     streamUrl = highQuality ? highQuality.streamPath : res.content.playStreams[0].streamPath;
 
                     if (streamUrl) {
-                        window.location.href = `potplayer://${encodeURIComponent(streamUrl)}`;
+                        const { shell } = require('electron');
+                        shell.openExternal(`potplayer://${streamUrl}`);
                     } else {
                         console.warn('[PotPlayer] 未找到流地址');
                     }
@@ -6928,12 +7302,32 @@
                 imgEl.style.cursor = originalCursor;
             }
         }
-        let currentDanmuList = [];
+
+        function handleDanmuSearch(keyword) {
+            const term = keyword.trim().toLowerCase();
+
+            currentDanmuList.forEach((item, index) => {
+                const row = document.getElementById(`dm-row-${index}`);
+                if (row) {
+                    const text = (item.text || '').toLowerCase();
+                    const name = (item.name || '').toLowerCase();
+
+                    if (text.includes(term) || name.includes(term)) {
+                        row.style.display = 'flex';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                }
+            });
+        }
 
         function renderDanmuListUI(danmuData) {
             const wrapper = document.getElementById('danmu-timeline-wrapper');
             const container = document.getElementById('danmu-list-body');
             const countDisplay = document.getElementById('danmu-count-display');
+
+            const searchInput = document.getElementById('danmu-search-input');
+            if (searchInput) searchInput.value = '';
 
             lastActiveIndex = -1;
 
@@ -6948,9 +7342,7 @@
 
             wrapper.style.display = 'flex';
             container.innerHTML = '';
-
             container.scrollTop = 0;
-
 
             if (countDisplay) countDisplay.innerText = `共 ${currentDanmuList.length} 条`;
 
@@ -6961,6 +7353,8 @@
                 div.className = 'danmu-row';
                 div.id = `dm-row-${index}`;
                 div.dataset.time = item.time;
+
+                div.style.display = 'flex';
 
                 const s = Math.floor(item.time);
                 const ms = Math.floor((item.time % 1) * 1000);
@@ -7175,23 +7569,212 @@
 
         }
 
+
+        let smsTimer = null;
+
+        function switchLoginTab(type) {
+            const tabSms = document.getElementById('tab-sms');
+            const tabToken = document.getElementById('tab-token');
+            const formSms = document.getElementById('form-sms');
+            const formToken = document.getElementById('form-token');
+            const msgDiv = document.getElementById('login-msg');
+
+            msgDiv.innerText = '';
+
+            if (type === 'sms') {
+                tabSms.style.color = 'var(--primary)';
+                tabSms.style.borderBottomColor = 'var(--primary)';
+                tabSms.style.fontWeight = 'bold';
+
+                tabToken.style.color = 'var(--text-sub)';
+                tabToken.style.borderBottomColor = 'transparent';
+                tabToken.style.fontWeight = 'normal';
+
+                formSms.style.display = 'block';
+                formToken.style.display = 'none';
+            } else {
+                tabToken.style.color = 'var(--primary)';
+                tabToken.style.borderBottomColor = 'var(--primary)';
+                tabToken.style.fontWeight = 'bold';
+
+                tabSms.style.color = 'var(--text-sub)';
+                tabSms.style.borderBottomColor = 'transparent';
+                tabSms.style.fontWeight = 'normal';
+
+                formToken.style.display = 'block';
+                formSms.style.display = 'none';
+            }
+        }
+
+        let currentVerifyAnswer = null;
+
+        async function handleSendSms(answer = null) {
+            const mobile = document.getElementById('login-mobile').value.trim();
+            const area = document.getElementById('login-area').value.trim() || '86';
+            const btn = document.getElementById('btn-send-sms');
+            const msgBox = document.getElementById('login-msg');
+
+            const verifyArea = document.getElementById('sms-verification-area');
+            const verifyQuestion = document.getElementById('verify-question-text');
+            const verifyOptions = document.getElementById('verify-options-container');
+
+            if (!mobile) {
+                msgBox.innerText = '请输入手机号';
+                return;
+            }
+
+            if (!answer) {
+                btn.disabled = true;
+                btn.innerText = '发送中...';
+            }
+
+            msgBox.innerText = '';
+
+            try {
+                const res = await ipcRenderer.invoke('login-send-sms', { mobile, area, answer });
+
+                if (res.success) {
+                    if (verifyArea) verifyArea.style.display = 'none';
+
+                    let count = 60;
+                    btn.innerText = `${count}s`;
+                    const timer = setInterval(() => {
+                        count--;
+                        btn.innerText = `${count}s`;
+                        if (count <= 0) {
+                            clearInterval(timer);
+                            btn.disabled = false;
+                            btn.innerText = '获取验证码';
+                        }
+                    }, 1000);
+
+                    msgBox.style.color = '#28a745';
+                    msgBox.innerText = '验证码已发送，请查收';
+
+                } else if (res.needVerification) {
+                    btn.disabled = false;
+                    btn.innerText = '获取验证码';
+
+                    msgBox.innerText = '';
+
+                    if (verifyArea && verifyQuestion && verifyOptions) {
+                        verifyArea.style.display = 'block';
+                        verifyQuestion.innerText = res.question;
+                        verifyOptions.innerHTML = '';
+
+                        res.options.forEach(opt => {
+                            const optBtn = document.createElement('button');
+                            optBtn.className = 'btn btn-secondary';
+                            optBtn.style.cssText = 'padding: 4px 10px; font-size: 12px;';
+                            optBtn.innerText = opt.value;
+
+                            optBtn.onclick = () => {
+                                verifyQuestion.innerText = `正在验证: ${opt.value}...`;
+                                verifyOptions.style.pointerEvents = 'none';
+                                verifyOptions.style.opacity = '0.5';
+
+                                handleSendSms(opt.option);
+                            };
+
+                            verifyOptions.appendChild(optBtn);
+                        });
+
+                        verifyOptions.style.pointerEvents = 'auto';
+                        verifyOptions.style.opacity = '1';
+                    }
+
+                } else {
+                    throw new Error(res.msg);
+                }
+            } catch (e) {
+                btn.disabled = false;
+                btn.innerText = '获取验证码';
+                msgBox.style.color = '#ff4d4f';
+                msgBox.innerText = e.message;
+
+            }
+        }
+
+        function startCountdown(seconds) {
+            const btn = document.getElementById('btn-send-sms');
+            let left = seconds;
+
+            btn.disabled = true;
+            btn.innerText = `${left}s 后重试`;
+
+            if (smsTimer) clearInterval(smsTimer);
+
+            smsTimer = setInterval(() => {
+                left--;
+                if (left <= 0) {
+                    clearInterval(smsTimer);
+                    btn.disabled = false;
+                    btn.innerText = '获取验证码';
+                } else {
+                    btn.innerText = `${left}s 后重试`;
+                }
+            }, 1000);
+        }
+
+        async function handleLoginByCode() {
+            const mobile = document.getElementById('login-mobile').value.trim();
+            const code = document.getElementById('login-code').value.trim();
+            const msgDiv = document.getElementById('login-msg');
+
+            if (!mobile || !code) {
+                msgDiv.innerText = '请填写手机号和验证码';
+                return;
+            }
+
+            msgDiv.innerText = '登录中...';
+            msgDiv.style.color = 'var(--primary)';
+
+            try {
+                const res = await ipcRenderer.invoke('login-by-code', { mobile, code });
+
+                if (res.status === 200 && res.success) {
+                    const token = res.content.token;
+                    const userInfo = res.content.userInfo;
+
+                    localStorage.setItem('yaya_p48_token', token);
+                    const tokenInput = document.getElementById('login-token');
+                    if (tokenInput) tokenInput.value = token;
+
+                    msgDiv.style.color = '#28a745';
+                    msgDiv.innerText = '登录成功！正在跳转...';
+
+                    setTimeout(() => {
+                        checkToken();
+                    }, 500);
+                } else {
+                    throw new Error(res.message || '登录失败');
+                }
+            } catch (err) {
+                msgDiv.style.color = '#ff4d4f';
+                msgDiv.innerText = '登录失败: ' + err.message;
+            }
+        }
         async function checkToken() {
             const tokenInput = document.getElementById('login-token').value.trim();
             const msgBox = document.getElementById('login-msg');
-
             const panelInput = document.getElementById('panel-login');
             const panelSuccess = document.getElementById('panel-logged-in');
 
+            const accountArea = document.getElementById('account-switcher-area');
+            const accountList = document.getElementById('account-list');
+
             if (!tokenInput) {
-                msgBox.innerText = '请输入 Token';
+                if (msgBox) msgBox.innerText = '请输入 Token';
                 return;
             }
 
             appToken = tokenInput;
             localStorage.setItem('yaya_p48_token', appToken);
 
-            msgBox.innerText = '正在验证身份...';
-            msgBox.style.color = '#666';
+            if (msgBox) {
+                msgBox.innerText = '正在验证身份...';
+                msgBox.style.color = '#666';
+            }
 
             try {
                 const pa = window.getPA ? window.getPA() : null;
@@ -7200,20 +7783,141 @@
                     pa
                 });
 
-                if (panelInput) panelInput.style.display = 'none';
-                if (panelSuccess) panelSuccess.style.display = 'block';
-
                 if (res.success) {
-                    const safeName = res.userInfo?.baseUserInfo?.nickname || res.userInfo?.nickname || '口袋用户';
+                    if (panelInput) panelInput.style.display = 'none';
+                    if (panelSuccess) panelSuccess.style.display = 'block';
+
+                    const userInfo = res.userInfo;
+                    const safeName = userInfo?.baseUserInfo?.nickname || userInfo?.nickname || '口袋用户';
                     document.getElementById('user-nickname').innerText = safeName;
-                    msgBox.innerText = '';
+                    if (msgBox) msgBox.innerText = '';
+
+                    if (accountArea && accountList) {
+                        accountList.innerHTML = '';
+                        let hasOtherAccounts = false;
+                        const bigSmall = userInfo.bigSmallInfo;
+
+                        const createCard = (user, type) => {
+                            const card = document.createElement('div');
+                            card.className = 'account-card';
+                            card.title = `点击切换到: ${user.nickname}`;
+
+                            let avatarUrl = 'https://source.48.cn/logo.png';
+                            if (user.avatar) {
+                                avatarUrl = user.avatar.startsWith('http') ? user.avatar : `https://source.48.cn${user.avatar}`;
+                            }
+
+                            const tagClass = type === 'main' ? 'tag-big' : 'tag-small';
+                            const tagText = type === 'main' ? '主号' : '小号';
+
+                            card.innerHTML = `
+                        <img src="${avatarUrl}" class="account-card-avatar" onerror="this.src='./icon.png'">
+                        <div class="account-card-info">
+                            <div class="account-card-name">${user.nickname}</div>
+                            <span class="tag-badge ${tagClass}">${tagText}</span>
+                        </div>
+                    `;
+
+                            card.onclick = () => handleSwitchAccount(user.userId, user.nickname);
+                            return card;
+                        };
+
+                        if (bigSmall) {
+                            if (bigSmall.smallUserInfo && Array.isArray(bigSmall.smallUserInfo)) {
+                                bigSmall.smallUserInfo.forEach(small => {
+                                    if (String(small.userId) !== String(userInfo.userId)) {
+                                        hasOtherAccounts = true;
+                                        accountList.appendChild(createCard(small, 'small'));
+                                    }
+                                });
+                            }
+
+                            if (bigSmall.bigUserInfo && String(bigSmall.bigUserInfo.userId) !== String(userInfo.userId)) {
+                                hasOtherAccounts = true;
+                                accountList.insertBefore(createCard(bigSmall.bigUserInfo, 'main'), accountList.firstChild);
+                            }
+                        }
+
+                        accountList.style.gridTemplateColumns = '1fr';
+                        accountArea.style.display = hasOtherAccounts ? 'block' : 'none';
+                    }
+
                 } else {
-                    document.getElementById('user-nickname').innerText = '未知用户 (Token可能失效)';
+                    if (panelInput) panelInput.style.display = 'block';
+                    if (panelSuccess) panelSuccess.style.display = 'none';
+                    if (msgBox) {
+                        msgBox.style.color = '#ff4d4f';
+                        msgBox.innerText = res.msg || 'Token 无效';
+                    }
                 }
             } catch (e) {
-                if (panelInput) panelInput.style.display = 'none';
-                if (panelSuccess) panelSuccess.style.display = 'block';
-                document.getElementById('user-nickname').innerText = '离线/错误';
+                console.error(e);
+                if (panelInput) panelInput.style.display = 'block';
+                if (panelSuccess) panelSuccess.style.display = 'none';
+                if (msgBox) {
+                    msgBox.style.color = '#ff4d4f';
+                    msgBox.innerText = '验证出错: ' + e.message;
+                }
+            }
+        }
+
+        async function handleSwitchAccount(targetUserId, targetName) {
+
+            const nickNameEl = document.getElementById('user-nickname');
+            const originalName = nickNameEl.innerText;
+
+            nickNameEl.innerText = `正在切换...`;
+
+            try {
+                const pa = window.getPA ? window.getPA() : null;
+                const res = await ipcRenderer.invoke('switch-big-small', {
+                    token: appToken,
+                    pa: pa,
+                    targetUserId: targetUserId
+                });
+
+                if (res.success) {
+                    const newToken = res.content.token;
+                    if (newToken) {
+                        appToken = newToken;
+                        localStorage.setItem('yaya_p48_token', newToken);
+                        document.getElementById('login-token').value = newToken;
+
+                        await checkToken();
+
+                    } else {
+                        throw new Error("接口未返回 Token");
+                    }
+                } else {
+                    throw new Error(res.msg || "未知错误");
+                }
+            } catch (e) {
+                alert(`切换失败: ${e.message}`);
+                nickNameEl.innerText = originalName;
+            }
+        }
+
+        function copyToken() {
+            const token = appToken || localStorage.getItem('yaya_p48_token');
+            const btn = document.getElementById('btn-copy-token');
+
+            if (token) {
+                navigator.clipboard.writeText(token).then(() => {
+                    const originalText = btn.innerText;
+                    btn.innerText = "✅ 已复制";
+                    btn.style.backgroundColor = "#28a745";
+                    btn.style.color = "white";
+
+                    setTimeout(() => {
+                        btn.innerText = originalText;
+                        btn.style.backgroundColor = "white";
+                        btn.style.color = "#28a745";
+                    }, 1500);
+                }).catch(err => {
+                    alert('复制失败，请手动复制');
+                });
+            } else {
+                alert('❌ 当前未获取到 Token');
             }
         }
 

@@ -5,6 +5,33 @@ const axios = require('axios');
 const ffmpeg = require('fluent-ffmpeg');
 const ffmpegPath = require('ffmpeg-static');
 const NodeMediaServer = require('node-media-server');
+const wasmInit = require('./rust-wasm.js');
+const { __x6c2adf8__ } = wasmInit;
+
+let wasmInitialized = false;
+
+async function ensureWasmLoaded() {
+    if (wasmInitialized) return;
+    try {
+        const wasmName = '2.wasm';
+        const wasmPath = app.isPackaged
+            ? path.join(process.resourcesPath, wasmName)
+            : path.join(__dirname, wasmName);
+
+        if (!fs.existsSync(wasmPath)) {
+            console.error('WASM 文件未找到:', wasmPath);
+            return;
+        }
+
+        const wasmBuffer = fs.readFileSync(wasmPath);
+        await wasmInit.default(wasmBuffer);
+        wasmInitialized = true;
+        console.log('WASM 模块加载成功');
+    } catch (err) {
+        console.error('WASM 加载失败:', err);
+    }
+}
+
 
 let mainWindow;
 const activeCommands = new Map();
@@ -51,6 +78,8 @@ function createWindow() {
         shell.openExternal(url);
         return { action: 'deny' };
     });
+
+    ensureWasmLoaded();
 }
 
 app.whenReady().then(createWindow);
@@ -278,6 +307,7 @@ ipcMain.on('download-vod', (event, { url, fileName, taskId }) => {
         .save(outputPath);
 });
 
+
 function rStr(len) {
     const str = 'QWERTYUIOPASDFGHJKLZXCVBNM1234567890';
     let result = '';
@@ -287,17 +317,20 @@ function rStr(len) {
 
 const DEVICE_ID = `${rStr(8)}-${rStr(4)}-${rStr(4)}-${rStr(4)}-${rStr(12)}`;
 
+const APP_VERSION = '7.0.41';
+const APP_BUILD = '24011601';
+
 function createHeaders(token, pa) {
     const headers = {
         'Content-Type': 'application/json;charset=utf-8',
-        'User-Agent': 'PocketFans201807/7.0.16 (iPhone; iOS 13.5.1; Scale/2.00)',
+        'User-Agent': `PocketFans201807/${APP_VERSION} (iPhone; iOS 16.3.1; Scale/2.00)`,
         'Host': 'pocketapi.48.cn',
         'Accept-Language': 'zh-Hans-CN;q=1',
         'appInfo': JSON.stringify({
             vendor: 'apple',
             deviceId: DEVICE_ID,
-            appVersion: '7.0.16',
-            appBuild: '23011601',
+            appVersion: APP_VERSION, 
+            appBuild: APP_BUILD,    
             osVersion: '16.3.1',
             osType: 'ios',
             deviceName: 'iPhone XR',
@@ -309,6 +342,78 @@ function createHeaders(token, pa) {
     return headers;
 }
 
+async function createLoginHeaders() {
+    await ensureWasmLoaded();
+
+    const headers = createHeaders();
+    try {
+        if (wasmInitialized) {
+            headers['pa'] = __x6c2adf8__();
+        }
+    } catch (e) {
+        console.error('生成 PA 失败:', e);
+    }
+    return headers;
+}
+
+ipcMain.handle('login-send-sms', async (event, { mobile, area, answer }) => {
+    try {
+        const url = 'https://pocketapi.48.cn/user/api/v1/sms/send2';
+        
+        const payload = {
+            mobile: mobile,
+            area: area || '86'
+        };
+        
+        if (answer) {
+            payload.answer = answer;
+        }
+
+        const res = await axios.post(url, payload, {
+            headers: createHeaders()
+        });
+
+        if (res.status === 200 && res.data.status === 200) {
+            return { success: true };
+        }
+        
+        if (res.data.status === 2001) {
+            try {
+                const verificationData = JSON.parse(res.data.message);
+                return { 
+                    success: false, 
+                    needVerification: true, 
+                    question: verificationData.question,
+                    options: verificationData.answer 
+                };
+            } catch (jsonErr) {
+                return { success: false, msg: '验证数据解析失败: ' + res.data.message };
+            }
+        }
+
+        return { success: false, msg: res.data.message || '发送失败' };
+    } catch (e) {
+        return { success: false, msg: '网络错误: ' + e.message };
+    }
+});
+
+ipcMain.handle('login-by-code', async (event, { mobile, code }) => {
+    try {
+        const url = 'https://pocketapi.48.cn/user/api/v1/login/app/mobile/code';
+        const headers = await createLoginHeaders();
+        const payload = {
+            mobile: mobile,
+            code: code
+        };
+
+        const res = await axios.post(url, payload, { headers });
+        return res.data;
+    } catch (e) {
+        console.error('登录错误:', e);
+        return { status: 500, message: e.message };
+    }
+});
+
 ipcMain.handle('login-check-token', async (event, { token, pa }) => {
     try {
         const url = 'https://pocketapi.48.cn/user/api/v1/user/info/reload';
@@ -317,12 +422,41 @@ ipcMain.handle('login-check-token', async (event, { token, pa }) => {
         });
 
         if (res.status === 200 && res.data.success) {
-            const info = res.data.content.userInfo || res.data.content;
-            return { success: true, userInfo: info };
+            const content = res.data.content;
+            let finalInfo = content.userInfo || content;
+
+            if (content.bigSmallInfo) {
+                finalInfo.bigSmallInfo = content.bigSmallInfo;
+            }
+
+            return { success: true, userInfo: finalInfo };
         }
         return { success: false, msg: res.data.message || 'Token 无效' };
     } catch (e) {
         return { success: false, msg: '验证失败: ' + e.message };
+    }
+});
+
+ipcMain.handle('switch-big-small', async (event, { token, pa, targetUserId }) => {
+    if (!token) return { success: false, msg: '缺少 Token' };
+
+    try {
+        const headers = createHeaders(token, pa);
+        const url = 'https://pocketapi.48.cn/user/api/v1/bigsmall/switch/user';
+        
+        const payload = {
+            toUserId: targetUserId
+        };
+
+        const res = await axios.post(url, payload, { headers });
+
+        if (res.status === 200 && res.data && res.data.status === 200) {
+            return { success: true, content: res.data.content };
+        }
+
+        return { success: false, msg: res.data ? res.data.message : 'API 错误' };
+    } catch (e) {
+        return { success: false, msg: e.message };
     }
 });
 
