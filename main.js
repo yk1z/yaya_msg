@@ -7,6 +7,7 @@ const ffmpegPath = require('ffmpeg-static');
 const NodeMediaServer = require('node-media-server');
 const wasmInit = require('./rust-wasm.js');
 const { __x6c2adf8__ } = wasmInit;
+const crypto = require('crypto');
 
 let wasmInitialized = false;
 
@@ -329,8 +330,8 @@ function createHeaders(token, pa) {
         'appInfo': JSON.stringify({
             vendor: 'apple',
             deviceId: DEVICE_ID,
-            appVersion: APP_VERSION, 
-            appBuild: APP_BUILD,    
+            appVersion: APP_VERSION,
+            appBuild: APP_BUILD,
             osVersion: '16.3.1',
             osType: 'ios',
             deviceName: 'iPhone XR',
@@ -359,12 +360,12 @@ async function createLoginHeaders() {
 ipcMain.handle('login-send-sms', async (event, { mobile, area, answer }) => {
     try {
         const url = 'https://pocketapi.48.cn/user/api/v1/sms/send2';
-        
+
         const payload = {
             mobile: mobile,
             area: area || '86'
         };
-        
+
         if (answer) {
             payload.answer = answer;
         }
@@ -376,15 +377,15 @@ ipcMain.handle('login-send-sms', async (event, { mobile, area, answer }) => {
         if (res.status === 200 && res.data.status === 200) {
             return { success: true };
         }
-        
+
         if (res.data.status === 2001) {
             try {
                 const verificationData = JSON.parse(res.data.message);
-                return { 
-                    success: false, 
-                    needVerification: true, 
+                return {
+                    success: false,
+                    needVerification: true,
                     question: verificationData.question,
-                    options: verificationData.answer 
+                    options: verificationData.answer
                 };
             } catch (jsonErr) {
                 return { success: false, msg: '验证数据解析失败: ' + res.data.message };
@@ -443,7 +444,7 @@ ipcMain.handle('switch-big-small', async (event, { token, pa, targetUserId }) =>
     try {
         const headers = createHeaders(token, pa);
         const url = 'https://pocketapi.48.cn/user/api/v1/bigsmall/switch/user';
-        
+
         const payload = {
             toUserId: targetUserId
         };
@@ -676,5 +677,225 @@ ipcMain.on('download-danmu', async (event, { url, fileName }) => {
     } catch (e) {
         console.error('Download Danmu Error:', e);
         event.reply('danmu-download-reply', { success: false, msg: e.message });
+    }
+});
+
+ipcMain.handle('fetch-flip-prices', async (event, { token, pa, memberId }) => {
+    if (!token) return { success: false, msg: '缺少 Token' };
+    try {
+        const headers = createHeaders(token, pa);
+        const url = 'https://pocketapi.48.cn/idolanswer/api/idolanswer/v2/custom/index';
+        const res = await axios.post(url, { memberId: String(memberId) }, { headers });
+
+        if (res.status === 200 && res.data && res.data.status === 200) {
+            return { success: true, content: res.data.content };
+        }
+        return { success: false, msg: res.data ? res.data.message : 'API 错误' };
+    } catch (e) {
+        return { success: false, msg: e.message };
+    }
+});
+
+ipcMain.handle('send-flip-question', async (event, { token, pa, payload }) => {
+    if (!token) return { success: false, msg: '缺少 Token' };
+    try {
+        const headers = createHeaders(token, pa);
+        const url = 'https://pocketapi.48.cn/idolanswer/api/idolanswer/v1/user/question';
+
+        const res = await axios.post(url, payload, { headers });
+
+        if (res.status === 200 && res.data && res.data.status === 200) {
+            return { success: true, msg: '发送成功' };
+        }
+        return { success: false, msg: res.data ? res.data.message : '发送失败' };
+    } catch (e) {
+        return { success: false, msg: e.message };
+    }
+});
+
+ipcMain.handle('operate-flip-question', async (event, { token, pa, questionId, operateType }) => {
+    if (!token) return { success: false, msg: '缺少 Token' };
+    try {
+        const headers = createHeaders(token, pa);
+        const url = 'https://pocketapi.48.cn/idolanswer/api/idolanswer/v1/user/question/operate';
+
+        const payload = {
+            questionId: String(questionId),
+            operateType: operateType || 1
+        };
+
+        const res = await axios.post(url, payload, { headers });
+
+        if (res.status === 200 && res.data && res.data.status === 200) {
+            return { success: true, msg: '操作成功' };
+        }
+        return { success: false, msg: res.data ? res.data.message : 'API 错误' };
+    } catch (e) {
+        return { success: false, msg: e.message };
+    }
+});
+
+ipcMain.handle('fetch-member-photos', async (event, { token, pa, memberId, page, size }) => {
+    if (!token) return { success: false, msg: '缺少 Token' };
+    try {
+        const headers = createHeaders(token, pa);
+        const url = 'https://pocketapi.48.cn/idolanswer/api/idolanswer/v1/user/nft/user_nft_list';
+
+        const payload = {
+            starId: parseInt(memberId),
+            size: size || 20,
+            page: page || 0
+        };
+
+        const res = await axios.post(url, payload, { headers });
+
+        if (res.status === 200 && res.data && res.data.status === 200) {
+            return { success: true, content: res.data.content };
+        }
+        return { success: false, msg: res.data ? res.data.message : 'API 错误' };
+    } catch (e) {
+        return { success: false, msg: e.message };
+    }
+});
+
+ipcMain.handle('fetch-user-money', async (event, { token, pa }) => {
+    if (!token) return { success: false, msg: '缺少 Token' };
+    try {
+        const headers = createHeaders(token, pa);
+        const url = 'https://pocketapi.48.cn/user/api/v1/user/money';
+
+        const res = await axios.post(url, { token }, { headers });
+
+        if (res.status === 200 && res.data && res.data.status === 200) {
+            return {
+                success: true,
+                content: res.data.content
+            };
+        }
+        return { success: false, msg: res.data ? res.data.message : '接口返回错误' };
+    } catch (e) {
+        return { success: false, msg: e.message };
+    }
+});
+
+ipcMain.handle('send-live-gift', async (event, { token, pa, giftId, liveId, acceptUserId, giftNum }) => {
+    if (!token) return { success: false, msg: '缺少 Token' };
+
+    try {
+        const headers = createHeaders(token, pa);
+
+        headers['appInfo'] = JSON.stringify({
+            vendor: "apple",
+            deviceId: "7B93DFD0-472F-4736-A628-E85FAE086487",
+            appVersion: "7.1.35",
+            appBuild: "25101021",
+            osVersion: "16.3.0",
+            osType: "ios",
+            deviceName: "iPhone 14 Pro",
+            os: "ios"
+        });
+        headers['User-Agent'] = 'PocketFans201807/7.1.35 (iPhone; iOS 16.3; Scale/3.00)';
+        headers['Content-Type'] = 'application/json;charset=utf-8';
+
+        delete headers['Origin'];
+        delete headers['Referer'];
+
+        const url = 'https://pocketapi.48.cn/gift/api/v1/gift/send';
+
+        const realCrm = crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString() + Math.random().toString().slice(2));
+
+        const payload = {
+            giftId: String(giftId),
+            businessId: String(liveId),
+            acceptUserId: String(acceptUserId),
+            giftNum: Number(giftNum) || 1,
+            isPocketGift: 0,
+            businessCode: 0,
+            zip: 0,
+            isCombo: 0,
+            ruleId: 0,
+            giftType: 1,
+            crm: realCrm
+        };
+
+        const res = await axios.post(url, payload, { headers });
+
+        if (res.status === 200 && res.data && res.data.status === 200) {
+            return {
+                success: true,
+                msg: res.data.message || '送礼成功',
+                content: res.data.content
+            };
+        }
+
+        return {
+            success: false,
+            msg: res.data ? res.data.message : '送礼失败'
+        };
+    } catch (e) {
+        console.error('送礼请求失败:', e);
+        return { success: false, msg: '网络错误: ' + e.message };
+    }
+});
+
+ipcMain.handle('fetch-gift-list', async (event, { token, pa, liveId }) => {
+    if (!token) return { success: false, msg: '缺少 Token' };
+    try {
+        const headers = createHeaders(token, pa);
+        const url = 'https://pocketapi.48.cn/gift/api/v1/gift/list';
+
+        const payload = {
+            businessId: String(liveId),
+            giftType: 1
+        };
+
+        const res = await axios.post(url, payload, { headers });
+
+        if (res.status === 200 && res.data && res.data.status === 200) {
+            return {
+                success: true,
+                content: res.data.content
+            };
+        }
+        return { success: false, msg: res.data ? res.data.message : '获取礼物列表失败' };
+    } catch (e) {
+        return { success: false, msg: e.message };
+    }
+});
+
+ipcMain.handle('get-nim-login-info', async (event, { token, pa }) => {
+    if (!token) return { success: false, msg: '未登录' };
+    try {
+        const headers = createHeaders(token, pa);
+
+        headers['appInfo'] = JSON.stringify({
+            vendor: "apple",
+            deviceId: "7B93DFD0-472F-4736-A628-E85FAE086487",
+            appVersion: "7.1.35",
+            appBuild: "25101021",
+            osVersion: "16.3.0",
+            osType: "ios",
+            deviceName: "iPhone 14 Pro",
+            os: "ios"
+        });
+        headers['User-Agent'] = 'PocketFans201807/7.1.35 (iPhone; iOS 16.3; Scale/3.00)';
+        headers['Content-Type'] = 'application/json;charset=utf-8';
+
+        const url = 'https://pocketapi.48.cn/user/api/v1/user/info/home';
+        const res = await axios.post(url, {}, { headers });
+
+        if (res.status === 200 && res.data && res.data.success) {
+            const userInfo = res.data.content.userInfo;
+            return {
+                success: true,
+                accid: userInfo.accId,
+                token: token
+            };
+        }
+
+        return { success: false, msg: '获取用户信息失败' };
+    } catch (e) {
+        console.error('获取IM信息失败:', e);
+        return { success: false, msg: e.message };
     }
 });

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>牙牙消息 v1.2.1</title>
+    <title>牙牙消息 v1.2.2</title>
     <link rel="icon" href="./icon.png" type="image/x-icon">
     <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.4.0/dist/hls.min.js"></script>
@@ -1754,6 +1754,117 @@
             color: #52c41a;
             border: 1px solid rgba(183, 235, 143, 0.5);
         }
+
+        .btn-text-danger {
+            color: #ff4d4f;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .btn-text-danger:hover {
+            background-color: rgba(255, 77, 79, 0.1);
+        }
+
+        .btn-text-gray {
+            color: var(--text-sub);
+            cursor: pointer;
+            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .btn-text-gray:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+            color: var(--text);
+        }
+
+        .gift-panel {
+            display: none;
+            background: var(--input-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-top: 15px;
+            padding: 15px;
+            flex-direction: column;
+        }
+
+        .gift-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 14px;
+            color: var(--text);
+        }
+
+        .gift-grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+            gap: 6px;
+            max-height: 220px;
+            overflow-y: auto;
+        }
+
+        .gift-item {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 6px 2px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .gift-item:hover {
+            border-color: var(--primary);
+            background: var(--input-bg);
+        }
+
+        .gift-item.selected {
+            border-color: var(--primary);
+            background-color: rgba(155, 106, 156, 0.1);
+            box-shadow: inset 0 0 0 1px var(--primary);
+        }
+
+        .gift-img {
+            width: 36px;
+            height: 36px;
+            object-fit: contain;
+            margin-bottom: 2px;
+        }
+
+        .gift-name {
+            font-size: 11px;
+            transform: scale(0.95);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            width: 100%;
+        }
+
+        .gift-cost {
+            font-size: 10px;
+            color: #fa8c16;
+        }
+
+        input[type=number] {
+            -moz-appearance: textfield;
+            appearance: textfield;
+        }
+
+        input[type=number]::-webkit-outer-spin-button,
+        input[type=number]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
     </style>
 </head>
 
@@ -1769,7 +1880,7 @@
                 </svg>
             </div>
             <img src="./icon.png" class="title-logo">
-            <span>牙牙消息 v1.2.1</span>
+            <span>牙牙消息 v1.2.2</span>
         </div>
         <div class="window-controls">
             <div class="control-btn" onclick="ipcRenderer.send('window-min')">
@@ -1797,7 +1908,7 @@
             <div class="sidebar-group">
                 <div class="group-title">个性化</div>
                 <div class="btn-grid">
-                    <button class="btn btn-secondary" onclick="triggerBgInput()">🖼️ 背景</button>
+                    <button class="btn btn-secondary" onclick="triggerBgInput()">背景图</button>
                     <button class="btn btn-secondary" onclick="toggleTheme()" id="themeBtn">🌞 模式</button>
                 </div>
             </div>
@@ -1812,34 +1923,41 @@
                 </div>
 
                 <button class="btn btn-secondary btn-full" style="margin-top: 8px;"
-                    onclick="openInBrowser('https://www.bilibili.com/video/BV1Ba8FzxEje/')">🦷 牙牙回放</button>
+                    onclick="openInBrowser('https://www.bilibili.com/video/BV1Ba8FzxEje/')">牙牙回放</button>
             </div>
             <div class="sidebar-group" id="sb-login-group">
                 <div class="group-title">账号登录</div>
 
                 <button id="btn-sb-login" class="btn btn-secondary btn-full" style="margin-bottom: 8px;"
                     onclick="switchView('login')">
-                    账号设置
+                    口袋账号设置
                 </button>
 
                 <button id="btn-sb-fetch" class="btn btn-secondary btn-full" style="margin-bottom: 8px;"
                     onclick="switchView('fetch')">
-                    抓取消息
+                    抓取房间消息
                 </button>
 
-                <button id="btn-sb-flip" class="btn btn-secondary btn-full" onclick="switchView('flip')">
-                    翻牌记录
-                </button>
-
-                <button id="btn-sb-profile" class="btn btn-secondary btn-full" style="margin-top: 8px;"
+                <button id="btn-sb-profile" class="btn btn-secondary btn-full" style="margin-bottom: 8px;"
                     onclick="switchView('profile')">
-                    成员档案
+                    成员详细档案
                 </button>
 
-                <button id="btn-sb-open-live" class="btn btn-secondary btn-full" style="margin-top: 8px;"
+                <button id="btn-sb-open-live" class="btn btn-secondary btn-full" style="margin-bottom: 8px;"
                     onclick="switchView('openlive')">
-                    公演记录
+                    成员公演记录
                 </button>
+
+                <div style="display: flex; gap: 8px;">
+                    <button id="btn-sb-flip" class="btn btn-secondary btn-full" style="flex: 1; margin: 0; padding: 0;"
+                        onclick="switchView('flip')">
+                        翻牌记录
+                    </button>
+                    <button id="btn-sb-send-flip" class="btn btn-secondary btn-full"
+                        style="flex: 1; margin: 0; padding: 0;" onclick="switchView('send-flip')">
+                        发送翻牌
+                    </button>
+                </div>
             </div>
             <div class="sidebar-group" id="sb-search">
                 <div class="group-title">消息搜索</div>
@@ -1931,13 +2049,17 @@
             </div>
             <div class="sidebar-group" id="sb-analysis">
                 <div class="group-title">数据分析</div>
-                <div class="btn-grid">
+
+                <div class="btn-grid" style="margin-bottom: 8px;">
                     <button class="btn btn-secondary" onclick="openDateAnalysis()" id="dateBtn" disabled>消息统计</button>
                     <button class="btn btn-secondary" onclick="openUserAnalysis()" id="analysisBtn"
                         disabled>互动榜</button>
                 </div>
-                <button class="btn btn-secondary btn-full" style="margin-top: 8px;"
-                    onclick="openInBrowser('https://yk1z.github.io/')">其它数据</button>
+
+                <div class="btn-grid">
+                    <button class="btn btn-secondary" onclick="openFlipAnalysis()" id="flipAnalysisBtn">翻牌统计</button>
+                    <button class="btn btn-secondary" onclick="openInBrowser('https://yk1z.github.io/')">其它数据</button>
+                </div>
             </div>
             <div class="sidebar-group" id="sb-type">
                 <div class="group-title">类型筛选</div>
@@ -2109,6 +2231,54 @@
                         </div>
                     </div>
 
+                    <div id="live-gift-container"
+                        style="display: none; margin-top: 0; border: 1px solid var(--border); border-top: none; background: var(--card); border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; overflow: hidden;">
+
+                        <div class="gift-control-bar" onclick="toggleGiftPanel()"
+                            style="padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; background: var(--input-bg); user-select: none;">
+                            <div style="display: flex; align-items: center;">
+                                <span style="font-weight: bold; margin-right: 10px;">🎁 赠送礼物</span>
+                                <span style="font-size: 12px; color: var(--text-sub);">
+                                    余额: <span id="live-gift-balance"
+                                        style="color: var(--primary); font-weight: bold; margin: 0 4px;">--</span> 🍗
+                                </span>
+                                <button class="btn btn-secondary" onclick="event.stopPropagation(); updateLiveBalance()"
+                                    style="padding: 0 6px; height: 20px; font-size: 12px; margin-left: 8px; line-height: 1;">↻</button>
+
+                                <a href="https://live.48.cn/Recharge/" target="_blank" onclick="event.stopPropagation()"
+                                    style="margin-left: 10px; font-size: 12px; color: #1890ff;">充值</a>
+
+                                <span
+                                    style="font-size: 11px; color: #ff4d4f; margin-left: 15px; opacity: 0.9; flex: 1; text-align: left;">
+                                    提示：送出后没有礼物弹幕，成员可能看不见送出的礼物。
+                                </span>
+                            </div>
+
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <div style="display:flex; align-items:center; background:var(--bg); border:1px solid var(--border); border-radius:4px; padding:0 4px; height:28px;"
+                                    onclick="event.stopPropagation()">
+                                    <span style="font-size:12px; color:var(--text-sub); margin-right:4px;">数量</span>
+                                    <input type="number" id="live-gift-num" value="1" min="1" max="9999"
+                                        style="width: 40px; border:none; background:transparent; color:var(--text); text-align:center; font-weight:bold; outline:none;">
+                                </div>
+
+                                <button id="btn-confirm-send-gift" class="btn btn-primary"
+                                    onclick="event.stopPropagation(); executeSendLiveGift()"
+                                    style="padding: 0 15px; height: 28px; font-size: 12px;" disabled>发送</button>
+
+                                <span id="gift-panel-arrow"
+                                    style="font-size: 12px; color: #999; transition: transform 0.2s;">▼</span>
+                            </div>
+                        </div>
+
+                        <div id="live-gift-panel"
+                            style="display: none; padding: 10px; border-top: 1px solid var(--border); background: var(--bg);">
+                            <div id="live-gift-grid" class="gift-grid-container"
+                                style="max-height: 220px; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));">
+                            </div>
+                        </div>
+                    </div>
+
                     <div id="clip-toolbar"
                         style="margin-top: 15px; padding: 15px; background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
                         <div style="flex: 1; min-width: 200px;">
@@ -2154,7 +2324,7 @@
                 <div class="list-container">
 
                     <div style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border);">
-                        <h2 style="margin: 0; color: var(--primary);">口袋账号登录</h2>
+                        <h2 style="margin: 0; color: var(--primary);">口袋账号设置</h2>
                     </div>
 
                     <div id="panel-login" class="Box-row">
@@ -2242,7 +2412,15 @@
                         <div class="Box-row" style="background: rgba(40, 167, 69, 0.1); border-color: #28a745;">
                             <div
                                 style="font-weight: bold; font-size: 15px; color: #28a745; display: flex; justify-content: space-between; align-items: center;">
-                                <span>✅ 当前已登录 (<span id="user-nickname">用户</span>)</span>
+                                <span style="display: flex; align-items: center;">
+                                    <span style="line-height: 1;">✅ 当前已登录 (<span id="user-nickname">用户</span>)</span>
+
+                                    <span id="user-id-display"
+                                        style="font-size: 13px; color: #333; margin-left: 10px; opacity: 0.75; padding-top: 0px;">
+                                        ID: --
+                                    </span>
+                                </span>
+                                </span>
                                 <div style="display: flex; gap: 8px;">
                                     <button class="btn btn-secondary" id="btn-copy-token" onclick="copyToken()"
                                         style="height: 28px; padding: 0 12px; font-size: 12px; background: white; border-color: #28a745; color: #28a745;">
@@ -2267,7 +2445,7 @@
                         </div>
 
                         <div style="margin-top: 20px; text-align: center; color: var(--text-sub); font-size: 13px;">
-                            <p>您现在可以前往“抓取消息”、“翻牌记录”或“公演记录”页面使用功能。</p>
+                            <p>您现在可以前往账号登录模块下使用相关功能。</p>
                         </div>
                     </div>
                 </div>
@@ -2339,7 +2517,7 @@
                         style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
 
                         <div style="display: flex; align-items: baseline; gap: 12px;">
-                            <h2 style="margin: 0; color: var(--primary);">我的翻牌记录</h2>
+                            <h2 style="margin: 0; color: var(--primary);">翻牌记录</h2>
                             <span id="flip-status-text" style="font-size: 12px; color: var(--text-sub);"></span>
                         </div>
 
@@ -2375,7 +2553,7 @@
                     <div id="flip-list-container">
                         <div class="placeholder-tip">
                             <h3>👋 准备就绪</h3>
-                            <p>请确保您已在“账号设置”页面登录成功，然后点击刷新。</p>
+                            <p>请确保您已在“口袋账号设置”页面登录成功，然后点击刷新。</p>
                         </div>
                     </div>
 
@@ -2388,6 +2566,150 @@
                     </div>
                 </div>
             </div>
+
+            <div id="view-send-flip"
+                style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
+                <div class="list-container">
+                    <div style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border);">
+                        <h2 style="margin: 0; color: var(--primary);">翻牌提问</h2>
+                    </div>
+
+                    <div class="Box-row" style="z-index: 20;">
+                        <h3
+                            style="margin-top: 0; font-size: 16px; margin-bottom: 15px; border-left: 4px solid var(--primary); padding-left: 10px; color: var(--text);">
+                            选择成员</h3>
+
+                        <div id="flip-member-wrapper" style="position: relative;">
+                            <input type="text" id="flip-send-member-input" class="input-control"
+                                placeholder="输入成员名字或拼音首字母搜索..." oninput="handleFlipSendSearch(this.value)"
+                                onfocus="handleFlipSendSearch(this.value)" onclick="handleFlipSendSearch(this.value)"
+                                autocomplete="off" style="padding-right: 10px;">
+
+                            <input type="hidden" id="flip-send-member-id">
+
+                            <div id="flip-send-search-results" class="suggestion-box"
+                                style="width: 100%; max-height: 200px; overflow-y: auto;"></div>
+                        </div>
+                    </div>
+
+                    <div id="flip-price-loading"
+                        style="display:none; text-align:center; padding: 20px; color: var(--text-sub);">
+                        <div class="spinner"></div> 正在获取该成员的翻牌设置...
+                    </div>
+
+                    <div id="flip-config-area" style="display:none;">
+
+                        <div class="Box-row" style="z-index: 15;">
+                            <h3
+                                style="margin-top: 0; font-size: 16px; margin-bottom: 15px; border-left: 4px solid var(--primary); padding-left: 10px; color: var(--text);">
+                                设置类型</h3>
+
+                            <div style="display: flex; gap: 20px;">
+                                <div style="flex: 1;">
+                                    <label
+                                        style="display:block; margin-bottom: 5px; font-weight: bold; font-size: 13px; color: var(--text-sub);">翻牌类型</label>
+
+                                    <div id="flip-answer-wrapper" style="position: relative;">
+                                        <input type="hidden" id="flip-answer-type">
+                                        <input type="text" id="flip-answer-display" class="input-control" value="请选择"
+                                            readonly onclick="toggleFlipAnswerDropdown()"
+                                            style="cursor: pointer; text-align: left; padding-right: 30px;">
+
+                                        <div
+                                            style="position: absolute; right: 10px; top: 10px; pointer-events: none; color: var(--text-sub); font-size: 12px;">
+                                            ▼</div>
+
+                                        <div id="flip-answer-dropdown" class="suggestion-box" style="display: none;">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div style="flex: 1;">
+                                    <label
+                                        style="display:block; margin-bottom: 5px; font-weight: bold; font-size: 13px; color: var(--text-sub);">公开设置</label>
+
+                                    <div id="flip-privacy-wrapper" style="position: relative;">
+                                        <input type="hidden" id="flip-privacy-type" value="1">
+                                        <input type="text" id="flip-privacy-display" class="input-control"
+                                            value="公开 (所有人可见)" readonly onclick="toggleFlipPrivacyDropdown()"
+                                            style="cursor: pointer; text-align: left; padding-right: 30px;">
+
+                                        <div
+                                            style="position: absolute; right: 10px; top: 10px; pointer-events: none; color: var(--text-sub); font-size: 12px;">
+                                            ▼</div>
+
+                                        <div id="flip-privacy-dropdown" class="suggestion-box" style="display: none;">
+                                            <div class="suggestion-item" onclick="selectFlipPrivacy('1', '公开 (所有人可见)')">
+                                                公开 (所有人可见)
+                                            </div>
+
+                                            <div class="suggestion-item"
+                                                onclick="selectFlipPrivacy('3', '匿名 (所有人可见，隐藏ID)')">
+                                                匿名 (所有人可见，隐藏ID)
+                                            </div>
+
+                                            <div class="suggestion-item"
+                                                onclick="selectFlipPrivacy('2', '私密 (仅自己和成员可见)')">
+                                                私密 (仅自己和成员可见)
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div
+                                style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed var(--border); padding-top: 15px;">
+                                <div style="display: flex; align-items: center; font-size: 14px; color: var(--text);">
+                                    <span>我的鸡腿：</span>
+                                    <span id="flip-user-balance"
+                                        style="font-size: 18px; font-weight: bold; color: var(--primary); margin: 0 2px; line-height: 1;">0</span>
+                                    <span style="font-size: 16px; line-height: 1;">🍗</span>
+
+                                    <a href="https://live.48.cn/Recharge/" target="_blank"
+                                        style="margin-left: 10px; font-size: 12px; color: #1890ff; text-decoration: none; cursor: pointer;">
+                                        充值
+                                    </a>
+                                </div>
+
+                                <div style="display: flex; align-items: center; font-size: 14px; color: var(--text);">
+                                    <span>需要消耗：</span>
+                                    <span id="flip-cost-display"
+                                        style="font-size: 18px; font-weight: bold; color: #fa8c16; margin: 0 2px; line-height: 1;">0</span>
+                                    <span style="font-size: 16px; line-height: 1;">🍗</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="Box-row">
+                            <h3
+                                style="margin-top: 0; font-size: 16px; margin-bottom: 15px; border-left: 4px solid var(--primary); padding-left: 10px; color: var(--text);">
+                                提问内容</h3>
+
+                            <div style="position: relative;">
+                                <textarea id="flip-content-input" class="input-control" maxlength="200"
+                                    oninput="updateFlipCharCount(this)"
+                                    style="width: 100%; height: 150px; resize: none; padding: 15px; padding-bottom: 30px; font-size: 14px; line-height: 1.5; font-family: inherit;"
+                                    placeholder="在这里写下你想对成员说的话..."></textarea>
+
+                                <div id="flip-content-count"
+                                    style="position: absolute; bottom: 10px; right: 15px; font-size: 12px; color: #999; pointer-events: none;">
+                                    0/200</div>
+                            </div>
+
+                            <div id="flip-send-msg"
+                                style="margin-top: 10px; min-height: 20px; text-align: right; font-size: 13px;"></div>
+
+                            <div style="margin-top: 20px;">
+                                <button id="btn-do-send-flip" class="btn btn-primary btn-full"
+                                    style="padding: 12px; font-size: 16px;" onclick="executeSendFlip()">
+                                    提问
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div id="view-profile"
                 style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
                 <div class="list-container">
@@ -2494,6 +2816,17 @@
                 style="max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 4px; box-shadow: 0 0 20px rgba(0,0,0,0.5);">
         </div>
     </div>
+    <div class="modal-overlay" id="flipAnalysisModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title">翻牌数据统计</span>
+                <span class="close-btn" onclick="closeFlipAnalysis()">×</span>
+            </div>
+            <div class="modal-body" id="flipAnalysisContainer" style="padding: 0;">
+                <div class="empty-state">正在分析...</div>
+            </div>
+        </div>
+    </div>
     <div id="global-notice-bar" style="display: none;">
         <div class="notice-content">
             <span id="notice-icon">🔔</span>
@@ -2526,7 +2859,6 @@
             }
         }
 
-
         const TEAM_COLORS = {
             'SII': '#A1D5ED', 'TEAM SII': '#A1D5ED',
             'NII': '#BE98C7', 'TEAM NII': '#BE98C7',
@@ -2543,6 +2875,50 @@
             'GII': '#0061C0', 'TEAM GII': '#0061C0',
             'IDFT': '#666666'
         };
+
+        const POCKET_GIFT_DATA = [
+            { name: "荧光棒-SII", cost: 5, id: "266592587658117120" },
+            { name: "荧光棒-NII", cost: 5, id: "266592588102713344" },
+            { name: "荧光棒-HII", cost: 5, id: "266592588543115264" },
+            { name: "荧光棒-X", cost: 5, id: "266592588983517184" },
+            { name: "荧光棒-G", cost: 5, id: "266592608512196608" },
+            { name: "荧光棒-NIII", cost: 5, id: "266592608860323840" },
+            { name: "荧光棒-Z", cost: 5, id: "266592610735177728" },
+            { name: "荧光棒-B", cost: 5, id: "266592593270095872" },
+            { name: "荧光棒-E", cost: 5, id: "266592593718886400" },
+            { name: "荧光棒-C", cost: 5, id: "266592630343548928" },
+            { name: "荧光棒-K", cost: 5, id: "266592630712647680" },
+            { name: "荧光棒-CII", cost: 5, id: "875790439471190016" },
+            { name: "荧光棒-GII", cost: 5, id: "875790628684632064" },
+
+            { name: "巧克力", cost: 10, id: "266592613964791808" },
+            { name: "玫瑰花", cost: 20, id: "266592591995027456" },
+            { name: "冰美式", cost: 48, id: "670237101300404224" },
+            { name: "秋天的奶茶", cost: 48, id: "517760052235145216" },
+            { name: "生日礼物", cost: 48, id: "266592634915340288" },
+            { name: "生日帽", cost: 48, id: "266592633254395904" },
+
+            { name: "高级马卡龙", cost: 1048, id: "691322274260520960" },
+            { name: "夜蝶", cost: 1500, id: "566341364751339520" },
+            { name: "生日蛋糕", cost: 2880, id: "266592635540291584" },
+            { name: "权杖", cost: 3000, id: "266592611095887872" },
+            { name: "皇冠", cost: 5000, id: "266592614883344384" },
+            { name: "大饼", cost: 9999, id: "325232177465593856" },
+            { name: "用爱发电", cost: 19999, id: "325233801525268480" },
+
+            { name: "穹宇猫萌一", cost: 5050, id: "1159142638064832512" },
+            { name: "心锁", cost: 480, id: "1161700584686686208" },
+            { name: "豆鸡腿饱饱", cost: 5255, id: "1124398455441920000" },
+            { name: "鸟皇登基", cost: 11800, id: "1123956702633070592" },
+            { name: "宝宝是我", cost: 4545, id: "1123955157879296000" },
+            { name: "第九次", cost: 9422, id: "1121167706391646208" },
+            { name: "圭矩", cost: 8888, id: "1120075775402119168" },
+            { name: "怪可爱的", cost: 3689, id: "1117101004603330560" },
+            { name: "沝啧", cost: 3726, id: "1104487300200206336" },
+            { name: "好想润", cost: 11150, id: "1104484678495965184" },
+            { name: "啵啵", cost: 5200, id: "1102284508739997696" },
+            { name: "晴空霹雳掌", cost: 5280, id: "1101194508199858176" },
+        ];
 
         function hexToRgb(hex) {
             if (!hex) return '0, 0, 0';
@@ -2715,6 +3091,7 @@
             const flipView = document.getElementById('view-flip');
             const profileView = document.getElementById('view-profile');
             const openLiveView = document.getElementById('view-open-live');
+            const sendFlipView = document.getElementById('view-send-flip');
 
             if (msgView) msgView.style.display = 'none';
             if (mediaView) mediaView.style.display = 'none';
@@ -2723,11 +3100,14 @@
             if (flipView) flipView.style.display = 'none';
             if (profileView) profileView.style.display = 'none';
             if (openLiveView) openLiveView.style.display = 'none';
+            if (sendFlipView) sendFlipView.style.display = 'none';
 
             destroyPlayers();
             if (window.vodState) window.vodState.isSearchActive = false;
 
-            updateSidebarButtons(viewName, mode);
+            if (typeof updateSidebarButtons === 'function') {
+                updateSidebarButtons(viewName, mode);
+            }
 
             if (viewName === 'media') {
                 toggleSidebarMode('media');
@@ -2745,21 +3125,15 @@
 
                 if (mode === 'live') {
                     titleEl.textContent = '正在直播';
-
                     if (vodControls) vodControls.style.display = 'none';
                     if (vodPagination) vodPagination.style.display = 'none';
-
                     if (liveControls) liveControls.style.display = 'flex';
-
                     fetchLiveList();
                 } else if (mode === 'vod') {
                     titleEl.textContent = '录播回放';
-
                     if (vodControls) vodControls.style.display = 'flex';
                     if (vodPagination) vodPagination.style.display = 'flex';
-
                     if (liveControls) liveControls.style.display = 'none';
-
                     if (window.vodState) {
                         if (vodState.list.length === 0) {
                             ensurePageData(2).then(() => window.renderVODListUI());
@@ -2777,7 +3151,6 @@
 
                 const savedToken = localStorage.getItem('yaya_p48_token');
                 const tokenInput = document.getElementById('login-token');
-
                 if (savedToken && tokenInput) tokenInput.value = savedToken;
 
                 if (typeof appToken !== 'undefined' && (appToken || savedToken)) {
@@ -2800,14 +3173,34 @@
                 if (flipView) flipView.style.display = 'block';
                 if (typeof flipCurrentPage !== 'undefined' && flipCurrentPage === 0) loadFlipList(0);
 
+            } else if (viewName === 'send-flip') {
+                toggleSidebarMode('login');
+
+                const token = typeof appToken !== 'undefined' ? appToken : localStorage.getItem('yaya_p48_token');
+                if (!token) {
+                    alert('请先登录账号');
+                    return switchView('login');
+                }
+
+                if (sendFlipView) sendFlipView.style.display = 'block';
+
+                const btn = document.getElementById('btn-sb-send-flip');
+                if (btn) {
+                    document.querySelectorAll('.sidebar .btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                }
+
+                setTimeout(() => {
+                    const input = document.getElementById('flip-send-member-input');
+                    if (input) input.focus();
+                }, 100);
+
             } else if (viewName === 'profile') {
                 toggleSidebarMode('login');
-                const profileView = document.getElementById('view-profile');
                 if (profileView) profileView.style.display = 'block';
 
             } else if (viewName === 'openlive') {
                 toggleSidebarMode('login');
-                const openLiveView = document.getElementById('view-open-live');
                 if (openLiveView) openLiveView.style.display = 'block';
 
             } else {
@@ -2815,19 +3208,22 @@
                 if (msgView) msgView.style.display = 'block';
             }
         }
+
+
         function updateSidebarButtons(viewName, mode) {
             const bottomButtons = [
-                { id: 'btn-sb-login', defaultText: '账号设置', targetView: 'login' },
-                { id: 'btn-sb-fetch', defaultText: '抓取消息', targetView: 'fetch' },
+                { id: 'btn-sb-login', defaultText: '口袋账号设置', targetView: 'login' },
+                { id: 'btn-sb-fetch', defaultText: '抓取房间消息', targetView: 'fetch' },
                 { id: 'btn-sb-flip', defaultText: '翻牌记录', targetView: 'flip' },
-                { id: 'btn-sb-profile', defaultText: '成员档案', targetView: 'profile' },
-                { id: 'btn-sb-open-live', defaultText: '公演记录', targetView: 'openlive' },
-
+                { id: 'btn-sb-send-flip', defaultText: '发送翻牌', targetView: 'send-flip' },
+                { id: 'btn-sb-profile', defaultText: '成员详细档案', targetView: 'profile' },
+                { id: 'btn-sb-open-live', defaultText: '成员公演记录', targetView: 'openlive' },
             ];
 
             bottomButtons.forEach(btn => {
                 const el = document.getElementById(btn.id);
                 if (!el) return;
+
                 if (viewName === btn.targetView) {
                     el.innerHTML = '返回主页';
                     el.className = 'btn btn-primary btn-full';
@@ -4271,12 +4667,34 @@
         async function playLiveStream(item, mode) {
             liveRecordCount = 0;
             currentPlayingItem = item;
+
             document.getElementById('media-list-area').style.display = 'none';
             document.getElementById('vod-pagination-controls').style.display = 'none';
             document.getElementById('media-list-controls').style.display = 'none';
+            document.getElementById('live-player-view').style.display = 'block';
+
+            const giftContainer = document.getElementById('live-gift-container');
+            if (giftContainer) {
+                if (mode === 'live') {
+                    giftContainer.style.display = 'block';
+                } else {
+                    giftContainer.style.display = 'none';
+                }
+            }
+
+            const giftPanel = document.getElementById('live-gift-panel');
+            const arrow = document.getElementById('gift-panel-arrow');
+            if (giftPanel) giftPanel.style.display = 'none';
+            if (arrow) arrow.style.transform = 'rotate(0deg)';
+            selectedLiveGiftId = null;
+
             const liveControls = document.getElementById('live-list-controls');
             if (liveControls) liveControls.style.display = 'none';
-            livePlayerView.style.display = 'block';
+
+            if (typeof livePlayerView !== 'undefined') {
+                livePlayerView.style.display = 'block';
+            }
+
             const titleContainer = document.getElementById('current-live-title');
             const timeContainer = document.getElementById('current-live-time');
             let timeLabel = '';
@@ -4289,9 +4707,12 @@
             }
             titleContainer.textContent = `${item.userInfo.nickname || item.nickname || '成员'} - ${item.title || item.liveTitle || '直播/回放'}`;
             timeContainer.textContent = timeLabel ? `直播时间: ${timeLabel}` : '';
+
             const oldNotice = document.querySelector('#live-player-area .live-link-info');
             if (oldNotice) oldNotice.remove();
-            liveVideo.style.display = 'none';
+
+            if (typeof liveVideo !== 'undefined') liveVideo.style.display = 'none';
+
             try {
                 const res = await fetchPocketAPI('/live/api/v1/live/getLiveOne', JSON.stringify({
                     liveId: item.liveId
@@ -4301,6 +4722,7 @@
                     const title = item.title || item.liveTitle;
                     const isLive = (mode === 'live');
                     const danmuUrl = res.content.msgFilePath;
+
                     let danmuData = [];
                     if (!isLive && danmuUrl) {
                         try {
@@ -4309,6 +4731,7 @@
                             danmuData = parsePocketDanmu(danmuText);
                         } catch (e) { }
                     }
+
                     renderDanmuListUI(danmuData);
                     startPlayer(streamUrl, title, isLive, res.content.chatroomId, danmuData);
                 } else {
@@ -4507,7 +4930,7 @@
                     let flvPlayer = null;
                     dp = new DPlayer({
                         container: document.getElementById('dplayer-container'),
-                        live: false,
+                        live: isLiveContent,
                         autoplay: true,
                         screenshot: true,
                         hotkey: false,
@@ -6339,20 +6762,30 @@
             return `${y}.${m}.${d} ${hh}:${mm}:${ss}`;
         }
 
+
         function createFlipCardDOM(item) {
             const card = document.createElement('div');
             card.className = 'Box-row';
             card.style.marginBottom = '12px';
             card.style.transition = 'all 0.2s';
+            card.id = `flip-card-${item.questionId}`;
 
             const qTimeStr = formatFlipTime(item.qtime);
-
             const tagStyle = 'padding: 2px 6px; border-radius: 4px; font-size: 12px; border-width: 1px; border-style: solid; display: inline-flex; align-items: center; justify-content: center; height: 20px; box-sizing: border-box;';
 
             let statusHtml = '';
-            if (item.status === 1) statusHtml = `<span style="color:#faad14; border-color:#faad14; ${tagStyle}">待回答</span>`;
-            else if (item.status === 2) statusHtml = `<span style="color:#52c41a; border-color:#52c41a; ${tagStyle}">已翻牌</span>`;
-            else statusHtml = `<span style="color:#ff4d4f; border-color:#ff4d4f; ${tagStyle}">已退款</span>`;
+            let actionBtnHtml = '';
+
+            if (item.status === 1) {
+                statusHtml = `<span style="color:#faad14; border-color:#faad14; ${tagStyle}">待回答</span>`;
+                actionBtnHtml = `<span class="btn-text-danger" onclick="executeDeleteFlip('${item.questionId}', true)">撤回</span>`;
+            } else if (item.status === 2) {
+                statusHtml = `<span style="color:#52c41a; border-color:#52c41a; ${tagStyle}">已翻牌</span>`;
+                actionBtnHtml = `<span class="btn-text-gray" onclick="executeDeleteFlip('${item.questionId}', false)">删除</span>`;
+            } else {
+                statusHtml = `<span style="color:#ff4d4f; border-color:#ff4d4f; ${tagStyle}">已退款</span>`;
+                actionBtnHtml = `<span class="btn-text-gray" onclick="executeDeleteFlip('${item.questionId}', false)">删除</span>`;
+            }
 
             let answerTypeHtml = '';
             if (item.answerType === 1) answerTypeHtml = `<span style="color:#1890ff; border-color:#1890ff; ${tagStyle}">文字</span>`;
@@ -6369,9 +6802,14 @@
 
             const headerDiv = document.createElement('div');
             headerDiv.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px dashed var(--border); padding-bottom:8px;';
+
             headerDiv.innerHTML = `
-                <span style="font-size:14px; font-weight:bold; color:var(--text);">${qTimeStr}</span>
-                <div style="display:flex; gap:8px; align-items:center;">${answerTypeHtml} ${privacyHtml} ${costHtml} ${statusHtml}</div>`;
+        <span style="font-size:14px; font-weight:bold; color:var(--text);">${qTimeStr}</span>
+        <div style="display:flex; gap:8px; align-items:center;">
+            ${answerTypeHtml} ${privacyHtml} ${costHtml} ${statusHtml}
+            <div style="width: 1px; height: 16px; background: var(--border); margin: 0 4px;"></div>
+            ${actionBtnHtml}
+        </div>`;
             card.appendChild(headerDiv);
 
             const memberName = item.baseUserInfo ? item.baseUserInfo.nickname : '成员';
@@ -6379,11 +6817,11 @@
             const questionDiv = document.createElement('div');
             questionDiv.style.marginBottom = '15px';
             questionDiv.innerHTML = `
-                <div style="margin-bottom:6px; display:flex; align-items:center;">
-                    <span class="flip-label question-tag" style="margin-right:8px; margin-top:0; margin-bottom:0; transform:none;">翻牌提问</span>
-                    <span style="font-size:14px; color:var(--text); line-height: 20px;">向 <strong style="color:var(--primary);">${memberName}</strong> 提问</span>
-                </div>
-                <div style="font-size:14px; color:var(--text); line-height:1.6; padding:0 4px;">${item.content}</div>`;
+        <div style="margin-bottom:6px; display:flex; align-items:center;">
+            <span class="flip-label question-tag" style="margin-right:8px; margin-top:0; margin-bottom:0; transform:none;">翻牌提问</span>
+            <span style="font-size:14px; color:var(--text); line-height: 20px;">向 <strong style="color:var(--primary);">${memberName}</strong> 提问</span>
+        </div>
+        <div style="font-size:14px; color:var(--text); line-height:1.6; padding:0 4px;">${item.content}</div>`;
             card.appendChild(questionDiv);
 
             if (item.status === 2) {
@@ -6391,12 +6829,32 @@
                 answerDiv.style.marginTop = '15px';
                 const formattedAnswerTime = formatFlipTime(item.answerTime);
 
+                let timeCostStr = '';
+                if (item.qtime && item.answerTime) {
+                    const diffMs = Number(item.answerTime) - Number(item.qtime);
+                    const totalSeconds = Math.floor(diffMs / 1000);
+                    const totalMinutes = Math.floor(totalSeconds / 60);
+                    const totalHours = Math.floor(totalMinutes / 60);
+                    const totalDays = Math.floor(totalHours / 24);
+
+                    if (totalDays > 0) {
+                        timeCostStr = `${totalDays}天${totalHours % 24}小时`;
+                    } else if (totalHours > 0) {
+                        timeCostStr = `${totalHours}小时${totalMinutes % 60}分`;
+                    } else if (totalMinutes > 0) {
+                        timeCostStr = `${totalMinutes}分${totalSeconds % 60}秒`;
+                    } else {
+                        timeCostStr = `${totalSeconds}秒`;
+                    }
+                }
+
                 answerDiv.innerHTML = `
-                    <div style="margin-bottom:8px; display:flex; align-items:center;">
-                        <span class="flip-label answer-tag" style="margin-right:8px; margin-top:0; margin-bottom:0; transform:none;">翻牌回答</span>
-                        <span style="font-size:14px; color:var(--text); line-height: 20px;"><strong style="color:var(--primary);">${memberName}</strong> 的回复</span>
-                        <span style="font-size:12px; color:var(--text-sub); margin-left: 10px;">翻牌时间：${formattedAnswerTime}</span>
-                    </div>`;
+            <div style="margin-bottom:8px; display:flex; align-items:center; flex-wrap: wrap;">
+                <span class="flip-label answer-tag" style="margin-right:8px; margin-top:0; margin-bottom:0; transform:none;">翻牌回答</span>
+                <span style="font-size:14px; color:var(--text); line-height: 20px;"><strong style="color:var(--primary);">${memberName}</strong> 的回复</span>
+                <span style="font-size:12px; color:var(--text-sub); margin-left: 10px;">翻牌时间：${formattedAnswerTime}</span>
+                ${timeCostStr ? `<span style="font-size:11px; color:var(--primary); margin-left: 8px; font-weight: 500; opacity: 0.9;">(耗时：${timeCostStr})</span>` : ''}
+            </div>`;
 
                 try {
                     if (item.answerType === 1) {
@@ -6576,12 +7034,31 @@
             const statusText = document.getElementById('flip-status-text');
             const pagination = document.querySelector('#view-flip .pagination-container');
 
-            const filteredData = getFilteredData();
+            let filteredData = getFilteredData();
 
-            let totalCost = 0;
-            filteredData.forEach(item => {
-                totalCost += (Number(item.cost) || 0);
-            });
+            if (typeof currentFlipSort !== 'undefined') {
+                if (currentFlipSort === 'cost_desc') {
+                    filteredData.sort((a, b) => (Number(b.cost) || 0) - (Number(a.cost) || 0));
+                } else if (currentFlipSort === 'cost_asc') {
+                    filteredData.sort((a, b) => (Number(a.cost) || 0) - (Number(b.cost) || 0));
+                } else if (currentFlipSort === 'speed_fast') {
+                    filteredData.sort((a, b) => {
+                        const durA = getFlipDuration(a);
+                        const durB = getFlipDuration(b);
+                        if (durA === -1) return 1;
+                        if (durB === -1) return -1;
+                        return durA - durB;
+                    });
+                } else if (currentFlipSort === 'speed_slow') {
+                    filteredData.sort((a, b) => {
+                        const durA = getFlipDuration(a);
+                        const durB = getFlipDuration(b);
+                        return durB - durA;
+                    });
+                } else {
+                    filteredData.sort((a, b) => Number(b.qtime) - Number(a.qtime));
+                }
+            }
 
             const start = pageIndex * FLIP_PAGE_SIZE;
             const end = start + FLIP_PAGE_SIZE;
@@ -6589,12 +7066,49 @@
 
             flipCurrentPage = pageIndex;
 
-            const costText = ` (共 ${totalCost} 🍗)`;
+            const hasData = (typeof allFlipData !== 'undefined' && allFlipData && allFlipData.length > 0);
+
+            const sidebarBtn = document.getElementById('flipAnalysisBtn');
+            if (sidebarBtn) {
+                if (hasData) {
+                    sidebarBtn.disabled = false;
+                    sidebarBtn.style.opacity = '1';
+                    sidebarBtn.style.cursor = 'pointer';
+                    sidebarBtn.title = '';
+                } else {
+                    sidebarBtn.disabled = true;
+                    sidebarBtn.style.opacity = '0.5';
+                    sidebarBtn.style.cursor = 'not-allowed';
+                    sidebarBtn.title = '暂无数据，请先在翻牌记录页刷新数据';
+                }
+            }
+
+            statusText.innerHTML = '';
+            const headerBtn = document.createElement('button');
+            headerBtn.className = 'btn btn-secondary';
+            headerBtn.style.cssText = 'padding: 0 15px; transition: all 0.2s;';
+            headerBtn.innerHTML = '翻牌统计';
+
+            if (hasData) {
+                headerBtn.disabled = false;
+                headerBtn.onclick = function () {
+                    if (sidebarBtn) sidebarBtn.click();
+                    else if (typeof openFlipAnalysis === 'function') openFlipAnalysis();
+                };
+            } else {
+                headerBtn.disabled = true;
+                headerBtn.style.opacity = '0.5';
+                headerBtn.style.cursor = 'not-allowed';
+                headerBtn.title = '暂无数据，请先点击右侧“刷新”按钮获取数据';
+            }
+
+            statusText.appendChild(headerBtn);
 
             if (currentSearchKeyword) {
-                statusText.innerText = `搜索: ${filteredData.length} 条` + costText;
-            } else {
-                statusText.innerText = `共 ${filteredData.length} 条` + costText;
+                const searchTip = document.createElement('span');
+                searchTip.style.cssText = 'margin-left: 10px; font-size: 12px; color: var(--text-sub); vertical-align: middle;';
+                searchTip.innerText = `(搜到 ${filteredData.length} 条)`;
+                statusText.appendChild(searchTip);
             }
 
             container.innerHTML = '';
@@ -6608,7 +7122,8 @@
                 container.appendChild(fragment);
             }
 
-            document.getElementById('view-flip').scrollTop = 0;
+            const viewFlip = document.getElementById('view-flip');
+            if (viewFlip) viewFlip.scrollTop = 0;
 
             if (pagination) {
                 pagination.style.display = 'flex';
@@ -6745,7 +7260,7 @@
                 container.innerHTML = `
             <div class="placeholder-tip">
                 <h3 style="color: #ff4d4f;">⚠️ 未登录</h3>
-                <p>请先在左侧“账号设置”中登录。</p>
+                <p>请先在左侧“口袋账号设置”中登录。</p>
             </div>`;
                 return;
             }
@@ -6868,25 +7383,19 @@
             const dropDownConfigs = [
 
                 { inputId: 'groupInput', dropdownId: 'memberDropdownList' },
-
                 { inputId: 'member-search', dropdownId: 'search-results' },
-
                 { inputId: 'profile-member-input', dropdownId: 'profile-search-results' },
-
                 { inputId: 'openlive-member-input', dropdownId: 'openlive-search-results' },
-
                 { inputId: 'vod-member-filter', dropdownId: 'member-suggestions' },
-
                 { wrapperId: 'vod-group-wrapper', dropdownId: 'vod-group-dropdown' },
-
                 { wrapperId: 'vod-type-wrapper', dropdownId: 'vod-type-dropdown' },
-
                 { wrapperId: 'year-wrapper', dropdownId: 'year-dropdown' },
                 { wrapperId: 'month-wrapper', dropdownId: 'month-dropdown' },
                 { wrapperId: 'day-wrapper', dropdownId: 'day-dropdown' },
                 { wrapperId: 'flip-type-wrapper', dropdownId: 'flip-type-dropdown' },
                 { wrapperId: 'live-group-wrapper', dropdownId: 'live-group-dropdown' },
                 { wrapperId: 'live-type-wrapper', dropdownId: 'live-type-dropdown' },
+                { wrapperId: 'flip-year-wrapper', dropdownId: 'flip-year-dropdown' },
                 { wrapperId: 'search-type-wrapper', dropdownId: 'search-type-dropdown' }
 
             ];
@@ -7446,6 +7955,1057 @@
             applyFilters();
         }
 
+
+        let currentFlipPrices = [];
+
+        function handleFlipSendSearch(keyword) {
+            const resultBox = document.getElementById('flip-send-search-results');
+
+            if (!keyword || !keyword.trim()) {
+                resultBox.style.display = 'none';
+                return;
+            }
+
+            if (!window.isMemberDataLoaded && typeof loadMemberData === 'function') loadMemberData();
+
+            const lowerKw = keyword.toLowerCase();
+
+            let matches = memberData.filter(m => {
+                const matchName = m.ownerName.includes(keyword);
+                const pinyin = m.pinyin || "";
+
+                let abbr = m.abbr || "";
+                if (!abbr && typeof getPinyinInitials === 'function' && pinyin) {
+                    abbr = getPinyinInitials(pinyin);
+                }
+
+                return matchName ||
+                    pinyin.toLowerCase().includes(lowerKw) ||
+                    abbr.toLowerCase().includes(lowerKw);
+            });
+
+            matches.sort((a, b) => {
+                const weightA = (a.isInGroup !== false) ? 1 : 0;
+                const weightB = (b.isInGroup !== false) ? 1 : 0;
+                return weightB - weightA;
+            });
+
+            if (matches.length > 0) {
+                const html = matches.slice(0, 10).map(m => {
+                    const isInactive = m.isInGroup === false;
+                    const baseStyle = isInactive ? 'opacity:0.6; color:#999;' : '';
+
+                    let colorStyle = '';
+                    if (typeof getTeamStyle === 'function') {
+                        colorStyle = getTeamStyle(m.team, isInactive);
+                    }
+
+                    const teamHtml = m.team ? `<span class="team-tag" style="${baseStyle} ${colorStyle}">${m.team}</span>` : '';
+
+                    return `<div class="suggestion-item" 
+                 onclick="selectFlipSendMember('${m.ownerName}', '${m.id || m.userId}')"
+                 style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-weight:bold; ${baseStyle}">${m.ownerName}</span>
+                ${teamHtml}
+            </div>`;
+                }).join('');
+
+                resultBox.innerHTML = html;
+                resultBox.style.display = 'block';
+            } else {
+                resultBox.style.display = 'none';
+            }
+        }
+
+        function selectFlipSendMember(name, id) {
+            document.getElementById('flip-send-member-input').value = name;
+            document.getElementById('flip-send-member-id').value = id;
+            document.getElementById('flip-send-search-results').style.display = 'none';
+
+            document.getElementById('flip-config-area').style.display = 'none';
+            document.getElementById('flip-price-loading').style.display = 'block';
+            document.getElementById('flip-send-msg').innerText = '';
+            refreshFlipUserBalance();
+
+            fetchFlipPrices(id);
+        }
+
+        async function refreshFlipUserBalance() {
+            const balanceEl = document.getElementById('flip-user-balance');
+            if (!balanceEl) return;
+
+            const token = appToken || localStorage.getItem('yaya_p48_token');
+            const pa = window.getPA ? window.getPA() : null;
+
+            if (!token) {
+                balanceEl.innerText = '未登录';
+                return;
+            }
+
+            try {
+                const res = await ipcRenderer.invoke('fetch-user-money', { token, pa });
+
+                if (res.success && res.content) {
+                    const latestMoney = res.content.moneyTotal || 0;
+                    balanceEl.innerText = latestMoney;
+                    localStorage.setItem('yaya_p48_money', latestMoney);
+                } else {
+                    console.error("刷新余额失败:", res.msg);
+                }
+            } catch (e) {
+                console.error("余额请求出错:", e);
+            }
+        }
+
+        async function fetchFlipPrices(memberId) {
+            const token = appToken || localStorage.getItem('yaya_p48_token');
+            const pa = window.getPA ? window.getPA() : null;
+
+            try {
+                const res = await ipcRenderer.invoke('fetch-flip-prices', { token, pa, memberId });
+
+                document.getElementById('flip-price-loading').style.display = 'none';
+
+                if (res.success && res.content && res.content.customs) {
+                    currentFlipPrices = res.content.customs;
+                    renderFlipOptions();
+                    document.getElementById('flip-config-area').style.display = 'block';
+                } else {
+                    const msgDiv = document.getElementById('flip-send-msg');
+                    msgDiv.innerText = `无法获取配置: ${res.msg || '未知错误'}`;
+                    msgDiv.style.color = 'red';
+                }
+            } catch (e) {
+                document.getElementById('flip-price-loading').style.display = 'none';
+                const msgDiv = document.getElementById('flip-send-msg');
+                msgDiv.innerText = `错误: ${e.message}`;
+                msgDiv.style.color = 'red';
+            }
+        }
+
+        function toggleFlipAnswerDropdown() {
+            const list = document.getElementById('flip-answer-dropdown');
+            document.getElementById('flip-privacy-dropdown').style.display = 'none';
+            document.getElementById('flip-send-search-results').style.display = 'none';
+
+            if (list) list.style.display = (list.style.display === 'block') ? 'none' : 'block';
+        }
+
+        function selectFlipAnswer(val, text) {
+            document.getElementById('flip-answer-type').value = val;
+            document.getElementById('flip-answer-display').value = text;
+            document.getElementById('flip-answer-dropdown').style.display = 'none';
+            updateFlipCostDisplay();
+        }
+
+        function toggleFlipPrivacyDropdown() {
+            const list = document.getElementById('flip-privacy-dropdown');
+            document.getElementById('flip-answer-dropdown').style.display = 'none';
+            document.getElementById('flip-send-search-results').style.display = 'none';
+
+            if (list) list.style.display = (list.style.display === 'block') ? 'none' : 'block';
+        }
+
+        function selectFlipPrivacy(val, text) {
+            document.getElementById('flip-privacy-type').value = val;
+            document.getElementById('flip-privacy-display').value = text;
+            document.getElementById('flip-privacy-dropdown').style.display = 'none';
+            updateFlipCostDisplay();
+        }
+
+        function renderFlipOptions() {
+            const container = document.getElementById('flip-answer-dropdown');
+            container.innerHTML = '';
+
+            const typeNames = { 1: '文字翻牌', 2: '语音翻牌', 3: '视频翻牌' };
+
+            if (currentFlipPrices.length === 0) {
+                container.innerHTML = '<div class="suggestion-item" style="color:#999; cursor:default;">该成员暂未开通翻牌</div>';
+                document.getElementById('flip-answer-display').value = "未开通";
+                return;
+            }
+
+            currentFlipPrices.forEach((p, index) => {
+                const name = typeNames[p.answerType] || `类型 ${p.answerType}`;
+                const div = document.createElement('div');
+                div.className = 'suggestion-item';
+                div.innerText = name;
+                div.onclick = () => selectFlipAnswer(p.answerType, name);
+                container.appendChild(div);
+
+                if (index === 0) {
+                    selectFlipAnswer(p.answerType, name);
+                }
+            });
+        }
+
+        function updateFlipCostDisplay() {
+            const answerTypeVal = document.getElementById('flip-answer-type').value;
+            const privacyTypeVal = document.getElementById('flip-privacy-type').value;
+            const costDisplay = document.getElementById('flip-cost-display');
+
+            if (!answerTypeVal) {
+                costDisplay.innerText = '-';
+                return;
+            }
+
+            const answerType = parseInt(answerTypeVal);
+            const privacyType = String(privacyTypeVal);
+
+            const config = currentFlipPrices.find(p => p.answerType === answerType);
+            if (!config) {
+                costDisplay.innerText = '-';
+                return;
+            }
+
+            let price = 0;
+            if (privacyType === '1') price = config.normalCost;
+            else if (privacyType === '2') price = config.privateCost;
+            else if (privacyType === '3') price = config.anonymityCost;
+
+            costDisplay.innerText = price;
+        }
+
+        function updateFlipCharCount(input) {
+            const count = input.value.length;
+            const counterEl = document.getElementById('flip-content-count');
+            if (counterEl) {
+                counterEl.innerText = `${count}/200`;
+                if (count >= 200) counterEl.style.color = '#ff4d4f';
+                else counterEl.style.color = '#999';
+            }
+        }
+
+        async function executeSendFlip() {
+            const memberId = document.getElementById('flip-send-member-id').value;
+            const content = document.getElementById('flip-content-input').value.trim();
+
+            const answerTypeVal = document.getElementById('flip-answer-type').value;
+            const privacyTypeVal = document.getElementById('flip-privacy-type').value;
+            const costText = document.getElementById('flip-cost-display').innerText;
+
+            const msgDiv = document.getElementById('flip-send-msg');
+            const btn = document.getElementById('btn-do-send-flip');
+
+            msgDiv.style.color = '#ff4d4f';
+
+            if (!memberId) {
+                msgDiv.innerText = '⚠️ 请先选择成员';
+                return;
+            }
+            if (!content) {
+                msgDiv.innerText = '⚠️ 请输入提问内容';
+                return;
+            }
+            if (!answerTypeVal || costText === '-') {
+                msgDiv.innerText = '⚠️ 请选择有效的回答类型';
+                return;
+            }
+
+            const cost = parseInt(costText);
+            const answerType = parseInt(answerTypeVal);
+            const type = parseInt(privacyTypeVal);
+
+            btn.disabled = true;
+            btn.innerText = '发送中...';
+            msgDiv.innerText = '正在提交请求...';
+            msgDiv.style.color = '#666';
+
+            const token = appToken || localStorage.getItem('yaya_p48_token');
+            const pa = window.getPA ? window.getPA() : null;
+
+            try {
+                const payload = {
+                    memberId: parseInt(memberId),
+                    content: content,
+                    type: type,
+                    cost: cost,
+                    answerType: answerType
+                };
+
+                const res = await ipcRenderer.invoke('send-flip-question', { token, pa, payload });
+
+                if (res.success) {
+                    msgDiv.innerText = '✅ 发送成功！2秒后将自动跳转到翻牌记录...';
+                    msgDiv.style.color = '#28a745';
+
+                    document.getElementById('flip-content-input').value = '';
+                    document.getElementById('flip-content-count').innerText = '0/200';
+                    document.getElementById('flip-content-count').style.color = '#999';
+
+                    setTimeout(() => {
+                        switchView('flip');
+                        btn.disabled = false;
+                        btn.innerText = '提问';
+                        msgDiv.innerText = '';
+                    }, 2000);
+
+                } else {
+                    msgDiv.innerText = `❌ 发送失败: ${res.msg}`;
+                    msgDiv.style.color = '#ff4d4f';
+                    btn.disabled = false;
+                    btn.innerText = '提问';
+                }
+            } catch (e) {
+                msgDiv.innerText = `❌ 出错: ${e.message}`;
+                msgDiv.style.color = '#ff4d4f';
+                btn.disabled = false;
+                btn.innerText = '提问';
+            }
+        }
+
+
+        document.addEventListener('click', function (e) {
+            const dropDownConfigs = [
+                { inputId: 'groupInput', dropdownId: 'memberDropdownList' },
+                { inputId: 'member-search', dropdownId: 'search-results' },
+                { inputId: 'profile-member-input', dropdownId: 'profile-search-results' },
+                { inputId: 'openlive-member-input', dropdownId: 'openlive-search-results' },
+                { inputId: 'vod-member-filter', dropdownId: 'member-suggestions' },
+                { wrapperId: 'vod-group-wrapper', dropdownId: 'vod-group-dropdown' },
+                { wrapperId: 'vod-type-wrapper', dropdownId: 'vod-type-dropdown' },
+                { wrapperId: 'year-wrapper', dropdownId: 'year-dropdown' },
+                { wrapperId: 'month-wrapper', dropdownId: 'month-dropdown' },
+                { wrapperId: 'day-wrapper', dropdownId: 'day-dropdown' },
+                { wrapperId: 'flip-type-wrapper', dropdownId: 'flip-type-dropdown' },
+                { wrapperId: 'live-group-wrapper', dropdownId: 'live-group-dropdown' },
+                { wrapperId: 'live-type-wrapper', dropdownId: 'live-type-dropdown' },
+                { wrapperId: 'search-type-wrapper', dropdownId: 'search-type-dropdown' },
+
+                { wrapperId: 'flip-member-wrapper', dropdownId: 'flip-send-search-results' },
+                { wrapperId: 'flip-answer-wrapper', dropdownId: 'flip-answer-dropdown' },
+                { wrapperId: 'flip-privacy-wrapper', dropdownId: 'flip-privacy-dropdown' }
+            ];
+
+            dropDownConfigs.forEach(cfg => {
+                const dropdown = document.getElementById(cfg.dropdownId);
+                if (!dropdown || dropdown.style.display === 'none') return;
+
+                let keepOpen = false;
+
+                if (cfg.wrapperId) {
+                    const wrapper = document.getElementById(cfg.wrapperId);
+                    if (wrapper && wrapper.contains(e.target)) keepOpen = true;
+                } else if (cfg.inputId) {
+                    const input = document.getElementById(cfg.inputId);
+                    if (input && input.parentElement && input.parentElement.contains(e.target)) {
+                        keepOpen = true;
+                    }
+                }
+
+                if (!keepOpen) {
+                    dropdown.style.display = 'none';
+                }
+            });
+        });
+
+
+        async function executeDeleteFlip(questionId, isWithdraw) {
+            const actionName = isWithdraw ? '撤回' : '删除';
+
+            const warning = isWithdraw
+                ? '确定要撤回这条提问吗？\n撤回后鸡腿将退回到您的账户。'
+                : '确定要删除这条翻牌吗？\n删除后不可恢复。';
+            if (!confirm(warning)) return;
+
+            const token = appToken || localStorage.getItem('yaya_p48_token');
+            const pa = window.getPA ? window.getPA() : null;
+
+            if (!token) {
+                showCardTip(questionId, '⚠️ 请先登录账号', '#ff4d4f');
+                return;
+            }
+
+            try {
+                showCardTip(questionId, `正在${actionName}...`, '#666');
+
+                const res = await ipcRenderer.invoke('operate-flip-question', {
+                    token,
+                    pa,
+                    questionId,
+                    operateType: 1
+                });
+
+                if (res.success) {
+                    showCardTip(questionId, `✅ ${actionName}成功`, '#28a745');
+
+                    if (typeof allFlipData !== 'undefined') {
+                        allFlipData = allFlipData.filter(item => String(item.questionId) !== String(questionId));
+                    }
+
+                    setTimeout(() => {
+                        const card = document.getElementById(`flip-card-${questionId}`);
+                        if (card) {
+                            card.style.opacity = '0';
+                            card.style.transform = 'scale(0.95)';
+                            setTimeout(() => card.remove(), 300);
+                        }
+                    }, 500);
+
+                } else {
+                    showCardTip(questionId, `❌ ${actionName}失败: ${res.msg}`, '#ff4d4f');
+                }
+            } catch (e) {
+                showCardTip(questionId, `❌ 出错: ${e.message}`, '#ff4d4f');
+            }
+        }
+
+        function showCardTip(questionId, text, color) {
+            const card = document.getElementById(`flip-card-${questionId}`);
+            if (!card) return;
+
+            let tipDiv = card.querySelector('.flip-action-tip');
+            if (!tipDiv) {
+                tipDiv = document.createElement('div');
+                tipDiv.className = 'flip-action-tip';
+                tipDiv.style.cssText = "font-size:12px; font-weight:bold; margin-top:5px; transition:all 0.3s; text-align:right;";
+                const header = card.querySelector('.Box-row > div:first-child');
+                if (header) header.insertAdjacentElement('afterend', tipDiv);
+                else card.prepend(tipDiv);
+            }
+
+            tipDiv.innerText = text;
+            tipDiv.style.color = color;
+            tipDiv.style.opacity = '1';
+
+            if (color === '#ff4d4f') {
+                setTimeout(() => { tipDiv.style.opacity = '0'; }, 3000);
+            }
+        }
+
+
+        let currentFlipAnalysisYear = 'all';
+
+        function toggleFlipYearDropdown() {
+            const list = document.getElementById('flip-year-dropdown');
+            if (list) {
+                list.style.display = (list.style.display === 'block') ? 'none' : 'block';
+            }
+        }
+
+        function selectFlipYear(year) {
+            currentFlipAnalysisYear = year;
+            performFlipAnalysis();
+        }
+
+        function openFlipAnalysis() {
+            if (!allFlipData || allFlipData.length === 0) {
+                return;
+            }
+
+            const modal = document.getElementById('flipAnalysisModal');
+            if (modal) {
+                modal.style.display = 'flex';
+                currentFlipAnalysisYear = 'all';
+                performFlipAnalysis();
+            }
+        }
+
+        function closeFlipAnalysis() {
+            const modal = document.getElementById('flipAnalysisModal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function performFlipAnalysis() {
+            const container = document.getElementById('flipAnalysisContainer');
+            if (!container) return;
+
+            function formatDurationSimple(ms) {
+                if (!ms || ms < 0) return '-';
+                const totalSeconds = Math.floor(ms / 1000);
+                const days = Math.floor(totalSeconds / 86400);
+                const hours = Math.floor((totalSeconds % 86400) / 3600);
+                const minutes = Math.floor((totalSeconds % 3600) / 60);
+                const seconds = totalSeconds % 60;
+
+                if (days > 0) return `${days}天${hours}小时`;
+                if (hours > 0) return `${hours}小时${minutes}分`;
+                if (minutes > 0) return `${minutes}分${seconds}秒`;
+                return `${seconds}秒`;
+            }
+
+            const years = [...new Set(allFlipData.map(item => {
+                const t = Number(item.qtime);
+                return t ? new Date(t).getFullYear() : null;
+            }))].filter(y => y).sort((a, b) => b - a);
+
+            let filteredData = allFlipData;
+            if (currentFlipAnalysisYear !== 'all') {
+                filteredData = allFlipData.filter(item => {
+                    const t = Number(item.qtime);
+                    return t && new Date(t).getFullYear() == currentFlipAnalysisYear;
+                });
+            }
+
+            let dropdownItemsHtml = `
+        <div class="suggestion-item" onclick="selectFlipYear('all')">全部年份</div>
+    `;
+            years.forEach(y => {
+                dropdownItemsHtml += `
+            <div class="suggestion-item" onclick="selectFlipYear(${y})">${y}年</div>
+        `;
+            });
+
+            let currentYearText = (currentFlipAnalysisYear === 'all') ? '全部年份' : `${currentFlipAnalysisYear}年`;
+
+            let totalCount = filteredData.length;
+            let totalCost = 0;
+            let globalDurationSum = 0;
+            let globalAnsweredCount = 0;
+            let globalMinDuration = Infinity;
+            let globalMaxDuration = 0;
+            let typeStats = { text: 0, audio: 0, video: 0 };
+            let memberStats = {};
+
+            filteredData.forEach(item => {
+                const cost = Number(item.cost) || 0;
+                totalCost += cost;
+
+                if (item.answerType === 1) typeStats.text++;
+                else if (item.answerType === 2) typeStats.audio++;
+                else if (item.answerType === 3) typeStats.video++;
+
+                const name = item.baseUserInfo ? item.baseUserInfo.nickname : '未知成员';
+
+                if (!memberStats[name]) {
+                    memberStats[name] = {
+                        count: 0, cost: 0, name: name,
+                        durationSum: 0, answeredCount: 0,
+                        minDuration: Infinity, maxDuration: 0,
+                        minSingleCost: Infinity, maxSingleCost: 0,
+                        typeCounts: { text: 0, audio: 0, video: 0 }
+                    };
+                }
+
+                const m = memberStats[name];
+                m.count++;
+                m.cost += cost;
+
+                if (item.answerType === 1) m.typeCounts.text++;
+                else if (item.answerType === 2) m.typeCounts.audio++;
+                else if (item.answerType === 3) m.typeCounts.video++;
+
+                if (cost < m.minSingleCost) m.minSingleCost = cost;
+                if (cost > m.maxSingleCost) m.maxSingleCost = cost;
+
+                if (item.status === 2 && item.qtime && item.answerTime) {
+                    const diff = Number(item.answerTime) - Number(item.qtime);
+                    if (diff > 0) {
+                        globalDurationSum += diff;
+                        globalAnsweredCount++;
+                        if (diff < globalMinDuration) globalMinDuration = diff;
+                        if (diff > globalMaxDuration) globalMaxDuration = diff;
+
+                        m.durationSum += diff;
+                        m.answeredCount++;
+                        if (diff < m.minDuration) m.minDuration = diff;
+                        if (diff > m.maxDuration) m.maxDuration = diff;
+                    }
+                }
+            });
+
+            if (globalMinDuration === Infinity) globalMinDuration = 0;
+            let globalAvgTimeStr = '-';
+            let globalRangeStr = '-';
+
+            if (globalAnsweredCount > 0) {
+                globalAvgTimeStr = formatDurationSimple(globalDurationSum / globalAnsweredCount);
+                const minStr = formatDurationSimple(globalMinDuration);
+                const maxStr = formatDurationSimple(globalMaxDuration);
+                globalRangeStr = `${minStr} ~ ${maxStr}`;
+            }
+
+            const memberRank = Object.values(memberStats).sort((a, b) => {
+                if (b.cost !== a.cost) return b.cost - a.cost;
+                return b.count - a.count;
+            });
+
+            let html = `
+        <div style="padding: 16px 20px; background: linear-gradient(to bottom, var(--bg), var(--input-bg)); border-bottom: 1px solid var(--border);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; text-align: center; margin-bottom: 15px;">
+                <div style="flex: 1; border-right: 1px solid var(--border);">
+                    <div style="font-size: 22px; font-weight: bold; color: var(--primary); font-family: -apple-system, BlinkMacSystemFont, Roboto, sans-serif;">${totalCount}</div>
+                    <div style="font-size: 13px; color: var(--text-sub); margin-top:6px;">总翻牌数</div>
+                </div>
+                <div style="flex: 1; border-right: 1px solid var(--border);">
+                    <div style="font-size: 22px; font-weight: bold; color: #fa8c16; font-family: -apple-system, BlinkMacSystemFont, Roboto, sans-serif;">${totalCost}</div>
+                    <div style="font-size: 13px; color: var(--text-sub); margin-top:6px;">总消耗(鸡腿)</div>
+                </div>
+                <div style="flex: 1.4;">
+                    <div style="font-size: 20px; font-weight: bold; color: #722ed1; font-family: -apple-system, BlinkMacSystemFont, Roboto, sans-serif;">${globalAvgTimeStr}</div>
+                    <div style="font-size: 13px; color: var(--text-sub); margin-top:6px;">平均耗时</div>
+                    <div style="font-size: 12px; color: #888; margin-top: 4px;">${globalRangeStr}</div>
+                </div>
+            </div>
+            
+            <div style="display:flex; gap: 10px; font-size: 12px; justify-content: center; margin-top: 15px;">
+                <span style="background:rgba(24, 144, 255, 0.1); color:#1890ff; padding:4px 10px; border-radius:12px;">文字 ${typeStats.text}</span>
+                <span style="background:rgba(114, 46, 209, 0.1); color:#722ed1; padding:4px 10px; border-radius:12px;">语音 ${typeStats.audio}</span>
+                <span style="background:rgba(235, 47, 150, 0.1); color:#eb2f96; padding:4px 10px; border-radius:12px;">视频 ${typeStats.video}</span>
+            </div>
+        </div>
+        
+        <div style="padding: 10px 20px; font-weight: bold; color: var(--text-sub); font-size: 13px; background: var(--bg); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+            <span>成员排行</span>
+            
+            <div id="flip-year-wrapper" style="position: relative; width: 100px;">
+                <input type="text" id="flip-year-display" class="input-control" 
+                       value="${currentYearText}" readonly 
+                       onclick="toggleFlipYearDropdown()"
+                       style="cursor: pointer; text-align: left; padding-right: 25px; height: 28px; font-size: 12px;">
+                
+                <div style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text-sub); font-size: 10px;">
+                    ▼
+                </div>
+                
+                <div id="flip-year-dropdown" class="suggestion-box" style="display: none; top: 32px; width: 100%;">
+                    ${dropdownItemsHtml}
+                </div>
+            </div>
+        </div>
+    `;
+
+            if (memberRank.length === 0) {
+                html += '<div class="empty-state" style="padding: 40px; text-align: center; color: var(--text-sub); font-size: 14px;">该年份暂无数据</div>';
+            } else {
+                memberRank.forEach((m, index) => {
+                    let rankClass = 'rank-other';
+                    let rankNum = index + 1;
+                    if (index === 0) rankClass = 'rank-1';
+                    else if (index === 1) rankClass = 'rank-2';
+                    else if (index === 2) rankClass = 'rank-3';
+
+                    const topCost = memberRank[0].cost || 1;
+                    const percent = (m.cost / topCost) * 100;
+                    const avgPrice = (m.cost / (m.count || 1)).toFixed(0);
+                    const minPrice = m.minSingleCost === Infinity ? 0 : m.minSingleCost;
+                    const maxPrice = m.maxSingleCost;
+
+                    let countParts = [];
+                    countParts.push(`<span style="font-weight: bold; color: var(--text);">共 ${m.count} 条</span>`);
+                    if (m.typeCounts.text > 0) countParts.push(`<span style="color:#1890ff;">文字 ${m.typeCounts.text}</span>`);
+                    if (m.typeCounts.audio > 0) countParts.push(`<span style="color:#722ed1;">语音 ${m.typeCounts.audio}</span>`);
+                    if (m.typeCounts.video > 0) countParts.push(`<span style="color:#eb2f96;">视频 ${m.typeCounts.video}</span>`);
+                    const countLineHtml = countParts.join('<span style="margin: 0 6px; color:var(--border);">|</span>');
+
+                    let timeLineHtml = '<span style="color:#999;">暂无回答数据</span>';
+                    if (m.answeredCount > 0) {
+                        const avgTime = formatDurationSimple(m.durationSum / m.answeredCount);
+                        const minTime = formatDurationSimple(m.minDuration);
+                        const maxTime = formatDurationSimple(m.maxDuration);
+
+                        timeLineHtml = `
+                    <span style="color: #722ed1; font-weight:500;">平均耗时 ${avgTime}</span>
+                    <span style="margin: 0 6px; color:var(--border);">|</span>
+                    <span>最快 ${minTime}</span>
+                    <span style="margin: 0 6px; color:var(--border);">|</span>
+                    <span>最慢 ${maxTime}</span>
+                `;
+                    }
+
+                    html += `
+            <div class="list-item" style="cursor: default; padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start;">
+                <div class="rank-num ${rankClass}" style="width: 30px; min-width: 30px; text-align: center; margin-right: 15px; font-weight: bold; font-size: 16px; line-height: 24px; margin-top: 2px;">${rankNum}</div>
+                <div style="flex: 1; min-width: 0;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <span style="font-weight: bold; font-size: 15px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${m.name}</span>
+                        <span style="font-weight: bold; font-size: 16px; color: #fa8c16; font-family: -apple-system, BlinkMacSystemFont, Roboto, sans-serif;">${m.cost} <span style="font-size:12px;">🍗</span></span>
+                    </div>
+                    <div style="height: 4px; background: var(--border); border-radius: 3px; overflow: hidden; margin-bottom: 10px;">
+                        <div style="width: ${percent}%; height: 100%; background: #fa8c16; opacity: 0.7;"></div>
+                    </div>
+                    <div style="font-size: 13px; color: var(--text-sub); line-height: 1.8;">
+                        
+                        <div style="display:flex; align-items:center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            ${countLineHtml}
+                        </div>
+
+                        <div style="display:flex; align-items:center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            <span style="color: #fa8c16; font-weight:500;">平均鸡腿 ${avgPrice} 🍗</span>
+                            <span style="margin: 0 6px; color:var(--border);">|</span>
+                            <span>最高 ${maxPrice} 🍗</span>
+                            <span style="margin: 0 6px; color:var(--border);">|</span>
+                            <span>最低 ${minPrice} 🍗</span>
+                        </div>
+
+                        <div style="display:flex; align-items:center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            ${timeLineHtml}
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+                });
+            }
+
+            container.innerHTML = html;
+        }
+
+        function formatDurationSimple(ms) {
+            if (!ms || ms < 0) return '-';
+
+            const totalSeconds = Math.floor(ms / 1000);
+            const days = Math.floor(totalSeconds / 86400);
+            const hours = Math.floor((totalSeconds % 86400) / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+
+            if (days > 0) {
+                return `${days}天${hours}小时`;
+            } else if (hours > 0) {
+                return `${hours}小时${minutes}分`;
+            } else {
+                return `${minutes}分钟`;
+            }
+        }
+
+        document.addEventListener('click', function (e) {
+            const flipModal = document.getElementById('flipAnalysisModal');
+            if (e.target === flipModal) closeFlipAnalysis();
+        });
+
+
+        let selectedLiveGiftId = null;
+
+        function toggleGiftPanel() {
+            const panel = document.getElementById('live-gift-panel');
+            const arrow = document.getElementById('gift-panel-arrow');
+
+            if (!panel) return;
+
+            if (panel.style.display === 'none' || panel.style.display === '') {
+                panel.style.display = 'block';
+                if (arrow) arrow.style.transform = 'rotate(180deg)';
+
+                renderLiveGiftGrid();
+                updateLiveBalance();
+            } else {
+                panel.style.display = 'none';
+                if (arrow) arrow.style.transform = 'rotate(0deg)';
+            }
+        }
+
+        async function renderLiveGiftGrid() {
+            const container = document.getElementById('live-gift-grid');
+            if (!container) return;
+
+            if (container.children.length === 0) {
+                container.innerHTML = '<div style="padding:20px; text-align:center; color:#999; width:100%;">加载中...</div>';
+            }
+
+            let giftList = [];
+            let useFallback = false;
+
+            const safeFixUrl = (path) => {
+                if (!path) return './icon.png';
+                if (path.startsWith('http')) return path;
+                return 'https://source.48.cn' + path;
+            };
+
+            const token = appToken || localStorage.getItem('yaya_p48_token');
+            const liveId = currentPlayingItem ? currentPlayingItem.liveId : null;
+
+            if (token && liveId) {
+                try {
+                    const pa = window.getPA ? window.getPA() : null;
+                    const res = await ipcRenderer.invoke('fetch-gift-list', { token, pa, liveId });
+
+                    if (res.success && res.content) {
+                        if (Array.isArray(res.content)) {
+                            res.content.forEach(category => {
+                                if (category.giftList && Array.isArray(category.giftList)) {
+                                    giftList = giftList.concat(category.giftList);
+                                }
+                            });
+                        }
+                        else if (res.content.giftList && Array.isArray(res.content.giftList)) {
+                            giftList = res.content.giftList;
+                        }
+
+                        const seen = new Set();
+                        giftList = giftList.filter(item => {
+                            const id = item.giftId || item.id;
+                            if (seen.has(id)) return false;
+                            seen.add(id);
+                            return true;
+                        });
+
+                        if (giftList.length === 0) useFallback = true;
+                    } else {
+                        useFallback = true;
+                    }
+                } catch (e) {
+                    console.error('加载礼物列表失败', e);
+                    useFallback = true;
+                }
+            } else {
+                useFallback = true;
+            }
+
+            if ((useFallback || giftList.length === 0) && typeof POCKET_GIFT_DATA !== 'undefined') {
+                console.log('使用本地 POCKET_GIFT_DATA');
+                giftList = POCKET_GIFT_DATA.map(g => ({
+                    giftId: g.id,
+                    giftName: g.name,
+                    money: g.cost,
+                    picPath: `/mediasource/live/gift/gift_png_${g.id}.png`
+                }));
+            }
+
+            if (giftList.length === 0) {
+                container.innerHTML = '<div style="padding:10px; text-align:center; color:#999;">无法加载礼物列表</div>';
+                return;
+            }
+
+            let html = '';
+            giftList.forEach(gift => {
+                const id = gift.giftId || gift.id;
+                const name = gift.giftName || gift.name || '未知礼物';
+
+                let cost = '??';
+                if (gift.money !== undefined) cost = gift.money;
+                else if (gift.canSendNum !== undefined) cost = gift.canSendNum;
+                else if (gift.cost !== undefined) cost = gift.cost;
+
+                let imgUrl = safeFixUrl(gift.picPath);
+
+                html += `
+            <div class="gift-item" id="gift-item-${id}" 
+                 data-name="${name}" data-cost="${cost}"
+                 onclick="selectLiveGift('${id}')">
+                <img src="${imgUrl}" class="gift-img" onerror="this.src='./icon.png'" loading="lazy">
+                <div class="gift-name" title="${name}">${name}</div>
+                <div class="gift-cost">${cost} 🍗</div>
+            </div>
+        `;
+            });
+            container.innerHTML = html;
+        }
+
+        async function renderLiveGiftGrid() {
+            const container = document.getElementById('live-gift-grid');
+            if (!container) return;
+
+            if (container.children.length === 0) {
+                container.innerHTML = '<div style="padding:20px; text-align:center; color:#999; width:100%;">加载中...</div>';
+            }
+
+            let giftList = [];
+            let useFallback = false;
+
+            const safeFixUrl = (path) => {
+                if (!path) return './icon.png';
+                if (path.startsWith('http')) return path;
+
+                const prefix = 'https://source.48.cn';
+                return path.startsWith('/') ? (prefix + path) : (prefix + '/' + path);
+            };
+
+            const token = appToken || localStorage.getItem('yaya_p48_token');
+            const liveId = currentPlayingItem ? currentPlayingItem.liveId : null;
+
+            if (token && liveId) {
+                try {
+                    const pa = window.getPA ? window.getPA() : null;
+                    const res = await ipcRenderer.invoke('fetch-gift-list', { token, pa, liveId });
+
+                    if (res.success && res.content) {
+                        if (Array.isArray(res.content)) {
+                            res.content.forEach(category => {
+                                if (category.giftList && Array.isArray(category.giftList)) {
+                                    giftList = giftList.concat(category.giftList);
+                                }
+                            });
+                        } else if (res.content.giftList && Array.isArray(res.content.giftList)) {
+                            giftList = res.content.giftList;
+                        }
+
+                        const seen = new Set();
+                        giftList = giftList.filter(item => {
+                            const id = item.giftId || item.id;
+                            if (seen.has(id)) return false;
+                            seen.add(id);
+                            return true;
+                        });
+
+                        if (giftList.length === 0) useFallback = true;
+                    } else {
+                        useFallback = true;
+                    }
+                } catch (e) {
+                    console.error('加载礼物列表失败', e);
+                    useFallback = true;
+                }
+            } else {
+                useFallback = true;
+            }
+
+            if ((useFallback || giftList.length === 0) && typeof POCKET_GIFT_DATA !== 'undefined') {
+                console.log('使用本地 POCKET_GIFT_DATA 备份');
+                giftList = POCKET_GIFT_DATA.map(g => ({
+                    giftId: g.id,
+                    giftName: g.name,
+                    money: g.cost,
+                    picPath: `/mediasource/live/gift/gift_png_${g.id}.png`
+                }));
+            }
+
+            if (giftList.length === 0) {
+                container.innerHTML = '<div style="padding:10px; text-align:center; color:#999;">无法加载礼物列表</div>';
+                return;
+            }
+
+            let html = '';
+            giftList.forEach(gift => {
+                const id = gift.giftId || gift.id;
+                const name = gift.giftName || gift.name || '未知礼物';
+
+                let cost = '??';
+                if (gift.money !== undefined) cost = gift.money;
+                else if (gift.canSendNum !== undefined) cost = gift.canSendNum;
+                else if (gift.cost !== undefined) cost = gift.cost;
+
+                const imgUrl = safeFixUrl(gift.picPath);
+
+                html += `
+            <div class="gift-item" id="gift-item-${id}" 
+                 data-name="${name}" data-cost="${cost}"
+                 onclick="selectLiveGift('${id}')">
+                <img src="${imgUrl}" class="gift-img" onerror="this.src='./icon.png'" loading="lazy">
+                <div class="gift-name" title="${name}">${name}</div>
+                <div class="gift-cost">${cost} 🍗</div>
+            </div>
+        `;
+            });
+            container.innerHTML = html;
+        }
+
+        function selectLiveGift(giftId) {
+            if (selectedLiveGiftId) {
+                const old = document.getElementById(`gift-item-${selectedLiveGiftId}`);
+                if (old) old.classList.remove('selected');
+            }
+
+            selectedLiveGiftId = giftId;
+
+            const current = document.getElementById(`gift-item-${giftId}`);
+            if (current) {
+                current.classList.add('selected');
+
+                const btn = document.getElementById('btn-confirm-send-gift');
+                if (btn) {
+                    btn.disabled = false;
+                    const name = current.dataset.name || '礼物';
+                    btn.innerText = `发送 ${name}`;
+                    btn.title = `发送 ${name} (消耗 ${current.dataset.cost} 鸡腿)`;
+                }
+            }
+        }
+
+        async function updateLiveBalance() {
+            const balanceEl = document.getElementById('live-gift-balance');
+            if (!balanceEl) return;
+
+            const token = appToken || localStorage.getItem('yaya_p48_token');
+            if (!token) {
+                balanceEl.innerText = '未登录';
+                return;
+            }
+
+            try {
+                const pa = window.getPA ? window.getPA() : null;
+                const res = await ipcRenderer.invoke('fetch-user-money', { token, pa });
+                if (res.success && res.content) {
+                    balanceEl.innerText = res.content.moneyTotal;
+                } else {
+                    balanceEl.innerText = '获取失败';
+                }
+            } catch (e) {
+                console.error(e);
+                balanceEl.innerText = '错误';
+            }
+        }
+
+        async function executeSendLiveGift() {
+            if (!selectedLiveGiftId) {
+                if (typeof dp !== 'undefined' && dp.notice) dp.notice('请先选择一个礼物', 2000);
+                return;
+            }
+            if (!currentPlayingItem) return;
+
+            const token = appToken || localStorage.getItem('yaya_p48_token');
+            if (!token) {
+                if (typeof dp !== 'undefined' && dp.notice) dp.notice('请先登录', 2000);
+                else switchView('login');
+                return;
+            }
+
+            const giftEl = document.getElementById(`gift-item-${selectedLiveGiftId}`);
+            if (!giftEl) return;
+            const giftName = giftEl.dataset.name;
+
+            const numInput = document.getElementById('live-gift-num');
+            const giftNum = numInput ? Math.floor(Number(numInput.value)) : 1;
+
+            if (giftNum < 1) {
+                if (typeof dp !== 'undefined' && dp.notice) dp.notice('数量不能小于 1', 2000);
+                return;
+            }
+
+            const btn = document.getElementById('btn-confirm-send-gift');
+            const originalText = btn.innerText;
+            btn.disabled = true;
+            btn.innerText = '...';
+
+            try {
+                const liveId = currentPlayingItem.liveId;
+                const acceptUserId = currentPlayingItem.userInfo ? currentPlayingItem.userInfo.userId : (currentPlayingItem.userId || '');
+
+                if (!acceptUserId) throw new Error('无法获取主播ID');
+
+                const pa = window.getPA ? window.getPA() : null;
+                const crm = Date.now().toString();
+
+                const res = await ipcRenderer.invoke('send-live-gift', {
+                    token,
+                    pa,
+                    giftId: selectedLiveGiftId,
+                    liveId,
+                    acceptUserId,
+                    crm,
+                    giftNum: giftNum
+                });
+
+                if (res.success) {
+                    updateLiveBalance();
+                    if (typeof dp !== 'undefined' && dp.notice) {
+                        dp.notice(`🎁 已送出 ${giftNum} 个 [${giftName}]`, 3000);
+                    }
+                } else {
+                    let errorMsg = res.msg || '未知错误';
+
+                    if (errorMsg.includes('不存在') || errorMsg.includes('下架')) {
+                        errorMsg = '失败';
+                        renderLiveGiftGrid();
+                    }
+                    else if (errorMsg.includes('余额') || errorMsg.includes('不足') || errorMsg.includes('钱')) {
+                        errorMsg = '余额不足，请充值';
+                    }
+
+                    if (typeof dp !== 'undefined' && dp.notice) {
+                        dp.notice(`❌ ${errorMsg}`, 3000);
+                    } else {
+                        console.error(res.msg);
+                    }
+                }
+
+            } catch (e) {
+                if (typeof dp !== 'undefined' && dp.notice) {
+                    dp.notice(`❌ 出错: ${e.message}`, 3000);
+                }
+            } finally {
+                btn.disabled = false;
+                btn.innerText = originalText;
+            }
+        }
     </script>
     <script type="module">
         import init, { __x6c2adf8__ } from './sdk/rust-wasm.js';
@@ -7789,7 +9349,10 @@
 
                     const userInfo = res.userInfo;
                     const safeName = userInfo?.baseUserInfo?.nickname || userInfo?.nickname || '口袋用户';
+                    const userId = userInfo?.baseUserInfo?.userId || userInfo?.userId || userInfo?.id || 'Unknown';
                     document.getElementById('user-nickname').innerText = safeName;
+                    const idDisplay = document.getElementById('user-id-display');
+                    if (idDisplay) idDisplay.innerText = `ID: ${userId}`;
                     if (msgBox) msgBox.innerText = '';
 
                     if (accountArea && accountList) {
