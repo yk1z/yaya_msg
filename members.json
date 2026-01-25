@@ -6035,6 +6035,16 @@
       "isInGroup": false
     },
     {
+      "id": 874499,
+      "ownerName": "程一",
+      "team": "IDFT",
+      "teamId": 1501,
+      "groupName": "IDFT",
+      "periodName": "SHY48 四期生",
+      "pinyin": "ChengYi",
+      "isInGroup": false
+    },
+    {
       "id": 874500,
       "roomId": "67284494",
       "account": "20190415143115_0nm13zomt3fhj1q",
@@ -6230,6 +6240,16 @@
       "isInGroup": false
     },
     {
+      "id": 874726,
+      "ownerName": "张瑾瑜",
+      "team": "IDFT",
+      "teamId": 1501,
+      "groupName": "IDFT",
+      "periodName": "SHY48 四期生",
+      "pinyin": "ZhangJinYu",
+      "isInGroup": false
+    },
+    {
       "id": 881190,
       "roomId": "67256413",
       "account": "20190415143052_63jcdgyuimvn4qh",
@@ -6247,6 +6267,36 @@
       "ptime": "2018/11/2",
       "qtime": "2024/5/12",
       "rank": "40",
+      "isInGroup": false
+    },
+    {
+      "id": 882638,
+      "ownerName": "李海淋",
+      "team": "IDFT",
+      "teamId": 1501,
+      "groupName": "IDFT",
+      "periodName": "BEJ48 六期生",
+      "pinyin": "LiHaiLin",
+      "isInGroup": false
+    },
+    {
+      "id": 882642,
+      "ownerName": "张语倩",
+      "team": "IDFT",
+      "teamId": 1501,
+      "groupName": "IDFT",
+      "periodName": "BEJ48 六期生",
+      "pinyin": "ZhangYuQian",
+      "isInGroup": false
+    },
+    {
+      "id": 895864,
+      "ownerName": "熊依依",
+      "team": "IDFT",
+      "teamId": 1501,
+      "groupName": "IDFT",
+      "periodName": "BEJ48 六期生",
+      "pinyin": "XiongYiYi",
       "isInGroup": false
     },
     {
@@ -6331,6 +6381,16 @@
       "groupName": "SNH48",
       "periodName": "SNH48 十四期生",
       "pinyin": "DengXinYue",
+      "isInGroup": false
+    },
+    {
+      "id": 42402830,
+      "ownerName": "曲晨语",
+      "team": "TEAM X",
+      "teamId": 1004,
+      "groupName": "SNH48",
+      "periodName": "SNH48 十四期生",
+      "pinyin": "QuChenYu",
       "isInGroup": false
     },
     {
@@ -12182,139 +12242,255 @@
       "isInGroup": false
     },
     {
-      "ownerName": "王贝妮",
-      "team": "TEAM SII",
-      "teamId": 1001,
-      "groupName": "SNH48",
-      "periodName": "SNH48 十三期生",
-      "pinyin": "WangBeiNi",
-      "birthday": "1996年1月16日",
-      "birthplace": "安徽",
-      "ptime": "2019年11月29日",
-      "qtime": "2020/6/13",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "董芷依",
-      "team": "TEAM SII",
-      "teamId": 1001,
-      "groupName": "SNH48",
-      "periodName": "SNH48 一期生",
-      "pinyin": "DongZhiYi",
-      "birthday": "1993年8月20日",
-      "qtime": "2015/9/13",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "冯雨停",
-      "team": "TEAM SII",
-      "teamId": 1001,
-      "groupName": "SNH48",
-      "periodName": "SNH48 十四期生",
-      "pinyin": "FengYuTing",
-      "birthday": "1998年9月17日",
-      "qtime": "2023/12/27",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "宫小荷",
-      "team": "TEAM SII",
-      "teamId": 1001,
-      "groupName": "SNH48",
-      "periodName": "SNH48 三期生",
-      "pinyin": "GongXiaoHe",
-      "birthday": "1996年7月11日",
-      "qtime": "2015/9/13",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "顾香君",
-      "team": "TEAM SII",
-      "teamId": 1001,
-      "groupName": "SNH48",
-      "periodName": "SNH48 一期生",
-      "pinyin": "GuXiangJun",
-      "birthday": "1995年10月23日",
-      "qtime": "2015/9/13",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "刘晨雪",
-      "team": "TEAM SII",
-      "teamId": 1001,
-      "groupName": "SNH48",
-      "periodName": "SNH48 十四期生",
-      "pinyin": "LiuChenXue",
-      "birthday": "2000年6月19日",
-      "birthplace": "山东",
-      "ptime": "2020/10/3",
-      "qtime": "2021/1/28",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "刘力玮",
-      "team": "TEAM SII",
-      "teamId": 1001,
-      "groupName": "SNH48",
-      "periodName": "SNH48 五期生",
-      "pinyin": "LiuLiWei",
-      "birthday": "1997年7月25日",
-      "qtime": "2016/8/14",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "申月姣",
-      "team": "TEAM SII",
-      "teamId": 1001,
-      "groupName": "SNH48",
-      "periodName": "SNH48 五期生",
-      "pinyin": "ShenYueJiao",
-      "birthday": "1996年9月10日",
-      "qtime": "2016/8/14",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "汤敏",
-      "team": "TEAM SII",
-      "teamId": 1001,
-      "groupName": "SNH48",
-      "periodName": "SNH48 一期生",
-      "pinyin": "TangMin",
-      "birthday": "1996年9月3日",
-      "qtime": "2015/9/13",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "徐佳丽",
-      "team": "TEAM SII",
-      "teamId": 1001,
+      "ownerName": "李沐遥",
+      "team": "TEAM B",
+      "teamId": 1101,
       "groupName": "BEJ48",
-      "periodName": "SNH48 五期生",
-      "pinyin": "XuJiaLi",
-      "birthday": "1996年9月21日",
-      "qtime": "2016/4/20",
+      "periodName": "BEJ48 二期生",
+      "pinyin": "LiMuYao",
+      "birthday": "1997年8月3日",
+      "qtime": "2019/1/19",
+      "note": "资料删除",
       "isInGroup": false
     },
     {
-      "ownerName": "曾琳瑜",
-      "team": "TEAM SII",
-      "teamId": 1001,
-      "groupName": "SNH48",
-      "periodName": "SNH48 三期生",
-      "pinyin": "ZengLinYu",
-      "birthday": "1993年9月2日",
-      "qtime": "2015/9/13",
+      "ownerName": "郑依灵",
+      "team": "TEAM B",
+      "teamId": 1101,
+      "groupName": "BEJ48",
+      "periodName": "BEJ48 二期生",
+      "pinyin": "ZhengYiLing",
+      "birthday": "1998年11月8日",
+      "qtime": "2019/1/19",
+      "note": "资料删除",
       "isInGroup": false
     },
     {
-      "ownerName": "赵韩倩",
-      "team": "TEAM SII",
-      "teamId": 1001,
+      "ownerName": "李烨",
+      "team": "TEAM E",
+      "teamId": 1102,
+      "groupName": "BEJ48",
+      "periodName": "BEJ48 二期生",
+      "pinyin": "LiYe",
+      "birthday": "1998年6月17日",
+      "qtime": "2019/1/19",
+      "note": "资料删除",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "徐静",
+      "team": "TEAM E",
+      "teamId": 1102,
+      "groupName": "BEJ48",
+      "periodName": "BEJ48 二期生",
+      "pinyin": "XuJing",
+      "birthday": "1997年9月26日",
+      "qtime": "2019/1/19",
+      "note": "资料删除",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "郑心雨",
+      "team": "TEAM J",
+      "teamId": 1103,
+      "groupName": "BEJ48",
+      "periodName": "BEJ48 二期生",
+      "pinyin": "ZhengXinYu",
+      "birthday": "2001年4月27日",
+      "qtime": "2019/1/19",
+      "note": "资料删除",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "陈逸菲",
+      "team": "TEAM B",
+      "teamId": 1101,
+      "groupName": "BEJ48",
+      "periodName": "BEJ48 一期生",
+      "pinyin": "ChenYiFei",
+      "birthday": "1994年6月18日",
+      "qtime": "2017/7/8",
+      "note": "资料删除",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "吴月黎",
+      "team": "TEAM B",
+      "teamId": 1101,
+      "groupName": "BEJ48",
+      "periodName": "BEJ48 一期生",
+      "pinyin": "WuYueLi",
+      "birthday": "1996年5月15日",
+      "qtime": "2019/1/19",
+      "note": "资料删除",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "单习文",
+      "team": "TEAM J",
+      "teamId": 1103,
+      "groupName": "BEJ48",
+      "periodName": "BEJ48 一期生",
+      "pinyin": "ShanXiWen",
+      "birthday": "1997年1月31日",
+      "qtime": "2019/1/19",
+      "note": "资料删除",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "罗恩妮",
+      "team": "CKG48",
+      "teamId": 1404,
+      "groupName": "CKG48",
+      "periodName": "CKG48 五期生",
+      "pinyin": "LuoEnNi",
+      "birthday": "2001年4月8日",
+      "birthplace": "重庆",
+      "qtime": "2023/6/2",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "谢慧先",
+      "team": "预备生",
+      "teamId": 1207,
+      "groupName": "GNZ48",
+      "periodName": "GNZ48 八期生",
+      "pinyin": "XieHuiXian",
+      "birthday": "2002年5月11日",
+      "qtime": "2020/12/11",
+      "note": "资料删除",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "陈乐添",
+      "team": "TEAM G",
+      "teamId": 1201,
+      "groupName": "GNZ48",
+      "periodName": "GNZ48 二期生",
+      "pinyin": "ChenLeTian",
+      "birthday": "1996年6月19日",
+      "qtime": "2020-4-前",
+      "note": "资料删除",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "郑奕雯",
+      "team": "预备生",
+      "teamId": 1207,
+      "groupName": "GNZ48",
+      "periodName": "GNZ48 九期生",
+      "pinyin": "ZhengYiWen",
+      "birthday": "2001年1月11日",
+      "qtime": "2021/9/26",
+      "note": "除名",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "侯祎冉",
+      "team": "预备生",
+      "teamId": 1207,
+      "groupName": "GNZ48",
+      "periodName": "GNZ48 十二期生",
+      "pinyin": "HouYiRan",
+      "birthday": "2005年5月31日",
+      "birthplace": "委内瑞拉",
+      "qtime": "2022/6/22",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "戴欣佚",
+      "team": "TEAM NIII",
+      "teamId": 1202,
+      "groupName": "GNZ48",
+      "periodName": "GNZ48 一期生",
+      "pinyin": "DaiXinYi",
+      "birthday": "2001年12月17日",
+      "qtime": "2017/6/1",
+      "note": "资料删除",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "陈婧文",
+      "team": "TEAM SIII",
+      "teamId": 1301,
+      "groupName": "SHY48",
+      "periodName": "SHY48 一期生",
+      "pinyin": "ChenJingWen",
+      "birthday": "1998年4月22日",
+      "qtime": "2019/4/19",
+      "note": "资料删除",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "南翎璞",
+      "team": "TEAM SIII",
+      "teamId": 1301,
+      "groupName": "SHY48",
+      "periodName": "SHY48 一期生",
+      "pinyin": "NanLingPu",
+      "birthday": "1998年12月12日",
+      "qtime": "2019/4/19",
+      "note": "资料删除",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "徐静妍",
+      "team": "TEAM SIII",
+      "teamId": 1301,
+      "groupName": "SHY48",
+      "periodName": "SHY48 一期生",
+      "pinyin": "XuJingYan",
+      "birthday": "2000年6月16日",
+      "qtime": "2019/4/19",
+      "note": "资料删除",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "张雨晴",
+      "team": "TEAM HIII",
+      "teamId": 1302,
+      "groupName": "SHY48",
+      "periodName": "SHY48 一期生",
+      "pinyin": "ZhangYuQing",
+      "birthday": "2000年9月15日",
+      "qtime": "2019/4/19",
+      "note": "资料删除",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "葛佳慧",
+      "team": "TEAM NII",
+      "teamId": 1002,
       "groupName": "SNH48",
-      "periodName": "SNH48 七期生",
-      "pinyin": "ZhaoHanQian",
-      "birthday": "2000年7月13日",
-      "qtime": "2021/6/24",
+      "periodName": "SNH48 八期生",
+      "pinyin": "GeJiaHui",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "文文",
+      "team": "TEAM HII",
+      "teamId": 1003,
+      "groupName": "SNH48",
+      "periodName": "SNH48 八期生",
+      "pinyin": "WenWen",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "赵梦婷",
+      "team": "TEAM HII",
+      "teamId": 1003,
+      "groupName": "SNH48",
+      "periodName": "SNH48 八期生",
+      "pinyin": "ZhaoMengTing",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "许嘉怡",
+      "team": "TEAM XII",
+      "teamId": 1005,
+      "groupName": "SNH48",
+      "periodName": "SNH48 八期生",
+      "pinyin": "XuJiaYi",
       "isInGroup": false
     },
     {
@@ -12329,57 +12505,12 @@
       "isInGroup": false
     },
     {
-      "ownerName": "邓艳秋菲",
-      "team": "TEAM NII",
-      "teamId": 1002,
-      "groupName": "SNH48",
-      "periodName": "SNH48 六期生",
-      "pinyin": "DengYanQiuFei",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "葛佳慧",
-      "team": "TEAM NII",
-      "teamId": 1002,
-      "groupName": "SNH48",
-      "periodName": "SNH48 八期生",
-      "pinyin": "GeJiaHui",
-      "isInGroup": false
-    },
-    {
       "ownerName": "胡思奕",
       "team": "TEAM NII",
       "teamId": 1002,
       "groupName": "SNH48",
       "periodName": "SNH48 二期生",
       "pinyin": "HuSiYi",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "刘诗蕾",
-      "team": "TEAM NII",
-      "teamId": 1002,
-      "groupName": "SNH48",
-      "periodName": "SNH48 五期生",
-      "pinyin": "LiuShiLei",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "李璇",
-      "team": "TEAM NII",
-      "teamId": 1002,
-      "groupName": "SNH48",
-      "periodName": "SNH48 三期生",
-      "pinyin": "LiXuan",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "栾嘉仪",
-      "team": "TEAM NII",
-      "teamId": 1002,
-      "groupName": "SNH48",
-      "periodName": "SNH48 十期生",
-      "pinyin": "LuanJiaYi",
       "isInGroup": false
     },
     {
@@ -12410,15 +12541,6 @@
       "isInGroup": false
     },
     {
-      "ownerName": "钱艺",
-      "team": "TEAM NII",
-      "teamId": 1002,
-      "groupName": "SNH48",
-      "periodName": "SNH48 六期生",
-      "pinyin": "QianYi",
-      "isInGroup": false
-    },
-    {
       "ownerName": "王佳路",
       "team": "TEAM NII",
       "teamId": 1002,
@@ -12446,21 +12568,191 @@
       "isInGroup": false
     },
     {
-      "ownerName": "徐真",
-      "team": "TEAM NII",
-      "teamId": 1002,
-      "groupName": "SNH48",
-      "periodName": "SNH48 七期生",
-      "pinyin": "XuZhen",
-      "isInGroup": false
-    },
-    {
       "ownerName": "杨雅如",
       "team": "TEAM NII",
       "teamId": 1002,
       "groupName": "SNH48",
       "periodName": "SNH48 二期生",
       "pinyin": "YangYaRu",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "王奕雯",
+      "team": "非正式成员",
+      "groupName": "SNH48",
+      "periodName": "SNH48 二期生",
+      "pinyin": "WangYiWen",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "徐彤",
+      "team": "非正式成员",
+      "groupName": "SNH48",
+      "periodName": "SNH48 二期生",
+      "pinyin": "XuTong",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "杨海赆",
+      "team": "非正式成员",
+      "groupName": "SNH48",
+      "periodName": "SNH48 二期生",
+      "pinyin": "YangHaiJin",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "张瑜纹",
+      "team": "非正式成员",
+      "groupName": "SNH48",
+      "periodName": "SNH48 二期生",
+      "pinyin": "ZhangYuWen",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "邓艳秋菲",
+      "team": "TEAM NII",
+      "teamId": 1002,
+      "groupName": "SNH48",
+      "periodName": "SNH48 六期生",
+      "pinyin": "DengYanQiuFei",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "钱艺",
+      "team": "TEAM NII",
+      "teamId": 1002,
+      "groupName": "SNH48",
+      "periodName": "SNH48 六期生",
+      "pinyin": "QianYi",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "程文路",
+      "team": "TEAM XII",
+      "teamId": 1005,
+      "groupName": "SNH48",
+      "periodName": "SNH48 六期生",
+      "pinyin": "ChengWenLu",
+      "birthday": "1999年12月5日",
+      "birthplace": "上海",
+      "ptime": "2015/12/4",
+      "qtime": "2017/4/19",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "胡博文",
+      "team": "TEAM B",
+      "teamId": 1101,
+      "groupName": "BEJ48",
+      "periodName": "SNH48 六期生",
+      "pinyin": "HuBoWen",
+      "birthday": "1999年12月18日",
+      "qtime": "2019/1/19",
+      "note": "资料删除",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "文妍",
+      "team": "TEAM B",
+      "teamId": 1101,
+      "groupName": "BEJ48",
+      "periodName": "SNH48 六期生",
+      "pinyin": "WenYan",
+      "birthday": "2000年12月28日",
+      "qtime": "2019/1/19",
+      "note": "资料删除",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "毕梦媛",
+      "team": "TEAM E",
+      "teamId": 1102,
+      "groupName": "BEJ48",
+      "periodName": "SNH48 六期生",
+      "pinyin": "BiMengYuan",
+      "birthday": "1997年1月29日",
+      "qtime": "2019/1/19",
+      "note": "资料删除",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "林堃",
+      "team": "TEAM E",
+      "teamId": 1102,
+      "groupName": "BEJ48",
+      "periodName": "SNH48 六期生",
+      "pinyin": "LinKun",
+      "birthday": "1996年10月30日",
+      "qtime": "2019/1/19",
+      "note": "资料删除",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "易妍倩",
+      "team": "TEAM E",
+      "teamId": 1102,
+      "groupName": "BEJ48",
+      "periodName": "SNH48 六期生",
+      "pinyin": "YiYanQian",
+      "birthday": "1997年11月28日",
+      "qtime": "2019/1/19",
+      "note": "资料删除",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "胡怡莹",
+      "team": "TEAM G",
+      "teamId": 1201,
+      "groupName": "GNZ48",
+      "periodName": "SNH48 六期生",
+      "pinyin": "HuYiYing",
+      "birthday": "1997年3月19日",
+      "qtime": "2019/1/19",
+      "note": "资料删除",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "王馨悦",
+      "team": "TEAM G",
+      "teamId": 1201,
+      "groupName": "GNZ48",
+      "periodName": "SNH48 六期生",
+      "pinyin": "WangXinYue",
+      "birthday": "1994年7月19日",
+      "qtime": "2017/6/1",
+      "note": "资料删除",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "周倩玉",
+      "team": "TEAM G",
+      "teamId": 1201,
+      "groupName": "GNZ48",
+      "periodName": "SNH48 六期生",
+      "pinyin": "ZhouQianYu",
+      "birthday": "2000年4月18日",
+      "qtime": "2019/1/19",
+      "note": "资料删除\r\n2019年9月2日加入IDOLS Ft",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "赵韩倩",
+      "team": "TEAM SII",
+      "teamId": 1001,
+      "groupName": "SNH48",
+      "periodName": "SNH48 七期生",
+      "pinyin": "ZhaoHanQian",
+      "birthday": "2000年7月13日",
+      "qtime": "2021/6/24",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "徐真",
+      "team": "TEAM NII",
+      "teamId": 1002,
+      "groupName": "SNH48",
+      "periodName": "SNH48 七期生",
+      "pinyin": "XuZhen",
       "isInGroup": false
     },
     {
@@ -12474,6 +12766,37 @@
       "birthplace": "云南 保山",
       "ptime": "2016/9/15",
       "qtime": "2017/9/10",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "宫小荷",
+      "team": "TEAM SII",
+      "teamId": 1001,
+      "groupName": "SNH48",
+      "periodName": "SNH48 三期生",
+      "pinyin": "GongXiaoHe",
+      "birthday": "1996年7月11日",
+      "qtime": "2015/9/13",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "曾琳瑜",
+      "team": "TEAM SII",
+      "teamId": 1001,
+      "groupName": "SNH48",
+      "periodName": "SNH48 三期生",
+      "pinyin": "ZengLinYu",
+      "birthday": "1993年9月2日",
+      "qtime": "2015/9/13",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "李璇",
+      "team": "TEAM NII",
+      "teamId": 1002,
+      "groupName": "SNH48",
+      "periodName": "SNH48 三期生",
+      "pinyin": "LiXuan",
       "isInGroup": false
     },
     {
@@ -12540,15 +12863,6 @@
       "isInGroup": false
     },
     {
-      "ownerName": "文文",
-      "team": "TEAM HII",
-      "teamId": 1003,
-      "groupName": "SNH48",
-      "periodName": "SNH48 八期生",
-      "pinyin": "WenWen",
-      "isInGroup": false
-    },
-    {
       "ownerName": "杨吟雨",
       "team": "TEAM HII",
       "teamId": 1003,
@@ -12567,15 +12881,6 @@
       "isInGroup": false
     },
     {
-      "ownerName": "赵梦婷",
-      "team": "TEAM HII",
-      "teamId": 1003,
-      "groupName": "SNH48",
-      "periodName": "SNH48 八期生",
-      "pinyin": "ZhaoMengTing",
-      "isInGroup": false
-    },
-    {
       "ownerName": "周秋均",
       "team": "TEAM HII",
       "teamId": 1003,
@@ -12585,12 +12890,68 @@
       "isInGroup": false
     },
     {
-      "ownerName": "曲晨语",
-      "team": "TEAM X",
-      "teamId": 1004,
+      "ownerName": "李怡文",
+      "team": "非正式成员",
+      "groupName": "SNH48",
+      "periodName": "SNH48 三期生",
+      "pinyin": "LiYiWen",
+      "birthday": "1997年4月28日",
+      "qtime": "2015/9/13",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "栾嘉仪",
+      "team": "TEAM NII",
+      "teamId": 1002,
+      "groupName": "SNH48",
+      "periodName": "SNH48 十期生",
+      "pinyin": "LuanJiaYi",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "陆婧华",
+      "team": "预备生",
+      "teamId": 1007,
+      "groupName": "SNH48",
+      "periodName": "SNH48 十期生",
+      "pinyin": "LuJingHua",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "王贝妮",
+      "team": "TEAM SII",
+      "teamId": 1001,
+      "groupName": "SNH48",
+      "periodName": "SNH48 十三期生",
+      "pinyin": "WangBeiNi",
+      "birthday": "1996年1月16日",
+      "birthplace": "安徽",
+      "ptime": "2019年11月29日",
+      "qtime": "2020/6/13",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "冯雨停",
+      "team": "TEAM SII",
+      "teamId": 1001,
       "groupName": "SNH48",
       "periodName": "SNH48 十四期生",
-      "pinyin": "QuChenYu",
+      "pinyin": "FengYuTing",
+      "birthday": "1998年9月17日",
+      "qtime": "2023/12/27",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "刘晨雪",
+      "team": "TEAM SII",
+      "teamId": 1001,
+      "groupName": "SNH48",
+      "periodName": "SNH48 十四期生",
+      "pinyin": "LiuChenXue",
+      "birthday": "2000年6月19日",
+      "birthplace": "山东",
+      "ptime": "2020/10/3",
+      "qtime": "2021/1/28",
       "isInGroup": false
     },
     {
@@ -12612,16 +12973,53 @@
       "isInGroup": false
     },
     {
-      "ownerName": "程文路",
-      "team": "TEAM XII",
-      "teamId": 1005,
+      "ownerName": "张瑾",
+      "team": "非正式成员",
       "groupName": "SNH48",
-      "periodName": "SNH48 六期生",
-      "pinyin": "ChengWenLu",
-      "birthday": "1999年12月5日",
-      "birthplace": "上海",
-      "ptime": "2015/12/4",
-      "qtime": "2017/4/19",
+      "periodName": "SNH48 四期生",
+      "pinyin": "ZhangJin",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "刘力玮",
+      "team": "TEAM SII",
+      "teamId": 1001,
+      "groupName": "SNH48",
+      "periodName": "SNH48 五期生",
+      "pinyin": "LiuLiWei",
+      "birthday": "1997年7月25日",
+      "qtime": "2016/8/14",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "申月姣",
+      "team": "TEAM SII",
+      "teamId": 1001,
+      "groupName": "SNH48",
+      "periodName": "SNH48 五期生",
+      "pinyin": "ShenYueJiao",
+      "birthday": "1996年9月10日",
+      "qtime": "2016/8/14",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "徐佳丽",
+      "team": "TEAM SII",
+      "teamId": 1001,
+      "groupName": "BEJ48",
+      "periodName": "SNH48 五期生",
+      "pinyin": "XuJiaLi",
+      "birthday": "1996年9月21日",
+      "qtime": "2016/4/20",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "刘诗蕾",
+      "team": "TEAM NII",
+      "teamId": 1002,
+      "groupName": "SNH48",
+      "periodName": "SNH48 五期生",
+      "pinyin": "LiuShiLei",
       "isInGroup": false
     },
     {
@@ -12652,84 +13050,6 @@
       "isInGroup": false
     },
     {
-      "ownerName": "许嘉怡",
-      "team": "TEAM XII",
-      "teamId": 1005,
-      "groupName": "SNH48",
-      "periodName": "SNH48 八期生",
-      "pinyin": "XuJiaYi",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "陆婧华",
-      "team": "预备生",
-      "teamId": 1007,
-      "groupName": "SNH48",
-      "periodName": "SNH48 十期生",
-      "pinyin": "LuJingHua",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "陈逸菲",
-      "team": "TEAM B",
-      "teamId": 1101,
-      "groupName": "BEJ48",
-      "periodName": "BEJ48 一期生",
-      "pinyin": "ChenYiFei",
-      "birthday": "1994年6月18日",
-      "qtime": "2017/7/8",
-      "note": "资料删除",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "胡博文",
-      "team": "TEAM B",
-      "teamId": 1101,
-      "groupName": "BEJ48",
-      "periodName": "SNH48 六期生",
-      "pinyin": "HuBoWen",
-      "birthday": "1999年12月18日",
-      "qtime": "2019/1/19",
-      "note": "资料删除",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "李沐遥",
-      "team": "TEAM B",
-      "teamId": 1101,
-      "groupName": "BEJ48",
-      "periodName": "BEJ48 二期生",
-      "pinyin": "LiMuYao",
-      "birthday": "1997年8月3日",
-      "qtime": "2019/1/19",
-      "note": "资料删除",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "文妍",
-      "team": "TEAM B",
-      "teamId": 1101,
-      "groupName": "BEJ48",
-      "periodName": "SNH48 六期生",
-      "pinyin": "WenYan",
-      "birthday": "2000年12月28日",
-      "qtime": "2019/1/19",
-      "note": "资料删除",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "吴月黎",
-      "team": "TEAM B",
-      "teamId": 1101,
-      "groupName": "BEJ48",
-      "periodName": "BEJ48 一期生",
-      "pinyin": "WuYueLi",
-      "birthday": "1996年5月15日",
-      "qtime": "2019/1/19",
-      "note": "资料删除",
-      "isInGroup": false
-    },
-    {
       "ownerName": "张菡筱",
       "team": "TEAM B",
       "teamId": 1101,
@@ -12742,300 +13062,36 @@
       "isInGroup": false
     },
     {
-      "ownerName": "郑依灵",
-      "team": "TEAM B",
-      "teamId": 1101,
-      "groupName": "BEJ48",
-      "periodName": "BEJ48 二期生",
-      "pinyin": "ZhengYiLing",
-      "birthday": "1998年11月8日",
-      "qtime": "2019/1/19",
-      "note": "资料删除",
+      "ownerName": "董芷依",
+      "team": "TEAM SII",
+      "teamId": 1001,
+      "groupName": "SNH48",
+      "periodName": "SNH48 一期生",
+      "pinyin": "DongZhiYi",
+      "birthday": "1993年8月20日",
+      "qtime": "2015/9/13",
       "isInGroup": false
     },
     {
-      "ownerName": "毕梦媛",
-      "team": "TEAM E",
-      "teamId": 1102,
-      "groupName": "BEJ48",
-      "periodName": "SNH48 六期生",
-      "pinyin": "BiMengYuan",
-      "birthday": "1997年1月29日",
-      "qtime": "2019/1/19",
-      "note": "资料删除",
+      "ownerName": "顾香君",
+      "team": "TEAM SII",
+      "teamId": 1001,
+      "groupName": "SNH48",
+      "periodName": "SNH48 一期生",
+      "pinyin": "GuXiangJun",
+      "birthday": "1995年10月23日",
+      "qtime": "2015/9/13",
       "isInGroup": false
     },
     {
-      "ownerName": "林堃",
-      "team": "TEAM E",
-      "teamId": 1102,
-      "groupName": "BEJ48",
-      "periodName": "SNH48 六期生",
-      "pinyin": "LinKun",
-      "birthday": "1996年10月30日",
-      "qtime": "2019/1/19",
-      "note": "资料删除",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "李烨",
-      "team": "TEAM E",
-      "teamId": 1102,
-      "groupName": "BEJ48",
-      "periodName": "BEJ48 二期生",
-      "pinyin": "LiYe",
-      "birthday": "1998年6月17日",
-      "qtime": "2019/1/19",
-      "note": "资料删除",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "徐静",
-      "team": "TEAM E",
-      "teamId": 1102,
-      "groupName": "BEJ48",
-      "periodName": "BEJ48 二期生",
-      "pinyin": "XuJing",
-      "birthday": "1997年9月26日",
-      "qtime": "2019/1/19",
-      "note": "资料删除",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "易妍倩",
-      "team": "TEAM E",
-      "teamId": 1102,
-      "groupName": "BEJ48",
-      "periodName": "SNH48 六期生",
-      "pinyin": "YiYanQian",
-      "birthday": "1997年11月28日",
-      "qtime": "2019/1/19",
-      "note": "资料删除",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "单习文",
-      "team": "TEAM J",
-      "teamId": 1103,
-      "groupName": "BEJ48",
-      "periodName": "BEJ48 一期生",
-      "pinyin": "ShanXiWen",
-      "birthday": "1997年1月31日",
-      "qtime": "2019/1/19",
-      "note": "资料删除",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "郑心雨",
-      "team": "TEAM J",
-      "teamId": 1103,
-      "groupName": "BEJ48",
-      "periodName": "BEJ48 二期生",
-      "pinyin": "ZhengXinYu",
-      "birthday": "2001年4月27日",
-      "qtime": "2019/1/19",
-      "note": "资料删除",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "陈乐添",
-      "team": "TEAM G",
-      "teamId": 1201,
-      "groupName": "GNZ48",
-      "periodName": "GNZ48 二期生",
-      "pinyin": "ChenLeTian",
-      "birthday": "1996年6月19日",
-      "qtime": "2020-4-前",
-      "note": "资料删除",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "胡怡莹",
-      "team": "TEAM G",
-      "teamId": 1201,
-      "groupName": "GNZ48",
-      "periodName": "SNH48 六期生",
-      "pinyin": "HuYiYing",
-      "birthday": "1997年3月19日",
-      "qtime": "2019/1/19",
-      "note": "资料删除",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "王馨悦",
-      "team": "TEAM G",
-      "teamId": 1201,
-      "groupName": "GNZ48",
-      "periodName": "SNH48 六期生",
-      "pinyin": "WangXinYue",
-      "birthday": "1994年7月19日",
-      "qtime": "2017/6/1",
-      "note": "资料删除",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "周倩玉",
-      "team": "TEAM G",
-      "teamId": 1201,
-      "groupName": "GNZ48",
-      "periodName": "SNH48 六期生",
-      "pinyin": "ZhouQianYu",
-      "birthday": "2000年4月18日",
-      "qtime": "2019/1/19",
-      "note": "资料删除\r\n2019年9月2日加入IDOLS Ft",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "戴欣佚",
-      "team": "TEAM NIII",
-      "teamId": 1202,
-      "groupName": "GNZ48",
-      "periodName": "GNZ48 一期生",
-      "pinyin": "DaiXinYi",
-      "birthday": "2001年12月17日",
-      "qtime": "2017/6/1",
-      "note": "资料删除",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "侯祎冉",
-      "team": "预备生",
-      "teamId": 1207,
-      "groupName": "GNZ48",
-      "periodName": "GNZ48 十二期生",
-      "pinyin": "HouYiRan",
-      "birthday": "2005年5月31日",
-      "birthplace": "委内瑞拉",
-      "qtime": "2022/6/22",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "谢慧先",
-      "team": "预备生",
-      "teamId": 1207,
-      "groupName": "GNZ48",
-      "periodName": "GNZ48 八期生",
-      "pinyin": "XieHuiXian",
-      "birthday": "2002年5月11日",
-      "qtime": "2020/12/11",
-      "note": "资料删除",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "郑奕雯",
-      "team": "预备生",
-      "teamId": 1207,
-      "groupName": "GNZ48",
-      "periodName": "GNZ48 九期生",
-      "pinyin": "ZhengYiWen",
-      "birthday": "2001年1月11日",
-      "qtime": "2021/9/26",
-      "note": "除名",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "陈婧文",
-      "team": "TEAM SIII",
-      "teamId": 1301,
-      "groupName": "SHY48",
-      "periodName": "SHY48 一期生",
-      "pinyin": "ChenJingWen",
-      "birthday": "1998年4月22日",
-      "qtime": "2019/4/19",
-      "note": "资料删除",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "南翎璞",
-      "team": "TEAM SIII",
-      "teamId": 1301,
-      "groupName": "SHY48",
-      "periodName": "SHY48 一期生",
-      "pinyin": "NanLingPu",
-      "birthday": "1998年12月12日",
-      "qtime": "2019/4/19",
-      "note": "资料删除",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "徐静妍",
-      "team": "TEAM SIII",
-      "teamId": 1301,
-      "groupName": "SHY48",
-      "periodName": "SHY48 一期生",
-      "pinyin": "XuJingYan",
-      "birthday": "2000年6月16日",
-      "qtime": "2019/4/19",
-      "note": "资料删除",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "张雨晴",
-      "team": "TEAM HIII",
-      "teamId": 1302,
-      "groupName": "SHY48",
-      "periodName": "SHY48 一期生",
-      "pinyin": "ZhangYuQing",
-      "birthday": "2000年9月15日",
-      "qtime": "2019/4/19",
-      "note": "资料删除",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "罗恩妮",
-      "team": "CKG48",
-      "teamId": 1404,
-      "groupName": "CKG48",
-      "periodName": "CKG48 五期生",
-      "pinyin": "LuoEnNi",
-      "birthday": "2001年4月8日",
-      "birthplace": "重庆",
-      "qtime": "2023/6/2",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "程一",
-      "team": "IDFT",
-      "teamId": 1501,
-      "groupName": "IDFT",
-      "periodName": "SHY48 四期生",
-      "pinyin": "ChengYi",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "李海淋",
-      "team": "IDFT",
-      "teamId": 1501,
-      "groupName": "IDFT",
-      "periodName": "BEJ48 六期生",
-      "pinyin": "LiHaiLin",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "熊依依",
-      "team": "IDFT",
-      "teamId": 1501,
-      "groupName": "IDFT",
-      "periodName": "BEJ48 六期生",
-      "pinyin": "XiongYiYi",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "张瑾瑜",
-      "team": "IDFT",
-      "teamId": 1501,
-      "groupName": "IDFT",
-      "periodName": "SHY48 四期生",
-      "pinyin": "ZhangJinYu",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "张语倩",
-      "team": "IDFT",
-      "teamId": 1501,
-      "groupName": "IDFT",
-      "periodName": "BEJ48 六期生",
-      "pinyin": "ZhangYuQian",
+      "ownerName": "汤敏",
+      "team": "TEAM SII",
+      "teamId": 1001,
+      "groupName": "SNH48",
+      "periodName": "SNH48 一期生",
+      "pinyin": "TangMin",
+      "birthday": "1996年9月3日",
+      "qtime": "2015/9/13",
       "isInGroup": false
     },
     {
@@ -13085,45 +13141,11 @@
       "isInGroup": false
     },
     {
-      "ownerName": "李怡文",
-      "team": "非正式成员",
-      "groupName": "SNH48",
-      "periodName": "SNH48 三期生",
-      "pinyin": "LiYiWen",
-      "birthday": "1997年4月28日",
-      "qtime": "2015/9/13",
-      "isInGroup": false
-    },
-    {
       "ownerName": "王费澌",
       "team": "非正式成员",
       "groupName": "SNH48",
       "periodName": "SNH48 一期生",
       "pinyin": "WangFeiSi",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "王奕雯",
-      "team": "非正式成员",
-      "groupName": "SNH48",
-      "periodName": "SNH48 二期生",
-      "pinyin": "WangYiWen",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "徐彤",
-      "team": "非正式成员",
-      "groupName": "SNH48",
-      "periodName": "SNH48 二期生",
-      "pinyin": "XuTong",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "杨海赆",
-      "team": "非正式成员",
-      "groupName": "SNH48",
-      "periodName": "SNH48 二期生",
-      "pinyin": "YangHaiJin",
       "isInGroup": false
     },
     {
@@ -13151,27 +13173,11 @@
       "isInGroup": false
     },
     {
-      "ownerName": "张瑾",
-      "team": "非正式成员",
-      "groupName": "SNH48",
-      "periodName": "SNH48 四期生",
-      "pinyin": "ZhangJin",
-      "isInGroup": false
-    },
-    {
       "ownerName": "张馨方",
       "team": "非正式成员",
       "groupName": "SNH48",
       "periodName": "SNH48 一期生",
       "pinyin": "ZhangXinFang",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "张瑜纹",
-      "team": "非正式成员",
-      "groupName": "SNH48",
-      "periodName": "SNH48 二期生",
-      "pinyin": "ZhangYuWen",
       "isInGroup": false
     }
   ]
