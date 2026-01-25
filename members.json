@@ -6436,6 +6436,32 @@
       "isInGroup": false
     },
     {
+      "id": 42402908,
+      "ownerName": "刘晨雪",
+      "team": "TEAM SII",
+      "teamId": 1001,
+      "groupName": "SNH48",
+      "periodName": "SNH48 十四期生",
+      "pinyin": "LiuChenXue",
+      "birthday": "2000年6月19日",
+      "birthplace": "山东",
+      "ptime": "2020/10/3",
+      "qtime": "2021/1/28",
+      "isInGroup": false
+    },
+    {
+      "id": 42402920,
+      "ownerName": "冯雨停",
+      "team": "TEAM SII",
+      "teamId": 1001,
+      "groupName": "SNH48",
+      "periodName": "SNH48 十四期生",
+      "pinyin": "FengYuTing",
+      "birthday": "1998年9月17日",
+      "qtime": "2023/12/27",
+      "isInGroup": false
+    },
+    {
       "id": 45285669,
       "roomId": "261502235",
       "account": "20201208135207_k46mfva6fg3tzcn",
@@ -12025,6 +12051,20 @@
       "isInGroup": false
     },
     {
+      "id": 5602541570,
+      "ownerName": "王贝妮",
+      "team": "TEAM SII",
+      "teamId": 1001,
+      "groupName": "SNH48",
+      "periodName": "SNH48 十三期生",
+      "pinyin": "?WangBeiNi",
+      "birthday": "1996年1月16日",
+      "birthplace": "安徽",
+      "ptime": "2019年11月29日",
+      "qtime": "2020/6/13",
+      "isInGroup": false
+    },
+    {
       "id": 5602541574,
       "roomId": "159822189",
       "account": "20200228121100_h2iumsjcpjnpkht",
@@ -12809,12 +12849,12 @@
       "isInGroup": false
     },
     {
-      "ownerName": "陈怡馨",
+      "ownerName": "?陈怡馨",
       "team": "TEAM HII",
       "teamId": 1003,
       "groupName": "SNH48",
       "periodName": "SNH48 三期生",
-      "pinyin": "ChenYiXin",
+      "pinyin": "?ChenYiXin",
       "isInGroup": false
     },
     {
@@ -12915,43 +12955,6 @@
       "groupName": "SNH48",
       "periodName": "SNH48 十期生",
       "pinyin": "LuJingHua",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "王贝妮",
-      "team": "TEAM SII",
-      "teamId": 1001,
-      "groupName": "SNH48",
-      "periodName": "SNH48 十三期生",
-      "pinyin": "WangBeiNi",
-      "birthday": "1996年1月16日",
-      "birthplace": "安徽",
-      "ptime": "2019年11月29日",
-      "qtime": "2020/6/13",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "冯雨停",
-      "team": "TEAM SII",
-      "teamId": 1001,
-      "groupName": "SNH48",
-      "periodName": "SNH48 十四期生",
-      "pinyin": "FengYuTing",
-      "birthday": "1998年9月17日",
-      "qtime": "2023/12/27",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "刘晨雪",
-      "team": "TEAM SII",
-      "teamId": 1001,
-      "groupName": "SNH48",
-      "periodName": "SNH48 十四期生",
-      "pinyin": "LiuChenXue",
-      "birthday": "2000年6月19日",
-      "birthplace": "山东",
-      "ptime": "2020/10/3",
-      "qtime": "2021/1/28",
       "isInGroup": false
     },
     {
