@@ -1,5 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell } = require('electron');
-const path = require('path');
+const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron'); const path = require('path');
 const fs = require('fs');
 const axios = require('axios');
 const ffmpeg = require('fluent-ffmpeg');
@@ -98,9 +97,9 @@ ipcMain.on('window-max', () => {
 });
 ipcMain.on('window-close', () => mainWindow && mainWindow.close());
 
-ipcMain.on('start-record', (event, { url, taskId }) => {
-    const downloadFolder = app.getPath('downloads');
-    const tempTsPath = path.join(downloadFolder, `temp_rec_${taskId}.ts`);
+ipcMain.on('start-record', (event, { url, taskId, savePath }) => {
+    const tempFolder = app.getPath('temp');
+    const tempTsPath = path.join(tempFolder, `temp_rec_${taskId}.ts`);
 
     const command = ffmpeg(url)
         .inputOptions([
@@ -116,25 +115,38 @@ ipcMain.on('start-record', (event, { url, taskId }) => {
         ])
         .output(tempTsPath);
 
-    recordCommands.set(taskId, { command, tempPath: tempTsPath });
+    recordCommands.set(taskId, {
+        command,
+        tempPath: tempTsPath,
+        savePath,
+        isManuallyStopped: false
+    });
 
     command.on('start', () => {
         event.reply('record-status', { taskId, msg: '🔴 正在录制直播...', status: 'recording' });
     }).on('error', (err) => {
+        const currentTask = recordCommands.get(taskId);
+        if (currentTask && currentTask.isManuallyStopped) {
+            return;
+        }
+
         if (!err.message.includes('SIGINT') && !err.message.includes('SIGKILL')) {
             event.reply('download-status', { taskId, msg: '录制出错', status: 'error' });
         }
         recordCommands.delete(taskId);
     }).run();
 });
-
 ipcMain.on('stop-record', (event, { taskId, fileName }) => {
     const task = recordCommands.get(taskId);
     if (!task) return;
 
+    task.isManuallyStopped = true;
+
     task.command.kill('SIGINT');
 
-    const downloadFolder = app.getPath('downloads');
+    const customPath = task.savePath;
+    const downloadFolder = (customPath && fs.existsSync(customPath)) ? customPath : app.getPath('downloads');
+
     const safeFileName = fileName.replace(/[\\/:*?"<>|]/g, '_');
     const finalOutputPath = path.join(downloadFolder, `${safeFileName}.mp4`);
 
@@ -176,14 +188,20 @@ ipcMain.on('cancel-download', (event, { taskId }) => {
     }
 });
 
-ipcMain.on('clip-vod', (event, { url, fileName, startTime, duration, taskId }) => {
-    const downloadFolder = app.getPath('downloads');
+ipcMain.on('clip-vod', (event, { url, fileName, startTime, duration, taskId, savePath }) => {
+    const downloadFolder = (savePath && fs.existsSync(savePath)) ? savePath : app.getPath('downloads');
+
     const safeFileName = fileName.replace(/[\\/:*?"<>|]/g, '_');
     const finalOutputPath = path.join(downloadFolder, `${safeFileName}.mp4`);
-    const tempTsPath = path.join(downloadFolder, `temp_${taskId}_${Date.now()}.ts`);
+
+    const tempFolder = app.getPath('temp');
+    const tempTsPath = path.join(tempFolder, `temp_${taskId}_${Date.now()}.ts`);
+
+    console.log(`[切片任务] 目标路径: ${finalOutputPath}`);
 
     const runPhase2_Transcode = () => {
         if (!activeCommands.has(taskId)) return;
+
         const command2 = ffmpeg(tempTsPath)
             .inputOptions(['-y'])
             .outputOptions(['-c copy', '-bsf:a aac_adtstoasc', '-movflags faststart'])
@@ -194,8 +212,11 @@ ipcMain.on('clip-vod', (event, { url, fileName, startTime, duration, taskId }) =
         command2.on('end', () => {
             activeCommands.delete(taskId);
             try { fs.unlinkSync(tempTsPath); } catch (e) { }
+
             event.reply('download-status', { taskId, msg: '切片完成', status: 'success' });
+
         }).on('error', (err) => {
+            console.error('切片转码失败:', err);
             activeCommands.delete(taskId);
             try { fs.unlinkSync(tempTsPath); } catch (e) { }
             if (!err.message.includes('SIGKILL')) event.reply('download-status', { taskId, msg: '封装失败', status: 'error' });
@@ -212,11 +233,16 @@ ipcMain.on('clip-vod', (event, { url, fileName, startTime, duration, taskId }) =
     activeCommands.set(taskId, { command, path: finalOutputPath, tempPath: tempTsPath });
 
     command.on('progress', (p) => {
-        const currentSeconds = parseTimemark(p.timemark);
-        let percent = (currentSeconds / duration) * 100;
+        let percent = 0;
+        if (p.timemark) {
+            const timeParts = p.timemark.split(':');
+            const seconds = (+timeParts[0]) * 3600 + (+timeParts[1]) * 60 + (+timeParts[2]);
+            percent = (seconds / duration) * 100;
+        }
         event.reply('download-progress', { taskId, percent: Math.min(99, percent.toFixed(1)) });
     }).on('end', runPhase2_Transcode)
         .on('error', (err) => {
+            console.error('切片下载失败:', err);
             activeCommands.delete(taskId);
             if (!err.message.includes('SIGKILL')) event.reply('download-status', { taskId, msg: '下载失败', status: 'error' });
         }).run();
@@ -260,8 +286,8 @@ ipcMain.handle('stop-live-proxy', () => {
     }
 });
 
-ipcMain.on('download-vod', (event, { url, fileName, taskId }) => {
-    const downloadFolder = app.getPath('downloads');
+ipcMain.on('download-vod', (event, { url, fileName, taskId, savePath }) => {
+    const downloadFolder = (savePath && fs.existsSync(savePath)) ? savePath : app.getPath('downloads');
     const outputPath = path.join(downloadFolder, `${fileName}.mp4`);
 
     if (!fs.existsSync(finalFfmpegPath)) {
@@ -663,9 +689,9 @@ ipcMain.handle('fetch-open-live-one', async (event, { token, pa, liveId }) => {
     }
 });
 
-ipcMain.on('download-danmu', async (event, { url, fileName }) => {
+ipcMain.on('download-danmu', async (event, { url, fileName, savePath }) => {
     try {
-        const downloadFolder = app.getPath('downloads');
+        const downloadFolder = (savePath && fs.existsSync(savePath)) ? savePath : app.getPath('downloads');
         const safeName = fileName.replace(/[\\/:*?"<>|]/g, '_');
         const outputPath = path.join(downloadFolder, safeName);
 
@@ -786,7 +812,7 @@ ipcMain.handle('send-live-gift', async (event, { token, pa, giftId, liveId, acce
 
         headers['appInfo'] = JSON.stringify({
             vendor: "apple",
-            deviceId: "7B93DFD0-472F-4736-A628-E85FAE086487",
+            deviceId: "7B93DFD0-472F-4736-A628-E85FAE086486",
             appVersion: "7.1.35",
             appBuild: "25101021",
             osVersion: "16.3.0",
@@ -870,7 +896,7 @@ ipcMain.handle('get-nim-login-info', async (event, { token, pa }) => {
 
         headers['appInfo'] = JSON.stringify({
             vendor: "apple",
-            deviceId: "7B93DFD0-472F-4736-A628-E85FAE086487",
+            deviceId: "7B93DFD0-472F-4736-A628-E85FAE086486",
             appVersion: "7.1.35",
             appBuild: "25101021",
             osVersion: "16.3.0",
@@ -897,5 +923,18 @@ ipcMain.handle('get-nim-login-info', async (event, { token, pa }) => {
     } catch (e) {
         console.error('获取IM信息失败:', e);
         return { success: false, msg: e.message };
+    }
+});
+
+ipcMain.handle('dialog-open-directory', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+        properties: ['openDirectory', 'createDirectory'],
+        title: '选择保存路径'
+    });
+
+    if (canceled) {
+        return null;
+    } else {
+        return filePaths[0];
     }
 });

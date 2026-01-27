@@ -4,1871 +4,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>牙牙消息 v1.2.2</title>
+    <title>牙牙消息 v1.2.3</title>
     <link rel="icon" href="./icon.png" type="image/x-icon">
+
+    <link rel="stylesheet" href="style.css">
+
     <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.4.0/dist/hls.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/artplayer/dist/artplayer.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/artplayer-plugin-danmuku/dist/artplayer-plugin-danmuku.js"></script>
     <script src="https://wlnimsc0.netease.im/nim-1.8.0.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dplayer/dist/DPlayer.min.js"></script>
-    <style>
-        .danmu-row {
-            display: flex;
-            padding: 6px 15px;
-            border-bottom: 1px solid rgba(0, 0, 0, 0.03);
-            cursor: pointer;
-            font-size: 13px;
-            transition: background-color 0.2s;
-        }
 
-        .danmu-row:hover {
-            background-color: var(--chip-hover);
-        }
-
-        .danmu-row.active {
-            background-color: rgba(155, 106, 156, 0.15);
-            border-left: 3px solid var(--primary);
-        }
-
-        [data-theme="dark"] .danmu-row.active {
-            background-color: rgba(181, 131, 182, 0.2);
-        }
-
-        .danmu-time-col {
-            color: var(--primary);
-            margin-right: 10px;
-            font-weight: bold;
-            min-width: 95px;
-            flex-shrink: 0;
-        }
-
-        .danmu-text-col {
-            color: var(--text);
-            flex: 1;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        #flip-list-container {
-            transition: opacity 0.3s ease;
-        }
-
-        .search-wrapper {
-            position: relative;
-            margin-bottom: 15px;
-        }
-
-        .search-results {
-            display: none;
-            position: absolute;
-            top: 100%;
-            left: 0;
-            width: 100%;
-            max-height: 200px;
-            overflow-y: auto;
-            background: #fff;
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-            z-index: 100;
-        }
-
-        .search-item {
-            padding: 10px;
-            cursor: pointer;
-            border-bottom: 1px solid #eee;
-            display: flex;
-            justify-content: space-between;
-        }
-
-        .search-item:hover {
-            background-color: #f0f8ff;
-        }
-
-        .team-tag {
-            background: rgba(0, 0, 0, 0.06);
-            color: var(--text-sub);
-            padding: 2px 10px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: 600;
-            border: 1px solid rgba(0, 0, 0, 0.05);
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            height: 20px;
-            white-space: nowrap;
-            transition: all 0.2s ease;
-        }
-
-        [data-theme="dark"] .team-tag {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: rgba(255, 255, 255, 0.05);
-            color: var(--text-sub);
-        }
-
-        .suggestion-item:hover .team-tag {
-            background: #fff;
-            color: var(--primary);
-            border-color: var(--primary);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        [data-theme="dark"] .suggestion-item:hover .team-tag {
-            background: rgba(255, 255, 255, 0.1);
-            color: #ffffff;
-            border-color: rgba(255, 255, 255, 0.3);
-            box-shadow: none;
-        }
-
-        .login-container {
-            max-width: 500px;
-            margin: 50px auto;
-            padding: 30px;
-            background: #f8f9fa;
-            border-radius: 12px;
-            border: 1px solid #eee;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-        }
-
-        .login-header {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-
-        .login-tip {
-            background: #e6f7ff;
-            border: 1px solid #91d5ff;
-            padding: 10px;
-            border-radius: 6px;
-            font-size: 12px;
-            color: #0050b3;
-            margin-top: 15px;
-            line-height: 1.6;
-        }
-
-        .page-container {
-            flex: 1;
-            height: 100vh;
-            overflow: hidden;
-            background: #fff;
-            position: relative;
-        }
-
-        .page {
-            display: none;
-            height: 100%;
-            flex-direction: column;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-
-        .page.active {
-            display: flex;
-        }
-
-        .tools-header {
-            display: flex;
-            gap: 15px;
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            border: 1px solid #eee;
-            margin-bottom: 15px;
-            align-items: flex-end;
-        }
-
-        .tools-group {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-            flex: 1;
-        }
-
-        .tools-label {
-            font-size: 12px;
-            font-weight: bold;
-            color: #666;
-        }
-
-        .tools-input {
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-
-        #msg-result-container {
-            flex: 1;
-            overflow-y: auto;
-            border: 1px solid #eee;
-            border-radius: 8px;
-            background: #fafafa;
-            padding: 15px;
-        }
-
-        .msg-item {
-            content-visibility: auto;
-            contain-intrinsic-size: 60px;
-        }
-
-        .sidebar-btn.active {
-            background: rgba(255, 255, 255, 0.1);
-            font-weight: bold;
-            color: #fff;
-            border-left: 4px solid #1890ff;
-        }
-
-        .title-info .control-btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            border-radius: 4px;
-            -webkit-app-region: no-drag;
-        }
-
-        .title-info .control-btn:hover {
-            background: rgba(0, 0, 0, 0.1);
-        }
-
-        .vod-row-name .btn {
-            width: 80px;
-            justify-content: center;
-            flex-shrink: 0;
-        }
-
-        .download-manager {
-            min-height: 40px;
-            transition: all 0.3s ease;
-            margin-top: 10px;
-            max-height: 300px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .download-title-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .btn-cancel {
-            background: #ff4d4f !important;
-            color: white !important;
-            padding: 2px 6px;
-            font-size: 10px;
-            height: 20px;
-            border-radius: 4px;
-            border: none;
-            cursor: pointer;
-        }
-
-        .btn-cancel:hover {
-            background: #ff7875 !important;
-        }
-
-        .download-item {
-            background: var(--input-bg);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 10px;
-            font-size: 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .download-info {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 5px;
-            white-space: nowrap;
-            overflow: hidden;
-        }
-
-        .download-name {
-            text-overflow: ellipsis;
-            overflow: hidden;
-            flex: 1;
-            margin-right: 10px;
-        }
-
-        .progress-container {
-            height: 6px;
-            background: var(--bar-bg);
-            border-radius: 3px;
-            overflow: hidden;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: var(--primary);
-            width: 0%;
-            transition: width 0.3s ease;
-        }
-
-        .download-status-text {
-            font-size: 10px;
-            color: var(--text-sub);
-            margin-top: 4px;
-            display: block;
-        }
-
-        .download-detail-row {
-            font-size: 11px;
-            color: var(--text-sub);
-            display: flex;
-            justify-content: space-between;
-            opacity: 0.8;
-        }
-
-        .download-title-line {
-            font-weight: bold;
-            color: var(--text);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            margin-bottom: 2px;
-        }
-
-        .btn-downloading {
-            background: var(--bar-bg) !important;
-            color: var(--text-sub) !important;
-            cursor: not-allowed;
-            opacity: 0.7;
-        }
-
-        .btn-success {
-            background: #28a745 !important;
-            color: white !important;
-            border-color: #28a745 !important;
-            cursor: default;
-        }
-
-
-        [data-theme="dark"] .btn-success {
-            background: #238636 !important;
-            border-color: #238636 !important;
-            color: #ffffff !important;
-            box-shadow: 0 0 5px rgba(35, 134, 54, 0.4);
-        }
-
-        .window-controls {
-            display: flex;
-            height: 100%;
-            -webkit-app-region: no-drag;
-        }
-
-        .control-btn {
-            width: 46px;
-            height: 32px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            cursor: pointer;
-            color: var(--text);
-            transition: all 0.2s ease;
-            opacity: 0.8;
-            font-family: "Segoe UI Symbol";
-        }
-
-        .control-btn:hover {
-            background: rgba(0, 0, 0, 0.05);
-            opacity: 1;
-        }
-
-        .control-btn svg {
-            transition: transform 0.1s ease;
-        }
-
-        .control-btn:active svg {
-            transform: scale(0.9);
-        }
-
-        .control-btn.close-btn:hover {
-            background: #e81123 !important;
-            color: #fff !important;
-        }
-
-        [data-theme="dark"] .control-btn:hover {
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        .custom-title-bar {
-            height: 32px;
-            background: var(--sidebar-bg);
-            -webkit-backdrop-filter: blur(20px);
-            backdrop-filter: blur(20px);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid var(--border);
-            user-select: none;
-            -webkit-app-region: drag;
-            z-index: 9999;
-        }
-
-        .title-info {
-            display: flex;
-            align-items: center;
-            padding-left: 12px;
-            gap: 8px;
-            font-size: 12px;
-            font-weight: 600;
-            color: var(--primary);
-        }
-
-        .title-logo {
-            width: 18px;
-            height: 18px;
-        }
-
-        :root {
-            --primary: #9b6a9c;
-            --primary-hover: #855886;
-            --bg: #f6f8fa;
-            --card: rgba(255, 255, 255, 0.75);
-            --sidebar-bg: rgba(255, 255, 255, 0.70);
-            --text: #24292e;
-            --text-sub: #666666;
-            --border: rgba(225, 228, 232, 0.5);
-            --input-bg: rgba(255, 255, 255, 0.8);
-            --blockquote-bg: rgba(241, 248, 255, 0.8);
-            --chip-bg: rgba(255, 255, 255, 0.8);
-            --chip-hover: #f0f0f0;
-            --bar-bg: #eee;
-            --rank-1: #ffd700;
-            --rank-2: #c0c0c0;
-            --rank-3: #cd7f32;
-        }
-
-        [data-theme="dark"] {
-            --primary: #b583b6;
-            --primary-hover: #cf9acf;
-            --bg: #0d1117;
-            --card: rgba(22, 27, 34, 0.75);
-            --sidebar-bg: rgba(22, 27, 34, 0.70);
-            --text: #c9d1d9;
-            --text-sub: #8b949e;
-            --border: rgba(48, 54, 61, 0.5);
-            --input-bg: rgba(13, 17, 23, 0.6);
-            --blockquote-bg: rgba(31, 36, 44, 0.6);
-            --chip-bg: rgba(33, 38, 45, 0.8);
-            --chip-hover: #30363d;
-            --bar-bg: #30363d;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-            background-color: var(--bg);
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
-            background-repeat: no-repeat;
-            color: var(--text);
-            margin: 0;
-            padding: 0;
-            height: 100vh;
-            width: 100vw;
-            overflow: hidden;
-            transition: background-image 0.5s ease;
-        }
-
-        .app-container {
-            display: flex;
-            width: 100%;
-            height: calc(100% - 32px);
-        }
-
-        .sidebar {
-            width: 320px;
-            min-width: 320px;
-            background: var(--sidebar-bg);
-            -webkit-backdrop-filter: blur(20px);
-            backdrop-filter: blur(20px);
-            border-right: 1px solid var(--border);
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            padding: 25px 20px;
-            overflow-y: scroll;
-            z-index: 100;
-            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            overflow-x: hidden;
-            white-space: nowrap;
-        }
-
-        .sidebar.collapsed {
-            width: 0 !important;
-            min-width: 0 !important;
-            padding-left: 0 !important;
-            padding-right: 0 !important;
-            border: none;
-            opacity: 0;
-        }
-
-        #media-list-controls>div {
-            flex-wrap: wrap;
-        }
-
-        .main-content {
-            flex: 1;
-            height: 100%;
-            overflow: hidden;
-            padding: 0;
-            position: relative;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .sidebar-group {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            padding-bottom: 15px;
-            border-bottom: 1px dashed var(--border);
-        }
-
-        .sidebar-group:last-child {
-            border-bottom: none;
-            margin-top: auto;
-            padding-bottom: 25px;
-        }
-
-        .group-title {
-            font-size: 12px;
-            font-weight: bold;
-            color: var(--text-sub);
-            text-transform: uppercase;
-            margin-bottom: 5px;
-        }
-
-        .btn-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-        }
-
-        .btn-full {
-            width: 100%;
-        }
-
-        .btn {
-            height: 38px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 600;
-            border: 1px solid transparent;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            white-space: nowrap;
-            transition: all 0.2s;
-            font-size: 14px;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-            user-select: none;
-        }
-
-        .btn:active {
-            transform: translateY(1px);
-        }
-
-        .btn-primary {
-            background: var(--primary);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: var(--primary-hover);
-        }
-
-        .btn-secondary {
-            background: var(--input-bg);
-            border-color: var(--border);
-            color: var(--text);
-        }
-
-        .btn-secondary:hover {
-            background: var(--chip-hover);
-            border-color: #888;
-        }
-
-        .btn-bg-change {
-            background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
-            color: #fff;
-            border: none;
-        }
-
-        .btn-bg-change:hover {
-            opacity: 0.9;
-        }
-
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .input-control {
-            width: 100%;
-            height: 38px;
-            padding: 0 12px;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            background: var(--input-bg);
-            color: var(--text);
-            font-size: 14px;
-            outline: none;
-            box-sizing: border-box;
-            transition: border-color 0.2s;
-        }
-
-        .input-control:focus {
-            border-color: var(--primary);
-        }
-
-        .filter-group {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-
-        .filter-chip {
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-size: 13px;
-            cursor: pointer;
-            border: 1px solid var(--border);
-            background: var(--chip-bg);
-            color: var(--text-sub);
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            user-select: none;
-            flex-grow: 1;
-            justify-content: center;
-        }
-
-        .filter-chip.active {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
-        }
-
-        .filter-chip:hover:not(.active) {
-            background: var(--chip-hover);
-        }
-
-        .status-bar {
-            font-size: 12px;
-            color: var(--text-sub);
-            text-align: center;
-            padding: 10px;
-            background: rgba(0, 0, 0, 0.03);
-            border-radius: 6px;
-        }
-
-        .credit-link {
-            display: block;
-            text-align: center;
-            margin-top: 8px;
-            font-size: 11px;
-            color: var(--text-sub);
-            opacity: 0.5;
-            transition: opacity 0.2s;
-            text-decoration: none;
-        }
-
-        .credit-link:hover {
-            opacity: 1;
-            text-decoration: underline;
-        }
-
-        #bgInput,
-        #manualImportBtn {
-            display: none;
-        }
-
-        .list-container {
-            max-width: 800px;
-            margin: 0 auto;
-        }
-
-        .Box-row {
-            background: var(--card);
-            -webkit-backdrop-filter: blur(10px);
-            backdrop-filter: blur(10px);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 16px;
-            display: flex;
-            flex-direction: column;
-            word-wrap: break-word;
-            position: relative;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-            transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.3s;
-        }
-
-        .Box-row:hover {
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-            border-color: var(--primary);
-        }
-
-        .user-header-row {
-            display: flex;
-            align-items: center;
-            margin-bottom: 12px;
-        }
-
-        .avatar {
-            width: 48px !important;
-            height: 48px !important;
-            border-radius: 50%;
-            margin-right: 12px;
-            object-fit: cover;
-            border: 1px solid var(--border);
-            flex-shrink: 0;
-        }
-
-        .user-info-col {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-
-        .username {
-            font-weight: bold;
-            font-size: 15px;
-            color: var(--text);
-            line-height: 1.2;
-        }
-
-        .timestamp {
-            font-size: 12px;
-            color: var(--text-sub);
-            margin-top: 4px;
-        }
-
-        .message-content-clickable {
-            cursor: pointer;
-            transition: opacity 0.2s;
-        }
-
-        .message-content-clickable:hover {
-            opacity: 0.8;
-        }
-
-        .context-highlight {
-            border: 2px solid var(--primary);
-            background-color: rgba(155, 106, 156, 0.1) !important;
-            box-shadow: 0 4px 20px rgba(155, 106, 156, 0.3);
-            z-index: 1;
-        }
-
-        .Box-row img:not(.avatar) {
-            max-height: 350px !important;
-            max-width: 100% !important;
-            width: auto !important;
-            height: auto !important;
-            border-radius: 8px;
-            margin: 10px 0;
-            display: block;
-            object-fit: contain;
-            cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }
-
-        .Box-row .vod-row-cover {
-            width: 100% !important;
-            height: 100% !important;
-            max-width: none !important;
-            max-height: none !important;
-            margin: 0 !important;
-            box-shadow: none !important;
-            object-fit: cover !important;
-        }
-
-        blockquote {
-            margin: 5px 0 10px 0;
-            padding: 10px 14px;
-            background: var(--blockquote-bg);
-            border-left: 4px solid var(--border);
-            color: var(--text-sub);
-            font-size: 13px;
-            border-radius: 0 4px 4px 0;
-        }
-
-        .flip-message-quote {
-            border-left: 4px solid var(--primary) !important;
-            background-color: rgba(155, 106, 156, 0.05) !important;
-            border-radius: 8px !important;
-            margin-bottom: 15px !important;
-            padding: 12px 16px !important;
-        }
-
-        .flip-label {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            height: 20px;
-            padding: 0 8px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: bold;
-            color: #fff;
-            margin-right: 6px;
-            user-select: none;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            transform: translateY(-1px);
-        }
-
-        .flip-label.question-tag {
-            background: linear-gradient(135deg, #b583b6 0%, #9b6a9c 100%);
-        }
-
-        .flip-label.answer-tag {
-            background: #24292e;
-            margin-top: 12px;
-            margin-bottom: 6px;
-        }
-
-        [data-theme="dark"] .flip-label.answer-tag {
-            background: #444;
-        }
-
-        a {
-            color: var(--primary);
-            text-decoration: none;
-        }
-
-        .art-control-danmuku-input {
-            display: none !important;
-        }
-
-        .placeholder-tip {
-            text-align: center;
-            margin-top: 100px;
-            color: var(--text-sub);
-            background: var(--card);
-            border: 3px dashed var(--border);
-            padding: 50px;
-            border-radius: 16px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
-        }
-
-        #loadingMore {
-            text-align: center;
-            padding: 20px;
-            color: var(--text-sub);
-            display: none;
-            background: var(--card);
-            margin: 20px auto;
-            border-radius: 20px;
-            width: fit-content;
-            border: 1px solid var(--border);
-        }
-
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.6);
-            z-index: 999;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            backdrop-filter: blur(2px);
-        }
-
-        .modal-content {
-            background: var(--card);
-            width: 90%;
-            max-width: 500px;
-            height: 85vh;
-            border-radius: 12px;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            border: 1px solid var(--border);
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
-        }
-
-        .modal-header {
-            padding: 15px 20px;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: var(--input-bg);
-        }
-
-        .modal-body {
-            padding: 0;
-            overflow-y: auto;
-            flex: 1;
-        }
-
-        .close-btn {
-            cursor: pointer;
-            font-size: 24px;
-            color: var(--text-sub);
-            line-height: 1;
-            width: 30px;
-            text-align: center;
-        }
-
-        .list-item {
-            display: flex;
-            align-items: center;
-            padding: 12px 20px;
-            border-bottom: 1px solid var(--border);
-            cursor: pointer;
-            transition: background 0.1s;
-        }
-
-        .list-item:hover {
-            background: var(--chip-hover);
-        }
-
-        .rank-num {
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            background: #eee;
-            color: #333;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            font-weight: bold;
-            margin-right: 15px;
-            flex-shrink: 0;
-        }
-
-        .rank-1 {
-            background: var(--rank-1);
-            color: #fff;
-        }
-
-        .rank-2 {
-            background: var(--rank-2);
-            color: #fff;
-        }
-
-        .rank-3 {
-            background: var(--rank-3);
-            color: #fff;
-        }
-
-        .item-main {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .item-title {
-            font-weight: 500;
-            font-size: 15px;
-        }
-
-        .stat-bar-container {
-            height: 6px;
-            background: var(--bar-bg);
-            border-radius: 3px;
-            overflow: hidden;
-            margin-top: 4px;
-            width: 100%;
-            max-width: 200px;
-        }
-
-        .stat-bar {
-            height: 100%;
-            background: var(--primary);
-            border-radius: 3px;
-        }
-
-        .item-count {
-            color: var(--primary);
-            font-weight: bold;
-            margin-left: 10px;
-        }
-
-        .empty-state {
-            padding: 40px;
-            text-align: center;
-            color: var(--text-sub);
-        }
-
-        .audio-wrapper {
-            display: inline-flex;
-            align-items: center;
-            background: var(--input-bg);
-            border: 1px solid var(--border);
-            border-radius: 25px;
-            padding: 8px 16px;
-            margin-top: 8px;
-            width: fit-content;
-            min-width: 160px;
-            max-width: 280px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            position: relative;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.02);
-            user-select: none;
-        }
-
-        .audio-wrapper:hover {
-            border-color: var(--primary);
-            background: var(--chip-hover);
-            transform: translateY(-1px);
-        }
-
-        .audio-wrapper.playing {
-            border-color: var(--primary);
-            background: var(--blockquote-bg);
-        }
-
-        .audio-control-icon {
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            background: var(--primary);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-right: 12px;
-            flex-shrink: 0;
-            color: white;
-            font-size: 14px;
-        }
-
-        .audio-wave-box {
-            display: flex;
-            align-items: center;
-            height: 20px;
-            gap: 3px;
-            margin-right: 12px;
-            flex: 1;
-        }
-
-        .wave-bar {
-            width: 3px;
-            background-color: var(--text-sub);
-            border-radius: 2px;
-            animation: none;
-            height: 4px;
-            opacity: 0.6;
-        }
-
-        .playing .wave-bar {
-            background-color: var(--primary);
-            animation: wave 1s infinite ease-in-out;
-            opacity: 1;
-        }
-
-        .playing .wave-bar:nth-child(1) {
-            animation-delay: 0.0s;
-            height: 10px;
-        }
-
-        .playing .wave-bar:nth-child(2) {
-            animation-delay: 0.2s;
-            height: 16px;
-        }
-
-        .playing .wave-bar:nth-child(3) {
-            animation-delay: 0.4s;
-            height: 8px;
-        }
-
-        .playing .wave-bar:nth-child(4) {
-            animation-delay: 0.1s;
-            height: 14px;
-        }
-
-        .playing .wave-bar:nth-child(5) {
-            animation-delay: 0.3s;
-            height: 6px;
-        }
-
-        @keyframes wave {
-
-            0%,
-            100% {
-                transform: scaleY(1);
+    <script>
+        (function () {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            if (savedTheme === 'dark') {
+                const style = document.createElement('style');
+                style.innerHTML = 'html, body { background-color: #1e1e1e !important; }';
+                document.head.appendChild(style);
             }
+        })();
+    </script>
 
-            50% {
-                transform: scaleY(2);
-            }
-        }
-
-        .audio-duration {
-            font-size: 12px;
-            color: var(--text-sub);
-            font-variant-numeric: tabular-nums;
-            white-space: nowrap;
-        }
-
-        .video-wrapper {
-            position: relative;
-            display: inline-block;
-            border-radius: 12px;
-            overflow: hidden;
-            background: #000;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
-            margin: 10px 0;
-            max-width: 100%;
-            line-height: 0;
-            transition: transform 0.2s ease;
-        }
-
-        .video-wrapper:hover {
-            transform: scale(1.01);
-        }
-
-        .video-wrapper video {
-            display: block;
-            max-height: 400px;
-            max-width: 100%;
-            border-radius: 12px;
-        }
-
-        .video-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            z-index: 10;
-            transition: opacity 0.3s;
-        }
-
-        .play-btn-glass {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.25);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-            transition: all 0.3s ease;
-        }
-
-        .play-btn-glass::after {
-            content: '';
-            display: block;
-            width: 0;
-            height: 0;
-            border-top: 10px solid transparent;
-            border-bottom: 10px solid transparent;
-            border-left: 16px solid white;
-            margin-left: 4px;
-        }
-
-        .video-wrapper:hover .play-btn-glass {
-            transform: scale(1.1);
-            background: var(--primary);
-            border-color: var(--primary);
-        }
-
-        .video-wrapper.is-playing .video-overlay {
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: rgba(0, 0, 0, 0.15);
-            border-radius: 10px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: rgba(0, 0, 0, 0.3);
-        }
-
-        * {
-            scrollbar-width: thin;
-            scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
-        }
-
-        [data-theme="dark"] ::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.2);
-        }
-
-        [data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
-            background: rgba(255, 255, 255, 0.4);
-        }
-
-        [data-theme="dark"] * {
-            scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
-        }
-
-        .sidebar::-webkit-scrollbar-thumb {
-            background-color: transparent !important;
-            transition: background-color 0.3s ease;
-        }
-
-        .sidebar.scrolling::-webkit-scrollbar-thumb,
-        .sidebar:hover::-webkit-scrollbar-thumb {
-            background-color: rgba(0, 0, 0, 0.15) !important;
-        }
-
-        [data-theme="dark"] .sidebar.scrolling::-webkit-scrollbar-thumb,
-        [data-theme="dark"] .sidebar:hover::-webkit-scrollbar-thumb {
-            background-color: rgba(255, 255, 255, 0.2) !important;
-        }
-
-        #live-player-container {
-            width: 100%;
-            height: 500px;
-            background: #000;
-            border-radius: 8px;
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            margin-top: 10px;
-            line-height: normal;
-        }
-
-        #live-player-container .artplayer-app {
-            width: 100% !important;
-            height: 100% !important;
-        }
-
-        #live-video {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-        }
-
-        .live-card-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-            gap: 12px;
-            padding: 5px;
-        }
-
-        .live-card {
-            background: var(--input-bg);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 10px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .live-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-            border-color: var(--primary);
-        }
-
-        .live-card img {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            object-fit: cover;
-            margin-bottom: 8px;
-            border: 2px solid var(--primary);
-            transition: transform 0.2s;
-        }
-
-        .live-card img:hover {
-            transform: scale(1.1);
-            box-shadow: 0 0 10px rgba(155, 106, 156, 0.5);
-        }
-
-        .live-card .name {
-            font-weight: bold;
-            font-size: 14px;
-            margin-bottom: 4px;
-        }
-
-        .live-card .title {
-            font-size: 12px;
-            color: var(--text-sub);
-            display: -webkit-box;
-            -webkit-box-orient: vertical;
-            -webkit-line-clamp: 2;
-            line-clamp: 2;
-            overflow: hidden;
-            height: 32px;
-        }
-
-        .live-badge {
-            color: white;
-            padding: 2px 8px;
-            border-radius: 8px 0 8px 0;
-            font-size: 10px;
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index: 5;
-            box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1);
-        }
-
-        .badge-video {
-            background-color: #ff4d4f;
-        }
-
-        .badge-radio {
-            background-color: #1890ff;
-        }
-
-        .badge-replay {
-            background-color: #32c41c;
-        }
-
-        .badge-recording {
-            background-color: #722ed1;
-        }
-
-        .vod-list-mode {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            height: 100%;
-            overflow: hidden;
-            padding: 5px;
-            justify-content: flex-start;
-        }
-
-        .vod-card-row {
-            display: flex;
-            align-items: center;
-            padding: 12px;
-            background: var(--input-bg);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s;
-            position: relative;
-        }
-
-        .vod-card-row:hover {
-            transform: translateX(3px);
-            border-color: var(--primary);
-            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
-        }
-
-        .vod-row-cover-container {
-            position: relative;
-            flex-shrink: 0;
-            width: 120px;
-            height: 68px;
-            margin-right: 15px;
-            border-radius: 6px;
-            overflow: hidden;
-        }
-
-        .vod-row-cover {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transition: transform 0.3s;
-            cursor: pointer;
-        }
-
-        .vod-row-cover:hover {
-            transform: scale(1.05);
-        }
-
-        .vod-row-info {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            min-width: 0;
-            height: 68px;
-            padding-top: 2px;
-            padding-bottom: 2px;
-        }
-
-        .vod-row-name {
-            font-weight: bold;
-            font-size: 15px;
-            color: var(--text);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .vod-row-title {
-            font-size: 14px;
-            color: var(--text-sub);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            margin-top: 4px;
-        }
-
-        .vod-row-time {
-            font-size: 12px;
-            color: #999;
-            margin-top: auto;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .vod-badge {
-            color: white;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 10px;
-            position: absolute;
-            bottom: 4px;
-            right: 4px;
-            z-index: 2;
-            opacity: 0.9;
-        }
-
-        .live-link-info {
-            margin-top: 15px;
-            padding: 15px;
-            background: var(--blockquote-bg);
-            border-left: 4px solid var(--primary);
-            color: var(--text);
-            font-size: 13px;
-        }
-
-        .live-link-info .btn-group {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
-        }
-
-        .pagination-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 5px;
-            margin-top: auto;
-            padding-top: 10px;
-            flex-wrap: wrap;
-        }
-
-        .pagination-btn {
-            min-width: 32px;
-            height: 32px;
-            padding: 0 6px;
-            border: 1px solid var(--border);
-            background: var(--input-bg);
-            border-radius: 4px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 13px;
-            color: var(--text);
-            user-select: none;
-        }
-
-        .pagination-btn:hover:not(:disabled) {
-            background: var(--chip-hover);
-            border-color: var(--primary);
-        }
-
-        .pagination-btn.active {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
-        }
-
-        .pagination-btn:disabled {
-            opacity: 0.5;
-            cursor: default;
-        }
-
-        .artplayer-app {
-            width: 100%;
-            height: 100%;
-            display: block;
-        }
-
-        .suggestion-box {
-            position: absolute;
-            top: 100%;
-            left: 0;
-            width: 100%;
-            background: var(--card);
-            -webkit-backdrop-filter: blur(15px);
-            backdrop-filter: blur(15px);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-            max-height: 300px;
-            overflow-y: auto;
-            z-index: 9999;
-            display: none;
-            margin-top: 4px;
-            box-sizing: border-box;
-        }
-
-        .suggestion-item {
-            padding: 10px 15px;
-            cursor: pointer;
-            font-size: 13px;
-            transition: all 0.2s;
-            border-bottom: 1px solid rgba(0, 0, 0, 0.03);
-            color: var(--text);
-        }
-
-        .suggestion-item:last-child {
-            border-bottom: none;
-        }
-
-        .suggestion-item:hover {
-            background: var(--primary);
-            color: white;
-        }
-
-        input::-webkit-calendar-picker-indicator {
-            display: none !important;
-        }
-
-        #global-notice-bar {
-            position: fixed;
-            top: 50px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 10000;
-            background: rgba(255, 255, 255, 0.65);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.4);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            padding: 10px 20px;
-            border-radius: 50px;
-            font-size: 13px;
-            color: var(--text);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 15px;
-            min-width: 300px;
-            max-width: 80%;
-            animation: slideDownFade 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
-        }
-
-        [data-theme="dark"] #global-notice-bar {
-            background: rgba(30, 30, 40, 0.75);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #fff;
-        }
-
-        .notice-content {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-weight: 500;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        #notice-link {
-            color: var(--primary);
-            text-decoration: none;
-            font-weight: bold;
-            margin-left: 5px;
-        }
-
-        #notice-link:hover {
-            text-decoration: underline;
-        }
-
-        .notice-close {
-            cursor: pointer;
-            font-size: 18px;
-            opacity: 0.6;
-            transition: all 0.2s;
-            width: 24px;
-            height: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            background: rgba(0, 0, 0, 0.05);
-        }
-
-        .notice-close:hover {
-            opacity: 1;
-            background: rgba(0, 0, 0, 0.1);
-            color: #ff4d4f;
-        }
-
-        [data-theme="dark"] .notice-close {
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        [data-theme="dark"] .notice-close:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
-
-        @keyframes slideDownFade {
-            from {
-                transform: translate(-50%, -20px);
-                opacity: 0;
-            }
-
-            to {
-                transform: translate(-50%, 0);
-                opacity: 1;
-            }
-        }
-
-        @keyframes slideUpFade {
-            from {
-                transform: translate(-50%, 0);
-                opacity: 1;
-            }
-
-            to {
-                transform: translate(-50%, -20px);
-                opacity: 0;
-            }
-        }
-
-        .notice-hiding {
-            animation: slideUpFade 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards !important;
-            pointer-events: none;
-        }
-
-        .account-card {
-            display: flex;
-            align-items: center;
-            padding: 8px 12px;
-            background: var(--card) !important;
-            backdrop-filter: blur(10px) !important;
-            -webkit-backdrop-filter: blur(10px) !important;
-            border: 1px solid var(--border) !important;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            text-align: left;
-            margin-bottom: 0;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-            width: 100%;
-            box-sizing: border-box;
-        }
-
-        .account-card:hover {
-            background: var(--input-bg) !important;
-            border-color: var(--primary) !important;
-            transform: translateY(-1px);
-        }
-
-        .account-card:active {
-            transform: translateY(0);
-            opacity: 0.8;
-        }
-
-        #account-switcher-area .account-card .account-card-avatar {
-            width: 35px !important;
-            height: 35px !important;
-            min-width: 35px !important;
-            border-radius: 50%;
-            margin-right: 12px;
-            border: 1px solid rgba(0, 0, 0, 0.1);
-            object-fit: cover;
-            flex-shrink: 0;
-            background-color: #f0f0f0;
-            display: block !important;
-        }
-
-        .account-card-info {
-            flex: 1;
-            display: flex;
-            flex-direction: row;
-            align-items: center;
-            justify-content: space-between;
-            min-width: 0;
-        }
-
-        .account-card-name {
-            font-size: 15px;
-            font-weight: bold;
-            color: var(--text);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            margin-right: 10px;
-        }
-
-        .tag-badge {
-            display: inline-block;
-            padding: 1px 6px;
-            border-radius: 4px;
-            font-size: 11px;
-            line-height: 1.2;
-            flex-shrink: 0;
-            margin: 0;
-        }
-
-        .tag-small {
-            background: rgba(230, 247, 255, 0.8);
-            color: #1890ff;
-            border: 1px solid rgba(145, 213, 255, 0.5);
-        }
-
-        .tag-big {
-            background: rgba(246, 255, 237, 0.8);
-            color: #52c41a;
-            border: 1px solid rgba(183, 235, 143, 0.5);
-        }
-
-        .btn-text-danger {
-            color: #ff4d4f;
-            cursor: pointer;
-            font-size: 12px;
-            font-weight: bold;
-            padding: 2px 6px;
-            border-radius: 4px;
-            transition: all 0.2s;
-        }
-
-        .btn-text-danger:hover {
-            background-color: rgba(255, 77, 79, 0.1);
-        }
-
-        .btn-text-gray {
-            color: var(--text-sub);
-            cursor: pointer;
-            font-size: 12px;
-            padding: 2px 6px;
-            border-radius: 4px;
-            transition: all 0.2s;
-        }
-
-        .btn-text-gray:hover {
-            background-color: rgba(0, 0, 0, 0.05);
-            color: var(--text);
-        }
-
-        .gift-panel {
-            display: none;
-            background: var(--input-bg);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            margin-top: 15px;
-            padding: 15px;
-            flex-direction: column;
-        }
-
-        .gift-header-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-            font-size: 14px;
-            color: var(--text);
-        }
-
-        .gift-grid-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
-            gap: 6px;
-            max-height: 220px;
-            overflow-y: auto;
-        }
-
-        .gift-item {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            padding: 6px 2px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .gift-item:hover {
-            border-color: var(--primary);
-            background: var(--input-bg);
-        }
-
-        .gift-item.selected {
-            border-color: var(--primary);
-            background-color: rgba(155, 106, 156, 0.1);
-            box-shadow: inset 0 0 0 1px var(--primary);
-        }
-
-        .gift-img {
-            width: 36px;
-            height: 36px;
-            object-fit: contain;
-            margin-bottom: 2px;
-        }
-
-        .gift-name {
-            font-size: 11px;
-            transform: scale(0.95);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            width: 100%;
-        }
-
-        .gift-cost {
-            font-size: 10px;
-            color: #fa8c16;
-        }
-
-        input[type=number] {
-            -moz-appearance: textfield;
-            appearance: textfield;
-        }
-
-        input[type=number]::-webkit-outer-spin-button,
-        input[type=number]::-webkit-inner-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
-        }
-    </style>
 </head>
 
 <body>
+    <div id="loading-shield" style="display: flex;">
+        <div class="spinner"></div>
+        <div id="shield-status">正在初始化</div>
+        <div id="shield-detail">请稍候</div>
+    </div>
     <input type="file" id="bgInput" accept="image/*">
     <div class="custom-title-bar">
         <div class="title-info">
@@ -1880,7 +47,7 @@
                 </svg>
             </div>
             <img src="./icon.png" class="title-logo">
-            <span>牙牙消息 v1.2.2</span>
+            <span>牙牙消息 v1.2.3</span>
         </div>
         <div class="window-controls">
             <div class="control-btn" onclick="ipcRenderer.send('window-min')">
@@ -1906,10 +73,10 @@
                 style="margin: 0 0 10px 0; font-size: 20px; color: var(--primary); text-align: center; user-select: none;">
                 牙牙消息</h2>
             <div class="sidebar-group">
-                <div class="group-title">个性化</div>
+                <div class="group-title">软件设置</div>
                 <div class="btn-grid">
-                    <button class="btn btn-secondary" onclick="triggerBgInput()">背景图</button>
                     <button class="btn btn-secondary" onclick="toggleTheme()" id="themeBtn">🌞 模式</button>
+                    <button id="btn-sb-settings" class="btn btn-secondary" onclick="switchView('settings')">⚙️ 设置</button>
                 </div>
             </div>
             <div class="sidebar-group" id="sb-live-group">
@@ -2092,7 +259,7 @@
                 style="height: 100%; overflow-y: auto; display: block; padding: 20px 40px; box-sizing: border-box;">
                 <div class="list-container" id="outputList">
                     <div class="placeholder-tip">
-                        <h2>📚 正在自动读取数据...</h2>
+                        <h2>正在自动读取数据...</h2>
                         <p>请确保软件同级目录下存在"html"文件夹。</p>
                     </div>
                 </div>
@@ -2775,6 +942,66 @@
                         </div>
                     </div>
                 </div>
+                </div>
+
+                <div id="view-settings" style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
+                <div class="list-container">
+                    <div style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; align-items: center;">
+                        <h2 style="margin: 0; color: var(--primary);">通用设置</h2>
+                    </div>
+
+                    <div class="Box-row" style="margin-bottom: 30px;">
+                        <h3 style="margin-top: 0; color: var(--text);">🎨 外观设置</h3>
+                        
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+                            <div>
+                                <label style="display:block; font-weight:bold; color:var(--text);">自定义背景图片</label>
+                                <span style="font-size: 12px; color: var(--text-sub);">设置一张喜欢的图片作为软件背景</span>
+                            </div>
+                            <div style="display: flex; gap: 10px;">
+                                <button class="btn btn-secondary" onclick="triggerBgInput()">选择图片</button>
+                                <button class="btn btn-secondary" onclick="resetBackground()" style="color: #ff4d4f;">恢复默认</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="Box-row">
+                        <h3 style="margin-top: 0; color: var(--text);">📂 下载路径</h3>
+
+                        <div style="margin-bottom: 20px;">
+                            <label style="display:block; font-weight:bold; margin-bottom:8px; color:var(--text);">弹幕下载路径 (.lrc)</label>
+                            <div style="display: flex; gap: 10px;">
+                                <input type="text" id="path-danmu" class="input-control" placeholder="默认路径 (未设置)" onchange="saveCustomPaths()">
+                                <button class="btn btn-secondary" onclick="triggerSelectPath('path-danmu')">选择文件夹</button>
+                            </div>
+                        </div>
+
+                        <div style="margin-bottom: 20px;">
+                            <label style="display:block; font-weight:bold; margin-bottom:8px; color:var(--text);">录播下载路径 (.mp4)</label>
+                            <div style="display: flex; gap: 10px;">
+                                <input type="text" id="path-video" class="input-control" placeholder="默认路径 (未设置)" onchange="saveCustomPaths()">
+                                <button class="btn btn-secondary" onclick="triggerSelectPath('path-video')">选择文件夹</button>
+                            </div>
+                        </div>
+
+                        <div style="margin-bottom: 20px;">
+                            <label style="display:block; font-weight:bold; margin-bottom:8px; color:var(--text);">切片保存路径 (.mp4)</label>
+                            <div style="display: flex; gap: 10px;">
+                                <input type="text" id="path-clip" class="input-control" placeholder="默认路径 (未设置)" onchange="saveCustomPaths()">
+                                <button class="btn btn-secondary" onclick="triggerSelectPath('path-clip')">选择文件夹</button>
+                            </div>
+                        </div>
+
+                        <div style="background: rgba(255, 169, 64, 0.1); border: 1px solid rgba(255, 169, 64, 0.5); padding: 15px; border-radius: 6px; color: var(--text);">
+                            <strong>💡 提示：</strong>
+                            <ul style="margin: 5px 0 0 20px; font-size: 13px; color: var(--text-sub);">
+                                <li>默认路径为 下载 文件夹。</li>
+                                <li>路径请使用绝对路径（如：C:\SNH48\切片）。</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </main>
     </div>
     <div class="modal-overlay" id="userModal">
@@ -2840,6 +1067,29 @@
         let isMemberDataLoaded = false;
         let currentSelectedMemberName = '';
         let currentLiveListRaw = [];
+
+        function showShield(status = '正在处理', detail = '') {
+            const shield = document.getElementById('loading-shield');
+            const statusEl = document.getElementById('shield-status');
+            const detailEl = document.getElementById('shield-detail');
+
+            if (shield) {
+                shield.style.display = 'flex';
+                shield.style.opacity = '1';
+            }
+            if (statusEl) statusEl.textContent = status;
+            if (detailEl) detailEl.textContent = detail;
+        }
+
+        function hideShield() {
+            const shield = document.getElementById('loading-shield');
+            if (shield) {
+                shield.style.opacity = '0';
+                setTimeout(() => {
+                    shield.style.display = 'none';
+                }, 300);
+            }
+        }
 
         async function loadMemberData() {
             if (isMemberDataLoaded) return;
@@ -3083,7 +1333,11 @@
             }
         }
 
-        function switchView(viewName, mode = null) {
+function switchView(viewName, mode = null) {
+            document.getElementById('backToTopBtn').classList.remove('show');
+            const backBtn = document.getElementById('backToTopBtn');
+            if (backBtn) backBtn.classList.remove('show');
+
             const msgView = document.getElementById('view-messages');
             const mediaView = document.getElementById('view-media');
             const loginView = document.getElementById('view-login');
@@ -3092,6 +1346,7 @@
             const profileView = document.getElementById('view-profile');
             const openLiveView = document.getElementById('view-open-live');
             const sendFlipView = document.getElementById('view-send-flip');
+            const settingsView = document.getElementById('view-settings');
 
             if (msgView) msgView.style.display = 'none';
             if (mediaView) mediaView.style.display = 'none';
@@ -3101,6 +1356,7 @@
             if (profileView) profileView.style.display = 'none';
             if (openLiveView) openLiveView.style.display = 'none';
             if (sendFlipView) sendFlipView.style.display = 'none';
+            if (settingsView) settingsView.style.display = 'none';
 
             destroyPlayers();
             if (window.vodState) window.vodState.isSearchActive = false;
@@ -3144,6 +1400,22 @@
                 }
                 document.getElementById('live-player-view').style.display = 'none';
                 document.getElementById('media-list-area').style.display = 'block';
+
+            } else if (viewName === 'settings') {
+               toggleSidebarMode('login'); 
+                
+                const loginGroup = document.getElementById('sb-login-group');
+                if (loginGroup) loginGroup.style.display = 'none';
+                
+                const liveGroup = document.getElementById('sb-live-group');
+                if (liveGroup) liveGroup.style.display = 'none';
+
+                if (settingsView) {
+                    settingsView.style.display = 'block';
+                    if (typeof loadCustomPaths === 'function') {
+                        loadCustomPaths();
+                    }
+                }
 
             } else if (viewName === 'login') {
                 toggleSidebarMode('login');
@@ -3218,7 +1490,23 @@
                 { id: 'btn-sb-send-flip', defaultText: '发送翻牌', targetView: 'send-flip' },
                 { id: 'btn-sb-profile', defaultText: '成员详细档案', targetView: 'profile' },
                 { id: 'btn-sb-open-live', defaultText: '成员公演记录', targetView: 'openlive' },
+                { id: 'btn-sb-settings', defaultText: '⚙️ 设置', targetView: 'settings' },
             ];
+
+            bottomButtons.forEach(btn => {
+                const el = document.getElementById(btn.id);
+                if (!el) return;
+
+                if (viewName === btn.targetView) {
+                    el.innerHTML = '返回主页';
+                    el.className = 'btn btn-primary btn-full'; 
+                    el.onclick = () => switchView('messages'); 
+                } else {
+                    el.innerHTML = btn.defaultText;
+                    el.className = 'btn btn-secondary btn-full'; 
+                    el.onclick = () => switchView(btn.targetView); 
+                }
+            });
 
             bottomButtons.forEach(btn => {
                 const el = document.getElementById(btn.id);
@@ -3677,7 +1965,7 @@
         let allMemberOptions = [];
         let currentFilteredPosts = [];
         let renderedCount = 0;
-        const getBatchSize = () => (filterType === 'video' || filterType === 'image') ? 15 : 50;
+        const getBatchSize = () => (filterType === 'video' || filterType === 'image') ? 10 : 50;
         let filterType = 'all';
         let userStats = [];
         let dateStats = [];
@@ -3685,7 +1973,7 @@
         let currentPlayingAudio = null;
         let currentPlayingVideo = null;
 
-        let currentSortOrder = 'desc';
+        let currentSortOrder = localStorage.getItem('msg_sort_order') || 'desc';
         function filterGroupOptions(keyword) {
             const select = document.getElementById('groupSelect');
             const currentVal = select.value;
@@ -3726,6 +2014,8 @@
                 currentSortOrder = 'desc';
                 btn.innerText = '当前：最新在前';
             }
+
+            localStorage.setItem('msg_sort_order', currentSortOrder);
 
             applyFilters();
         }
@@ -3833,7 +2123,10 @@
                 }
             });
         }
+
         window.onload = async function () {
+            showShield('正在初始化', '正在准备运行环境');
+
             window.addEventListener('keydown', function (e) {
                 if (e.key === 'F11') {
                     e.preventDefault();
@@ -3841,14 +2134,14 @@
             });
 
             await loadMemberIdMap();
-
             autoUpdateMemberData();
-
             checkGitHubNotice();
             initTheme();
 
             if (fs.existsSync(CACHE_FILE)) {
+                showShield('正在读取缓存', '解析本地历史数据');
                 statusMsg.textContent = "🚀 正在流式读取缓存...";
+
                 loadCacheOptimized().then((data) => {
                     allPosts = data;
                     allPosts.forEach((post, index) => {
@@ -3856,6 +2149,8 @@
                     });
                     initUIWithData();
                     statusMsg.textContent = `⚡ 缓存加载完毕: ${allPosts.length} 条`;
+
+                    hideShield();
                 }).catch((e) => {
                     try {
                         fs.unlinkSync(CACHE_FILE);
@@ -3877,14 +2172,68 @@
                     checkToken();
                 }, 500);
             }
+            initBackToTopListener();
         };
 
+
+        function scrollToTop() {
+            const scrollableViews = [
+                'view-messages',
+                'view-media',
+                'view-flip',
+                'view-open-live',
+                'view-profile',
+                'view-fetch',
+                'view-send-flip'
+            ];
+
+            scrollableViews.forEach(id => {
+                const el = document.getElementById(id);
+                if (el && window.getComputedStyle(el).display !== 'none') {
+                    el.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+            });
+        }
+
+        function initBackToTopListener() {
+            const btn = document.getElementById('backToTopBtn');
+            const scrollableViews = [
+                'view-messages',
+                'view-media',
+                'view-flip',
+                'view-open-live',
+                'view-profile',
+                'view-fetch',
+                'view-send-flip'
+            ];
+
+            scrollableViews.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.addEventListener('scroll', () => {
+                        if (window.getComputedStyle(el).display !== 'none') {
+                            if (el.scrollTop > 1500) {
+                                btn.classList.add('show');
+                            } else {
+                                btn.classList.remove('show');
+                            }
+                        }
+                    });
+                }
+            });
+        }
+
+
+
         window.forceReloadData = function () {
+            showShield('正在准备更新', '检查文件变动');
+
             outputList.innerHTML = '<div class="placeholder-tip"><h3>🔄 正在增量更新...</h3><p>正在比对文件变动，请稍候。</p></div>';
             statusMsg.textContent = "⏳ 正在分析新文件...";
 
             setTimeout(() => scanFiles(true), 100);
         }
+
         const MANIFEST_FILE = 'scan_manifest.json';
         let fileManifest = {};
 
@@ -3904,14 +2253,19 @@
 
         function scanFiles(isIncremental = false) {
             if (!fs.existsSync(FIXED_PATH)) {
+                hideShield();
                 statusMsg.textContent = "❌ 路径不存在";
                 outputList.innerHTML = `<div class="placeholder-tip"><h3>❌ 路径配置错误</h3><p>找不到文件夹：<br><b>${FIXED_PATH}</b></p></div>`;
                 return;
             }
 
-
             loadManifest();
 
+            if (isIncremental) {
+                showShield('正在更新数据', '分析新文件');
+            } else {
+                showShield('正在重建索引', '扫描 html 文件夹，这可能需要一段时间');
+            }
 
             if (isIncremental) {
                 let realFilesOnDisk = new Set();
@@ -3934,6 +2288,7 @@
                             console.log(`检测到文件已删除: ${cachedPath}，将触发全量重扫`);
                             isIncremental = false;
                             statusMsg.textContent = "🗑️ 发现文件变动，正在重置缓存...";
+                            showShield('检测到文件变动', '正在重置缓存');
                             break;
                         }
                     }
@@ -3996,6 +2351,7 @@
                     }
 
                     if (allPosts.length === 0) {
+                        hideShield();
                         outputList.innerHTML = '<div class="placeholder-tip"><h3>📂 没有找到数据</h3><p>请在"html"文件夹内放入 .html 文件。</p></div>';
                         if (fs.existsSync(CACHE_FILE)) try { fs.unlinkSync(CACHE_FILE); } catch (e) { }
                         saveManifest();
@@ -4029,14 +2385,18 @@
                             ? `✅ 更新: 新增 ${newParsedCount} 个文件`
                             : `✅ 重建完成: 共 ${allPosts.length} 条`;
                         statusMsg.textContent = msg;
+
+                        initUIWithData();
+                        hideShield();
+
                     }).catch(e => {
                         statusMsg.textContent = `⚠️ 缓存写入失败`;
+                        hideShield();
                     });
-
-                    initUIWithData();
 
                 } catch (err) {
                     outputList.innerHTML = `<div class="placeholder-tip"><h3>❌ 读取错误</h3><p>${err.message}</p></div>`;
+                    hideShield();
                 }
             }, 100);
         }
@@ -4045,6 +2405,14 @@
             const groups = new Set(allPosts.map(p => p.groupName));
 
             allMemberOptions = Array.from(groups).sort();
+            const sortBtn = document.getElementById('sortBtn');
+            if (sortBtn) {
+                if (currentSortOrder === 'asc') {
+                    sortBtn.innerText = '当前：最早在前';
+                } else {
+                    sortBtn.innerText = '当前：最新在前';
+                }
+            }
 
             initDateSelectors();
             applyFilters();
@@ -4790,9 +3158,13 @@
                 }
                 currentRecordTaskId = 'rec_' + Date.now();
                 const url = art.option.url;
+
+                const customSavePath = localStorage.getItem('yaya_path_clip') || '';
+
                 ipcRenderer.send('start-record', {
                     url: url,
-                    taskId: currentRecordTaskId
+                    taskId: currentRecordTaskId,
+                    savePath: customSavePath 
                 });
                 document.getElementById('clip-start-display').textContent = "🔴 状态: 正在录制...";
                 if (dp) dp.notice('🔴 后台录制已开启');
@@ -4865,6 +3237,7 @@
                 art.notice.show = '❌ 片段太短';
                 return;
             }
+            const customSavePath = localStorage.getItem('yaya_path_clip') || '';
             const nickname = currentPlayingItem?.userInfo?.nickname || currentPlayingItem?.nickname || '未知成员';
             const baseTimeNum = Number(currentPlayingItem?.startTime || currentPlayingItem?.ctime || Date.now());
             const d = new Date(baseTimeNum);
@@ -4912,7 +3285,8 @@
                 fileName: fileName,
                 startTime: clipStartTime,
                 duration: duration,
-                taskId: taskId
+                taskId: taskId,
+                savePath: customSavePath
             });
         }
         let nimInstance = null,
@@ -5338,44 +3712,159 @@
             return wrapper;
         }
 
+        const videoCoverObserver = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const video = entry.target;
+                    if (video.preload === 'none') {
+                        video.preload = 'metadata';
+                        video.load();
+                    }
+                    observer.unobserve(video);
+                }
+            });
+        }, { rootMargin: '200px' });
+
         function createCustomVideoPlayer(url) {
             const wrapper = document.createElement('div');
             wrapper.className = 'video-wrapper';
-            wrapper.innerHTML = `<video src="${url}" preload="none" width="100%"></video><div class="video-overlay"><div class="play-btn-glass"></div></div>`;
-            const video = wrapper.querySelector('video'),
-                overlay = wrapper.querySelector('.video-overlay');
-            overlay.onclick = (e) => {
+            wrapper.style.display = 'inline-block';
+            wrapper.style.verticalAlign = 'top';
+            wrapper.style.margin = '8px 0';
+            wrapper.style.maxWidth = '100%';
+
+            const uniqueId = 'v-' + Math.random().toString(36).substr(2, 9);
+
+            wrapper.innerHTML = `
+                <div class="video-placeholder" id="${uniqueId}" style="
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    min-width: 200px;  /* 初始最小宽度 */
+                    min-height: 120px; /* 初始最小高度 */
+                    background: #000;
+                    border-radius: 12px;
+                    cursor: pointer;
+                    position: relative;
+                    overflow: hidden;
+                    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+                    border: 1px solid rgba(128,128,128,0.1);
+                    transition: transform 0.2s;
+                ">
+                    <video class="lazy-cover" src="${url}#t=0.1" muted playsinline 
+                        preload="none" 
+                        style="
+                            position: absolute;
+                            width: 100%;
+                            height: 100%;
+                            object-fit: contain; /* 保持比例显示 */
+                            pointer-events: none;
+                            z-index: 0;
+                            background: #000;
+                        "
+                    ></video>
+
+                    <div class="play-icon-overlay" style="z-index: 1; text-align: center; opacity: 0.9; transition: transform 0.2s;">
+                        <div style="
+                            width: 44px; height: 44px;
+                            background: rgba(0,0,0,0.5);
+                            backdrop-filter: blur(2px);
+                            border-radius: 50%;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            border: 1px solid rgba(255,255,255,0.3);
+                            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+                            color: white;
+                        ">
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                                <path d="M8 5v14l11-7z"/>
+                            </svg>
+                        </div>
+                    </div>
+                </div>`;
+
+            const coverVideo = wrapper.querySelector('.lazy-cover');
+            if (coverVideo) {
+                videoCoverObserver.observe(coverVideo);
+
+                coverVideo.onloadedmetadata = () => {
+                    const w = coverVideo.videoWidth;
+                    const h = coverVideo.videoHeight;
+                    if (w && h) {
+                        const placeholder = wrapper.querySelector('.video-placeholder');
+                        let finalW = 280;
+                        let finalH = (h / w) * finalW;
+
+                        if (finalH > 420) {
+                            finalH = 420;
+                            finalW = (w / h) * finalH;
+                        }
+
+                        placeholder.style.width = finalW + 'px';
+                        placeholder.style.height = finalH + 'px';
+                        coverVideo.style.objectFit = 'fill';
+                    }
+                };
+            }
+
+            const placeholder = wrapper.querySelector('.video-placeholder');
+
+            placeholder.onclick = (e) => {
                 e.stopPropagation();
-                if (currentPlayingVideo && currentPlayingVideo !== video) {
-                    currentPlayingVideo.pause();
-                    currentPlayingVideo.controls = false;
-                    const oldWrapper = currentPlayingVideo.closest('.video-wrapper');
-                    if (oldWrapper) oldWrapper.classList.remove('is-playing');
-                }
+
+                if (currentPlayingVideo) currentPlayingVideo.pause();
                 if (currentPlayingAudio) {
                     currentPlayingAudio.pause();
                     currentPlayingAudio = null;
                 }
+
+                wrapper.innerHTML = `
+                    <video src="${url}" controls autoplay
+                        style="
+                            display: block;
+                            width: auto;
+                            height: auto;
+                            max-width: 100%;
+                            max-height: 450px;
+                            border-radius: 12px;
+                            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+                            outline: none;
+                            background: black;
+                        "
+                    ></video>`;
+
+                const video = wrapper.querySelector('video');
                 currentPlayingVideo = video;
-                video.controls = true;
-                video.play();
-                wrapper.classList.add('is-playing');
+
+                video.onerror = () => {
+                    wrapper.innerHTML = `<div style="padding:15px;color:#ff4d4f;background:#fff1f0;border-radius:8px;border:1px dashed #ff4d4f;font-size:12px;">❌ 视频无法加载</div>`;
+                };
+
+                video.onended = () => {
+                    if (currentPlayingVideo === video) currentPlayingVideo = null;
+                };
+
+                video.onplay = () => {
+                    if (currentPlayingAudio) currentPlayingAudio.pause();
+                    if (currentPlayingVideo && currentPlayingVideo !== video) {
+                        currentPlayingVideo.pause();
+                    }
+                    currentPlayingVideo = video;
+                };
             };
-            video.onended = () => {
-                wrapper.classList.remove('is-playing');
-                video.controls = false;
-                if (currentPlayingVideo === video) currentPlayingVideo = null;
+
+            placeholder.onmouseenter = () => {
+                placeholder.style.transform = 'translateY(-2px)';
+                const icon = placeholder.querySelector('.play-icon-overlay');
+                if (icon) icon.style.transform = 'scale(1.1)';
             };
-            video.onplay = () => {
-                if (currentPlayingAudio) currentPlayingAudio.pause();
-                if (currentPlayingVideo && currentPlayingVideo !== video) {
-                    currentPlayingVideo.pause();
-                    currentPlayingVideo.controls = false;
-                    const oldWrapper = currentPlayingVideo.closest('.video-wrapper');
-                    if (oldWrapper) oldWrapper.classList.remove('is-playing');
-                }
-                currentPlayingVideo = video;
+            placeholder.onmouseleave = () => {
+                placeholder.style.transform = 'translateY(0)';
+                const icon = placeholder.querySelector('.play-icon-overlay');
+                if (icon) icon.style.transform = 'scale(1)';
             };
+
             return wrapper;
         }
 
@@ -5833,14 +4322,18 @@
 
         function setFilter(type) {
             filterType = type;
+
             document.querySelectorAll('.filter-chip').forEach(el => el.classList.remove('active'));
             document.getElementById(`filter-${type}`).classList.add('active');
 
-            outputList.innerHTML = '<div style="padding:20px; text-align:center; color:#999;">正在筛选...</div>';
-
-            setTimeout(() => {
-                applyFilters();
-            }, 50);
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    applyFilters();
+                    
+                    const view = document.getElementById('view-messages');
+                    if (view) view.scrollTop = 0;
+                }, 10); 
+            });
         }
 
         function showMemberDropdown() {
@@ -6476,6 +4969,8 @@
 
             const fileName = `【${nickname}】${timeStr}.lrc`;
 
+            const customSavePath = localStorage.getItem('yaya_path_danmu') || '';
+
             try {
                 const res = await fetchPocketAPI('/live/api/v1/live/getLiveOne', JSON.stringify({
                     liveId: item.liveId
@@ -6491,7 +4986,8 @@
 
                     ipcRenderer.send('download-danmu', {
                         url: danmuUrl,
-                        fileName: fileName
+                        fileName: fileName,
+                        savePath: customSavePath
                     });
 
                     window.lastDanmuBtn = btn;
@@ -6565,6 +5061,8 @@
 
             downloadList.insertAdjacentHTML('afterbegin', `<div class="download-item" id="${taskId}" data-liveid="${liveId}"><div class="download-title-row"><div class="download-title-line" title="${title}" style="flex:1;">${title}</div><button class="btn-cancel" onclick="cancelDownloadTask('${taskId}')">取消</button></div><div class="download-detail-row"><span>👤 ${nickname}</span><b class="download-percent">0%</b></div><div class="download-detail-row"><span>📅 ${tLabel}</span></div><div class="progress-container" style="margin: 5px 0;"><div class="progress-fill"></div></div><span class="download-status-text">正在请求下载地址...</span></div>`);
 
+            const customSavePath = localStorage.getItem('yaya_path_video') || '';
+
             try {
                 const res = await fetchPocketAPI('/live/api/v1/live/getLiveOne', JSON.stringify({
                     liveId: liveId
@@ -6574,7 +5072,8 @@
                     ipcRenderer.send('download-vod', {
                         url: res.content.playStreamPath,
                         fileName: safeName,
-                        taskId: taskId
+                        taskId: taskId,
+                        savePath: customSavePath
                     });
                 } else {
                     downloadStatusMap[liveId] = 'error';
@@ -7663,6 +6162,10 @@
         }
 
         async function playOpenLiveVideo(liveId, title, nickname, startTime) {
+            const giftContainer = document.getElementById('live-gift-container');
+            if (giftContainer) {
+                giftContainer.style.display = 'none';
+            }
             document.getElementById('view-open-live').style.display = 'none';
             const mediaView = document.getElementById('view-media');
             mediaView.style.display = 'flex';
@@ -9006,6 +7509,37 @@
                 btn.innerText = originalText;
             }
         }
+
+        function resetBackground() {
+            localStorage.removeItem('custom_bg_data'); 
+            document.body.style.backgroundImage = '';  
+        }
+
+        function loadCustomPaths() {
+            document.getElementById('path-danmu').value = localStorage.getItem('yaya_path_danmu') || '';
+            document.getElementById('path-video').value = localStorage.getItem('yaya_path_video') || '';
+            document.getElementById('path-clip').value = localStorage.getItem('yaya_path_clip') || '';
+        }
+
+        function saveCustomPaths() {
+            localStorage.setItem('yaya_path_danmu', document.getElementById('path-danmu').value.trim());
+            localStorage.setItem('yaya_path_video', document.getElementById('path-video').value.trim());
+            localStorage.setItem('yaya_path_clip', document.getElementById('path-clip').value.trim());
+        }
+
+        async function triggerSelectPath(inputId) {
+            try {
+                const path = await ipcRenderer.invoke('dialog-open-directory'); 
+                
+                if (path) {
+                    document.getElementById(inputId).value = path;
+                    saveCustomPaths();
+                }
+            } catch (e) {
+                console.error('打开文件夹选择框失败:', e);
+                alert('无法打开系统选择框，请尝试手动粘贴路径。');
+            }
+        }
     </script>
     <script type="module">
         import init, { __x6c2adf8__ } from './sdk/rust-wasm.js';
@@ -9077,7 +7611,7 @@
             try {
                 if (lastNextTime === 0 || box.children.length <= 1) {
                     await fetchMsgs(false);
-                    await sleep(30);
+                    await sleep(50);
                 }
 
                 while (isAutoFetching && lastNextTime > 0) {
@@ -9086,7 +7620,7 @@
                     if (lastEl && lastEl.innerText.includes('加载更多')) lastEl.remove();
 
                     await fetchMsgs(true);
-                    await sleep(30);
+                    await sleep(50);
                 }
             } catch (e) {
                 console.error("自动抓取中断", e);
@@ -9928,9 +8462,18 @@
                     });
                 }
 
-            }, 2000);
+            }, 100);
         }
     </script>
+
+    <button id="backToTopBtn" class="back-to-top-btn" onclick="scrollToTop()" title="回到顶部">
+        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2.5" fill="none"
+            stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="19" x2="12" y2="5"></line>
+            <polyline points="5 12 12 5 19 12"></polyline>
+        </svg>
+    </button>
+
 </body>
 
 </html>
