@@ -10623,7 +10623,7 @@
       "birthplace": "重庆",
       "ptime": "2025/8/16",
       "rank": "CKG48 第6名",
-      "isInGroup": true
+      "isInGroup": false
     },
     {
       "id": 143261831,
@@ -11453,7 +11453,7 @@
       "pinyin": "WuHuaYi",
       "birthday": "2007年9月26日",
       "birthplace": "湖南",
-      "isInGroup": true
+      "isInGroup": false
     },
     {
       "id": 161415235,
