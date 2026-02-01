@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>牙牙消息 v1.2.3</title>
+    <title>牙牙消息 v1.2.4</title>
     <link rel="icon" href="./icon.png" type="image/x-icon">
 
     <link rel="stylesheet" href="style.css">
@@ -47,7 +47,7 @@
                 </svg>
             </div>
             <img src="./icon.png" class="title-logo">
-            <span>牙牙消息 v1.2.3</span>
+            <span>牙牙消息 v1.2.4</span>
         </div>
         <div class="window-controls">
             <div class="control-btn" onclick="ipcRenderer.send('window-min')">
@@ -76,157 +76,171 @@
                 <div class="group-title">软件设置</div>
                 <div class="btn-grid">
                     <button class="btn btn-secondary" onclick="toggleTheme()" id="themeBtn">🌞 模式</button>
-                    <button id="btn-sb-settings" class="btn btn-secondary" onclick="switchView('settings')">⚙️ 设置</button>
+                    <button id="btn-sb-settings" class="btn btn-secondary" onclick="switchView('settings')">⚙️
+                        设置</button>
                 </div>
             </div>
-            <div class="sidebar-group" id="sb-live-group">
-                <div class="group-title">口袋直播</div>
+            <div class="sidebar-group" id="sb-live-group" style="display: flex; flex-direction: column; gap: 10px;">
+                <div class="group-title" style="margin-bottom: 0;">口袋直播</div>
 
-                <div class="btn-grid" id="live-btns-container">
-                    <button id="btn-sb-live" class="btn btn-secondary" onclick="switchView('media', 'live')">
-                        正在直播</button>
-                    <button id="btn-sb-vod" class="btn btn-secondary" onclick="switchView('media', 'vod')">
-                        录播回放</button>
+                <div class="btn-grid" id="live-btns-container" style="display: flex; gap: 10px;">
+                    <button id="btn-sb-live" class="btn btn-secondary" onclick="switchView('media', 'live')"
+                        style="flex: 1;">
+                        正在直播
+                    </button>
+                    <button id="btn-sb-vod" class="btn btn-secondary" onclick="switchView('media', 'vod')"
+                        style="flex: 1;">
+                        录播回放
+                    </button>
                 </div>
 
-                <button class="btn btn-secondary btn-full" style="margin-top: 8px;"
-                    onclick="openInBrowser('https://www.bilibili.com/video/BV1Ba8FzxEje/')">牙牙回放</button>
+                <button class="btn btn-secondary btn-full"
+                    onclick="openInBrowser('https://www.bilibili.com/video/BV1Ba8FzxEje')">
+                    牙牙回放
+                </button>
             </div>
-            <div class="sidebar-group" id="sb-login-group">
-                <div class="group-title">账号登录</div>
+            <div class="sidebar-group" id="sb-login-group" style="display: flex; flex-direction: column; gap: 10px;">
+                <div class="group-title" style="margin-bottom: 0;">账号登录</div>
 
-                <button id="btn-sb-login" class="btn btn-secondary btn-full" style="margin-bottom: 8px;"
-                    onclick="switchView('login')">
+                <button id="btn-sb-login" class="btn btn-secondary btn-full" onclick="switchView('login')">
                     口袋账号设置
                 </button>
 
-                <button id="btn-sb-fetch" class="btn btn-secondary btn-full" style="margin-bottom: 8px;"
-                    onclick="switchView('fetch')">
+                <button id="btn-sb-fetch" class="btn btn-secondary btn-full" onclick="switchView('fetch')">
                     抓取房间消息
                 </button>
 
-                <button id="btn-sb-profile" class="btn btn-secondary btn-full" style="margin-bottom: 8px;"
-                    onclick="switchView('profile')">
+                <button id="btn-sb-profile" class="btn btn-secondary btn-full" onclick="switchView('profile')">
                     成员详细档案
                 </button>
 
-                <button id="btn-sb-open-live" class="btn btn-secondary btn-full" style="margin-bottom: 8px;"
-                    onclick="switchView('openlive')">
+                <button id="btn-sb-open-live" class="btn btn-secondary btn-full" onclick="switchView('openlive')">
                     成员公演记录
                 </button>
 
-                <div style="display: flex; gap: 8px;">
-                    <button id="btn-sb-flip" class="btn btn-secondary btn-full" style="flex: 1; margin: 0; padding: 0;"
+                <div style="display: flex; gap: 10px;">
+                    <button id="btn-sb-flip" class="btn btn-secondary btn-full" style="flex: 1;"
                         onclick="switchView('flip')">
                         翻牌记录
                     </button>
-                    <button id="btn-sb-send-flip" class="btn btn-secondary btn-full"
-                        style="flex: 1; margin: 0; padding: 0;" onclick="switchView('send-flip')">
+                    <button id="btn-sb-send-flip" class="btn btn-secondary btn-full" style="flex: 1;"
+                        onclick="switchView('send-flip')">
                         发送翻牌
                     </button>
                 </div>
             </div>
-            <div class="sidebar-group" id="sb-search">
-                <div class="group-title">消息搜索</div>
+            <div class="sidebar-group" id="sb-search" style="display: flex; flex-direction: column; gap: 10px;">
+                <div class="group-title" style="margin-bottom: 0;">消息搜索</div>
 
-                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                    <div id="search-type-wrapper" style="position: relative; width: 90px;">
-                        <input type="hidden" id="searchTypeSelect" value="all">
-
-                        <input type="text" id="search-type-display" class="input-control" value="综合" readonly
-                            onclick="toggleSearchTypeDropdown()"
-                            style="cursor: pointer; text-align: left; padding-right: 20px;">
-
-                        <div
-                            style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text-sub); font-size: 10px;">
-                            ▼
-                        </div>
-
-                        <div id="search-type-dropdown" class="suggestion-box" style="display: none; top: 40px;">
-                            <div class="suggestion-item" onclick="selectSearchType('all', '综合')">综合</div>
-                            <div class="suggestion-item" onclick="selectSearchType('text', '内容')">内容</div>
-                            <div class="suggestion-item" onclick="selectSearchType('name', '昵称')">昵称</div>
-                            <div class="suggestion-item" onclick="selectSearchType('id', 'ID')">ID</div>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <div style="display: flex; align-items: center;">
+                        <span style="font-size: 12px; color: var(--text-main); width: 60px; flex-shrink: 0;">消息内容</span>
+                        <div style="position: relative; flex: 1;">
+                            <input type="text" id="search-content-input" class="input-control" placeholder="请输入关键词"
+                                style="width: 100%;">
                         </div>
                     </div>
 
-                    <input type="text" id="searchInput" class="input-control" placeholder="输入关键词..." disabled
-                        style="flex: 1;">
+                    <div style="display: flex; align-items: center;">
+                        <span style="font-size: 12px; color: var(--text-main); width: 60px; flex-shrink: 0;">昵称 /
+                            ID</span>
+                        <div style="position: relative; flex: 1;">
+                            <input type="text" id="search-user-input" class="input-control" placeholder="请输入昵称或ID"
+                                style="width: 100%;">
+                        </div>
+                    </div>
                 </div>
 
-                <button id="sortBtn" class="btn btn-secondary btn-full" onclick="toggleSortOrder()">
-                    当前：最新在前
-                </button>
+                <button id="btn-clear-search" class="btn btn-secondary btn-full">清空输入框</button>
             </div>
-            <div class="sidebar-group" id="sb-members">
-                <div class="group-title">成员选择</div>
+            <div class="sidebar-group" id="sb-members" style="display: flex; flex-direction: column; gap: 10px;">
+                <div class="group-title" style="margin-bottom: 0;">成员选择</div>
 
                 <div style="position: relative;">
                     <input type="text" id="groupInput" class="input-control" placeholder="全部成员" value="全部成员"
                         onfocus="showMemberDropdown()" oninput="renderMemberDropdown(this.value)"
-                        onclick="showMemberDropdown()" autocomplete="off">
+                        onclick="showMemberDropdown()" autocomplete="off" style="width: 100%;">
 
                     <div
-                        style="position: absolute; right: 10px; top: 10px; pointer-events: none; color: var(--text-sub); font-size: 12px;">
-                        ▼</div>
-
-                    <div id="memberDropdownList" class="suggestion-box" style="max-height: 300px;">
+                        style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text-sub); font-size: 12px;">
+                        ▼
                     </div>
+
+                    <div id="memberDropdownList" class="suggestion-box" style="max-height: 300px;"></div>
                 </div>
 
-                <button class="btn btn-secondary btn-full" style="margin-top: 8px;" onclick="forceReloadData()">更新 /
-                    重扫数据</button>
+                <button class="btn btn-secondary btn-full" onclick="forceReloadData()">
+                    更新 / 重扫数据
+                </button>
             </div>
-            <div class="sidebar-group" id="sb-date">
-                <div class="group-title">日期筛选</div>
+            <div class="sidebar-group" id="sb-date" style="display: flex; flex-direction: column; gap: 10px;">
+                <div class="group-title" style="margin-bottom: 0;">日期筛选</div>
 
-                <div id="year-wrapper" style="position: relative; margin-bottom: 8px;">
+                <div id="year-wrapper" style="position: relative;">
                     <input type="hidden" id="yearSelect" value="all">
                     <input type="text" id="yearSelectDisplay" class="input-control" value="全部" readonly
-                        onclick="toggleDateDropdown('year')" style="cursor: pointer;" disabled>
+                        onclick="toggleDateDropdown('year')" style="cursor: pointer; width: 100%;" disabled>
+
                     <div
-                        style="position: absolute; right: 10px; top: 10px; pointer-events: none; color: var(--text-sub); font-size: 12px;">
-                        ▼</div>
+                        style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text-sub); font-size: 12px;">
+                        ▼
+                    </div>
                     <div id="year-dropdown" class="suggestion-box"></div>
                 </div>
 
-                <div class="btn-grid">
-                    <div id="month-wrapper" style="position: relative;">
+                <div class="btn-grid" style="display: flex; gap: 10px;">
+                    <div id="month-wrapper" style="position: relative; flex: 1;">
                         <input type="hidden" id="monthSelect" value="all">
                         <input type="text" id="monthSelectDisplay" class="input-control" value="全年" readonly
-                            onclick="toggleDateDropdown('month')" style="cursor: pointer;" disabled>
+                            onclick="toggleDateDropdown('month')" style="cursor: pointer; width: 100%;" disabled>
+
                         <div
-                            style="position: absolute; right: 10px; top: 10px; pointer-events: none; color: var(--text-sub); font-size: 12px;">
-                            ▼</div>
+                            style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text-sub); font-size: 12px;">
+                            ▼
+                        </div>
                         <div id="month-dropdown" class="suggestion-box"></div>
                     </div>
 
-                    <div id="day-wrapper" style="position: relative;">
+                    <div id="day-wrapper" style="position: relative; flex: 1;">
                         <input type="hidden" id="daySelect" value="all">
                         <input type="text" id="daySelectDisplay" class="input-control" value="全月" readonly
-                            onclick="toggleDateDropdown('day')" style="cursor: pointer;" disabled>
+                            onclick="toggleDateDropdown('day')" style="cursor: pointer; width: 100%;" disabled>
+
                         <div
-                            style="position: absolute; right: 10px; top: 10px; pointer-events: none; color: var(--text-sub); font-size: 12px;">
-                            ▼</div>
+                            style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text-sub); font-size: 12px;">
+                            ▼
+                        </div>
                         <div id="day-dropdown" class="suggestion-box"></div>
                     </div>
                 </div>
 
                 <button class="btn btn-secondary btn-full" onclick="resetDateFilter()">重置日期</button>
+
+                <button id="sortBtn" class="btn btn-secondary btn-full" onclick="toggleSortOrder()">
+                    当前：最新在前
+                </button>
             </div>
-            <div class="sidebar-group" id="sb-analysis">
-                <div class="group-title">数据分析</div>
+            <div class="sidebar-group" id="sb-analysis" style="display: flex; flex-direction: column; gap: 10px;">
+                <div class="group-title" style="margin-bottom: 0;">数据分析</div>
 
-                <div class="btn-grid" style="margin-bottom: 8px;">
-                    <button class="btn btn-secondary" onclick="openDateAnalysis()" id="dateBtn" disabled>消息统计</button>
-                    <button class="btn btn-secondary" onclick="openUserAnalysis()" id="analysisBtn"
-                        disabled>互动榜</button>
+                <div class="btn-grid" style="display: flex; gap: 10px;">
+                    <button class="btn btn-secondary" onclick="openDateAnalysis()" id="dateBtn" disabled
+                        style="flex: 1;">消息统计</button>
+                    <button class="btn btn-secondary" onclick="openFlipAnalysis()" id="flipAnalysisBtn" disabled
+                        style="flex: 1;">翻牌统计</button>
                 </div>
 
-                <div class="btn-grid">
-                    <button class="btn btn-secondary" onclick="openFlipAnalysis()" id="flipAnalysisBtn">翻牌统计</button>
-                    <button class="btn btn-secondary" onclick="openInBrowser('https://yk1z.github.io/')">其它数据</button>
+                <div class="btn-grid" style="display: flex; gap: 5px;">
+                    <button class="btn btn-secondary" onclick="openGiftAnalysis()" id="giftAnalysisBtn" disabled
+                        style="flex: 1;">礼物榜</button>
+                    <button class="btn btn-secondary" onclick="openUserAnalysis()" id="analysisBtn" disabled
+                        style="flex: 1;">互动榜</button>
+                    <button class="btn btn-secondary" onclick="openSpeechAnalysis()" id="speechAnalysisBtn" disabled
+                        style="flex: 1;">发言榜</button>
                 </div>
+
+                <button class="btn btn-secondary btn-full"
+                    onclick="openInBrowser('https://yk1z.github.io')">其它数据</button>
             </div>
             <div class="sidebar-group" id="sb-type">
                 <div class="group-title">类型筛选</div>
@@ -263,7 +277,7 @@
                         <p>请确保软件同级目录下存在"html"文件夹。</p>
                     </div>
                 </div>
-                <div id="loadingMore">正在加载更多...</div>
+                <div id="loadingMore" style="display: none !important; height: 0; padding: 0; overflow: hidden;"></div>
             </div>
 
             <div id="view-media"
@@ -310,13 +324,14 @@
                                 <div class="suggestion-item" onclick="selectLiveType('all', '全部')">全部</div>
                                 <div class="suggestion-item" onclick="selectLiveType('video', '视频')">视频</div>
                                 <div class="suggestion-item" onclick="selectLiveType('radio', '电台')">电台</div>
+                                <div class="suggestion-item" onclick="selectLiveType('record', '录屏')">录屏</div>
                             </div>
                         </div>
                     </div>
 
                     <div style="flex: 1; min-width: 200px;">
                         <input type="text" id="live-search-input" class="input-control" style="width: 100%;"
-                            placeholder="搜索成员名 / 房间标题" oninput="handleLiveFilter()">
+                            placeholder="成员名 / 房间标题" oninput="handleLiveFilter()">
                     </div>
 
                     <button class="btn btn-secondary" onclick="fetchLiveList()"
@@ -353,6 +368,7 @@
                                     <div class="suggestion-item" onclick="selectVodType('0', '全部')">全部</div>
                                     <div class="suggestion-item" onclick="selectVodType('1', '视频')">视频</div>
                                     <div class="suggestion-item" onclick="selectVodType('2', '电台')">电台</div>
+                                    <div class="suggestion-item" onclick="selectVodType('record', '录屏')">录屏</div>
                                 </div>
                             </div>
                         </div>
@@ -474,8 +490,13 @@
                                 style="flex: 1; height: 26px; font-size: 12px; padding: 0 8px;"
                                 oninput="handleDanmuSearch(this.value)">
 
+                            <button class="btn btn-secondary" onclick="openDanmuAnalysis()"
+                                style="height: 26px; padding: 0 10px; font-size: 12px; margin-left: 10px;">
+                                弹幕统计
+                            </button>
+
                             <span id="danmu-count-display"
-                                style="font-weight:normal; font-size:12px; color:var(--text-sub); white-space: nowrap;"></span>
+                                style="font-weight:normal; font-size:12px; color:var(--text-sub); white-space: nowrap; margin-left: 10px;"></span>
                         </div>
                         <div id="danmu-list-body" style="height: 300px; overflow-y: auto; padding: 0;">
                             <div style="text-align: center; padding: 20px; color: var(--text-sub);">暂无弹幕数据</div>
@@ -942,25 +963,29 @@
                         </div>
                     </div>
                 </div>
-                </div>
+            </div>
 
-                <div id="view-settings" style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
+            <div id="view-settings"
+                style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
                 <div class="list-container">
-                    <div style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; align-items: center;">
+                    <div
+                        style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; align-items: center;">
                         <h2 style="margin: 0; color: var(--primary);">通用设置</h2>
                     </div>
 
                     <div class="Box-row" style="margin-bottom: 30px;">
                         <h3 style="margin-top: 0; color: var(--text);">🎨 外观设置</h3>
-                        
-                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+
+                        <div
+                            style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
                             <div>
                                 <label style="display:block; font-weight:bold; color:var(--text);">自定义背景图片</label>
                                 <span style="font-size: 12px; color: var(--text-sub);">设置一张喜欢的图片作为软件背景</span>
                             </div>
                             <div style="display: flex; gap: 10px;">
                                 <button class="btn btn-secondary" onclick="triggerBgInput()">选择图片</button>
-                                <button class="btn btn-secondary" onclick="resetBackground()" style="color: #ff4d4f;">恢复默认</button>
+                                <button class="btn btn-secondary" onclick="resetBackground()"
+                                    style="color: #ff4d4f;">恢复默认</button>
                             </div>
                         </div>
                     </div>
@@ -969,37 +994,111 @@
                         <h3 style="margin-top: 0; color: var(--text);">📂 下载路径</h3>
 
                         <div style="margin-bottom: 20px;">
-                            <label style="display:block; font-weight:bold; margin-bottom:8px; color:var(--text);">弹幕下载路径 (.lrc)</label>
+                            <label style="display:block; font-weight:bold; margin-bottom:8px; color:var(--text);">弹幕下载路径
+                                (.lrc)</label>
                             <div style="display: flex; gap: 10px;">
-                                <input type="text" id="path-danmu" class="input-control" placeholder="默认路径 (未设置)" onchange="saveCustomPaths()">
-                                <button class="btn btn-secondary" onclick="triggerSelectPath('path-danmu')">选择文件夹</button>
+                                <input type="text" id="path-danmu" class="input-control" placeholder="默认路径 (未设置)"
+                                    onchange="saveCustomPaths()">
+                                <button class="btn btn-secondary"
+                                    onclick="triggerSelectPath('path-danmu')">选择文件夹</button>
                             </div>
                         </div>
 
                         <div style="margin-bottom: 20px;">
-                            <label style="display:block; font-weight:bold; margin-bottom:8px; color:var(--text);">录播下载路径 (.mp4)</label>
+                            <label style="display:block; font-weight:bold; margin-bottom:8px; color:var(--text);">录播下载路径
+                                (.mp4)</label>
                             <div style="display: flex; gap: 10px;">
-                                <input type="text" id="path-video" class="input-control" placeholder="默认路径 (未设置)" onchange="saveCustomPaths()">
-                                <button class="btn btn-secondary" onclick="triggerSelectPath('path-video')">选择文件夹</button>
+                                <input type="text" id="path-video" class="input-control" placeholder="默认路径 (未设置)"
+                                    onchange="saveCustomPaths()">
+                                <button class="btn btn-secondary"
+                                    onclick="triggerSelectPath('path-video')">选择文件夹</button>
                             </div>
                         </div>
 
                         <div style="margin-bottom: 20px;">
-                            <label style="display:block; font-weight:bold; margin-bottom:8px; color:var(--text);">切片保存路径 (.mp4)</label>
+                            <label style="display:block; font-weight:bold; margin-bottom:8px; color:var(--text);">切片保存路径
+                                (.mp4)</label>
                             <div style="display: flex; gap: 10px;">
-                                <input type="text" id="path-clip" class="input-control" placeholder="默认路径 (未设置)" onchange="saveCustomPaths()">
-                                <button class="btn btn-secondary" onclick="triggerSelectPath('path-clip')">选择文件夹</button>
+                                <input type="text" id="path-clip" class="input-control" placeholder="默认路径 (未设置)"
+                                    onchange="saveCustomPaths()">
+                                <button class="btn btn-secondary"
+                                    onclick="triggerSelectPath('path-clip')">选择文件夹</button>
                             </div>
-                        </div>
-
-                        <div style="background: rgba(255, 169, 64, 0.1); border: 1px solid rgba(255, 169, 64, 0.5); padding: 15px; border-radius: 6px; color: var(--text);">
-                            <strong>💡 提示：</strong>
-                            <ul style="margin: 5px 0 0 20px; font-size: 13px; color: var(--text-sub);">
-                                <li>默认路径为 下载 文件夹。</li>
-                                <li>路径请使用绝对路径（如：C:\SNH48\切片）。</li>
-                            </ul>
                         </div>
                     </div>
+                    <div class="Box-row">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h3 style="margin: 0; color: var(--text);">🌐 IP检测</h3>
+                            <button id="btn-check-all" class="btn btn-primary btn-sm" onclick="checkAllNetwork()">
+                                开始检测
+                            </button>
+                        </div>
+
+                        <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 15px;">
+                            分别检测国内直连、通用出口及 Google 代理通道的 IP 归属。
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+
+                            <div class="ip-card" id="card-domestic">
+                                <div class="card-title">国内网站</div>
+                                <div class="card-content" id="res-domestic">等待检测</div>
+                            </div>
+
+                            <div class="ip-card" id="card-foreign">
+                                <div class="card-title">海外网站</div>
+                                <div class="card-content" id="res-foreign">等待检测</div>
+                            </div>
+
+                            <div class="ip-card" id="card-google">
+                                <div class="card-title">GFW网站</div>
+                                <div class="card-content" id="res-google">等待检测</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <style>
+                        .ip-card {
+                            background: var(--input-bg);
+                            border: 1px solid var(--border);
+                            border-radius: 8px;
+                            padding: 12px;
+                            display: flex;
+                            flex-direction: column;
+                        }
+
+                        .card-title {
+                            font-weight: bold;
+                            font-size: 13px;
+                            color: var(--text-sub);
+                            margin-bottom: 8px;
+                            border-bottom: 1px solid var(--border);
+                            padding-bottom: 5px;
+                        }
+
+                        .card-content {
+                            font-size: 13px;
+                            color: var(--text);
+                            line-height: 1.6;
+                            word-break: break-all;
+                        }
+
+                        .ip-highlight {
+                            color: var(--primary);
+                            font-weight: bold;
+                            display: block;
+                            margin-bottom: 4px;
+                        }
+
+                        .status-ok {
+                            color: #52c41a;
+                        }
+
+                        .status-fail {
+                            color: #ff4d4f;
+                        }
+                    </style>
                 </div>
             </div>
         </main>
@@ -1007,7 +1106,7 @@
     <div class="modal-overlay" id="userModal">
         <div class="modal-content">
             <div class="modal-header">
-                <span class="modal-title">互动榜</span>
+                <span class="modal-title">房间消息互动榜</span>
                 <span class="close-btn" onclick="closeUserAnalysis()">×</span>
             </div>
             <div class="modal-body" id="userListContainer">
@@ -1022,6 +1121,17 @@
                 <span class="close-btn" onclick="closeDateAnalysis()">×</span>
             </div>
             <div class="modal-body" id="dateListContainer">
+                <div class="empty-state">正在分析...</div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="danmuAnalysisModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title">弹幕榜</span>
+                <span class="close-btn" onclick="closeDanmuAnalysis()">×</span>
+            </div>
+            <div class="modal-body" id="danmuAnalysisList">
                 <div class="empty-state">正在分析...</div>
             </div>
         </div>
@@ -1051,6 +1161,28 @@
             </div>
             <div class="modal-body" id="flipAnalysisContainer" style="padding: 0;">
                 <div class="empty-state">正在分析...</div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="giftAnalysisModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title">房间礼物贡献榜</span>
+                <span class="close-btn" onclick="closeGiftAnalysis()">×</span>
+            </div>
+            <div class="modal-body" id="giftAnalysisList">
+                <div class="empty-state">正在计算...</div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="speechAnalysisModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title">用户发言活跃榜</span>
+                <span class="close-btn" onclick="closeSpeechAnalysis()">×</span>
+            </div>
+            <div class="modal-body" id="speechAnalysisList">
+                <div class="empty-state">正在统计...</div>
             </div>
         </div>
     </div>
@@ -1123,10 +1255,10 @@
             'K': '#FF5043', 'TEAM K': '#FF5043',
             'CII': '#D21217', 'TEAM CII': '#D21217',
             'GII': '#0061C0', 'TEAM GII': '#0061C0',
-            'IDFT': '#666666'
+            'IDFT': '#900058'
         };
 
-        const POCKET_GIFT_DATA = [
+        var POCKET_GIFT_DATA = [
             { name: "荧光棒-SII", cost: 5, id: "266592587658117120" },
             { name: "荧光棒-NII", cost: 5, id: "266592588102713344" },
             { name: "荧光棒-HII", cost: 5, id: "266592588543115264" },
@@ -1144,31 +1276,62 @@
             { name: "巧克力", cost: 10, id: "266592613964791808" },
             { name: "玫瑰花", cost: 20, id: "266592591995027456" },
             { name: "冰美式", cost: 48, id: "670237101300404224" },
-            { name: "秋天的奶茶", cost: 48, id: "517760052235145216" },
-            { name: "生日礼物", cost: 48, id: "266592634915340288" },
-            { name: "生日帽", cost: 48, id: "266592633254395904" },
+            { name: "秋天的奶茶", cost: 48, id: "517760052235145216", description: "普通礼物" },
+            { name: "生日礼物", cost: 48, id: "266592634915340288", description: "成员直播礼物" },
+            { name: "生日帽", cost: 48, id: "266592633254395904", description: "成员直播礼物" },
 
             { name: "高级马卡龙", cost: 1048, id: "691322274260520960" },
-            { name: "夜蝶", cost: 1500, id: "566341364751339520" },
-            { name: "生日蛋糕", cost: 2880, id: "266592635540291584" },
-            { name: "权杖", cost: 3000, id: "266592611095887872" },
-            { name: "皇冠", cost: 5000, id: "266592614883344384" },
-            { name: "大饼", cost: 9999, id: "325232177465593856" },
-            { name: "用爱发电", cost: 19999, id: "325233801525268480" },
+            { name: "夜蝶", cost: 1500, id: "566341364751339520", description: "qrlw" },
+            { name: "生日蛋糕", cost: 2880, id: "266592635540291584", description: "成员直播礼物" },
+            { name: "权杖", cost: 3000, id: "266592611095887872", description: "新权杖" },
+            { name: "皇冠", cost: 5000, id: "266592614883344384", description: "新皇冠" },
+            { name: "大饼", cost: 9999, id: "325232177465593856", description: "成员直播礼物" },
+            { name: "用爱发电", cost: 19999, id: "325233801525268480", description: "成员直播礼物" },
 
-            { name: "穹宇猫萌一", cost: 5050, id: "1159142638064832512" },
-            { name: "心锁", cost: 480, id: "1161700584686686208" },
-            { name: "豆鸡腿饱饱", cost: 5255, id: "1124398455441920000" },
-            { name: "鸟皇登基", cost: 11800, id: "1123956702633070592" },
-            { name: "宝宝是我", cost: 4545, id: "1123955157879296000" },
-            { name: "第九次", cost: 9422, id: "1121167706391646208" },
-            { name: "圭矩", cost: 8888, id: "1120075775402119168" },
-            { name: "怪可爱的", cost: 3689, id: "1117101004603330560" },
-            { name: "沝啧", cost: 3726, id: "1104487300200206336" },
-            { name: "好想润", cost: 11150, id: "1104484678495965184" },
-            { name: "啵啵", cost: 5200, id: "1102284508739997696" },
-            { name: "晴空霹雳掌", cost: 5280, id: "1101194508199858176" },
+            { name: "心锁", cost: 480, id: "1161700584686686208", description: "技能礼物" },
+
+            { name: "爱心礼盒", cost: 1200, id: "1223675156709052416", description: "2026情人节" },
+            { name: "恋人牌", cost: 1200, id: "1223674950697422848", description: "2026情人节" },
+            { name: "弦音予你", cost: 48, id: "1223674709768212480", description: "2026情人节" },
+            { name: "花束寄情", cost: 48, id: "1223674321786703872", description: "2026情人节" },
+            { name: "香入心扉", cost: 48, id: "1223674130916511744", description: "2026情人节" },
+            { name: "狂飙爱意", cost: 48, id: "1223673853681405952", description: "2026情人节" },
+
+            { name: "穹宇猫萌一", cost: 5050, id: "1159142638064832512", description: "张琼予定制" },
+            { name: "招财进宝", cost: 688, id: "1223654183268061184", description: "柏欣妤定制" },
+            { name: "豆鸡腿饱饱", cost: 5255, id: "1124398455441920000", description: "徐楚雯定制" },
+            { name: "鸟皇登基", cost: 11800, id: "1123956702633070592", description: "唐莉佳定制" },
+            { name: "宝宝是我", cost: 4545, id: "1123955157879296000", description: "方琪定制" },
+            { name: "第九次", cost: 9422, id: "1121167706391646208", description: "朱怡欣定制" },
+            { name: "圭矩", cost: 8888, id: "1120075775402119168", description: "韩家乐定制" },
+            { name: "怪可爱的", cost: 3689, id: "1117101004603330560", description: "刘力菲定制" },
+            { name: "沝啧", cost: 3726, id: "1104487300200206336", description: "杨冰怡定制" },
+            { name: "好想润", cost: 11150, id: "1104484678495965184", description: "张润定制" },
+            { name: "啵啵", cost: 5200, id: "1102284508739997696", description: "段艺璇定制" },
+            { name: "晴空霹雳掌", cost: 5280, id: "1101194508199858176", description: "林舒晴定制" },
+
         ];
+
+        function updateLocalGiftDatabase() {
+            try {
+                const cachedData = localStorage.getItem('POCKET_GIFT_DATA_CACHE');
+                if (cachedData) {
+                    const parsed = JSON.parse(cachedData);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        const existingNames = new Set(POCKET_GIFT_DATA.map(g => g.name));
+                        parsed.forEach(g => {
+                            if (!existingNames.has(g.name)) {
+                                POCKET_GIFT_DATA.push(g);
+                            }
+                        });
+                    }
+                }
+            } catch (e) {
+                console.warn('读取礼物缓存失败:', e);
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', updateLocalGiftDatabase);
 
         function hexToRgb(hex) {
             if (!hex) return '0, 0, 0';
@@ -1333,7 +1496,7 @@
             }
         }
 
-function switchView(viewName, mode = null) {
+        function switchView(viewName, mode = null) {
             document.getElementById('backToTopBtn').classList.remove('show');
             const backBtn = document.getElementById('backToTopBtn');
             if (backBtn) backBtn.classList.remove('show');
@@ -1402,11 +1565,11 @@ function switchView(viewName, mode = null) {
                 document.getElementById('media-list-area').style.display = 'block';
 
             } else if (viewName === 'settings') {
-               toggleSidebarMode('login'); 
-                
+                toggleSidebarMode('login');
+
                 const loginGroup = document.getElementById('sb-login-group');
                 if (loginGroup) loginGroup.style.display = 'none';
-                
+
                 const liveGroup = document.getElementById('sb-live-group');
                 if (liveGroup) liveGroup.style.display = 'none';
 
@@ -1450,7 +1613,7 @@ function switchView(viewName, mode = null) {
 
                 const token = typeof appToken !== 'undefined' ? appToken : localStorage.getItem('yaya_p48_token');
                 if (!token) {
-                    alert('请先登录账号');
+                    showToast('请先登录账号');
                     return switchView('login');
                 }
 
@@ -1499,12 +1662,12 @@ function switchView(viewName, mode = null) {
 
                 if (viewName === btn.targetView) {
                     el.innerHTML = '返回主页';
-                    el.className = 'btn btn-primary btn-full'; 
-                    el.onclick = () => switchView('messages'); 
+                    el.className = 'btn btn-primary btn-full';
+                    el.onclick = () => switchView('messages');
                 } else {
                     el.innerHTML = btn.defaultText;
-                    el.className = 'btn btn-secondary btn-full'; 
-                    el.onclick = () => switchView(btn.targetView); 
+                    el.className = 'btn btn-secondary btn-full';
+                    el.onclick = () => switchView(btn.targetView);
                 }
             });
 
@@ -1611,14 +1774,19 @@ function switchView(viewName, mode = null) {
         async function loadMemberIdMap() {
             const csvPath = path.join(__dirname, 'members_id.csv');
 
-            if (!fs.existsSync(csvPath)) {
-                statusMsg.textContent = "⚠️ 本地映射表缺失，正在尝试从云端获取...";
+            const lastUpdate = localStorage.getItem('last_member_update') || 0;
+            const now = Date.now();
+            const threeDays = 3 * 24 * 60 * 60 * 1000;
+
+            if (!fs.existsSync(csvPath) || (now - lastUpdate > threeDays)) {
+                console.log("正在尝试自动检查成员列表更新...");
+                localStorage.setItem('last_member_update', now);
                 await autoUpdateMemberData();
             }
 
             try {
                 if (!fs.existsSync(csvPath)) {
-                    statusMsg.textContent = "❌ 无法获取成员数据，请检查网络";
+                    statusMsg.textContent = "❌ 无法获取成员数据";
                     return;
                 }
 
@@ -2173,6 +2341,36 @@ function switchView(viewName, mode = null) {
                 }, 500);
             }
             initBackToTopListener();
+            const cInput = document.getElementById('search-content-input');
+            const uInput = document.getElementById('search-user-input');
+            const rBtn = document.getElementById('btn-clear-search');
+
+            let searchTimeout = null;
+
+            function handleInstantSearch() {
+                if (searchTimeout) clearTimeout(searchTimeout);
+
+                searchTimeout = setTimeout(() => {
+
+                    if (typeof applyFilters === 'function') {
+                        applyFilters();
+                    }
+                }, 300);
+            }
+
+            if (cInput) cInput.addEventListener('input', handleInstantSearch);
+            if (uInput) uInput.addEventListener('input', handleInstantSearch);
+
+            if (rBtn) {
+                rBtn.onclick = () => {
+                    if (cInput) cInput.value = '';
+                    if (uInput) uInput.value = '';
+
+                    if (typeof applyFilters === 'function') {
+                        applyFilters();
+                    }
+                };
+            }
         };
 
 
@@ -2421,6 +2619,12 @@ function switchView(viewName, mode = null) {
             if (sInput) sInput.disabled = false;
             if (analysisBtn) analysisBtn.disabled = false;
             if (dateBtn) dateBtn.disabled = false;
+
+            const giftAnalysisBtn = document.getElementById('giftAnalysisBtn');
+            const speechAnalysisBtn = document.getElementById('speechAnalysisBtn');
+            if (giftAnalysisBtn) giftAnalysisBtn.disabled = false;
+            if (speechAnalysisBtn) speechAnalysisBtn.disabled = false;
+
             const yDisp = document.getElementById('yearSelectDisplay');
             if (yDisp) yDisp.disabled = false;
         }
@@ -2657,9 +2861,16 @@ function switchView(viewName, mode = null) {
             const keywords = filterRaw.split(/\s+/);
             return list.filter(item => {
                 if (typeFilter !== "0") {
-                    const isRadio = item.liveType === 2;
-                    if (typeFilter === "1" && isRadio) return false;
-                    if (typeFilter === "2" && !isRadio) return false;
+                    const isRadio = (item.liveType === 2);
+                    const isRecord = (item.liveMode === 1);
+
+                    if (typeFilter === "record") {
+                        if (!isRecord) return false;
+                    } else if (typeFilter === "1") {
+                        if (isRadio || isRecord) return false;
+                    } else if (typeFilter === "2") {
+                        if (!isRadio) return false;
+                    }
                 }
                 const u = item.userInfo || {};
                 const name = String(u.nickname || item.nickname || '').toLowerCase();
@@ -2750,10 +2961,32 @@ function switchView(viewName, mode = null) {
                 btns.forEach(b => b.disabled = !enabled);
             }
         }
+
         window.renderVODListUI = function () {
             if (!window.vodState) return;
             const container = document.getElementById('vod-list-container');
             const filteredList = getFilteredVODList();
+            const currentType = window.vodState.currentFilterType || '0';
+            const typeDropdownVal = document.getElementById('vod-type-dropdown') ? document.getElementById('vod-type-dropdown').getAttribute('data-value') : '0';
+
+            if (filteredList.length < 5 && vodState.hasMore && !vodState.isLoading) {
+
+                console.log("当前筛选结果不足，自动拉取下一页...");
+
+                if (container.innerHTML.trim() === '') {
+                    container.innerHTML = '<div style="width:100%; text-align:center; padding:20px; color:#888;">正在检索更多历史数据...</div>';
+                }
+
+                fetchVODPageInternal().then(() => {
+                    renderVODListUI();
+                }).catch(err => {
+                    console.error("自动加载出错", err);
+                    container.innerHTML = '<div style="width:100%; text-align:center; color:#888;">加载失败，请手动刷新</div>';
+                });
+
+                return;
+            }
+
             container.className = 'vod-list-mode';
             container.innerHTML = '';
             if (filteredList.length === 0) {
@@ -2792,8 +3025,16 @@ function switchView(viewName, mode = null) {
                     const d = new Date(Number(rawTime));
                     timeStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + ':' + String(d.getSeconds()).padStart(2, '0');
                 }
-                let liveTypeLabel = (item.liveType === 2 ? '电台' : '视频');
-                let badgeClass = (item.liveType === 2 ? 'badge-radio' : 'badge-video');
+                let liveTypeLabel = '视频';
+                let badgeClass = 'badge-video';
+
+                if (item.liveMode === 1) {
+                    liveTypeLabel = '录屏';
+                    badgeClass = 'badge-record';
+                } else if (item.liveType === 2) {
+                    liveTypeLabel = '电台';
+                    badgeClass = 'badge-radio';
+                }
                 card.innerHTML = `
                     <div class="vod-row-cover-container">
                         <img src="${cover}" class="vod-row-cover" onclick="directToPotPlayer(event, '${item.liveId}')" title="点击头像直接调用PotPlayer播放">
@@ -2983,8 +3224,15 @@ function switchView(viewName, mode = null) {
                 let matchType = true;
                 if (typeVal !== 'all') {
                     const isRadio = (item.liveType === 2);
-                    if (typeVal === 'video' && isRadio) matchType = false;
-                    if (typeVal === 'radio' && !isRadio) matchType = false;
+                    const isRecord = (item.liveMode === 1);
+
+                    if (typeVal === 'record') {
+                        if (!isRecord) matchType = false;
+                    } else if (typeVal === 'video') {
+                        if (isRadio || isRecord) matchType = false;
+                    } else if (typeVal === 'radio') {
+                        if (!isRadio) matchType = false;
+                    }
                 }
 
                 let matchKeyword = true;
@@ -3015,9 +3263,12 @@ function switchView(viewName, mode = null) {
                 const card = document.createElement('div');
                 card.className = 'live-card';
                 const cover = item.coverPath ? `https://source.48.cn${item.coverPath}` : './icon.png';
-                let typeText = '视频',
-                    typeClass = 'badge-video';
-                if (item.liveType === 2) {
+                let typeText = '视频', typeClass = 'badge-video';
+
+                if (item.liveMode === 1) {
+                    typeText = '录屏';
+                    typeClass = 'badge-record';
+                } else if (item.liveType === 2) {
                     typeText = '电台';
                     typeClass = 'badge-radio';
                 }
@@ -3103,11 +3354,11 @@ function switchView(viewName, mode = null) {
                     renderDanmuListUI(danmuData);
                     startPlayer(streamUrl, title, isLive, res.content.chatroomId, danmuData);
                 } else {
-                    alert('无法获取流地址');
+                    showToast('无法获取流地址');
                     backToLiveList();
                 }
             } catch (err) {
-                alert('播放失败');
+                showToast('播放失败');
                 backToLiveList();
             }
         }
@@ -3164,7 +3415,7 @@ function switchView(viewName, mode = null) {
                 ipcRenderer.send('start-record', {
                     url: url,
                     taskId: currentRecordTaskId,
-                    savePath: customSavePath 
+                    savePath: customSavePath
                 });
                 document.getElementById('clip-start-display').textContent = "🔴 状态: 正在录制...";
                 if (dp) dp.notice('🔴 后台录制已开启');
@@ -3535,15 +3786,70 @@ function switchView(viewName, mode = null) {
                     }
                 }
                 ],
-                controls: [{
-                    name: 'upload-subtitle',
-                    position: 'right',
-                    html: '字幕',
-                    tooltip: '加载本地字幕',
-                    click: function () {
-                        subInput.click();
+                controls: [
+                    {
+                        name: 'upload-subtitle',
+                        position: 'right',
+                        html: `
+        <svg width="22" height="22" viewBox="0 0 24 24" style="background:none;">
+            <path d="M19 4H5C3.89 4 3 4.9 3 6V18C3 19.1 3.89 20 5 20H19C20.1 20 21 19.1 21 18V6C21 4.9 20.1 4 19 4ZM11 11H9.5V10.5H7.5V13.5H9.5V13H11V14C11 14.55 10.55 15 10 15H7C6.45 15 6 14.55 6 14V10C6 9.45 6.45 9 7 9H10C10.55 9 11 9.45 11 10V11ZM18 11H16.5V10.5H14.5V13.5H16.5V13H18V14C18 14.55 17.55 15 17 15H14C13.45 15 13 14.55 13 14V10C13 9.45 13.45 9 14 9H17C17.55 9 18 9.45 18 10V11Z" 
+                  style="fill: #ffffff !important; stroke: none !important;">
+            </path>
+        </svg>
+    `,
+                        tooltip: '加载本地字幕',
+                        click: function () {
+                            if (typeof subInput !== 'undefined') {
+                                subInput.click();
+                            }
+                        }
+                    },
+                    {
+                        name: 'rotate',
+                        position: 'right',
+                        html: `
+        <svg width="22" height="22" viewBox="0 0 24 24" style="background:none;">
+            <path d="M17 1L7 1C5.89 1 5 1.89 5 3V21C5 22.1 5.89 23 7 23H17C18.1 23 19 22.1 19 21V3C19 1.89 18.1 1 17 1Z" 
+                  style="fill: none !important; stroke: #ffffff !important; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;">
+            </path>
+            
+            <path d="M12 18L12 18.01" 
+                  style="fill: none !important; stroke: #ffffff !important; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;">
+            </path>
+            
+            <path d="M22 8L22 16" stroke-dasharray="2 2"
+                  style="fill: none !important; stroke: #ffffff !important; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;">
+            </path>
+            
+            <path d="M2 8L2 16" stroke-dasharray="2 2"
+                  style="fill: none !important; stroke: #ffffff !important; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;">
+            </path>
+        </svg>
+    `,
+                        tooltip: '画面旋转',
+                        click: function () {
+                            if (typeof this.currentRotate === 'undefined') {
+                                this.currentRotate = 0;
+                                this.video.style.transition = 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
+                            }
+
+                            this.currentRotate += 90;
+
+                            const isPerpendicular = this.currentRotate % 180 !== 0;
+
+                            if (isPerpendicular) {
+                                this.video.style.objectFit = 'contain';
+                            } else {
+                                this.video.style.objectFit = '';
+                            }
+
+                            this.video.style.transform = `rotate(${this.currentRotate}deg)`;
+
+                            const displayDeg = this.currentRotate % 360;
+                            this.notice.show = `旋转: ${displayDeg}°`;
+                        }
                     }
-                }],
+                ],
                 plugins: [artplayerPluginDanmuku({
                     danmuku: isLiveContent ? [] : vodDanmuData,
                     speed: 8,
@@ -3901,6 +4207,38 @@ function switchView(viewName, mode = null) {
             }
         });
 
+        function replaceTencentEmoji(text) {
+            if (!text) return text;
+
+            const emojiMap = {
+                "[色]": "😍", "[爱心]": "❤️", "[亲亲]": "😚", "[生病]": "😷",
+                "[大哭]": "😭", "[微笑]": "🙂", "[酷]": "😎", "[坏笑]": "😏",
+                "[惊恐]": "😱", "[愉快]": "😊", "[憨笑]": "😄", "[悠闲]": "😌",
+                "[奋斗]": "💪", "[大笑]": "😆", "[疑问]": "❓", "[嘘]": "🤫",
+                "[晕]": "😵", "[衰]": "😞", "[骷髅]": "💀", "[敲打]": "🔨",
+                "[再见]": "👋", "[擦汗]": "😓", "[抠鼻]": "👃", "[鼓掌]": "👏",
+                "[糗大了]": "😳", "[左哼哼]": "😤", "[右哼哼]": "😤", "[哈欠]": "🥱",
+                "[鄙视]": "👎", "[委屈]": "🥺", "[快哭了]": "😿", "[阴险]": "😈",
+                "[亲亲]": "😘", "[吓]": "😨", "[可怜]": "🥺", "[菜刀]": "🔪",
+                "[西瓜]": "🍉", "[啤酒]": "🍺", "[篮球]": "🏀", "[乒乓]": "🏓",
+                "[咖啡]": "☕", "[饭]": "🍚", "[猪头]": "🐷", "[玫瑰]": "🌹",
+                "[凋谢]": "🥀", "[嘴唇]": "💋", "[爱心]": "❤️", "[心碎]": "💔",
+                "[蛋糕]": "🎂", "[闪电]": "⚡", "[炸弹]": "💣", "[刀]": "🔪",
+                "[足球]": "⚽", "[瓢虫]": "🐞", "[便便]": "💩", "[月亮]": "🌙",
+                "[太阳]": "☀️", "[礼物]": "🎁", "[拥抱]": "🤗", "[强]": "👍",
+                "[弱]": "👎", "[握手]": "🤝", "[胜利]": "✌️", "[抱拳]": "🙏",
+                "[勾引]": "☝️", "[拳头]": "✊", "[差劲]": "👎", "[爱你]": "🤟",
+                "[NO]": "🙅", "[OK]": "👌", "[跳跳]": "💃", "[发抖]": "🥶",
+                "[怄火]": "😡", "[转圈]": "💫", "[磕头]": "🙇", "[回头]": "🔙",
+                "[跳绳]": "🏃", "[挥手]": "🙋", "[激动]": "🤩", "[街舞]": "🕺",
+                "[献吻]": "😽", "[左太极]": "☯️", "[右太极]": "☯️"
+            };
+
+            return text.replace(/\[([^\]]+)\]/g, (match, key) => {
+                return emojiMap[`[${key}]`] || match;
+            });
+        }
+
         function parseHtmlContent(htmlString, fileName, groupName) {
             const parser = new DOMParser();
             const doc = parser.parseFromString(htmlString, 'text/html');
@@ -3955,6 +4293,31 @@ function switchView(viewName, mode = null) {
                     cleanRow.innerHTML = '';
                 }
 
+                const giftContainer = cleanRow.querySelector('div[style*="background:#fff0f6"]');
+                if (giftContainer) {
+                    const nameDiv = giftContainer.querySelector('div[style*="color:#eb2f96"]');
+                    const countDiv = giftContainer.querySelector('div[style*="font-size:11px"]');
+
+                    if (nameDiv && countDiv) {
+                        if (!countDiv.innerText.includes('🍗')) {
+                            const nameMatch = nameDiv.innerText.match(/送出礼物：(.+)/);
+                            const numMatch = countDiv.innerText.match(/数量: x(\d+)/);
+
+                            if (nameMatch && numMatch) {
+                                const gName = nameMatch[1].trim();
+                                const gNum = parseInt(numMatch[1]);
+
+                                if (typeof POCKET_GIFT_DATA !== 'undefined') {
+                                    const gift = POCKET_GIFT_DATA.find(x => x.name === gName);
+                                    if (gift) {
+                                        const total = gift.cost * gNum;
+                                        countDiv.innerHTML += ` <span style="margin-left:5px; color:#fa8c16; font-weight:bold;">(${total}🍗)</span>`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
 
                 let avatarHtml = '',
                     nameStr = 'Unknown',
@@ -4126,7 +4489,7 @@ function switchView(viewName, mode = null) {
                     </div>
                 `;
                 const content = document.createElement('div');
-                content.innerHTML = post.contentHtml;
+                content.innerHTML = replaceTencentEmoji(post.contentHtml);
                 try {
                     const audioRegex = /(?:音频[\s\u00A0]*[-–—][\s\u00A0]*)?(https?:\/\/[^\s<"']+\.(?:mp3|aac|m4a))/gi;
                     if (audioRegex.test(content.innerHTML)) content.innerHTML = content.innerHTML.replace(audioRegex, '<span class="temp-audio-placeholder" data-src="$1"></span>');
@@ -4164,15 +4527,54 @@ function switchView(viewName, mode = null) {
                 });
                 if (post.videoUrl && !hasVideoTag) content.appendChild(createCustomVideoPlayer(post.videoUrl));
                 if (post.liveId) {
-                    const liveBtn = document.createElement('button');
-                    liveBtn.className = 'btn btn-primary';
-                    liveBtn.style.cssText = 'margin-top: 8px; padding: 5px 15px; font-size: 13px; display: block;';
-                    liveBtn.innerHTML = '观看直播回放';
-                    liveBtn.onclick = (e) => {
+                    const card = document.createElement('div');
+                    card.className = 'vod-card-row';
+                    card.style.cssText = 'margin-top: 10px; width: 100%; box-sizing: border-box; background: var(--input-bg); cursor: pointer;';
+
+                    let displayTitle = post.liveTitle;
+                    let coverSrc = '';
+                    let displayName = post.nameStr;
+
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = post.contentHtml;
+                    const link = tempDiv.querySelector('a');
+
+                    if (link) {
+                        displayTitle = link.getAttribute('data-title') || link.innerText.trim();
+                        coverSrc = link.getAttribute('data-cover') || '';
+
+                        const memberOverride = link.getAttribute('data-member');
+                        if (memberOverride) {
+                            displayName = memberOverride;
+                        }
+                    } else {
+                        displayTitle = tempDiv.innerText.trim();
+                    }
+
+                    if (!coverSrc && post.avatarHtml) {
+                        const srcMatch = post.avatarHtml.match(/src=['"]([^'"]+)['"]/);
+                        if (srcMatch) coverSrc = srcMatch[1];
+                    }
+                    if (!coverSrc) coverSrc = './icon.png';
+                    displayTitle = displayTitle || '直播回放';
+
+                    card.innerHTML = `
+                        <div class="vod-row-cover-container">
+                            <img src="${coverSrc}" class="vod-row-cover">
+                            <div class="vod-badge badge-replay">回放</div>
+                        </div>
+                        <div class="vod-row-info">
+                            <div class="vod-row-name">${displayName}</div>
+                            <div class="vod-row-title">${displayTitle}</div>
+                            <div class="vod-row-time">${post.timeStr}</div>
+                        </div>
+                    `;
+                    card.onclick = (e) => {
                         e.stopPropagation();
-                        playArchiveFromMessage(post.liveId, post.nameStr, post.timeStr);
+                        playArchiveFromMessage(post.liveId, displayName, post.timeStr, displayTitle);
                     };
-                    content.appendChild(liveBtn);
+
+                    content.appendChild(card);
                 } else if (post.isLiveText) {
                     const card = document.createElement('div');
                     card.className = 'vod-card-row';
@@ -4198,6 +4600,8 @@ function switchView(viewName, mode = null) {
             renderedCount += nextBatch.length;
             if (scrollContainer.scrollHeight <= scrollContainer.clientHeight && renderedCount < currentFilteredPosts.length) renderNextBatch();
             updateStatus();
+
+            const loadingDiv = document.getElementById('loadingMore');
         }
 
         function initDateSelectors() {
@@ -4329,10 +4733,10 @@ function switchView(viewName, mode = null) {
             requestAnimationFrame(() => {
                 setTimeout(() => {
                     applyFilters();
-                    
+
                     const view = document.getElementById('view-messages');
                     if (view) view.scrollTop = 0;
-                }, 10); 
+                }, 10);
             });
         }
 
@@ -4415,7 +4819,12 @@ function switchView(viewName, mode = null) {
         });
 
         function applyFilters() {
-            const keyword = searchInput.value.trim().toLowerCase();
+            const contentInput = document.getElementById('search-content-input');
+            const userInput = document.getElementById('search-user-input');
+
+            const contentKw = contentInput ? contentInput.value.trim().toLowerCase() : '';
+            const userKw = userInput ? userInput.value.trim().toLowerCase() : '';
+
             const sortType = currentSortOrder;
             const groupInputVal = document.getElementById('groupInput').value;
             const selGroup = (groupInputVal === '全部成员' || groupInputVal === '') ? 'all' : groupInputVal;
@@ -4423,28 +4832,35 @@ function switchView(viewName, mode = null) {
             const selMonth = monthSelect.value;
             const selDay = daySelect.value;
 
-            const searchType = document.getElementById('searchTypeSelect').value;
-
             currentFilteredPosts = allPosts.filter(post => {
                 if (selGroup !== 'all' && post.groupName !== selGroup) return false;
 
-                if (keyword) {
-                    const postUserIdStr = post.userId ? String(post.userId).toLowerCase() : '';
+                if (contentKw) {
+                    const text = (post.text || '').toLowerCase();
+                    const title = (post.liveTitle || '').toLowerCase();
 
-                    const inText = post.text.includes(keyword);
-                    const inName = post.nameStr && post.nameStr.toLowerCase().includes(keyword);
-                    const inIdPartial = postUserIdStr && postUserIdStr.includes(keyword);
-                    const inIdExact = postUserIdStr && postUserIdStr === keyword;
+                    if (contentKw.includes('|')) {
+                        try {
+                            const regex = new RegExp(contentKw, 'i');
 
-                    if (searchType === 'text') {
-                        if (!inText) return false;
-                    } else if (searchType === 'name') {
-                        if (!inName) return false;
-                    } else if (searchType === 'id') {
-                        if (!inIdExact) return false;
+                            const matchText = regex.test(text);
+                            const matchTitle = regex.test(title);
+                            const matchHtml = regex.test(post.contentHtml);
+
+                            if (!matchText && !matchTitle && !matchHtml) return false;
+                        } catch (e) {
+                            if (!text.includes(contentKw) && !title.includes(contentKw)) return false;
+                        }
                     } else {
-                        if (!inText && !inName && !inIdPartial) return false;
+                        if (!text.includes(contentKw) && !title.includes(contentKw)) return false;
                     }
+                }
+
+                if (userKw) {
+                    const name = (post.nameStr || '').toLowerCase();
+                    const uid = String(post.userId || '');
+
+                    if (!name.includes(userKw) && uid !== userKw) return false;
                 }
 
                 let matchType = true;
@@ -4494,24 +4910,192 @@ function switchView(viewName, mode = null) {
         scrollContainer.addEventListener('scroll', () => {
             if (scrollContainer.scrollTop + scrollContainer.clientHeight >= scrollContainer.scrollHeight - 300) renderNextBatch();
         });
-        searchInput.addEventListener('input', applyFilters);
 
         function openUserAnalysis() {
-            userModal.style.display = 'flex';
-            userListContainer.innerHTML = '<div class="empty-state">正在分析互动数据...</div>';
+            const modal = document.getElementById('userModal');
+            const container = document.getElementById('userListContainer');
+
+            if (modal) modal.style.display = 'flex';
+            if (container) {
+                container.innerHTML = '<div class="empty-state">正在分析互动数据...</div>';
+                container.scrollTop = 0;
+            }
+
             setTimeout(() => {
                 performUserAnalysis();
-                renderUserList();
-            }, 100);
+            }, 50);
         }
 
         function closeUserAnalysis() {
-            userModal.style.display = 'none';
+            const modal = document.getElementById('userModal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function performUserAnalysis() {
+            const container = document.getElementById('userListContainer');
+            if (!container) return;
+
+            const nameToId = {};
+            const idToLatest = {};
+
+            if (typeof allPosts !== 'undefined') {
+                allPosts.forEach(post => {
+                    if (!post.userId) return;
+
+                    const time = new Date(post.timeStr).getTime();
+
+                    if (post.nameStr) {
+                        nameToId[post.nameStr] = post.userId;
+                    }
+
+                    if (!idToLatest[post.userId] || time > idToLatest[post.userId].time) {
+                        idToLatest[post.userId] = {
+                            name: post.nameStr,
+                            avatar: post.avatarHtml,
+                            time: time
+                        };
+                    }
+                });
+            }
+
+            const groupInput = document.getElementById('groupInput');
+            let selGroup = groupInput ? groupInput.value : 'all';
+            if (selGroup === '全部成员' || !selGroup) selGroup = 'all';
+
+            const sourceData = (typeof allPosts !== 'undefined')
+                ? (selGroup === 'all' ? allPosts : allPosts.filter(p => p.groupName === selGroup))
+                : [];
+
+            const modalTitle = document.querySelector('#userModal .modal-title');
+            if (modalTitle) modalTitle.innerText = selGroup === 'all' ? '房间消息互动榜 (全部)' : `房间消息互动榜 (${selGroup})`;
+
+            const statsMap = {};
+            let totalInteractions = 0;
+
+            sourceData.forEach(post => {
+                const match = post.contentHtml.match(/<blockquote[^>]*>\s*(.*?)[：:]/i);
+                if (match && match[1]) {
+                    let rawName = match[1].replace(/<[^>]+>/g, '').trim();
+                    if (rawName) {
+                        let uid = rawName;
+                        let realId = null;
+
+                        if (nameToId[rawName]) {
+                            uid = nameToId[rawName];
+                            realId = uid;
+                        }
+
+                        let displayName = rawName;
+                        let displayAvatar = '';
+
+                        if (realId && idToLatest[realId]) {
+                            displayName = idToLatest[realId].name;
+                            displayAvatar = idToLatest[realId].avatar;
+                        }
+
+                        if (!statsMap[uid]) {
+                            statsMap[uid] = {
+                                id: uid,
+                                realId: realId,
+                                name: displayName,
+                                count: 0,
+                                avatar: displayAvatar,
+                                aliases: new Set()
+                            };
+                        }
+
+                        statsMap[uid].aliases.add(rawName);
+                        if (displayName) statsMap[uid].aliases.add(displayName);
+
+                        if (!statsMap[uid].avatar && displayAvatar) {
+                            statsMap[uid].avatar = displayAvatar;
+                        }
+
+                        statsMap[uid].count++;
+                        totalInteractions++;
+                    }
+                }
+            });
+
+            const sortedList = Object.values(statsMap).sort((a, b) => b.count - a.count);
+
+            if (sortedList.length === 0) {
+                container.innerHTML = '<div class="empty-state">暂无互动数据</div>';
+                return;
+            }
+
+            let html = `
+                <div style="padding: 15px; background: rgba(114, 46, 209, 0.1); border-bottom: 1px solid #d3adf7; margin-bottom: 10px; border-radius: 4px;">
+                    <div style="font-weight: bold; color: #722ed1; font-size: 14px; text-align: center;">
+                        互动总数: <span style="font-size: 18px;">${totalInteractions}</span> 次
+                    </div>
+                </div>
+            `;
+
+            sortedList.forEach((user, index) => {
+                const rClass = index === 0 ? 'rank-1' : (index === 1 ? 'rank-2' : (index === 2 ? 'rank-3' : ''));
+
+                let avatarSrc = './icon.png';
+                if (user.avatar) {
+                    const srcMatch = user.avatar.match(/src=['"]([^'"]+)['"]/);
+                    if (srcMatch) avatarSrc = srcMatch[1];
+                }
+
+                const aliasArray = Array.from(user.aliases).map(n => n.replace(/'/g, "\\'"));
+                const clickAction = `showInteractions(['${aliasArray.join("','")}'])`;
+
+                html += `
+                <div class="list-item" onclick="${clickAction}" style="cursor: pointer; align-items: center; padding: 10px 8px;">
+                    <div class="rank-num ${rClass}">${index + 1}</div>
+                    
+                    <div style="margin-right: 12px;">
+                        <img src="${avatarSrc}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+                    </div>
+                    
+                    <div class="item-main" style="display: flex; flex-direction: column; justify-content: center; flex: 1; min-width: 0;">
+                        <span class="item-title" style="font-size: 14px; line-height: 1.4; margin-bottom: 2px;">
+                            ${user.name}
+                            ${user.realId ? `<span style="font-size:10px; color:#aaa; font-weight:normal;">(ID:${user.realId})</span>` : ''}
+                        </span>
+                    </div>
+                    
+                    <div class="item-count" style="color: #722ed1; font-size: 13px; font-weight:bold;">${user.count} 次</div>
+                </div>`;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function renderUserList() {
+        }
+
+        function showInteractions(names) {
+            closeUserAnalysis();
+
+            const contentInput = document.getElementById('search-content-input');
+            const userInput = document.getElementById('search-user-input');
+
+            if (userInput) userInput.value = '';
+
+            if (contentInput) {
+                if (Array.isArray(names)) {
+                    const escapedNames = names.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+                    contentInput.value = escapedNames.join('|');
+                } else {
+                    contentInput.value = names;
+                }
+
+                contentInput.dispatchEvent(new Event('input'));
+            }
         }
 
         function openDateAnalysis() {
-            dateModal.style.display = 'flex';
-            dateListContainer.innerHTML = '<div class="empty-state">正在分析数据...</div>';
+            const modal = document.getElementById('dateModal');
+            const container = document.getElementById('dateListContainer');
+
+            if (modal) modal.style.display = 'flex';
+            if (container) container.innerHTML = '<div class="empty-state">正在分析数据...</div>';
+
             setTimeout(() => {
                 performDateAnalysis();
                 renderDateList();
@@ -4519,44 +5103,8 @@ function switchView(viewName, mode = null) {
         }
 
         function closeDateAnalysis() {
-            dateModal.style.display = 'none';
-        }
-
-        function performUserAnalysis() {
-            const counts = {};
-
-            const groupInput = document.getElementById('groupInput');
-            let selGroup = groupInput ? groupInput.value : 'all';
-            if (selGroup === '全部成员' || !selGroup) selGroup = 'all';
-
-            const sourceData = selGroup === 'all' ? allPosts : allPosts.filter(p => p.groupName === selGroup);
-            const modalTitle = document.querySelector('#userModal .modal-title');
-            if (modalTitle) modalTitle.innerText = selGroup === 'all' ? '互动榜 (全部)' : `互动榜 (${selGroup})`;
-
-            sourceData.forEach(post => {
-                const match = post.contentHtml.match(/<blockquote[^>]*>\s*(.*?)[：:]/i);
-                if (match && match[1]) {
-                    let name = match[1].replace(/<[^>]+>/g, '').trim();
-                    if (name) counts[name] = (counts[name] || 0) + 1;
-                }
-            });
-            userStats = Object.entries(counts).map(([name, count]) => ({
-                name,
-                count
-            })).sort((a, b) => b.count - a.count);
-        }
-
-        function renderUserList() {
-            if (userStats.length === 0) {
-                userListContainer.innerHTML = '<div class="empty-state">暂无互动数据</div>';
-                return;
-            }
-            let html = '';
-            userStats.forEach((user, index) => {
-                const rClass = index === 0 ? 'rank-1' : (index === 1 ? 'rank-2' : (index === 2 ? 'rank-3' : ''));
-                html += `<div class="list-item" onclick="filterByUser('${escapeHtml(user.name)}')"><div class="rank-num ${rClass}">${index + 1}</div><div class="item-main"><span class="item-title">${user.name}</span></div><div class="item-count">${user.count}次</div></div>`;
-            });
-            userListContainer.innerHTML = html;
+            const modal = document.getElementById('dateModal');
+            if (modal) modal.style.display = 'none';
         }
 
         function performDateAnalysis() {
@@ -4599,8 +5147,11 @@ function switchView(viewName, mode = null) {
         }
 
         function renderDateList() {
+            const container = document.getElementById('dateListContainer');
+            if (!container) return;
+
             if (dateStats.length === 0) {
-                dateListContainer.innerHTML = '<div class="empty-state">暂无日期数据</div>';
+                container.innerHTML = '<div class="empty-state">暂无日期数据</div>';
                 return;
             }
             const max = Math.max(...dateStats.map(d => d.count));
@@ -4629,72 +5180,93 @@ function switchView(viewName, mode = null) {
                     </div>
                 </div>`;
             });
-            dateListContainer.innerHTML = html;
+            container.innerHTML = html;
         }
 
         function filterByUser(username) {
             if (typeof closeUserAnalysis === 'function') closeUserAnalysis();
 
-            const searchInput = document.getElementById('searchInput');
+            const userInput = document.getElementById('search-user-input');
+            const contentInput = document.getElementById('search-content-input');
 
-            const typeSelect = document.getElementById('searchTypeSelect');
-
-            const typeDisplay = document.getElementById('search-type-display');
-
-            if (searchInput) {
-                searchInput.value = username;
-                searchInput.disabled = false;
-
-                if (typeSelect) typeSelect.value = 'text';
-                if (typeDisplay) typeDisplay.value = '内容';
+            if (userInput) {
+                userInput.value = username;
+                if (contentInput) contentInput.value = '';
 
                 if (typeof setFilter === 'function') setFilter('all');
-                if (typeof resetDateFilter === 'function') resetDateFilter();
+                if (typeof selectDateItem === 'function') selectDateItem('year', 'all', '全部');
 
-                applyFilters();
-
-                const view = document.getElementById('view-messages');
-                if (view) view.scrollTop = 0;
+                if (typeof applyFilters === 'function') applyFilters();
             }
         }
 
         window.filterByUserId = function (userId) {
             if (window.event) window.event.stopPropagation();
 
-            const searchInput = document.getElementById('searchInput');
-            const typeSelect = document.getElementById('searchTypeSelect');
-            const typeDisplay = document.getElementById('search-type-display');
+            const userInput = document.getElementById('search-user-input');
+            const contentInput = document.getElementById('search-content-input');
 
-            if (searchInput && userId) {
-                searchInput.value = String(userId).trim();
-                searchInput.disabled = false;
+            if (userInput) {
+                userInput.value = String(userId).trim();
 
-                if (typeSelect) typeSelect.value = 'id';
-                if (typeDisplay) typeDisplay.value = 'ID';
+                if (contentInput) contentInput.value = '';
 
                 if (typeof setFilter === 'function') setFilter('all');
-                if (typeof resetDateFilter === 'function') resetDateFilter();
+                if (typeof selectDateItem === 'function') selectDateItem('year', 'all', '全部');
 
-                applyFilters();
+                if (typeof applyFilters === 'function') {
+                    applyFilters();
+                }
 
                 const view = document.getElementById('view-messages');
                 if (view) view.scrollTop = 0;
 
-                console.log(`[筛选] 已过滤 ID: ${userId}`);
+                console.log(`[交互] 已点击 ID Tag: ${userId}，正在筛选...`);
             }
-        }
+        };
 
         function filterByDate(dateStr) {
             closeDateAnalysis();
             const [y, m, d] = dateStr.split('-');
-            yearSelect.value = y;
-            populateMonths(y);
-            monthSelect.value = parseInt(m).toString();
-            populateDays(y, parseInt(m).toString());
-            daySelect.value = parseInt(d).toString();
-            monthSelect.disabled = false;
-            daySelect.disabled = false;
-            applyFilters();
+
+            const yearSelect = document.getElementById('yearSelect');
+            const monthSelect = document.getElementById('monthSelect');
+            const daySelect = document.getElementById('daySelect');
+
+            if (yearSelect) {
+                yearSelect.value = y;
+                if (typeof populateMonths === 'function') populateMonths(y);
+            }
+            if (monthSelect) {
+                monthSelect.value = parseInt(m).toString();
+                if (typeof populateDays === 'function') populateDays(y, parseInt(m).toString());
+                monthSelect.disabled = false;
+            }
+            if (daySelect) {
+                daySelect.value = parseInt(d).toString();
+                daySelect.disabled = false;
+            }
+            if (typeof applyFilters === 'function') applyFilters();
+        }
+
+        function showUserGifts(uid, name) {
+            if (typeof closeGiftAnalysis === 'function') closeGiftAnalysis();
+
+            const contentInput = document.getElementById('search-content-input');
+
+            if (uid) {
+                if (typeof filterByUserId === 'function') filterByUserId(uid);
+            } else {
+                if (typeof filterByUser === 'function') filterByUser(name);
+            }
+
+            if (contentInput) {
+                setTimeout(() => {
+                    contentInput.value = "送出礼物";
+
+                    contentInput.dispatchEvent(new Event('input'));
+                }, 100);
+            }
         }
 
         function openContextModal(targetGlobalIndex) {
@@ -4716,7 +5288,7 @@ function switchView(viewName, mode = null) {
                 header.className = 'user-header-row';
                 header.innerHTML = `${post.avatarHtml}<div class="user-info-col"><div><span class="username">${post.nameStr}</span></div><span class="timestamp">${post.timeStr}</span></div>`;
                 const content = document.createElement('div');
-                content.innerHTML = post.contentHtml;
+                content.innerHTML = replaceTencentEmoji(post.contentHtml);
                 try {
                     const audioRegex = /(?:音频[\s\u00A0]*[-–—][\s\u00A0]*)?(https?:\/\/[^\s<"']+\.(?:mp3|aac|m4a))/gi;
                     if (audioRegex.test(content.innerHTML)) content.innerHTML = content.innerHTML.replace(audioRegex, '<span class="temp-audio-placeholder" data-src="$1"></span>');
@@ -4745,15 +5317,56 @@ function switchView(viewName, mode = null) {
                 });
                 if (post.videoUrl && !hasVTag) content.appendChild(createCustomVideoPlayer(post.videoUrl));
                 if (post.liveId) {
-                    const btn = document.createElement('button');
-                    btn.className = 'btn btn-primary';
-                    btn.style.cssText = 'margin-top: 8px; padding: 5px 15px; font-size: 13px; display: block;';
-                    btn.innerHTML = '观看直播回放';
-                    btn.onclick = (e) => {
+                    const card = document.createElement('div');
+                    card.className = 'vod-card-row';
+                    card.style.cssText = 'margin-top: 10px; width: 100%; box-sizing: border-box; background: var(--input-bg); cursor: pointer; border: 1px solid var(--border);';
+
+                    let displayTitle = post.liveTitle;
+                    let coverSrc = '';
+                    let displayName = post.nameStr;
+
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = post.contentHtml;
+                    const link = tempDiv.querySelector('a');
+
+                    if (link) {
+                        displayTitle = link.getAttribute('data-title') || link.innerText.trim();
+                        coverSrc = link.getAttribute('data-cover') || '';
+
+                        const memberOverride = link.getAttribute('data-member');
+                        if (memberOverride) {
+                            displayName = memberOverride;
+                        }
+                    } else {
+                        displayTitle = tempDiv.innerText.trim();
+                    }
+
+                    if (!coverSrc && post.avatarHtml) {
+                        const srcMatch = post.avatarHtml.match(/src=['"]([^'"]+)['"]/);
+                        if (srcMatch) coverSrc = srcMatch[1];
+                    }
+                    if (!coverSrc) coverSrc = './icon.png';
+                    displayTitle = displayTitle || '直播回放';
+
+                    card.innerHTML = `
+                        <div class="vod-row-cover-container">
+                            <img src="${coverSrc}" class="vod-row-cover">
+                            <div class="vod-badge badge-replay">回放</div>
+                        </div>
+                        <div class="vod-row-info">
+                            <div class="vod-row-name">${displayName}</div>
+                            <div class="vod-row-title">${displayTitle}</div>
+                            <div class="vod-row-time">${post.timeStr}</div>
+                        </div>
+                    `;
+
+                    card.onclick = (e) => {
                         e.stopPropagation();
-                        playArchiveFromMessage(post.liveId, post.nameStr, post.timeStr);
+                        playArchiveFromMessage(post.liveId, displayName, post.timeStr, displayTitle);
                     };
-                    content.appendChild(btn);
+
+                    content.appendChild(card);
+
                 } else if (post.isLiveText) {
                     const card = document.createElement('div');
                     card.className = 'vod-card-row';
@@ -4848,16 +5461,25 @@ function switchView(viewName, mode = null) {
             }
         }
 
-        function playArchiveFromMessage(liveId, nickname, timeStr) {
+        function playArchiveFromMessage(liveId, nickname, timeStr, title) {
             switchView('media', 'vod');
+
+            let ts = new Date(timeStr).getTime();
+            if (isNaN(ts)) {
+                ts = 0;
+            }
+
             const temp = {
                 liveId: liveId,
                 userInfo: {
                     nickname: nickname
                 },
-                title: `历史消息归档 (${timeStr})`,
+                title: title || '直播回放',
+                startTime: ts,
+                ctime: ts,
                 liveType: 1
             };
+
             setTimeout(() => {
                 playLiveStream(temp, 'vod');
             }, 300);
@@ -4881,7 +5503,7 @@ function switchView(viewName, mode = null) {
             }
             const tTime = new Date(timeStr).getTime();
             if (isNaN(tTime)) {
-                alert('消息时间格式无法解析。');
+                showToast('消息时间格式无法解析。');
                 loadingDiv.style.display = 'none';
                 return;
             }
@@ -4994,13 +5616,13 @@ function switchView(viewName, mode = null) {
                     window.lastDanmuBtnOriginalText = originalText;
 
                 } else {
-                    alert('该录播没有弹幕文件 (可能已过期或未生成)');
+                    showToast('该录播没有弹幕文件 (可能已过期或未生成)');
                     btn.textContent = originalText;
                     btn.disabled = false;
                 }
             } catch (e) {
                 console.error(e);
-                alert('获取弹幕地址失败');
+                showToast('获取弹幕地址失败');
                 btn.textContent = originalText;
                 btn.disabled = false;
             }
@@ -5024,7 +5646,7 @@ function switchView(viewName, mode = null) {
 
                     console.log('弹幕已保存至:', data.path);
                 } else {
-                    alert('下载失败: ' + data.msg);
+                    showToast('下载失败: ' + data.msg);
                     window.lastDanmuBtn.textContent = window.lastDanmuBtnOriginalText || "弹幕下载";
                     window.lastDanmuBtn.disabled = false;
                 }
@@ -5080,7 +5702,7 @@ function switchView(viewName, mode = null) {
                     btn.textContent = "视频下载";
                     btn.className = `btn btn-secondary vod-btn-${liveId}`;
                     btn.disabled = false;
-                    alert('无法获取下载地址');
+                    showToast('无法获取下载地址');
                 }
             } catch (err) {
                 downloadStatusMap[liveId] = 'error';
@@ -6729,18 +7351,24 @@ function switchView(viewName, mode = null) {
                 const res = await ipcRenderer.invoke('send-flip-question', { token, pa, payload });
 
                 if (res.success) {
-                    msgDiv.innerText = '✅ 发送成功！2秒后将自动跳转到翻牌记录...';
+                    msgDiv.innerText = '✅ 发送成功！2秒后将自动跳转到翻牌记录';
                     msgDiv.style.color = '#28a745';
 
                     document.getElementById('flip-content-input').value = '';
                     document.getElementById('flip-content-count').innerText = '0/200';
                     document.getElementById('flip-content-count').style.color = '#999';
 
+                    refreshFlipUserBalance();
+
                     setTimeout(() => {
                         switchView('flip');
+
                         btn.disabled = false;
                         btn.innerText = '提问';
                         msgDiv.innerText = '';
+
+                        forceReloadFlips();
+
                     }, 2000);
 
                 } else {
@@ -6756,6 +7384,7 @@ function switchView(viewName, mode = null) {
                 btn.innerText = '提问';
             }
         }
+
 
 
         document.addEventListener('click', function (e) {
@@ -6809,48 +7438,51 @@ function switchView(viewName, mode = null) {
             const warning = isWithdraw
                 ? '确定要撤回这条提问吗？\n撤回后鸡腿将退回到您的账户。'
                 : '确定要删除这条翻牌吗？\n删除后不可恢复。';
-            if (!confirm(warning)) return;
 
-            const token = appToken || localStorage.getItem('yaya_p48_token');
-            const pa = window.getPA ? window.getPA() : null;
+            showCustomConfirm(warning, async () => {
 
-            if (!token) {
-                showCardTip(questionId, '⚠️ 请先登录账号', '#ff4d4f');
-                return;
-            }
+                const token = appToken || localStorage.getItem('yaya_p48_token');
+                const pa = window.getPA ? window.getPA() : null;
 
-            try {
-                showCardTip(questionId, `正在${actionName}...`, '#666');
-
-                const res = await ipcRenderer.invoke('operate-flip-question', {
-                    token,
-                    pa,
-                    questionId,
-                    operateType: 1
-                });
-
-                if (res.success) {
-                    showCardTip(questionId, `✅ ${actionName}成功`, '#28a745');
-
-                    if (typeof allFlipData !== 'undefined') {
-                        allFlipData = allFlipData.filter(item => String(item.questionId) !== String(questionId));
-                    }
-
-                    setTimeout(() => {
-                        const card = document.getElementById(`flip-card-${questionId}`);
-                        if (card) {
-                            card.style.opacity = '0';
-                            card.style.transform = 'scale(0.95)';
-                            setTimeout(() => card.remove(), 300);
-                        }
-                    }, 500);
-
-                } else {
-                    showCardTip(questionId, `❌ ${actionName}失败: ${res.msg}`, '#ff4d4f');
+                if (!token) {
+                    showCardTip(questionId, '⚠️ 请先登录账号', '#ff4d4f');
+                    return;
                 }
-            } catch (e) {
-                showCardTip(questionId, `❌ 出错: ${e.message}`, '#ff4d4f');
-            }
+
+                try {
+                    showCardTip(questionId, `正在${actionName}...`, '#666');
+
+                    const res = await ipcRenderer.invoke('operate-flip-question', {
+                        token,
+                        pa,
+                        questionId,
+                        operateType: 1
+                    });
+
+                    if (res.success) {
+                        showCardTip(questionId, `✅ ${actionName}成功`, '#28a745');
+
+                        if (typeof allFlipData !== 'undefined') {
+                            allFlipData = allFlipData.filter(item => String(item.questionId) !== String(questionId));
+                        }
+
+                        setTimeout(() => {
+                            const card = document.getElementById(`flip-card-${questionId}`);
+                            if (card) {
+                                card.style.opacity = '0';
+                                card.style.transform = 'scale(0.95)';
+                                setTimeout(() => card.remove(), 300);
+                            }
+                        }, 500);
+
+                    } else {
+                        showCardTip(questionId, `❌ ${actionName}失败: ${res.msg}`, '#ff4d4f');
+                    }
+                } catch (e) {
+                    showCardTip(questionId, `❌ 出错: ${e.message}`, '#ff4d4f');
+                }
+
+            });
         }
 
         function showCardTip(questionId, text, color) {
@@ -7143,6 +7775,291 @@ function switchView(viewName, mode = null) {
             container.innerHTML = html;
         }
 
+
+        function openGiftAnalysis() {
+            const modal = document.getElementById('giftAnalysisModal');
+            const container = document.getElementById('giftAnalysisList');
+
+            if (modal) modal.style.display = 'flex';
+            if (container) {
+                container.innerHTML = '<div class="empty-state">正在分析礼物数据...</div>';
+                container.scrollTop = 0;
+            }
+
+            setTimeout(() => {
+                performGiftAnalysis();
+            }, 50);
+        }
+
+        function closeGiftAnalysis() {
+            const modal = document.getElementById('giftAnalysisModal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function performGiftAnalysis() {
+            const container = document.getElementById('giftAnalysisList');
+            if (!container) return;
+
+            const groupInput = document.getElementById('groupInput');
+            let selGroup = groupInput ? groupInput.value : 'all';
+            if (selGroup === '全部成员' || !selGroup) selGroup = 'all';
+
+            const modalTitle = document.querySelector('#giftAnalysisModal .modal-title');
+            if (modalTitle) {
+                modalTitle.innerText = selGroup === 'all' ? '房间礼物贡献榜 (全部)' : `房间礼物贡献榜 (${selGroup})`;
+            }
+
+            const sourceData = currentFilteredPosts && currentFilteredPosts.length > 0 ? currentFilteredPosts : allPosts;
+
+            const userMap = {};
+            let totalRevenue = 0;
+
+            sourceData.forEach(post => {
+                if (post.contentHtml.includes('送出礼物：') || post.contentHtml.includes('🎁')) {
+
+                    const nameMatch = post.contentHtml.match(/送出礼物：([^<]+)/);
+                    const numMatch = post.contentHtml.match(/数量: x(\d+)/);
+
+                    if (nameMatch && numMatch) {
+                        const giftName = nameMatch[1].trim();
+                        const count = parseInt(numMatch[1]);
+
+                        const uid = post.userId || post.nameStr || '未知用户';
+                        const postTime = new Date(post.timeStr).getTime();
+
+                        let price = 0;
+                        if (typeof POCKET_GIFT_DATA !== 'undefined') {
+                            const giftObj = POCKET_GIFT_DATA.find(g => g.name === giftName);
+                            if (giftObj) price = giftObj.cost;
+                        }
+
+                        const totalValue = price * count;
+
+                        if (!userMap[uid]) {
+                            userMap[uid] = {
+                                id: uid,
+                                realUserId: post.userId,
+                                name: post.nameStr || '未知用户',
+                                totalCost: 0,
+                                totalCount: 0,
+                                avatar: post.avatarHtml,
+                                latestTime: postTime
+                            };
+                        }
+
+                        const user = userMap[uid];
+                        user.totalCost += totalValue;
+                        user.totalCount += count;
+                        totalRevenue += totalValue;
+
+                        if (postTime > user.latestTime) {
+                            user.name = post.nameStr;
+                            user.avatar = post.avatarHtml;
+                            user.latestTime = postTime;
+                            if (post.userId) user.realUserId = post.userId;
+                        }
+                    }
+                }
+            });
+
+            const sortedList = Object.values(userMap).sort((a, b) => b.totalCost - a.totalCost);
+
+            if (sortedList.length === 0) {
+                container.innerHTML = '<div class="empty-state">未检测到礼物数据</div>';
+                return;
+            }
+
+            let html = `
+        <div style="padding: 15px; background: rgba(250, 140, 22, 0.1); border-bottom: 1px solid #ffd591; margin-bottom: 10px; border-radius: 4px;">
+            <div style="font-weight: bold; color: #d46b08; font-size: 14px; text-align: center;">
+                鸡腿总数: <span style="font-size: 18px;">${totalRevenue}</span> 🍗
+            </div>
+        </div>
+    `;
+
+            sortedList.forEach((user, index) => {
+                const rClass = index === 0 ? 'rank-1' : (index === 1 ? 'rank-2' : (index === 2 ? 'rank-3' : ''));
+
+                let avatarSrc = './icon.png';
+                if (user.avatar) {
+                    const srcMatch = user.avatar.match(/src=['"]([^'"]+)['"]/);
+                    if (srcMatch) avatarSrc = srcMatch[1];
+                }
+
+                const clickAction = `showUserGifts('${user.realUserId || ''}', '${escapeHtml(user.name)}')`;
+
+                html += `
+        <div class="list-item" onclick="${clickAction}" style="cursor: pointer; align-items: center; padding: 10px 8px;">
+            <div class="rank-num ${rClass}">${index + 1}</div>
+            
+            <div style="margin-right: 12px;">
+                <img src="${avatarSrc}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+            </div>
+            
+            <div class="item-main" style="display: flex; flex-direction: column; justify-content: center; flex: 1; min-width: 0;">
+                <span class="item-title" style="font-size: 14px; line-height: 1.4; margin-bottom: 2px;">
+                    ${user.name}
+                    ${user.realUserId ? `<span style="font-size:10px; color:#aaa; font-weight:normal;">(ID:${user.realUserId})</span>` : ''}
+                </span>
+                <span style="font-size: 11px; color: #999; line-height: 1.3;">送出 ${user.totalCount} 个礼物</span>
+            </div>
+            
+            <div class="item-count" style="color: #fa8c16; font-size: 13px; font-weight:bold;">${user.totalCost} 🍗</div>
+        </div>`;
+            });
+
+            container.innerHTML = html;
+        }
+
+
+        function openSpeechAnalysis() {
+            const modal = document.getElementById('speechAnalysisModal');
+            const container = document.getElementById('speechAnalysisList');
+
+            if (modal) modal.style.display = 'flex';
+            if (container) {
+                container.innerHTML = '<div class="empty-state">正在统计数据...</div>';
+                container.scrollTop = 0;
+            }
+
+            setTimeout(() => {
+                performSpeechAnalysis();
+            }, 50);
+        }
+
+        function closeSpeechAnalysis() {
+            const modal = document.getElementById('speechAnalysisModal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function performSpeechAnalysis() {
+            const container = document.getElementById('speechAnalysisList');
+            if (!container) return;
+
+            const groupInput = document.getElementById('groupInput');
+            let selGroup = groupInput ? groupInput.value : 'all';
+            if (selGroup === '全部成员' || !selGroup) selGroup = 'all';
+
+            const modalTitle = document.querySelector('#speechAnalysisModal .modal-title');
+            if (modalTitle) {
+                modalTitle.innerText = selGroup === 'all' ? '用户发言活跃榜 (全部)' : `用户发言活跃榜 (${selGroup})`;
+            }
+
+            const sourceData = currentFilteredPosts && currentFilteredPosts.length > 0 ? currentFilteredPosts : allPosts;
+
+            const userMap = {};
+            let totalMessages = 0;
+
+            sourceData.forEach(post => {
+                if (!post.nameStr) return;
+
+                if (post.contentHtml.includes('送出礼物：') || post.contentHtml.includes('🎁')) return;
+
+                const uid = post.userId || post.nameStr;
+                const postTime = new Date(post.timeStr).getTime();
+
+                if (!userMap[uid]) {
+                    userMap[uid] = {
+                        id: uid,
+                        realUserId: post.userId,
+                        name: post.nameStr,
+                        count: 0,
+                        avatar: post.avatarHtml,
+                        lastMsg: post.contentHtml,
+                        latestTime: postTime
+                    };
+                }
+
+                const user = userMap[uid];
+                user.count++;
+                totalMessages++;
+
+                if (postTime > user.latestTime) {
+                    user.name = post.nameStr;
+                    user.avatar = post.avatarHtml;
+                    user.lastMsg = post.contentHtml;
+                    user.latestTime = postTime;
+                    if (post.userId) user.realUserId = post.userId;
+                }
+            });
+
+            const sortedList = Object.values(userMap).sort((a, b) => b.count - a.count);
+
+            if (sortedList.length === 0) {
+                container.innerHTML = '<div class="empty-state">无纯发言数据</div>';
+                return;
+            }
+
+            let html = `
+        <div style="padding: 15px; background: rgba(24, 144, 255, 0.1); border-bottom: 1px solid #91d5ff; margin-bottom: 10px; border-radius: 4px;">
+            <div style="font-weight: bold; color: #096dd9; font-size: 14px; text-align: center;">
+                发言总数: <span style="font-size: 18px;">${totalMessages}</span> 条
+            </div>
+        </div>
+    `;
+
+            sortedList.forEach((user, index) => {
+                const rClass = index === 0 ? 'rank-1' : (index === 1 ? 'rank-2' : (index === 2 ? 'rank-3' : ''));
+
+                let avatarSrc = './icon.png';
+                if (user.avatar) {
+                    const srcMatch = user.avatar.match(/src=['"]([^'"]+)['"]/);
+                    if (srcMatch) avatarSrc = srcMatch[1];
+                }
+
+                let previewTxt = user.lastMsg.replace(/<[^>]+>/g, "").trim();
+                if (previewTxt.length > 10) previewTxt = previewTxt.substring(0, 10) + '...';
+                if (!previewTxt) previewTxt = "图片/表情";
+
+                const d = new Date(user.latestTime);
+                const pad = (n) => String(n).padStart(2, '0');
+                const timeStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+
+                const clickAction = user.realUserId
+                    ? `filterByUserId('${user.realUserId}')`
+                    : `filterByUser('${escapeHtml(user.name)}')`;
+
+                html += `
+        <div class="list-item" onclick="${clickAction}" style="cursor: pointer; align-items: center; padding: 10px 8px;">
+            <div class="rank-num ${rClass}">${index + 1}</div>
+            
+            <div style="margin-right: 12px;">
+                <img src="${avatarSrc}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+            </div>
+            
+            <div class="item-main" style="display: flex; flex-direction: column; justify-content: center; flex: 1; min-width: 0;">
+                <span class="item-title" style="font-size: 14px; line-height: 1.4; margin-bottom: 2px;">
+                    ${user.name}
+                </span>
+                
+                <span style="font-size: 11px; color: #888; line-height: 1.3;">最近一条：${previewTxt}</span>
+                
+                <span style="font-size: 10px; color: #bbb; line-height: 1.3;">活跃时间：${timeStr}</span>
+            </div>
+            
+            <div class="item-count" style="color: #1890ff; font-size: 13px; font-weight:bold;">${user.count} 条</div>
+        </div>`;
+            });
+
+            container.innerHTML = html;
+        }
+
+        window.onclick = function (e) {
+            if (typeof originalOnclick === 'function') originalOnclick(e);
+
+            const speechModal = document.getElementById('speechAnalysisModal');
+            if (e.target == speechModal) closeSpeechAnalysis();
+
+            const giftModal = document.getElementById('giftAnalysisModal');
+            if (giftModal && e.target == giftModal) closeGiftAnalysis();
+        }
+
+        window.onclick = function (e) {
+            if (typeof originalOnclick === 'function') originalOnclick(e);
+            const giftModal = document.getElementById('giftAnalysisModal');
+            if (e.target == giftModal) closeGiftAnalysis();
+        }
+
         function formatDurationSimple(ms) {
             if (!ms || ms < 0) return '-';
 
@@ -7230,6 +8147,26 @@ function switchView(viewName, mode = null) {
                             seen.add(id);
                             return true;
                         });
+
+
+                        if (giftList.length > 0 && typeof POCKET_GIFT_DATA !== 'undefined') {
+                            let addedCount = 0;
+                            giftList.forEach(newGift => {
+                                const gName = newGift.giftName || newGift.name;
+                                let gCost = newGift.money;
+                                if (gCost === undefined) gCost = newGift.cost;
+
+                                if (gName && gCost !== undefined && !POCKET_GIFT_DATA.find(x => x.name === gName)) {
+                                    POCKET_GIFT_DATA.push({
+                                        name: gName,
+                                        cost: Number(gCost),
+                                        id: newGift.giftId || newGift.id
+                                    });
+                                    addedCount++;
+                                }
+                            });
+                            if (addedCount > 0) console.log(`已自动学习 ${addedCount} 个新礼物数据`);
+                        }
 
                         if (giftList.length === 0) useFallback = true;
                     } else {
@@ -7511,8 +8448,8 @@ function switchView(viewName, mode = null) {
         }
 
         function resetBackground() {
-            localStorage.removeItem('custom_bg_data'); 
-            document.body.style.backgroundImage = '';  
+            localStorage.removeItem('custom_bg_data');
+            document.body.style.backgroundImage = '';
         }
 
         function loadCustomPaths() {
@@ -7529,17 +8466,86 @@ function switchView(viewName, mode = null) {
 
         async function triggerSelectPath(inputId) {
             try {
-                const path = await ipcRenderer.invoke('dialog-open-directory'); 
-                
+                const path = await ipcRenderer.invoke('dialog-open-directory');
+
                 if (path) {
                     document.getElementById(inputId).value = path;
                     saveCustomPaths();
                 }
             } catch (e) {
                 console.error('打开文件夹选择框失败:', e);
-                alert('无法打开系统选择框，请尝试手动粘贴路径。');
+                showToast('无法打开系统选择框，请尝试手动粘贴路径。');
             }
         }
+
+
+        function openDanmuAnalysis() {
+            const modal = document.getElementById('danmuAnalysisModal');
+            const container = document.getElementById('danmuAnalysisList');
+
+            if (!currentDanmuList || currentDanmuList.length === 0) {
+                if (modal) modal.style.display = 'flex';
+                if (container) container.innerHTML = '<div class="empty-state">当前没有弹幕数据</div>';
+                return;
+            }
+
+            if (modal) modal.style.display = 'flex';
+
+            const counts = {};
+            currentDanmuList.forEach(item => {
+                const name = item.name || '未知用户';
+                counts[name] = (counts[name] || 0) + 1;
+            });
+
+            const sortedStats = Object.entries(counts)
+                .map(([name, count]) => ({ name, count }))
+                .sort((a, b) => b.count - a.count);
+
+            if (sortedStats.length === 0) {
+                container.innerHTML = '<div class="empty-state">无数据</div>';
+            } else {
+                let html = '';
+                sortedStats.forEach((user, index) => {
+                    const rClass = index === 0 ? 'rank-1' : (index === 1 ? 'rank-2' : (index === 2 ? 'rank-3' : ''));
+                    html += `
+            <div class="list-item" onclick="filterDanmuByUser('${escapeHtml(user.name)}')" style="cursor: pointer;">
+                <div class="rank-num ${rClass}">${index + 1}</div>
+                <div class="item-main">
+                    <span class="item-title">${user.name}</span>
+                </div>
+                <div class="item-count">${user.count}条</div>
+            </div>`;
+                });
+                container.innerHTML = html;
+            }
+            if (container) {
+                setTimeout(() => {
+                    container.scrollTop = 0;
+                }, 0);
+            }
+        }
+
+        function closeDanmuAnalysis() {
+            const modal = document.getElementById('danmuAnalysisModal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function filterDanmuByUser(name) {
+            closeDanmuAnalysis();
+            const input = document.getElementById('danmu-search-input');
+            if (input) {
+                input.value = name;
+                handleDanmuSearch(name);
+            }
+        }
+
+        const originalOnclick = window.onclick;
+        window.onclick = function (e) {
+            if (originalOnclick) originalOnclick(e);
+            const danmuModal = document.getElementById('danmuAnalysisModal');
+            if (e.target == danmuModal) closeDanmuAnalysis();
+        }
+
     </script>
     <script type="module">
         import init, { __x6c2adf8__ } from './sdk/rust-wasm.js';
@@ -7881,6 +8887,8 @@ function switchView(viewName, mode = null) {
                     if (panelInput) panelInput.style.display = 'none';
                     if (panelSuccess) panelSuccess.style.display = 'block';
 
+                    updateLocalGiftDatabase();
+
                     const userInfo = res.userInfo;
                     const safeName = userInfo?.baseUserInfo?.nickname || userInfo?.nickname || '口袋用户';
                     const userId = userInfo?.baseUserInfo?.userId || userInfo?.userId || userInfo?.id || 'Unknown';
@@ -7989,7 +8997,7 @@ function switchView(viewName, mode = null) {
                     throw new Error(res.msg || "未知错误");
                 }
             } catch (e) {
-                alert(`切换失败: ${e.message}`);
+                showToast(`切换失败: ${e.message}`);
                 nickNameEl.innerText = originalName;
             }
         }
@@ -8011,10 +9019,10 @@ function switchView(viewName, mode = null) {
                         btn.style.color = "#28a745";
                     }, 1500);
                 }).catch(err => {
-                    alert('复制失败，请手动复制');
+                    showToast('复制失败，请手动复制');
                 });
             } else {
-                alert('❌ 当前未获取到 Token');
+                showToast('❌ 当前未获取到 Token');
             }
         }
 
@@ -8098,7 +9106,22 @@ function switchView(viewName, mode = null) {
                 if (res.success && res.data.content) {
                     if (res.usedServerId) document.getElementById('tool-server').value = res.usedServerId;
                     const content = res.data.content;
-                    const list = content.messageList || content.message || [];
+
+                    let list = content.messageList || content.message || [];
+
+                    if (!isFetchAllMode) {
+                        list = list.filter(m => {
+                            let sid = m.senderUserId || m.senderId || m.uid;
+                            if (!sid && m.extInfo) {
+                                try {
+                                    const ext = typeof m.extInfo === 'string' ? JSON.parse(m.extInfo) : m.extInfo;
+                                    if (ext.user) sid = ext.user.userId || ext.user.id;
+                                } catch (e) { }
+                            }
+                            return String(sid) !== '121569667';
+                        });
+                    }
+
                     lastNextTime = content.nextTime;
                     if (list.length === 0) lastNextTime = 0;
 
@@ -8123,58 +9146,106 @@ function switchView(viewName, mode = null) {
 
 
                     const batchHtml = list.map(m => {
-                        console.log('正在解析消息:', m);
 
                         let txt = '[未知类型]';
                         let isMember = false;
                         let senderId = m.senderUserId || m.senderId || m.uid || '';
+                        let extraHtml = '';
 
                         try {
                             let body = m.bodys;
                             if (m.msgContent) body = m.msgContent;
 
                             if (m.extInfo) {
-                                const ext = JSON.parse(m.extInfo);
+                                const ext = typeof m.extInfo === 'string' ? JSON.parse(m.extInfo) : m.extInfo;
                                 if (ext.user) {
                                     if (ext.user.roleId > 1) isMember = true;
                                     if (!senderId) senderId = ext.user.userId || ext.user.id;
                                 }
                             }
 
-                            if (typeof body === 'string' && body.startsWith('{')) {
+                            if (typeof body === 'string' && (body.startsWith('{') || body.startsWith('['))) {
                                 const json = JSON.parse(body);
-                                if (m.msgType === 'text') txt = json.text;
-                                else if (m.msgType === 'image') txt = `[图片] <a href="${json.url}" target="_blank">查看</a>`;
+
+                                if (m.msgType === 'text') txt = replaceTencentEmoji(json.text);
+                                else if (m.msgType === 'image') txt = `[图片] 链接请见下方`;
                                 else if (m.msgType === 'reply') txt = `回复: ${json.text}`;
-                                else if (m.msgType === 'live_push') txt = `[直播] ${json.liveTitle}`;
                                 else if (m.msgType === 'express') txt = `[表情]`;
+                                else if (m.msgType === 'SHARE_LIVE' || (json && json.messageType === 'SHARE_LIVE')) {
+                                    const info = json.shareInfo || {};
+                                    txt = `[直播分享] ${info.shareTitle || '点击查看'}`;
+                                }
+
+                                else if (m.msgType === 'LIVEPUSH' || m.msgType === 'live_push') {
+                                    const info = json.livePushInfo || json;
+                                    const liveTitle = info.liveTitle || '直播';
+                                    const liveId = info.liveId;
+
+                                    txt = `[直播通知] ${liveTitle}`;
+
+                                    if (liveId) {
+                                        m.tempLiveId = liveId;
+                                    }
+                                }
+
                                 else if (json.messageType === 'GIFT_TEXT' || m.msgType === 'GIFT_TEXT') {
                                     const info = json.giftInfo || json;
-                                    txt = `🎁 送出了 [${info.giftName}] x${info.giftNum}`;
+
+                                    let unitCost = info.money || info.cost;
+                                    if (!unitCost && typeof POCKET_GIFT_DATA !== 'undefined') {
+                                        const g = POCKET_GIFT_DATA.find(x => x.id == (info.giftId || info.id) || x.name === info.giftName);
+                                        if (g) unitCost = g.cost;
+                                    }
+                                    const totalCostStr = unitCost ? ` (约 ${unitCost * info.giftNum} 🍗)` : '';
+
+                                    txt = `🎁 送出了 [${info.giftName}] x${info.giftNum}${totalCostStr}`;
+                                }
+                                else if (m.msgType === 'AUDIO_GIFT_REPLY' || json.messageType === 'AUDIO_GIFT_REPLY') {
+                                    const info = json.giftReplyInfo || json;
+                                    const voiceUrl = info.voiceUrl;
+                                    const rName = info.replyName || '未知用户';
+                                    const rText = info.replyText || '';
+
+                                    txt = '';
+
+                                    extraHtml = `
+        <div style="margin-bottom:8px;">
+            <audio controls src="${voiceUrl}" style="height:30px; max-width: 100%;"></audio>
+        </div>
+        <div style="padding: 4px; color: #666; background: rgba(0,0,0,0.03); border-radius: 4px;">
+            [语音回复] 回复 ${rName}: ${rText}
+        </div>
+    `;
                                 }
                             } else {
-                                txt = body;
+                                txt = replaceTencentEmoji(body);
                             }
                         } catch (e) {
-                            txt = m.msgContent || m.bodys || '解析错误';
+                            let raw = m.msgContent || m.bodys || '解析错误';
+                            txt = replaceTencentEmoji(raw);
                         }
 
                         const time = new Date(m.msgTime).toLocaleString();
                         const nameColor = isMember ? '#FB7299' : '#333333';
                         const safeTxt = String(txt).replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                        const displayName = m.senderName || (m.extInfo && JSON.parse(m.extInfo).user.nickName) || '未知用户';
+
+                        const displayName = m.senderName || (m.extInfo && (typeof m.extInfo === 'string' ? JSON.parse(m.extInfo) : m.extInfo).user.nickName) || '未知用户';
                         const idDisplay = (senderId && String(senderId) !== '0')
                             ? `<span style="color:#999; font-size:10px; margin-left:6px; font-family: monospace;">(ID:${senderId})</span>`
                             : '';
 
+
                         return `<div class="msg-item" style="padding:8px 0; border-bottom:1px solid #eee; font-size:13px;">
-                        <div style="color:#999; font-size:11px; margin-bottom:2px; display:flex; align-items:center;">
-                        <span style="margin-right: 5px;">${time}</span>
-                        <span style="color:${nameColor}; font-weight:${isMember ? 'bold' : 'normal'}">${displayName}</span>
-                        ${idDisplay}
-                        </div>
-                        <div style="color:#333; line-height:1.4; word-break: break-all;">${safeTxt}</div> 
-                    </div>`;
+        <div style="color:#999; font-size:11px; margin-bottom:2px; display:flex; align-items:center;">
+        <span style="margin-right: 5px;">${time}</span>
+        <span style="color:${nameColor}; font-weight:${isMember ? 'bold' : 'normal'}">${displayName}</span>
+        ${idDisplay}
+        </div>
+        <div style="color:#333; line-height:1.4; word-break: break-all;">
+            ${safeTxt}
+            ${extraHtml} 
+        </div> 
+    </div>`;
                     }).join('');
 
                     const range = document.createRange();
@@ -8216,7 +9287,7 @@ function switchView(viewName, mode = null) {
         }
 
         function exportMsgsToHtml() {
-            if (allFetchedMsgs.length === 0) return alert('没有消息可导出');
+            if (allFetchedMsgs.length === 0) return showToast('没有消息可导出');
             const fix48Url = (path) => {
                 if (!path) return 'https://www.snh48.com/images/logo_snh48.jpg';
                 if (/^https?:\/\//i.test(path)) return path;
@@ -8303,14 +9374,22 @@ function switchView(viewName, mode = null) {
                             } else if (json.messageType === 'GIFT_TEXT' || m.msgType === 'GIFT_TEXT') {
                                 const info = json.giftInfo || json;
                                 const giftImg = info.picPath ? fix48Url(info.picPath) : '';
+
+                                let unitCost = info.money || info.cost;
+                                if (!unitCost && typeof POCKET_GIFT_DATA !== 'undefined') {
+                                    const g = POCKET_GIFT_DATA.find(x => x.id == (info.giftId || info.id) || x.name === info.giftName);
+                                    if (g) unitCost = g.cost;
+                                }
+                                const costDisplay = unitCost ? `<span style="margin-left:5px; color:#fa8c16; font-weight:bold;">(${unitCost * info.giftNum}🍗)</span>` : '';
+
                                 contentHtml = `
-                                    <div class="mb-2" style="display:flex; align-items:center; background:#fff0f6; padding:6px 8px; border-radius:6px; border:1px solid #ffadd2; max-width: 300px;">
-                                        ${giftImg ? `<img src="${giftImg}" style="width: 25px !important; height: 25px !important; max-width: 32px !important; max-height: 32px !important; object-fit: contain !important; margin: 0 8px 0 0 !important; border-radius: 4px; box-shadow: none !important;">` : '<span style="font-size:24px; margin-right:8px;">🎁</span>'}
-                                        <div style="flex: 1; overflow: hidden;">
-                                            <div style="color:#eb2f96; font-weight:bold; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">送出礼物：${info.giftName}</div>
-                                            <div style="font-size:11px; color:#888;">数量: x${info.giftNum}</div>
-                                        </div>
-                                    </div>`;
+        <div class="mb-2" style="display:flex; align-items:center; background:#fff0f6; padding:6px 8px; border-radius:6px; border:1px solid #ffadd2; max-width: 300px;">
+            ${giftImg ? `<img src="${giftImg}" style="width: 25px !important; height: 25px !important; max-width: 32px !important; max-height: 32px !important; object-fit: contain !important; margin: 0 8px 0 0 !important; border-radius: 4px; box-shadow: none !important;">` : '<span style="font-size:24px; margin-right:8px;">🎁</span>'}
+            <div style="flex: 1; overflow: hidden;">
+                <div style="color:#eb2f96; font-weight:bold; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">送出礼物：${info.giftName}</div>
+                <div style="font-size:11px; color:#888;">数量: x${info.giftNum} ${costDisplay}</div>
+            </div>
+        </div>`;
                             } else if (m.msgType === 'VIDEO') {
                                 const url = fix48Url(json.url);
                                 contentHtml = `
@@ -8346,8 +9425,68 @@ function switchView(viewName, mode = null) {
                                 else if (json.url) url = fix48Url(json.url);
                                 contentHtml = `<div class="mb-2"><img class="template-image-express-image" src="${url}"/></div>`;
                             } else if (m.msgType === 'LIVEPUSH') {
-                                const title = json.livePushInfo ? json.livePushInfo.liveTitle : '直播开始了';
-                                contentHtml = `直播 - ${title}`;
+                                const info = json.livePushInfo || {};
+                                const title = info.liveTitle || '直播开始了';
+                                const liveId = info.liveId;
+
+                                let coverUrl = '';
+                                if (info.liveCover) {
+                                    if (info.liveCover.startsWith('http')) {
+                                        coverUrl = info.liveCover;
+                                    } else {
+                                        coverUrl = 'https://source.48.cn' + info.liveCover;
+                                    }
+                                }
+
+                                if (liveId) {
+                                    contentHtml = `<a href="live/playdetail?id=${liveId}" data-title="${title}" data-cover="${coverUrl}" target="_blank" style="display:none"></a>`;
+                                } else {
+                                    contentHtml = `直播 - ${title}`;
+                                }
+
+                            } else if (m.msgType === 'SHARE_LIVE' || (json && json.messageType === 'SHARE_LIVE')) {
+                                const info = json.shareInfo || {};
+                                const title = info.shareTitle || '直播分享';
+
+                                let liveId = '';
+                                if (info.jumpPath) {
+                                    const match = info.jumpPath.match(/id=(\d+)/);
+                                    if (match) liveId = match[1];
+                                }
+
+                                let coverUrl = '';
+                                if (info.sharePic) {
+                                    if (info.sharePic.startsWith('http')) {
+                                        coverUrl = info.sharePic;
+                                    } else {
+                                        coverUrl = 'https://source.48.cn' + info.sharePic;
+                                    }
+                                }
+
+                                const memberName = info.liveUserName || '';
+
+                                if (liveId) {
+                                    contentHtml = `<a href="live/playdetail?id=${liveId}" data-title="${title}" data-cover="${coverUrl}" data-member="${memberName}" target="_blank" style="display:none"></a>`;
+                                } else {
+                                    contentHtml = `[分享] ${title}`;
+                                }
+                            } else if (m.msgType === 'AUDIO_GIFT_REPLY' || (json && json.messageType === 'AUDIO_GIFT_REPLY')) {
+                                const info = json.giftReplyInfo || json;
+                                const voiceUrl = fix48Url(info.voiceUrl);
+                                const rName = info.replyName || '未知用户';
+                                const rText = info.replyText || '';
+
+                                contentHtml = `
+        <div class="mb-2">
+            <audio class="template-media" src="${voiceUrl}" controls></audio>
+        </div>
+        <div class="mb-2">
+            语音 - <a class="color-fg-accent" href="${voiceUrl}" target="_blank">${voiceUrl}</a>
+        </div>
+        <blockquote class="ml-2 mb-2 p-2 color-bg-accent template-pre" style="border-left: 4px solid #d0d7de; color: #57606a;">
+            回复 ${rName}：${rText}
+        </blockquote>`;
+
                             } else if (['FLIPCARD', 'FLIPCARD_AUDIO', 'FLIPCARD_VIDEO'].includes(m.msgType)) {
                                 const possibleKeys = ['flipCardInfo', 'filpCardInfo', 'flipCardAudioInfo', 'filpCardAudioInfo', 'flipCardVideoInfo', 'filpCardVideoInfo'];
                                 let info = null;
@@ -8393,13 +9532,13 @@ function switchView(viewName, mode = null) {
                                         ${mediaHtml}
                                     `;
                             } else {
-                                contentHtml = `<p class="mb-2 template-pre">${body}</p>`;
+                                contentHtml = `<p class="mb-2 template-pre">${replaceTencentEmoji(body)}</p>`;
                             }
                         } catch (e) {
-                            contentHtml = `<p class="mb-2 template-pre">${body}</p>`;
+                            contentHtml = `<p class="mb-2 template-pre">${replaceTencentEmoji(body)}</p>`;
                         }
                     } else {
-                        contentHtml = `<p class="mb-2 template-pre">${body}</p>`;
+                        contentHtml = `<p class="mb-2 template-pre">${replaceTencentEmoji(body)}</p>`;
                     }
                     const d = new Date(m.msgTime);
                     const pad = (n) => String(n).padStart(2, '0');
@@ -8463,6 +9602,182 @@ function switchView(viewName, mode = null) {
                 }
 
             }, 100);
+        }
+
+        function showToast(msg) {
+            const div = document.createElement('div');
+            div.className = 'toast-msg';
+            div.innerText = msg;
+            document.body.appendChild(div);
+            setTimeout(() => {
+                if (div.parentNode) div.parentNode.removeChild(div);
+            }, 3000);
+        }
+
+        function showCustomConfirm(text, onConfirm) {
+            const overlay = document.createElement('div');
+            overlay.className = 'confirm-overlay';
+            overlay.innerHTML = `
+        <div class="confirm-box">
+            <div class="confirm-text">${text}</div>
+            <div class="confirm-btns">
+                <button class="confirm-btn cancel">取消</button>
+                <button class="confirm-btn ok">确定</button>
+            </div>
+        </div>
+    `;
+
+            const btnCancel = overlay.querySelector('.cancel');
+            const btnOk = overlay.querySelector('.ok');
+
+            function close() {
+                document.body.removeChild(overlay);
+            }
+
+            btnCancel.onclick = () => {
+                close();
+            };
+
+            btnOk.onclick = () => {
+                close();
+                if (onConfirm) onConfirm();
+            };
+
+            document.body.appendChild(overlay);
+        }
+
+        function showUserGifts(uid, name) {
+            closeGiftAnalysis();
+
+            const contentInput = document.getElementById('search-content-input');
+
+            if (uid) {
+                if (typeof filterByUserId === 'function') filterByUserId(uid);
+            } else {
+                if (typeof filterByUser === 'function') filterByUser(name);
+            }
+
+            if (contentInput) {
+                setTimeout(() => {
+                    contentInput.value = "送出礼物";
+
+                    contentInput.dispatchEvent(new Event('input'));
+                }, 100);
+            }
+        }
+
+
+        async function checkNetworkStatus() {
+            const display = document.getElementById('ip-info-display');
+            const btn = document.getElementById('btn-check-ip');
+
+            btn.disabled = true;
+            btn.innerText = '检测中';
+            display.innerHTML = '<div class="spinner"></div><span style="margin-left:10px;">正在查询网络信息...</span>';
+            display.style.display = 'flex';
+
+            try {
+                const res = await ipcRenderer.invoke('check-ip-info');
+
+                if (res.success) {
+                    const data = res.data;
+
+                    display.style.display = 'block';
+                    display.style.textAlign = 'left';
+
+                    display.innerHTML = `
+                <div style="display: grid; grid-template-columns: 80px 1fr; gap: 8px;">
+                    <span style="color:var(--text-sub);">IP 地址:</span>
+                    <span style="font-weight:bold; color:var(--primary); font-size: 16px;">${data.query}</span>
+                    
+                    <span style="color:var(--text-sub);">所在地:</span>
+                    <span>${data.country} ${data.regionName} ${data.city}</span>
+                    
+                    <span style="color:var(--text-sub);">运营商:</span>
+                    <span>${data.isp}</span>
+                    
+                    <span style="color:var(--text-sub);">ASN组织:</span>
+                    <span>${data.as}</span>
+                    
+                    <span style="color:var(--text-sub);">时区:</span>
+                    <span>${data.timezone}</span>
+                </div>
+            `;
+                } else {
+                    throw new Error(res.msg);
+                }
+            } catch (e) {
+                display.style.display = 'flex';
+                display.innerHTML = `<span style="color: #ff4d4f;">❌ 检测失败: ${e.message}</span>`;
+            } finally {
+                btn.disabled = false;
+                btn.innerText = '重新检测';
+            }
+        }
+
+        async function checkAllNetwork() {
+            const btn = document.getElementById('btn-check-all');
+            btn.disabled = true;
+            btn.innerText = '检测中';
+
+            ['domestic', 'foreign', 'google'].forEach(type => {
+                document.getElementById(`res-${type}`).innerHTML = '<div class="spinner"></div> 检测中';
+            });
+
+            const p1 = ipcRenderer.invoke('check-ip-domestic').then(res => renderDomestic(res));
+            const p2 = ipcRenderer.invoke('check-ip-foreign').then(res => renderCommon('foreign', res));
+            const p3 = ipcRenderer.invoke('check-ip-google').then(res => renderCommon('google', res));
+
+            await Promise.allSettled([p1, p2, p3]);
+
+            btn.disabled = false;
+            btn.innerText = '重新检测';
+        }
+
+        function renderDomestic(res) {
+            const el = document.getElementById('res-domestic');
+            if (res.success) {
+                const text = res.data;
+                const ipMatch = text.match(/IP：(\d+\.\d+\.\d+\.\d+)/);
+                const ip = ipMatch ? ipMatch[1] : '';
+                const location = text.replace(`当前 IP：${ip}`, '').replace('来自于：', '').trim();
+
+                el.innerHTML = `
+            <span class="ip-highlight">${ip || text}</span>
+            <div>${location}</div>
+        `;
+            } else {
+                el.innerHTML = `<span class="status-fail">❌ 检测失败</span>`;
+            }
+        }
+
+        function renderCommon(type, res) {
+            const el = document.getElementById(`res-${type}`);
+
+            if (res.success) {
+                const data = res.data;
+                const proxyTag = res.usedProxy
+                    ? `<span style="font-size:10px; color:#52c41a; border:1px solid #52c41a; padding:0 3px; border-radius:3px; margin-left:5px;">${res.usedProxy}</span>`
+                    : '';
+
+                const address = `${data.country} ${data.regionName} ${data.city}`;
+
+                el.innerHTML = `
+            <div>
+                <span class="ip-highlight" style="display:inline-block;">${data.query}</span>
+                ${proxyTag}
+            </div>
+            <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${address}">
+                ${address}
+            </div>
+            <div style="font-size:12px; opacity:0.7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                ${data.isp}
+            </div>
+        `;
+            } else {
+                console.error('检测报错:', res.msg);
+                el.innerHTML = `<span class="status-fail" title="${res.msg}">❌ ${res.msg.split('\n')[0]}</span>`;
+            }
         }
     </script>
 

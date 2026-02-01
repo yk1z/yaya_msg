@@ -1,6 +1,6 @@
 {
   "name": "yaya_msg",
-  "version": "1.2.2",
+  "version": "1.2.4",
   "description": "牙牙消息",
   "main": "main.js",
   "scripts": {
@@ -29,7 +29,9 @@
     "files": [
       "main.js",
       "index.html",
+      "style.css",
       "icon.png",
+      "icon.ico",
       "members_id.csv",
       "rust-wasm.js",
       "node_modules/**/*"

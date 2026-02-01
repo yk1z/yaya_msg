@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron'); const path = require('path');
+const { app, BrowserWindow, ipcMain, shell, dialog, session } = require('electron'); const path = require('path');
 const fs = require('fs');
 const axios = require('axios');
 const ffmpeg = require('fluent-ffmpeg');
@@ -938,3 +938,114 @@ ipcMain.handle('dialog-open-directory', async () => {
         return filePaths[0];
     }
 });
+
+ipcMain.handle('check-ip-info', async () => {
+    try {
+        const url = 'http://ip-api.com/json/?lang=zh-CN';
+
+        const res = await axios.get(url, { timeout: 5000 });
+
+        if (res.data && res.data.status === 'success') {
+            return { success: true, data: res.data };
+        } else {
+            return { success: false, msg: '获取失败' };
+        }
+    } catch (e) {
+        return { success: false, msg: e.message || '网络请求超时' };
+    }
+});
+
+ipcMain.handle('check-ip-domestic', async () => {
+    try {
+        const res = await axios.get('https://myip.ipip.net', { timeout: 5000 });
+        return { success: true, data: res.data.replace(/\s+/g, ' ').trim() };
+    } catch (e) {
+        return { success: false, msg: '连接失败' };
+    }
+});
+
+ipcMain.handle('check-ip-foreign', async () => {
+    try {
+        const res = await axios.get('http://ip-api.com/json/?lang=zh-CN', { timeout: 8000 });
+        if (res.data && res.data.status === 'success') {
+            return { success: true, data: res.data };
+        }
+        return { success: false, msg: '获取失败' };
+    } catch (e) {
+        return { success: false, msg: '连接失败' };
+    }
+});
+
+ipcMain.handle('check-ip-google', async () => {
+    const commonPorts = [
+        ...Array.from({ length: 10 }, (_, i) => 7890 + i),
+        ...Array.from({ length: 10 }, (_, i) => 10800 + i),
+        8888, 1080
+    ];
+
+    const googleTestUrl = 'http://www.google.com/generate_204';
+    let debugLog = [];
+
+    const checkPort = async (port) => {
+        try {
+            const conf = {
+                timeout: 1500,
+                proxy: { host: '127.0.0.1', port: port },
+                validateStatus: status => status === 204 || status === 200
+            };
+            await axios.get(googleTestUrl, conf);
+            return port;
+        } catch (e) {
+            return null;
+        }
+    };
+
+    console.log('[Google检测] 开始扫描代理端口...');
+
+    try {
+        const proxyStr = await session.defaultSession.resolveProxy(googleTestUrl);
+        const match = proxyStr.match(/PROXY\s+([^\s:]+):(\d+)/i);
+        if (match) {
+            const port = parseInt(match[2]);
+            const res = await checkPort(port);
+            if (res) {
+                return await fetchGoogleInfo(port, '系统代理');
+            }
+        }
+    } catch (e) { }
+
+    try {
+        const workingPort = await Promise.any(
+            commonPorts.map(port => checkPort(port).then(res => {
+                if (!res) throw new Error('fail');
+                return res;
+            }))
+        );
+
+        console.log(`[Google检测] 发现可用端口: ${workingPort}`);
+        return await fetchGoogleInfo(workingPort, `端口${workingPort}`);
+
+    } catch (err) {
+        console.error('所有端口扫描均失败');
+        return {
+            success: false,
+            msg: `连接失败。\n已扫描端口: 7890-7899, 10800-10809\n请确认已开启 HTTP 代理。`
+        };
+    }
+});
+
+async function fetchGoogleInfo(port, sourceName) {
+    try {
+        const conf = {
+            timeout: 5000,
+            proxy: { host: '127.0.0.1', port: port }
+        };
+        const infoRes = await axios.get('http://ip-api.com/json/?lang=zh-CN', conf);
+        if (infoRes.data && infoRes.data.status === 'success') {
+            return { success: true, data: infoRes.data, usedProxy: sourceName };
+        }
+    } catch (e) {
+        return { success: false, msg: `端口${port}能通Google，但查IP失败` };
+    }
+    return { success: true, data: { query: '连接成功', country: 'Google', regionName: '通畅', isp: 'Google Services' } };
+}
