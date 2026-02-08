@@ -3627,7 +3627,7 @@
       "pinyin": "SunXiaoYan",
       "liveRoomId": 8694381,
       "birthday": "1998年11月29日",
-      "ptime": "2017年4月20日",
+      "ptime": "2017/4/20",
       "qtime": "2024/5/12",
       "note": "28",
       "isInGroup": false
@@ -9657,7 +9657,7 @@
       "id": 128057655,
       "account": "20240508175615_3t9dwkw7ri6upr5",
       "ownerName": "潘力帼",
-      "serverId": 14387105,
+      "serverId": 14550315,
       "channelId": 19072066,
       "team": "预备生",
       "teamId": 1007,
@@ -9704,7 +9704,6 @@
       "birthday": "2008年3月16日",
       "birthplace": "河南 洛阳",
       "jtime": "2024/5/17",
-      "ptime": "2024/5/17",
       "qtime": "2025/5/23",
       "isInGroup": false
     },
@@ -10792,7 +10791,6 @@
       "birthday": "2005年9月22日",
       "birthplace": "广东 茂名",
       "jtime": "2025/1/1",
-      "ptime": "2025/1/1",
       "class": "8",
       "isInGroup": true
     },
@@ -10828,7 +10826,6 @@
       "birthday": "2006年10月28日",
       "birthplace": "广西 来宾",
       "jtime": "2025/1/1",
-      "ptime": "2025/1/1",
       "class": "4",
       "isInGroup": true
     },
@@ -10846,7 +10843,7 @@
       "birthday": "2009年6月16日",
       "birthplace": "台湾 高雄",
       "jtime": "2025/1/1",
-      "ptime": "2025/1/1",
+      "ptime": "2025/2/8",
       "class": "8",
       "isInGroup": true
     },
@@ -10865,7 +10862,6 @@
       "birthday": "2007年2月6日",
       "birthplace": "重庆",
       "jtime": "2025/1/1",
-      "ptime": "2025/1/1",
       "class": "4",
       "isInGroup": true
     },
@@ -10884,7 +10880,7 @@
       "birthday": "2005年3月18日",
       "birthplace": "湖南 郴州",
       "jtime": "2025/1/1",
-      "ptime": "2025/1/1",
+      "ptime": "2025/8/17",
       "class": "4",
       "isInGroup": true
     },
@@ -11381,7 +11377,7 @@
       "pinyin": "LiuShiTong",
       "birthday": "2006年5月31日",
       "birthplace": "辽宁 沈阳",
-      "ptime": "2025年11月15日",
+      "ptime": "2025/11/15",
       "isInGroup": true
     },
     {
@@ -11412,7 +11408,6 @@
       "birthday": "2008年6月5日",
       "birthplace": "湖南",
       "jtime": "2025/10/8",
-      "ptime": "2025/10/8",
       "class": "4",
       "isInGroup": true
     },
@@ -11429,7 +11424,6 @@
       "birthday": "2002年9月29日",
       "birthplace": "浙江 宁波",
       "jtime": "2025/10/8",
-      "ptime": "2025/10/8",
       "class": "8",
       "isInGroup": true
     },
@@ -11446,7 +11440,6 @@
       "birthday": "2006年1月4日",
       "birthplace": "广东 云浮",
       "jtime": "2025/10/8",
-      "ptime": "2025/10/8",
       "class": "4",
       "note": "身份证所载出生日期为2007年1月4日",
       "isInGroup": true
@@ -11464,7 +11457,6 @@
       "birthday": "2009年12月24日",
       "birthplace": "广西",
       "jtime": "2025/10/8",
-      "ptime": "2025/10/8",
       "class": "4",
       "isInGroup": true
     },
@@ -11481,7 +11473,6 @@
       "birthday": "2005年12月24日",
       "birthplace": "广东 惠州",
       "jtime": "2025/10/8",
-      "ptime": "2025/10/8",
       "class": "8",
       "isInGroup": true
     },
@@ -11498,7 +11489,6 @@
       "birthday": "2004年1月31日",
       "birthplace": "广东 深圳",
       "jtime": "2025/10/8",
-      "ptime": "2025/10/8",
       "class": "8",
       "isInGroup": true
     },
@@ -11515,7 +11505,6 @@
       "birthday": "2009年6月29日",
       "birthplace": "广东 广州",
       "jtime": "2025/10/8",
-      "ptime": "2025/10/8",
       "class": "8",
       "isInGroup": true
     },
@@ -11532,7 +11521,6 @@
       "birthday": "2005年2月19日",
       "birthplace": "江西 上饶",
       "jtime": "2025/10/8",
-      "ptime": "2025/10/8",
       "class": "4",
       "isInGroup": true
     },
@@ -11723,14 +11711,15 @@
       "ownerName": "陈嘉仪",
       "serverId": 29298737,
       "channelId": 36376935,
-      "team": "预备生",
-      "teamId": 1007,
+      "team": "TEAM HII",
+      "teamId": 1003,
       "groupName": "SNH48",
       "periodName": "SNH48 二十三期生",
       "pinyin": "ChenJiaYi",
       "birthday": "2005年1月10日",
       "birthplace": "重庆",
-      "ptime": "2025/10/5",
+      "jtime": "2025/10/5",
+      "ptime": "2026/2/8",
       "isInGroup": true
     },
     {
@@ -11745,7 +11734,7 @@
       "pinyin": "ZengXueTing",
       "birthday": "2005年3月13日",
       "birthplace": "湖南 株洲",
-      "ptime": "2025/10/5",
+      "jtime": "2025/10/5",
       "isInGroup": true
     },
     {
@@ -11760,7 +11749,7 @@
       "pinyin": "ZengXinYan",
       "birthday": "2003年5月26日",
       "birthplace": "湖南 衡阳",
-      "ptime": "2025/10/5",
+      "jtime": "2025/10/5",
       "isInGroup": true
     },
     {
@@ -11773,7 +11762,7 @@
       "pinyin": "DengJiaNan",
       "birthday": "2008年7月26日",
       "birthplace": "河北 保定",
-      "ptime": "2025/10/5",
+      "jtime": "2025/10/5",
       "isInGroup": false
     },
     {
@@ -11788,7 +11777,7 @@
       "pinyin": "HuangZiXin",
       "birthday": "2007年5月22日",
       "birthplace": "上海",
-      "ptime": "2025/10/5",
+      "jtime": "2025/10/5",
       "isInGroup": true
     },
     {
@@ -11803,7 +11792,7 @@
       "pinyin": "JiangXinRu",
       "birthday": "2007年7月4日",
       "birthplace": "四川 眉山",
-      "ptime": "2025/10/5",
+      "jtime": "2025/10/5",
       "isInGroup": true
     },
     {
@@ -11818,7 +11807,7 @@
       "pinyin": "KangShengJie",
       "birthday": "2006年12月23日",
       "birthplace": "江西",
-      "ptime": "2025/10/5",
+      "jtime": "2025/10/5",
       "isInGroup": true
     },
     {
@@ -11833,7 +11822,7 @@
       "pinyin": "LiJiChun",
       "birthday": "2005年7月5日",
       "birthplace": "天津",
-      "ptime": "2025/10/5",
+      "jtime": "2025/10/5",
       "isInGroup": true
     },
     {
@@ -11848,7 +11837,7 @@
       "pinyin": "LiuJingYang",
       "birthday": "2003年10月1日",
       "birthplace": "江西 新余",
-      "ptime": "2025/10/5",
+      "jtime": "2025/10/5",
       "isInGroup": true
     },
     {
@@ -11863,7 +11852,7 @@
       "pinyin": "LiuRuoXi",
       "birthday": "2003年9月26日",
       "birthplace": "浙江 湖州",
-      "ptime": "2025/10/5",
+      "jtime": "2025/10/5",
       "isInGroup": true
     },
     {
@@ -11871,14 +11860,15 @@
       "ownerName": "刘思雨",
       "serverId": 29233911,
       "channelId": 36311659,
-      "team": "预备生",
-      "teamId": 1007,
+      "team": "TEAM HII",
+      "teamId": 1003,
       "groupName": "SNH48",
       "periodName": "SNH48 二十三期生",
       "pinyin": "LiuSiYu",
       "birthday": "2007年4月17日",
       "birthplace": "湖北 孝感",
-      "ptime": "2025/10/5",
+      "jtime": "2025/10/5",
+      "ptime": "2026/2/8",
       "isInGroup": true
     },
     {
@@ -11886,14 +11876,15 @@
       "ownerName": "李婷",
       "serverId": 29266435,
       "channelId": 36393209,
-      "team": "预备生",
-      "teamId": 1007,
+      "team": "TEAM SII",
+      "teamId": 1001,
       "groupName": "SNH48",
       "periodName": "SNH48 二十三期生",
       "pinyin": "LiTing",
       "birthday": "2004年2月8日",
       "birthplace": "江西 上饶",
-      "ptime": "2025/10/5",
+      "jtime": "2025/10/5",
+      "ptime": "2026/2/8",
       "isInGroup": true
     },
     {
@@ -11908,7 +11899,7 @@
       "pinyin": "ShenXin",
       "birthday": "2006年2月20日",
       "birthplace": "江苏 淮安",
-      "ptime": "2025/10/5",
+      "jtime": "2025/10/5",
       "isInGroup": true
     },
     {
@@ -11923,7 +11914,7 @@
       "pinyin": "XuJiaLin",
       "birthday": "2007年3月12日",
       "birthplace": "湖南 邵阳",
-      "ptime": "2025/10/5",
+      "jtime": "2025/10/5",
       "isInGroup": true
     },
     {
@@ -11938,7 +11929,7 @@
       "pinyin": "XuXiaoXu",
       "birthday": "2005年7月29日",
       "birthplace": "广西 桂林",
-      "ptime": "2025/10/5",
+      "jtime": "2025/10/5",
       "isInGroup": false
     },
     {
@@ -11953,7 +11944,7 @@
       "pinyin": "ZhongGuoFeiYang",
       "birthday": "2005年8月26日",
       "birthplace": "浙江 杭州",
-      "ptime": "2025/10/5",
+      "jtime": "2025/10/5",
       "isInGroup": true
     },
     {
@@ -11968,7 +11959,7 @@
       "pinyin": "ZhengKeWei",
       "birthday": "2003年10月6日",
       "birthplace": "浙江 衢州",
-      "ptime": "2025/10/5",
+      "jtime": "2025/10/5",
       "isInGroup": true
     },
     {
@@ -12311,7 +12302,7 @@
       "pinyin": "WangBeiNi",
       "birthday": "1996年1月16日",
       "birthplace": "安徽",
-      "ptime": "2019年11月29日",
+      "ptime": "2019/11/29",
       "qtime": "2020/6/13",
       "isInGroup": false
     },
@@ -12671,7 +12662,7 @@
       "pinyin": "ChenLeTian",
       "birthday": "1996年6月19日",
       "jtime": "2017/4/29",
-      "qtime": "2020-4-前",
+      "qtime": "2020/4/1",
       "note": "资料删除",
       "isInGroup": false
     },
