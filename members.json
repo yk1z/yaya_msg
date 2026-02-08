@@ -2759,6 +2759,7 @@
       "groupName": "IDFT",
       "periodName": "GNZ48 一期生",
       "pinyin": "HuangLiRong",
+      "jtime": "2016/10/1",
       "isInGroup": false
     },
     {
@@ -2770,6 +2771,7 @@
       "periodName": "GNZ48 一期生",
       "pinyin": "XiangYun",
       "birthday": "1999年6月10日",
+      "jtime": "2016/10/1",
       "qtime": "2019/1/19",
       "note": "资料删除",
       "isInGroup": false
@@ -2783,6 +2785,7 @@
       "periodName": "GNZ48 一期生",
       "pinyin": "LiYiHong",
       "birthday": "2000年10月13日",
+      "jtime": "2016/10/1",
       "qtime": "2019/1/19",
       "note": "资料删除",
       "isInGroup": false
@@ -2802,6 +2805,7 @@
       "liveRoomId": 5081868,
       "birthday": "1997年10月8日",
       "birthplace": "四川 成都",
+      "jtime": "2016/10/1",
       "ptime": "2016/10/23",
       "qtime": "2023/6/2",
       "rank": "GNZ48 第13名",
@@ -2816,6 +2820,7 @@
       "periodName": "GNZ48 一期生",
       "pinyin": "ChenZiYing",
       "birthday": "1999年1月7日",
+      "jtime": "2016/10/1",
       "qtime": "2019/1/19",
       "note": "资料删除",
       "isInGroup": false
@@ -2828,6 +2833,7 @@
       "groupName": "IDFT",
       "periodName": "GNZ48 一期生",
       "pinyin": "DaiLing",
+      "jtime": "2016/10/1",
       "isInGroup": false
     },
     {
@@ -2840,6 +2846,7 @@
       "pinyin": "DuQiuLin",
       "birthday": "1998年8月24日",
       "birthplace": "四川 巴中",
+      "jtime": "2016/10/1",
       "ptime": "2016/10/23",
       "qtime": "2019/3/29",
       "rank": "GNZ48 第13名",
@@ -2855,6 +2862,7 @@
       "pinyin": "LiuJiaYi",
       "birthday": "2002年7月19日",
       "birthplace": "湖南 长沙",
+      "jtime": "2016/10/1",
       "ptime": "2016/10/23",
       "qtime": "2018/8/10",
       "isInGroup": false
@@ -2866,15 +2874,17 @@
       "ownerName": "龙亦瑞",
       "serverId": 1099632,
       "channelId": 1361128,
-      "team": "TEAM Z",
-      "teamId": 1203,
+      "team": "荣誉毕业生",
+      "teamId": 1204,
       "groupName": "GNZ48",
       "periodName": "GNZ48 一期生",
       "pinyin": "LongYiRui",
       "liveRoomId": 5081871,
       "birthday": "1995年10月2日",
       "birthplace": "四川 成都",
+      "jtime": "2016/10/1",
       "ptime": "2016/10/23",
+      "class": "8",
       "rank": "35",
       "note": "队长",
       "isInGroup": true
@@ -2894,6 +2904,7 @@
       "liveRoomId": 5081873,
       "birthday": "1994年7月30日",
       "birthplace": "广西 南宁",
+      "jtime": "2016/10/1",
       "gtime": "2024/9/28",
       "rank": "33",
       "isInGroup": false
@@ -2913,6 +2924,7 @@
       "liveRoomId": 5083254,
       "birthday": "2000年2月21日",
       "birthplace": "广东 广州",
+      "jtime": "2016/10/1",
       "ptime": "2016/10/23",
       "qtime": "2024/10/15",
       "isInGroup": false
@@ -2927,6 +2939,7 @@
       "pinyin": "WangJiongYi",
       "birthday": "2000年6月5日",
       "birthplace": "新疆",
+      "jtime": "2016/10/1",
       "ptime": "2016/10/23",
       "qtime": "2022/1/11",
       "rank": "GNZ48 第16名",
@@ -2947,6 +2960,7 @@
       "liveRoomId": 5080436,
       "birthday": "2001年2月19日",
       "birthplace": "江苏 南京",
+      "jtime": "2016/10/1",
       "ptime": "2016/10/23",
       "qtime": "2023/6/2",
       "rank": "GNZ48 第15名",
@@ -2962,6 +2976,7 @@
       "pinyin": "WangYing",
       "birthday": "1997年6月15日",
       "birthplace": "陕西 渭南",
+      "jtime": "2016/10/1",
       "ptime": "2016/10/23",
       "qtime": "2018/8/10",
       "isInGroup": false
@@ -2980,7 +2995,9 @@
       "liveRoomId": 5083255,
       "birthday": "2000年10月3日",
       "birthplace": "广东 韶关",
+      "jtime": "2016/10/1",
       "ptime": "2016/10/23",
+      "class": "8",
       "rank": "36",
       "note": "原Team Z",
       "isInGroup": true
@@ -2999,7 +3016,9 @@
       "liveRoomId": 5084349,
       "birthday": "1999年8月10日",
       "birthplace": "湖北 武汉",
+      "jtime": "2016/10/1",
       "ptime": "2016/10/23",
+      "class": "8",
       "rank": "29",
       "note": "原Team Z",
       "isInGroup": true
@@ -3019,7 +3038,9 @@
       "liveRoomId": 5082313,
       "birthday": "1996年12月17日",
       "birthplace": "四川 成都",
+      "jtime": "2016/10/1",
       "ptime": "2016/10/23",
+      "class": "8",
       "rank": "38",
       "isInGroup": true
     },
@@ -3032,6 +3053,7 @@
       "periodName": "GNZ48 一期生",
       "pinyin": "YuShanShan",
       "birthday": "2000年10月3日",
+      "jtime": "2016/10/1",
       "qtime": "2019/1/19",
       "note": "资料删除",
       "isInGroup": false
@@ -3046,6 +3068,7 @@
       "pinyin": "ZhangXinYu",
       "birthday": "1996年3月24日",
       "birthplace": "陕西 西安",
+      "jtime": "2016/10/1",
       "ptime": "2016/10/23",
       "qtime": "2017/10/11",
       "isInGroup": false
@@ -3058,6 +3081,7 @@
       "groupName": "IDFT",
       "periodName": "GNZ48 一期生",
       "pinyin": "ZhaoXinYu",
+      "jtime": "2016/10/1",
       "isInGroup": false
     },
     {
@@ -3073,6 +3097,7 @@
       "periodName": "GNZ48 一期生",
       "pinyin": "ZhaoYiMin",
       "liveRoomId": 5084202,
+      "jtime": "2016/10/1",
       "isInGroup": false
     },
     {
@@ -3878,6 +3903,7 @@
       "periodName": "GNZ48 二期生",
       "pinyin": "ChenJiaYing",
       "birthday": "2002年8月16日",
+      "jtime": "2017/4/29",
       "qtime": "2022/3/9",
       "note": "资料删除",
       "isInGroup": false
@@ -3892,6 +3918,7 @@
       "pinyin": "ChenJunHong",
       "birthday": "2000年9月28日",
       "birthplace": "湖北 武汉",
+      "jtime": "2017/4/29",
       "ptime": "2017/4/29",
       "qtime": "2019/5/25",
       "isInGroup": false
@@ -3905,6 +3932,7 @@
       "periodName": "GNZ48 二期生",
       "pinyin": "ChengYiXin",
       "birthday": "1996年6月19日",
+      "jtime": "2017/4/29",
       "qtime": "2019/1/19",
       "note": "资料删除",
       "isInGroup": false
@@ -3919,6 +3947,7 @@
       "pinyin": "FangXiaoYu",
       "birthday": "1996年3月4日",
       "birthplace": "陕西 西安",
+      "jtime": "2017/4/29",
       "ptime": "2017/4/29",
       "qtime": "2019/1/19",
       "isInGroup": false
@@ -3938,6 +3967,7 @@
       "liveRoomId": 8756487,
       "birthday": "2000年10月27日",
       "birthplace": "重庆",
+      "jtime": "2017/4/29",
       "qtime": "2024/6/15",
       "rank": "CKG48 第1名",
       "isInGroup": false
@@ -3951,6 +3981,7 @@
       "periodName": "GNZ48 二期生",
       "pinyin": "LaiJunYi",
       "birthday": "2002年7月28日",
+      "jtime": "2017/4/29",
       "qtime": "2019/1/19",
       "note": "移籍IDOLS Ft",
       "isInGroup": false
@@ -3963,6 +3994,7 @@
       "groupName": "IDFT",
       "periodName": "GNZ48 二期生",
       "pinyin": "LiangKe",
+      "jtime": "2017/4/29",
       "isInGroup": false
     },
     {
@@ -3974,6 +4006,7 @@
       "periodName": "GNZ48 二期生",
       "pinyin": "LiuXiaoMo",
       "birthday": "1999年11月26日",
+      "jtime": "2017/4/29",
       "qtime": "2019/1/19",
       "note": "资料删除",
       "isInGroup": false
@@ -3988,6 +4021,7 @@
       "pinyin": "TangShiYi",
       "birthday": "1997年7月16日",
       "birthplace": "吉林 延边",
+      "jtime": "2017/4/29",
       "ptime": "2017/4/29",
       "qtime": "2019/1/19",
       "isInGroup": false
@@ -4002,6 +4036,7 @@
       "pinyin": "XieAiLin",
       "birthday": "1996年12月28日",
       "birthplace": "广东 潮州",
+      "jtime": "2017/4/29",
       "ptime": "2017/4/29",
       "qtime": "2022/3/1",
       "isInGroup": false
@@ -4016,6 +4051,7 @@
       "pinyin": "ZhangQiuYi",
       "birthday": "1999年10月12日",
       "birthplace": "广东 深圳",
+      "jtime": "2017/4/29",
       "ptime": "2017/4/29",
       "qtime": "2020/6/13",
       "isInGroup": false
@@ -4030,6 +4066,7 @@
       "pinyin": "ZhengYue",
       "birthday": "1997年8月11日",
       "birthplace": "安徽",
+      "jtime": "2017/4/29",
       "ptime": "2017/4/29",
       "qtime": "2019/1/19",
       "isInGroup": false
@@ -4049,7 +4086,9 @@
       "liveRoomId": 8752975,
       "birthday": "1998年4月22日",
       "birthplace": "浙江 金华",
+      "jtime": "2017/4/29",
       "ptime": "2017-4-29/\n2018-8-10/\n2022-8-23",
+      "class": "8",
       "rank": "4",
       "note": "原Team G\r\n原Team NIII\r\n2018年5月14日降格为预备生\r\n（2018年8月10日升格并重返Team G）\r\n2022年4月19日降格为预备生\r\n（2022年8月23日升格并加入Team NIII）",
       "isInGroup": true
@@ -4191,6 +4230,7 @@
       "liveRoomId": 18715288,
       "birthday": "1998年10月12日",
       "birthplace": "广西 桂林",
+      "jtime": "2017/10/1",
       "ptime": "2017/12/31",
       "qtime": "2023/6/2",
       "rank": "39",
@@ -4220,6 +4260,7 @@
       "pinyin": "BiRuiShan",
       "birthday": "2003年1月13日",
       "birthplace": "辽宁 大连",
+      "jtime": "2017/10/1",
       "ptime": "2017/12/31",
       "qtime": "2019/5/25",
       "isInGroup": false
@@ -4232,6 +4273,7 @@
       "groupName": "IDFT",
       "periodName": "GNZ48 三期生",
       "pinyin": "ChengZiYu",
+      "jtime": "2017/10/1",
       "isInGroup": false
     },
     {
@@ -4249,6 +4291,7 @@
       "liveRoomId": 18718150,
       "birthday": "1997年3月23日",
       "birthplace": "广东 深圳",
+      "jtime": "2017/10/1",
       "ptime": "2019/1/19",
       "qtime": "2025/8/31",
       "isInGroup": false
@@ -4268,6 +4311,7 @@
       "liveRoomId": 18703998,
       "birthday": "2000年8月21日",
       "birthplace": "广东 湛江",
+      "jtime": "2017/10/1",
       "ptime": "2018/10/5",
       "qtime": "2025/8/31",
       "isInGroup": false
@@ -4287,7 +4331,9 @@
       "liveRoomId": 18706927,
       "birthday": "2000年1月20日",
       "birthplace": "广东 中山",
+      "jtime": "2017/10/1",
       "ptime": "2018/6/1",
+      "class": "4",
       "rank": "22",
       "isInGroup": true
     },
@@ -4301,6 +4347,7 @@
       "pinyin": "HeMengYao",
       "birthday": "1998年5月12日",
       "birthplace": "湖北 宜昌",
+      "jtime": "2017/10/1",
       "ptime": "2017/12/31",
       "qtime": "2019/5/25",
       "isInGroup": false
@@ -4320,6 +4367,7 @@
       "liveRoomId": 18718155,
       "birthday": "2002年2月2日",
       "birthplace": "台湾 嘉义",
+      "jtime": "2017/10/1",
       "ptime": "2018/10/26",
       "qtime": "2024/5/12",
       "isInGroup": false
@@ -4339,6 +4387,7 @@
       "liveRoomId": 18706930,
       "birthday": "1999年11月21日",
       "birthplace": "江西 南昌",
+      "jtime": "2017/10/1",
       "ptime": "2025/1/21",
       "qtime": "2025/8/31",
       "isInGroup": false
@@ -4353,6 +4402,7 @@
       "pinyin": "WangMuYuan",
       "birthday": "1997年12月26日",
       "birthplace": "浙江 衢州",
+      "jtime": "2017/10/1",
       "qtime": "2019/1/19",
       "isInGroup": false
     },
@@ -4371,6 +4421,7 @@
       "liveRoomId": 18718159,
       "birthday": "2000年7月28日",
       "birthplace": "福建 龙岩",
+      "jtime": "2017/10/1",
       "ptime": "2018/6/1",
       "qtime": "2025/5/23",
       "rank": "31",
@@ -4386,6 +4437,7 @@
       "pinyin": "YeXiaoMeng",
       "birthday": "2002年11月29日",
       "birthplace": "广东 韶关",
+      "jtime": "2017/10/1",
       "ptime": "2018/6/1",
       "qtime": "2019/1/19",
       "isInGroup": false
@@ -4400,6 +4452,7 @@
       "pinyin": "YuZhiYuan",
       "birthday": "2002年12月8日",
       "birthplace": "湖南",
+      "jtime": "2017/10/1",
       "ptime": "2017/12/31",
       "qtime": "2019/5/25",
       "isInGroup": false
@@ -4993,6 +5046,7 @@
       "birthday": "1997年10月27日",
       "birthplace": "黑龙江 漠河",
       "ptime": "2024/2/24",
+      "class": "8",
       "note": "原SHY48Team HIII\r\n原BEJ48 Team B\r\n原SNH48 Team HII\r\n原IDOLS Ft",
       "isInGroup": true
     },
@@ -5053,6 +5107,7 @@
       "pinyin": "LiChenXi",
       "birthday": "2000年9月1日",
       "birthplace": "福建 厦门",
+      "jtime": "2017/11/23",
       "qtime": "2019/1/19",
       "isInGroup": false
     },
@@ -5064,6 +5119,7 @@
       "groupName": "IDFT",
       "periodName": "GNZ48 四期生",
       "pinyin": "ShuXiang",
+      "jtime": "2017/11/23",
       "isInGroup": false
     },
     {
@@ -5076,6 +5132,7 @@
       "pinyin": "WangMengYuan",
       "birthday": "2004年8月27日",
       "birthplace": "广东 深圳",
+      "jtime": "2017/11/23",
       "qtime": "2019/1/19",
       "isInGroup": false
     },
@@ -5089,6 +5146,7 @@
       "pinyin": "XuJiaYin",
       "birthday": "2000年8月18日",
       "birthplace": "福建 厦门",
+      "jtime": "2017/11/23",
       "ptime": "2018/10/26",
       "qtime": "2020/11/17",
       "isInGroup": false
@@ -5103,6 +5161,7 @@
       "pinyin": "XiaoWenJing",
       "birthday": "2002年10月21日",
       "birthplace": "四川 成都",
+      "jtime": "2017/11/23",
       "qtime": "2019/1/19",
       "isInGroup": false
     },
@@ -5114,6 +5173,7 @@
       "groupName": "IDFT",
       "periodName": "GNZ48 四期生",
       "pinyin": "ZhangZiYing",
+      "jtime": "2017/11/23",
       "isInGroup": false
     },
     {
@@ -5693,6 +5753,7 @@
       "pinyin": "GuoYiNing",
       "birthday": "2000年9月8日",
       "birthplace": "陕西 宝鸡",
+      "jtime": "2018/4/29",
       "ptime": "2019/1/19",
       "qtime": "2020/6/13",
       "isInGroup": false
@@ -5712,7 +5773,9 @@
       "liveRoomId": 26707180,
       "birthday": "2003年11月1日",
       "birthplace": "四川 成都",
+      "jtime": "2018/4/29",
       "ptime": "2019/1/19",
+      "class": "4",
       "rank": "30",
       "note": "双胞胎梁乔的姐姐",
       "isInGroup": true
@@ -5732,7 +5795,9 @@
       "liveRoomId": 26657866,
       "birthday": "2003年11月1日",
       "birthplace": "四川 成都",
+      "jtime": "2018/4/29",
       "ptime": "2019/1/19",
+      "class": "8",
       "rank": "44",
       "note": "副队长\r\n双胞胎梁娇的妹妹",
       "isInGroup": true
@@ -5745,6 +5810,7 @@
       "groupName": "IDFT",
       "periodName": "GNZ48 五期生",
       "pinyin": "MenXiuTian",
+      "jtime": "2018/4/29",
       "isInGroup": false
     },
     {
@@ -5762,6 +5828,7 @@
       "liveRoomId": 25749010,
       "birthday": "2000年1月18日",
       "birthplace": "广东 汕尾",
+      "jtime": "2018/4/29",
       "ptime": "2019/1/19",
       "qtime": "2024/5/12",
       "isInGroup": false
@@ -5774,6 +5841,7 @@
       "groupName": "IDFT",
       "periodName": "GNZ48 五期生",
       "pinyin": "ZhangZeTing",
+      "jtime": "2018/4/29",
       "isInGroup": false
     },
     {
@@ -5892,6 +5960,7 @@
       "birthday": "1999年6月12日",
       "birthplace": "江西 景德镇",
       "ptime": "2018/11/3",
+      "class": "4",
       "rank": "25",
       "note": "原CKG48 Team K\r\n原Team Z",
       "isInGroup": true
@@ -6132,6 +6201,7 @@
       "pinyin": "DengManHui",
       "birthday": "2000年9月22日",
       "birthplace": "湖南 张家界",
+      "jtime": "2018/10/5",
       "ptime": "2019/1/19",
       "qtime": "2020/6/13",
       "isInGroup": false
@@ -6151,6 +6221,7 @@
       "liveRoomId": 61644507,
       "birthday": "1999年10月25日",
       "birthplace": "江西 赣州",
+      "jtime": "2018/10/5",
       "ptime": "2019/1/19",
       "rank": "12",
       "note": "原Team G",
@@ -6169,6 +6240,7 @@
       "periodName": "GNZ48 六期生",
       "pinyin": "YanYuDie",
       "liveRoomId": 63787130,
+      "jtime": "2018/10/5",
       "isInGroup": false
     },
     {
@@ -6186,6 +6258,7 @@
       "liveRoomId": 61565785,
       "birthday": "2001年11月15日",
       "birthplace": "四川 成都",
+      "jtime": "2018/10/5",
       "ptime": "2019/1/19",
       "qtime": "2025/6/15",
       "rank": "23",
@@ -6431,6 +6504,7 @@
       "pinyin": "LvManFei",
       "birthday": "2007年3月25日",
       "birthplace": "广东 深圳",
+      "jtime": "2020/10/1",
       "ptime": "2021/5/3",
       "qtime": "2022/1/24",
       "isInGroup": false
@@ -6629,6 +6703,7 @@
       "periodName": "GNZ48 九期生",
       "pinyin": "JiangXinYao",
       "liveRoomId": 388398090,
+      "jtime": "2021/1/1",
       "isInGroup": false
     },
     {
@@ -6644,6 +6719,7 @@
       "periodName": "GNZ48 九期生",
       "pinyin": "JiangYuHang",
       "liveRoomId": 382284342,
+      "jtime": "2021/1/1",
       "isInGroup": false
     },
     {
@@ -6660,7 +6736,9 @@
       "liveRoomId": 384280615,
       "birthday": "1999年11月28日",
       "birthplace": "黑龙江 哈尔滨",
+      "jtime": "2021/1/1",
       "ptime": "2025/1/21",
+      "class": "8",
       "rank": "53",
       "note": "原IDOLS Ft",
       "isInGroup": true
@@ -6675,6 +6753,7 @@
       "pinyin": "WangYan",
       "birthday": "1999年8月1日",
       "birthplace": "河南",
+      "jtime": "2021/1/1",
       "qtime": "2021/11/8",
       "isInGroup": false
     },
@@ -6798,6 +6877,7 @@
       "liveRoomId": 396559479,
       "birthday": "2000年2月6日",
       "birthplace": "四川 成都",
+      "jtime": "2021/5/3",
       "ptime": "2021/11/7",
       "qtime": "2022/8/14",
       "isInGroup": false
@@ -6817,6 +6897,7 @@
       "liveRoomId": 396751583,
       "birthday": "2001年8月2日",
       "birthplace": "贵州",
+      "jtime": "2021/5/3",
       "ptime": "2021/12/31",
       "qtime": "2023/3/2",
       "isInGroup": false
@@ -6835,7 +6916,9 @@
       "liveRoomId": 396759042,
       "birthday": "2002年7月9日",
       "birthplace": "江西 上饶",
+      "jtime": "2021/5/3",
       "ptime": "2024/2/24",
+      "class": "8",
       "note": "队长\r\n原IDOLS Ft",
       "isInGroup": true
     },
@@ -7214,6 +7297,7 @@
       "liveRoomId": 1108116916,
       "birthday": "2002年1月26日",
       "birthplace": "澳门",
+      "jtime": "2021/12/25",
       "ptime": "2023/1/15",
       "isInGroup": false
     },
@@ -7232,6 +7316,7 @@
       "liveRoomId": 1002342131,
       "birthday": "2002年12月8日",
       "birthplace": "广东 深圳",
+      "jtime": "2021/12/25",
       "qtime": "2023/8/14",
       "isInGroup": false
     },
@@ -7250,7 +7335,9 @@
       "liveRoomId": 1344259875,
       "birthday": "2006年6月30日",
       "birthplace": "广东 深圳",
+      "jtime": "2021/12/25",
       "ptime": "2023/1/15",
+      "class": "4",
       "note": "副队长",
       "isInGroup": true
     },
@@ -7269,6 +7356,7 @@
       "liveRoomId": 1245480953,
       "birthday": "2001年9月19日",
       "birthplace": "广东 江门",
+      "jtime": "2021/12/25",
       "qtime": "2023/1/16",
       "isInGroup": false
     },
@@ -7337,6 +7425,7 @@
       "liveRoomId": 1697203554,
       "birthday": "2002年7月10日",
       "birthplace": "广东 广州",
+      "jtime": "2022/5/4",
       "ptime": "2023/1/15",
       "isInGroup": false
     },
@@ -7446,7 +7535,9 @@
       "liveRoomId": 2459617057,
       "birthday": "2006年2月23日",
       "birthplace": "广东 广州",
+      "jtime": "2022/10/2",
       "ptime": "2024/2/24",
+      "class": "4",
       "isInGroup": true
     },
     {
@@ -7464,6 +7555,7 @@
       "liveRoomId": 2459584453,
       "birthday": "1999年2月7日",
       "birthplace": "河北 石家庄",
+      "jtime": "2022/10/2",
       "ptime": "2023/6/2",
       "note": "原GNZ48预备生",
       "isInGroup": true
@@ -7483,6 +7575,7 @@
       "liveRoomId": 2465597296,
       "birthday": "2002年10月23日",
       "birthplace": "重庆",
+      "jtime": "2022/10/2",
       "ptime": "2023/6/2",
       "note": "原GNZ48预备生",
       "isInGroup": true
@@ -7502,6 +7595,7 @@
       "liveRoomId": 2700100781,
       "birthday": "2006年11月10日",
       "birthplace": "广西 南宁",
+      "jtime": "2022/10/2",
       "ptime": "2023/6/2",
       "qtime": "2023/11/21",
       "isInGroup": false
@@ -7521,7 +7615,9 @@
       "liveRoomId": 2465564370,
       "birthday": "2004年11月17日",
       "birthplace": "重庆",
+      "jtime": "2022/10/2",
       "ptime": "2023/1/15",
+      "class": "4",
       "rank": "46",
       "isInGroup": true
     },
@@ -7540,7 +7636,9 @@
       "liveRoomId": 2465597285,
       "birthday": "2004年8月9日",
       "birthplace": "广西 柳州",
+      "jtime": "2022/10/2",
       "ptime": "2024/2/24",
+      "class": "4",
       "isInGroup": true
     },
     {
@@ -7558,6 +7656,7 @@
       "liveRoomId": 2459534574,
       "birthday": "2002年6月29日",
       "birthplace": "贵州 贵阳",
+      "jtime": "2022/10/2",
       "ptime": "2023/6/2",
       "qtime": "2025/5/2",
       "isInGroup": false
@@ -7577,6 +7676,7 @@
       "liveRoomId": 2459944884,
       "birthday": "2003年2月27日",
       "birthplace": "四川 南充",
+      "jtime": "2022/10/2",
       "ptime": "2023/6/2",
       "qtime": "2024/8/11",
       "isInGroup": false
@@ -7596,6 +7696,7 @@
       "liveRoomId": 2465465662,
       "birthday": "2001年7月29日",
       "birthplace": "四川 泸州",
+      "jtime": "2022/10/2",
       "ptime": "2023/6/2",
       "note": "原GNZ48预备生",
       "isInGroup": true
@@ -7615,6 +7716,7 @@
       "liveRoomId": 2459960536,
       "birthday": "2002年12月4日",
       "birthplace": "江西 赣州",
+      "jtime": "2022/10/2",
       "ptime": "2023/6/2",
       "note": "原GNZ48预备生",
       "isInGroup": true
@@ -7634,6 +7736,7 @@
       "liveRoomId": 2465940713,
       "birthday": "2002年8月17日",
       "birthplace": "四川 成都",
+      "jtime": "2022/10/2",
       "ptime": "2023/6/2",
       "note": "原GNZ48预备生",
       "isInGroup": true
@@ -7653,6 +7756,7 @@
       "liveRoomId": 2459977331,
       "birthday": "2004年1月23日",
       "birthplace": "重庆",
+      "jtime": "2022/10/2",
       "ptime": "2023/6/2",
       "note": "原GNZ48预备生",
       "isInGroup": true
@@ -7672,6 +7776,7 @@
       "liveRoomId": 2459912003,
       "birthday": "2001年11月14日",
       "birthplace": "湖南 株洲市",
+      "jtime": "2022/10/2",
       "ptime": "2023/6/2",
       "rank": "28",
       "note": "兼任SNH48 Team HII\r\n前齐鼓文化练习生\r\n曾参加创造营2020\r\n原GNZ48预备生",
@@ -7692,7 +7797,9 @@
       "liveRoomId": 2466022879,
       "birthday": "2002年5月18日",
       "birthplace": "重庆",
+      "jtime": "2022/10/2",
       "ptime": "2023/1/15",
+      "class": "8",
       "rank": "28",
       "note": "身份证所载出生日期为2001年5月18日",
       "isInGroup": true
@@ -7712,6 +7819,7 @@
       "liveRoomId": 2465990576,
       "birthday": "1999年5月1日",
       "birthplace": "湖北 武汉",
+      "jtime": "2022/10/2",
       "ptime": "2023/6/2",
       "note": "原GNZ48预备生",
       "isInGroup": true
@@ -7731,6 +7839,7 @@
       "liveRoomId": 2465973263,
       "birthday": "2000年8月22日",
       "birthplace": "四川 内江",
+      "jtime": "2022/10/2",
       "ptime": "2023/6/2",
       "rank": "65",
       "note": "原GNZ48预备生",
@@ -7751,7 +7860,9 @@
       "liveRoomId": 2459977432,
       "birthday": "2002年10月30日",
       "birthplace": "广东 韶关",
+      "jtime": "2022/10/2",
       "ptime": "2024/7/21",
+      "class": "8",
       "note": "叶晓梦的堂姐",
       "isInGroup": true
     },
@@ -7769,6 +7880,7 @@
       "pinyin": "ZhongJieMin",
       "liveRoomId": 2459960480,
       "birthday": "2003年6月5日",
+      "jtime": "2022/10/2",
       "gtime": "2024/6/8",
       "note": "资料删除",
       "isInGroup": false
@@ -7788,6 +7900,7 @@
       "liveRoomId": 2465925093,
       "birthday": "1997年8月20日",
       "birthplace": "陕西 咸阳",
+      "jtime": "2022/10/2",
       "ptime": "2023/6/2",
       "note": "前蜜蜂少女队成员\r\n原GNZ48预备生",
       "isInGroup": true
@@ -7805,6 +7918,7 @@
       "periodName": "GNZ48 十三期生",
       "pinyin": "ZhangZhiXin",
       "liveRoomId": 2465940501,
+      "jtime": "2022/10/2",
       "isInGroup": false
     },
     {
@@ -8102,7 +8216,9 @@
       "liveRoomId": 4281287782,
       "birthday": "2001年6月30日",
       "birthplace": "广东 深圳",
+      "jtime": "2023/5/7",
       "ptime": "2024/2/24",
+      "class": "4",
       "rank": "50",
       "isInGroup": true
     },
@@ -8121,6 +8237,7 @@
       "liveRoomId": 4280731370,
       "birthday": "2001年3月24日",
       "birthplace": "辽宁 大连",
+      "jtime": "2023/5/7",
       "qtime": "2023/9/28",
       "isInGroup": false
     },
@@ -8139,6 +8256,7 @@
       "liveRoomId": 4281255785,
       "birthday": "2001年3月22日",
       "birthplace": "安徽 合肥",
+      "jtime": "2023/5/7",
       "qtime": "2023/8/10",
       "isInGroup": false
     },
@@ -8876,7 +8994,9 @@
       "liveRoomId": 5780359112,
       "birthday": "2004年4月24日",
       "birthplace": "福建 厦门",
+      "jtime": "2023/10/6",
       "ptime": "2025/1/21",
+      "class": "8",
       "isInGroup": true
     },
     {
@@ -8893,7 +9013,9 @@
       "liveRoomId": 9070167540,
       "birthday": "2008年9月7日",
       "birthplace": "香港",
+      "jtime": "2023/10/6",
       "ptime": "2024/7/21",
+      "class": "4",
       "isInGroup": true
     },
     {
@@ -8910,6 +9032,7 @@
       "liveRoomId": 5780375385,
       "birthday": "2004年11月9日",
       "birthplace": "湖南 郴州",
+      "jtime": "2023/10/6",
       "qtime": "2024/5/12",
       "isInGroup": false
     },
@@ -8927,7 +9050,9 @@
       "liveRoomId": 5780178730,
       "birthday": "2004年12月2日",
       "birthplace": "湖南 长沙",
+      "jtime": "2023/10/6",
       "ptime": "2024/7/21",
+      "class": "8",
       "isInGroup": true
     },
     {
@@ -8944,7 +9069,9 @@
       "liveRoomId": 5786420477,
       "birthday": "2002年4月3日",
       "birthplace": "安徽 黄山",
+      "jtime": "2023/10/6",
       "ptime": "2024/7/21",
+      "class": "4",
       "rank": "64",
       "isInGroup": true
     },
@@ -9223,7 +9350,9 @@
       "liveRoomId": 6392890702,
       "birthday": "2003年12月16日",
       "birthplace": "江西 赣州",
+      "jtime": "2023/12/15",
       "ptime": "2024/8/11",
+      "class": "8",
       "isInGroup": true
     },
     {
@@ -9240,7 +9369,9 @@
       "liveRoomId": 6392825278,
       "birthday": "2003年1月26日",
       "birthplace": "湖南 益阳",
+      "jtime": "2023/12/15",
       "ptime": "2024/8/11",
+      "class": "4",
       "isInGroup": true
     },
     {
@@ -9553,7 +9684,9 @@
       "liveRoomId": 7855802220,
       "birthday": "2004年7月14日",
       "birthplace": "江苏 常州",
+      "jtime": "2024/5/17",
       "ptime": "2025/1/21",
+      "class": "4",
       "isInGroup": true
     },
     {
@@ -9570,6 +9703,7 @@
       "liveRoomId": 7855801367,
       "birthday": "2008年3月16日",
       "birthplace": "河南 洛阳",
+      "jtime": "2024/5/17",
       "ptime": "2024/5/17",
       "qtime": "2025/5/23",
       "isInGroup": false
@@ -9588,7 +9722,9 @@
       "liveRoomId": 7855654071,
       "birthday": "2007年7月23日",
       "birthplace": "江苏 苏州",
+      "jtime": "2024/5/17",
       "ptime": "2025/1/21",
+      "class": "4",
       "isInGroup": true
     },
     {
@@ -9603,6 +9739,7 @@
       "periodName": "GNZ48 十六期生",
       "pinyin": "YangYaWen",
       "liveRoomId": 7855736244,
+      "jtime": "2024/5/17",
       "isInGroup": false
     },
     {
@@ -9619,7 +9756,9 @@
       "liveRoomId": 7855949706,
       "birthday": "2002年11月12日",
       "birthplace": "湖北 黄石",
+      "jtime": "2024/5/17",
       "ptime": "2025/1/21",
+      "class": "8",
       "isInGroup": true
     },
     {
@@ -10019,7 +10158,9 @@
       "liveRoomId": 9149482626,
       "birthday": "2006年6月14日",
       "birthplace": "福建 厦门",
+      "jtime": "2024/9/15",
       "ptime": "2025/1/21",
+      "class": "4",
       "note": "身份证所载出生日期为2005年6月14日",
       "isInGroup": true
     },
@@ -10037,7 +10178,9 @@
       "liveRoomId": 9149973874,
       "birthday": "2004年7月25日",
       "birthplace": "浙江 台州",
+      "jtime": "2024/9/15",
       "ptime": "2025/1/21",
+      "class": "4",
       "isInGroup": true
     },
     {
@@ -10054,7 +10197,9 @@
       "liveRoomId": 9149711655,
       "birthday": "2006年4月8日",
       "birthplace": "湖南 长沙",
+      "jtime": "2024/9/15",
       "ptime": "2025/1/21",
+      "class": "4",
       "isInGroup": true
     },
     {
@@ -10071,6 +10216,7 @@
       "liveRoomId": 9150465362,
       "birthday": "2004年4月14日",
       "birthplace": "浙江 温州",
+      "jtime": "2024/9/15",
       "qtime": "2025/1/15",
       "isInGroup": false
     },
@@ -10087,7 +10233,9 @@
       "pinyin": "TangGuo",
       "birthday": "2009年1月1日",
       "birthplace": "湖南 邵阳",
+      "jtime": "2024/9/15",
       "ptime": "2025/1/21",
+      "class": "4",
       "isInGroup": true
     },
     {
@@ -10104,6 +10252,7 @@
       "liveRoomId": 9150973304,
       "birthday": "2004年4月20日",
       "birthplace": "山东 烟台",
+      "jtime": "2024/9/15",
       "ptime": "2025/1/21",
       "isInGroup": false
     },
@@ -10121,7 +10270,9 @@
       "liveRoomId": 9150105586,
       "birthday": "2001年11月16日",
       "birthplace": "广东 阳江",
+      "jtime": "2024/9/15",
       "ptime": "2025/1/21",
+      "class": "8",
       "isInGroup": true
     },
     {
@@ -10138,6 +10289,7 @@
       "liveRoomId": 9151055033,
       "birthday": "2004年6月2日",
       "birthplace": "浙江 杭州",
+      "jtime": "2024/9/15",
       "ptime": "2025/1/21",
       "isInGroup": true
     },
@@ -10639,7 +10791,9 @@
       "liveRoomId": 9428472829,
       "birthday": "2005年9月22日",
       "birthplace": "广东 茂名",
+      "jtime": "2025/1/1",
       "ptime": "2025/1/1",
+      "class": "8",
       "isInGroup": true
     },
     {
@@ -10656,6 +10810,7 @@
       "liveRoomId": 9428275690,
       "birthday": "2003年1月13日",
       "birthplace": "河北 邢台",
+      "jtime": "2025/1/1",
       "qtime": "2025/5/23",
       "isInGroup": false
     },
@@ -10672,7 +10827,9 @@
       "pinyin": "WanFangYuan",
       "birthday": "2006年10月28日",
       "birthplace": "广西 来宾",
+      "jtime": "2025/1/1",
       "ptime": "2025/1/1",
+      "class": "4",
       "isInGroup": true
     },
     {
@@ -10681,14 +10838,16 @@
       "ownerName": "张佳仪",
       "serverId": 18468953,
       "channelId": 24760836,
-      "team": "预备生",
-      "teamId": 1207,
+      "team": "TEAM NIII",
+      "teamId": 1202,
       "groupName": "GNZ48",
       "periodName": "GNZ48 十八期生",
       "pinyin": "ZhangJiaYi",
       "birthday": "2009年6月16日",
       "birthplace": "台湾 高雄",
+      "jtime": "2025/1/1",
       "ptime": "2025/1/1",
+      "class": "8",
       "isInGroup": true
     },
     {
@@ -10705,7 +10864,9 @@
       "liveRoomId": 9459716809,
       "birthday": "2007年2月6日",
       "birthplace": "重庆",
+      "jtime": "2025/1/1",
       "ptime": "2025/1/1",
+      "class": "4",
       "isInGroup": true
     },
     {
@@ -10722,7 +10883,9 @@
       "liveRoomId": 9468252673,
       "birthday": "2005年3月18日",
       "birthplace": "湖南 郴州",
+      "jtime": "2025/1/1",
       "ptime": "2025/1/1",
+      "class": "4",
       "isInGroup": true
     },
     {
@@ -11248,7 +11411,9 @@
       "pinyin": "DingZhenAoGuo",
       "birthday": "2008年6月5日",
       "birthplace": "湖南",
+      "jtime": "2025/10/8",
       "ptime": "2025/10/8",
+      "class": "4",
       "isInGroup": true
     },
     {
@@ -11263,7 +11428,9 @@
       "pinyin": "HanZiXuan",
       "birthday": "2002年9月29日",
       "birthplace": "浙江 宁波",
+      "jtime": "2025/10/8",
       "ptime": "2025/10/8",
+      "class": "8",
       "isInGroup": true
     },
     {
@@ -11278,7 +11445,9 @@
       "pinyin": "LiJiaMin",
       "birthday": "2006年1月4日",
       "birthplace": "广东 云浮",
+      "jtime": "2025/10/8",
       "ptime": "2025/10/8",
+      "class": "4",
       "note": "身份证所载出生日期为2007年1月4日",
       "isInGroup": true
     },
@@ -11294,7 +11463,9 @@
       "pinyin": "LiuLiuQian",
       "birthday": "2009年12月24日",
       "birthplace": "广西",
+      "jtime": "2025/10/8",
       "ptime": "2025/10/8",
+      "class": "4",
       "isInGroup": true
     },
     {
@@ -11309,7 +11480,9 @@
       "pinyin": "WeiShiQi",
       "birthday": "2005年12月24日",
       "birthplace": "广东 惠州",
+      "jtime": "2025/10/8",
       "ptime": "2025/10/8",
+      "class": "8",
       "isInGroup": true
     },
     {
@@ -11324,7 +11497,9 @@
       "pinyin": "WangZiXuan",
       "birthday": "2004年1月31日",
       "birthplace": "广东 深圳",
+      "jtime": "2025/10/8",
       "ptime": "2025/10/8",
+      "class": "8",
       "isInGroup": true
     },
     {
@@ -11339,7 +11514,9 @@
       "pinyin": "WangZiYuan",
       "birthday": "2009年6月29日",
       "birthplace": "广东 广州",
+      "jtime": "2025/10/8",
       "ptime": "2025/10/8",
+      "class": "8",
       "isInGroup": true
     },
     {
@@ -11347,14 +11524,16 @@
       "ownerName": "曾雨思",
       "serverId": 29299492,
       "channelId": 36426195,
-      "team": "预备生",
-      "teamId": 1207,
+      "team": "TEAM NIII",
+      "teamId": 1202,
       "groupName": "GNZ48",
       "periodName": "GNZ48 十九期生",
       "pinyin": "ZengYuSi",
       "birthday": "2005年2月19日",
       "birthplace": "江西 上饶",
+      "jtime": "2025/10/8",
       "ptime": "2025/10/8",
+      "class": "4",
       "isInGroup": true
     },
     {
@@ -11865,6 +12044,66 @@
       "isInGroup": true
     },
     {
+      "id": 169934918,
+      "ownerName": "冯玉雯",
+      "team": "预备生",
+      "teamId": 1207,
+      "periodName": "GNZ48 二十期生",
+      "birthplace": "北京",
+      "jtime": "2026/2/8",
+      "isInGroup": true
+    },
+    {
+      "id": 169934919,
+      "ownerName": "韩鑫缘",
+      "team": "预备生",
+      "teamId": 1207,
+      "periodName": "GNZ48 二十期生",
+      "birthplace": "四川 成都",
+      "jtime": "2026/2/8",
+      "isInGroup": true
+    },
+    {
+      "id": 169934921,
+      "ownerName": "孔美迪",
+      "team": "预备生",
+      "teamId": 1207,
+      "periodName": "GNZ48 二十期生",
+      "birthplace": "浙江",
+      "jtime": "2026/2/8",
+      "isInGroup": true
+    },
+    {
+      "id": 169934925,
+      "ownerName": "李想",
+      "team": "预备生",
+      "teamId": 1207,
+      "periodName": "GNZ48 二十期生",
+      "birthplace": "山西",
+      "jtime": "2026/2/8",
+      "isInGroup": true
+    },
+    {
+      "id": 169934926,
+      "ownerName": "张臻",
+      "team": "预备生",
+      "teamId": 1207,
+      "periodName": "GNZ48 二十期生",
+      "birthplace": "香港",
+      "jtime": "2026/2/8",
+      "isInGroup": true
+    },
+    {
+      "id": 169934927,
+      "ownerName": "赵子涵",
+      "team": "预备生",
+      "teamId": 1207,
+      "periodName": "GNZ48 二十期生",
+      "birthplace": "山东",
+      "jtime": "2026/2/8",
+      "isInGroup": true
+    },
+    {
       "id": 4344250371,
       "roomId": "147283635",
       "account": "20200109180128_8b0atpmt7na9apo",
@@ -12093,6 +12332,7 @@
       "pinyin": "LiuGuo",
       "birthday": "2003年12月15日",
       "birthplace": "四川 成都",
+      "jtime": "2019/10/26",
       "ptime": "2020/11/15",
       "qtime": "2022/3/1",
       "isInGroup": false
@@ -12110,6 +12350,7 @@
       "periodName": "GNZ48 七期生",
       "pinyin": "WuSiQi",
       "liveRoomId": 155390738,
+      "jtime": "2019/9/15",
       "isInGroup": false
     },
     {
@@ -12127,7 +12368,9 @@
       "liveRoomId": 155425159,
       "birthday": "2004年2月19日",
       "birthplace": "陕西 咸阳",
+      "jtime": "2019/10/26",
       "ptime": "2020/11/15",
+      "class": "8",
       "rank": "55",
       "isInGroup": true
     },
@@ -12141,6 +12384,7 @@
       "pinyin": "MoXin",
       "birthday": "1998年10月7日",
       "birthplace": "广西 柳州",
+      "jtime": "2020/1/1",
       "ptime": "2020/11/15",
       "qtime": "2021/4/6",
       "isInGroup": false
@@ -12194,7 +12438,9 @@
       "liveRoomId": 182345007,
       "birthday": "1999年12月25日",
       "birthplace": "湖南 怀化",
+      "jtime": "2020/6/13",
       "ptime": "2025/1/21",
+      "class": "8",
       "rank": "40",
       "note": "副队长\r\n原IDOLS Ft\r\n2024年9月3日降格为预备生\r\n（2025年1月21日升格并重返Team NIII）",
       "isInGroup": true
@@ -12214,6 +12460,7 @@
       "liveRoomId": 182335918,
       "birthday": "2000年2月4日",
       "birthplace": "四川 内江",
+      "jtime": "2020/6/13",
       "ptime": "2020/11/15",
       "qtime": "2025/5/23",
       "rank": "29",
@@ -12233,6 +12480,7 @@
       "liveRoomId": 182317927,
       "birthday": "1999年11月23日",
       "birthplace": "广东 广州",
+      "jtime": "2020/6/13",
       "ptime": "2020/6/13",
       "qtime": "2024/10/25",
       "isInGroup": false
@@ -12378,98 +12626,6 @@
       "isInGroup": false
     },
     {
-      "ownerName": "胡博文",
-      "team": "TEAM B",
-      "teamId": 1101,
-      "groupName": "BEJ48",
-      "periodName": "SNH48 六期生",
-      "pinyin": "HuBoWen",
-      "birthday": "1999年12月18日",
-      "qtime": "2019/1/19",
-      "note": "资料删除",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "文妍",
-      "team": "TEAM B",
-      "teamId": 1101,
-      "groupName": "BEJ48",
-      "periodName": "SNH48 六期生",
-      "pinyin": "WenYan",
-      "birthday": "2000年12月28日",
-      "qtime": "2019/1/19",
-      "note": "资料删除",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "毕梦媛",
-      "team": "TEAM E",
-      "teamId": 1102,
-      "groupName": "BEJ48",
-      "periodName": "SNH48 六期生",
-      "pinyin": "BiMengYuan",
-      "birthday": "1997年1月29日",
-      "qtime": "2019/1/19",
-      "note": "资料删除",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "林堃",
-      "team": "TEAM E",
-      "teamId": 1102,
-      "groupName": "BEJ48",
-      "periodName": "SNH48 六期生",
-      "pinyin": "LinKun",
-      "birthday": "1996年10月30日",
-      "qtime": "2019/1/19",
-      "note": "资料删除",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "易妍倩",
-      "team": "TEAM E",
-      "teamId": 1102,
-      "groupName": "BEJ48",
-      "periodName": "SNH48 六期生",
-      "pinyin": "YiYanQian",
-      "birthday": "1997年11月28日",
-      "qtime": "2019/1/19",
-      "note": "资料删除",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "徐佳丽",
-      "team": "TEAM SII",
-      "teamId": 1001,
-      "groupName": "BEJ48",
-      "periodName": "SNH48 五期生",
-      "pinyin": "XuJiaLi",
-      "birthday": "1996年9月21日",
-      "qtime": "2016/4/20",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "冯雪莹",
-      "team": "TEAM XII",
-      "teamId": 1005,
-      "groupName": "BEJ48",
-      "periodName": "SNH48 五期生",
-      "pinyin": "FengXueYing",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "张菡筱",
-      "team": "TEAM B",
-      "teamId": 1101,
-      "groupName": "BEJ48",
-      "periodName": "SNH48 五期生",
-      "pinyin": "ZhangHanXiao",
-      "birthday": "1996年6月26日",
-      "qtime": "2017/12/22",
-      "note": "资料删除",
-      "isInGroup": false
-    },
-    {
       "ownerName": "罗恩妮",
       "team": "CKG48",
       "teamId": 1404,
@@ -12489,6 +12645,7 @@
       "periodName": "GNZ48 八期生",
       "pinyin": "XieHuiXian",
       "birthday": "2002年5月11日",
+      "jtime": "2020/10/1",
       "qtime": "2020/12/11",
       "note": "资料删除",
       "isInGroup": false
@@ -12501,6 +12658,7 @@
       "periodName": "GNZ48 二期生",
       "pinyin": "ChenLeTian",
       "birthday": "1996年6月19日",
+      "jtime": "2017/4/29",
       "qtime": "2020-4-前",
       "note": "资料删除",
       "isInGroup": false
@@ -12513,6 +12671,7 @@
       "periodName": "GNZ48 九期生",
       "pinyin": "ZhengYiWen",
       "birthday": "2001年1月11日",
+      "jtime": "2021/1/1",
       "qtime": "2021/9/26",
       "note": "除名",
       "isInGroup": false
@@ -12526,6 +12685,7 @@
       "pinyin": "HouYiRan",
       "birthday": "2005年5月31日",
       "birthplace": "委内瑞拉",
+      "jtime": "2022/5/4",
       "qtime": "2022/6/22",
       "isInGroup": false
     },
@@ -12537,44 +12697,21 @@
       "periodName": "GNZ48 一期生",
       "pinyin": "DaiXinYi",
       "birthday": "2001年12月17日",
+      "jtime": "2016/10/1",
       "qtime": "2017/6/1",
       "note": "资料删除",
       "isInGroup": false
     },
     {
-      "ownerName": "胡怡莹",
-      "team": "TEAM G",
-      "teamId": 1201,
-      "groupName": "GNZ48",
-      "periodName": "SNH48 六期生",
-      "pinyin": "HuYiYing",
-      "birthday": "1997年3月19日",
-      "qtime": "2019/1/19",
+      "ownerName": "张雨晴",
+      "team": "TEAM HIII",
+      "teamId": 1302,
+      "groupName": "SHY48",
+      "periodName": "SHY48 一期生",
+      "pinyin": "ZhangYuQing",
+      "birthday": "2000年9月15日",
+      "qtime": "2019/4/19",
       "note": "资料删除",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "王馨悦",
-      "team": "TEAM G",
-      "teamId": 1201,
-      "groupName": "GNZ48",
-      "periodName": "SNH48 六期生",
-      "pinyin": "WangXinYue",
-      "birthday": "1994年7月19日",
-      "qtime": "2017/6/1",
-      "note": "资料删除",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "周倩玉",
-      "team": "TEAM G",
-      "teamId": 1201,
-      "groupName": "GNZ48",
-      "periodName": "SNH48 六期生",
-      "pinyin": "ZhouQianYu",
-      "birthday": "2000年4月18日",
-      "qtime": "2019/1/19",
-      "note": "资料删除\r\n2019年9月2日加入IDOLS Ft",
       "isInGroup": false
     },
     {
@@ -12614,27 +12751,6 @@
       "isInGroup": false
     },
     {
-      "ownerName": "张雨晴",
-      "team": "TEAM HIII",
-      "teamId": 1302,
-      "groupName": "SHY48",
-      "periodName": "SHY48 一期生",
-      "pinyin": "ZhangYuQing",
-      "birthday": "2000年9月15日",
-      "qtime": "2019/4/19",
-      "note": "资料删除",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "葛佳慧",
-      "team": "TEAM NII",
-      "teamId": 1002,
-      "groupName": "SNH48",
-      "periodName": "SNH48 八期生",
-      "pinyin": "GeJiaHui",
-      "isInGroup": false
-    },
-    {
       "ownerName": "文文",
       "team": "TEAM HII",
       "teamId": 1003,
@@ -12650,6 +12766,15 @@
       "groupName": "SNH48",
       "periodName": "SNH48 八期生",
       "pinyin": "ZhaoMengTing",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "葛佳慧",
+      "team": "TEAM NII",
+      "teamId": 1002,
+      "groupName": "SNH48",
+      "periodName": "SNH48 八期生",
+      "pinyin": "GeJiaHui",
       "isInGroup": false
     },
     {
@@ -12777,6 +12902,102 @@
       "isInGroup": false
     },
     {
+      "ownerName": "胡博文",
+      "team": "TEAM B",
+      "teamId": 1101,
+      "groupName": "BEJ48",
+      "periodName": "SNH48 六期生",
+      "pinyin": "HuBoWen",
+      "birthday": "1999年12月18日",
+      "qtime": "2019/1/19",
+      "note": "资料删除",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "文妍",
+      "team": "TEAM B",
+      "teamId": 1101,
+      "groupName": "BEJ48",
+      "periodName": "SNH48 六期生",
+      "pinyin": "WenYan",
+      "birthday": "2000年12月28日",
+      "qtime": "2019/1/19",
+      "note": "资料删除",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "毕梦媛",
+      "team": "TEAM E",
+      "teamId": 1102,
+      "groupName": "BEJ48",
+      "periodName": "SNH48 六期生",
+      "pinyin": "BiMengYuan",
+      "birthday": "1997年1月29日",
+      "qtime": "2019/1/19",
+      "note": "资料删除",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "林堃",
+      "team": "TEAM E",
+      "teamId": 1102,
+      "groupName": "BEJ48",
+      "periodName": "SNH48 六期生",
+      "pinyin": "LinKun",
+      "birthday": "1996年10月30日",
+      "qtime": "2019/1/19",
+      "note": "资料删除",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "易妍倩",
+      "team": "TEAM E",
+      "teamId": 1102,
+      "groupName": "BEJ48",
+      "periodName": "SNH48 六期生",
+      "pinyin": "YiYanQian",
+      "birthday": "1997年11月28日",
+      "qtime": "2019/1/19",
+      "note": "资料删除",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "胡怡莹",
+      "team": "TEAM G",
+      "teamId": 1201,
+      "groupName": "GNZ48",
+      "periodName": "SNH48 六期生",
+      "pinyin": "HuYiYing",
+      "birthday": "1997年3月19日",
+      "qtime": "2019/1/19",
+      "note": "资料删除",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "王馨悦",
+      "team": "TEAM G",
+      "teamId": 1201,
+      "groupName": "GNZ48",
+      "periodName": "SNH48 六期生",
+      "pinyin": "WangXinYue",
+      "birthday": "1994年7月19日",
+      "qtime": "2017/6/1",
+      "note": "资料删除",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "周倩玉",
+      "team": "TEAM G",
+      "teamId": 1201,
+      "groupName": "GNZ48",
+      "periodName": "SNH48 六期生",
+      "pinyin": "ZhouQianYu",
+      "birthday": "2000年4月18日",
+      "qtime": "2019/1/19",
+      "note": "资料删除\r\n2019年9月2日加入IDOLS Ft",
+      "isInGroup": false
+    },
+    {
       "ownerName": "邓艳秋菲",
       "team": "TEAM NII",
       "teamId": 1002,
@@ -12808,17 +13029,6 @@
       "isInGroup": false
     },
     {
-      "ownerName": "赵韩倩",
-      "team": "TEAM SII",
-      "teamId": 1001,
-      "groupName": "SNH48",
-      "periodName": "SNH48 七期生",
-      "pinyin": "ZhaoHanQian",
-      "birthday": "2000年7月13日",
-      "qtime": "2021/6/24",
-      "isInGroup": false
-    },
-    {
       "ownerName": "徐真",
       "team": "TEAM NII",
       "teamId": 1002,
@@ -12841,43 +13051,14 @@
       "isInGroup": false
     },
     {
-      "ownerName": "宫小荷",
+      "ownerName": "赵韩倩",
       "team": "TEAM SII",
       "teamId": 1001,
       "groupName": "SNH48",
-      "periodName": "SNH48 三期生",
-      "pinyin": "GongXiaoHe",
-      "birthday": "1996年7月11日",
-      "qtime": "2015/9/13",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "曾琳瑜",
-      "team": "TEAM SII",
-      "teamId": 1001,
-      "groupName": "SNH48",
-      "periodName": "SNH48 三期生",
-      "pinyin": "ZengLinYu",
-      "birthday": "1993年9月2日",
-      "qtime": "2015/9/13",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "李璇",
-      "team": "TEAM NII",
-      "teamId": 1002,
-      "groupName": "SNH48",
-      "periodName": "SNH48 三期生",
-      "pinyin": "LiXuan",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "周淑妍",
-      "team": "TEAM NII",
-      "teamId": 1002,
-      "groupName": "SNH48",
-      "periodName": "SNH48 三期生",
-      "pinyin": "ZhouShuYan",
+      "periodName": "SNH48 七期生",
+      "pinyin": "ZhaoHanQian",
+      "birthday": "2000年7月13日",
+      "qtime": "2021/6/24",
       "isInGroup": false
     },
     {
@@ -12962,6 +13143,46 @@
       "isInGroup": false
     },
     {
+      "ownerName": "李璇",
+      "team": "TEAM NII",
+      "teamId": 1002,
+      "groupName": "SNH48",
+      "periodName": "SNH48 三期生",
+      "pinyin": "LiXuan",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "周淑妍",
+      "team": "TEAM NII",
+      "teamId": 1002,
+      "groupName": "SNH48",
+      "periodName": "SNH48 三期生",
+      "pinyin": "ZhouShuYan",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "宫小荷",
+      "team": "TEAM SII",
+      "teamId": 1001,
+      "groupName": "SNH48",
+      "periodName": "SNH48 三期生",
+      "pinyin": "GongXiaoHe",
+      "birthday": "1996年7月11日",
+      "qtime": "2015/9/13",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "曾琳瑜",
+      "team": "TEAM SII",
+      "teamId": 1001,
+      "groupName": "SNH48",
+      "periodName": "SNH48 三期生",
+      "pinyin": "ZengLinYu",
+      "birthday": "1993年9月2日",
+      "qtime": "2015/9/13",
+      "isInGroup": false
+    },
+    {
       "ownerName": "李怡文",
       "team": "非正式成员",
       "groupName": "SNH48",
@@ -13016,6 +13237,27 @@
       "isInGroup": false
     },
     {
+      "ownerName": "张菡筱",
+      "team": "TEAM B",
+      "teamId": 1101,
+      "groupName": "BEJ48",
+      "periodName": "SNH48 五期生",
+      "pinyin": "ZhangHanXiao",
+      "birthday": "1996年6月26日",
+      "qtime": "2017/12/22",
+      "note": "资料删除",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "刘诗蕾",
+      "team": "TEAM NII",
+      "teamId": 1002,
+      "groupName": "SNH48",
+      "periodName": "SNH48 五期生",
+      "pinyin": "LiuShiLei",
+      "isInGroup": false
+    },
+    {
       "ownerName": "刘力玮",
       "team": "TEAM SII",
       "teamId": 1001,
@@ -13038,12 +13280,14 @@
       "isInGroup": false
     },
     {
-      "ownerName": "刘诗蕾",
-      "team": "TEAM NII",
-      "teamId": 1002,
-      "groupName": "SNH48",
+      "ownerName": "徐佳丽",
+      "team": "TEAM SII",
+      "teamId": 1001,
+      "groupName": "BEJ48",
       "periodName": "SNH48 五期生",
-      "pinyin": "LiuShiLei",
+      "pinyin": "XuJiaLi",
+      "birthday": "1996年9月21日",
+      "qtime": "2016/4/20",
       "isInGroup": false
     },
     {
@@ -13053,6 +13297,15 @@
       "groupName": "SNH48",
       "periodName": "SNH48 五期生",
       "pinyin": "ChenYin",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "冯雪莹",
+      "team": "TEAM XII",
+      "teamId": 1005,
+      "groupName": "BEJ48",
+      "periodName": "SNH48 五期生",
+      "pinyin": "FengXueYing",
       "isInGroup": false
     },
     {
@@ -13106,14 +13359,6 @@
       "isInGroup": false
     },
     {
-      "ownerName": "丁紫妍",
-      "team": "未配属",
-      "groupName": "SNH48",
-      "periodName": "SNH48 一期生",
-      "pinyin": "DingZiYan",
-      "isInGroup": false
-    },
-    {
       "ownerName": "何轶琛",
       "team": "非正式成员",
       "groupName": "SNH48",
@@ -13131,16 +13376,6 @@
       "pinyin": "HuMeiTing",
       "birthday": "1993年5月15日",
       "qtime": "2012/12/21",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "蒋羽熙",
-      "team": "未配属",
-      "groupName": "SNH48",
-      "periodName": "SNH48 一期生",
-      "pinyin": "JiangYuXi",
-      "birthday": "2000年2月18日",
-      "qtime": "2013/8/18",
       "isInGroup": false
     },
     {
@@ -13184,113 +13419,21 @@
       "isInGroup": false
     },
     {
-      "ownerName": "TEAM Z",
-      "serverId": 1148749,
-      "channelId": 1558437,
-      "team": "TEAM Z",
-      "teamId": 1203,
-      "groupName": "队伍",
-      "periodName": "队伍",
-      "pinyin": "TEAM Z",
+      "ownerName": "丁紫妍",
+      "team": "未配属",
+      "groupName": "SNH48",
+      "periodName": "SNH48 一期生",
+      "pinyin": "DingZiYan",
       "isInGroup": false
     },
     {
-      "ownerName": "TEAM X",
-      "serverId": 1164313,
-      "channelId": 1459265,
-      "team": "TEAM X",
-      "teamId": 1004,
-      "groupName": "队伍",
-      "periodName": "队伍",
-      "pinyin": "TEAM X",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "TEAM NIII",
-      "serverId": 1164314,
-      "channelId": 1295812,
-      "team": "TEAM NIII",
-      "teamId": 1202,
-      "groupName": "队伍",
-      "periodName": "队伍",
-      "pinyin": "TEAM NIII",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "TEAM HII",
-      "serverId": 1181051,
-      "channelId": 1263504,
-      "team": "TEAM HII",
-      "teamId": 1003,
-      "groupName": "队伍",
-      "periodName": "队伍",
-      "pinyin": "TEAM HII",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "TEAM G",
-      "serverId": 1181256,
-      "channelId": 1410400,
-      "team": "TEAM G",
-      "teamId": 1201,
-      "groupName": "队伍",
-      "periodName": "队伍",
-      "pinyin": "TEAM G",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "TEAM NII",
-      "serverId": 1213978,
-      "channelId": 1263126,
-      "team": "TEAM NII",
-      "teamId": 1002,
-      "groupName": "队伍",
-      "periodName": "队伍",
-      "pinyin": "TEAM NII",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "TEAM SII",
-      "serverId": 1214171,
-      "channelId": 1476237,
-      "team": "TEAM SII",
-      "teamId": 1001,
-      "groupName": "队伍",
-      "periodName": "队伍",
-      "pinyin": "TEAM SII",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "TEAM E",
-      "serverId": 8685016,
-      "channelId": 11208141,
-      "team": "TEAM E",
-      "teamId": 1102,
-      "groupName": "队伍",
-      "periodName": "队伍",
-      "pinyin": "TEAM E",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "TEAM K",
-      "serverId": 8767434,
-      "channelId": 10864322,
-      "team": "TEAM K",
-      "teamId": 1402,
-      "groupName": "队伍",
-      "periodName": "队伍",
-      "pinyin": "TEAM K",
-      "isInGroup": false
-    },
-    {
-      "ownerName": "TEAM C",
-      "serverId": 8815918,
-      "channelId": 10979228,
-      "team": "TEAM C",
-      "teamId": 1401,
-      "groupName": "队伍",
-      "periodName": "队伍",
-      "pinyin": "TEAM C",
+      "ownerName": "蒋羽熙",
+      "team": "未配属",
+      "groupName": "SNH48",
+      "periodName": "SNH48 一期生",
+      "pinyin": "JiangYuXi",
+      "birthday": "2000年2月18日",
+      "qtime": "2013/8/18",
       "isInGroup": false
     },
     {
@@ -13305,6 +13448,17 @@
       "isInGroup": false
     },
     {
+      "ownerName": "TEAM C",
+      "serverId": 8815918,
+      "channelId": 10979228,
+      "team": "TEAM C",
+      "teamId": 1401,
+      "groupName": "队伍",
+      "periodName": "队伍",
+      "pinyin": "TEAM C",
+      "isInGroup": false
+    },
+    {
       "ownerName": "TEAM CII",
       "serverId": 8914467,
       "channelId": 11257007,
@@ -13316,6 +13470,28 @@
       "isInGroup": false
     },
     {
+      "ownerName": "TEAM E",
+      "serverId": 8685016,
+      "channelId": 11208141,
+      "team": "TEAM E",
+      "teamId": 1102,
+      "groupName": "队伍",
+      "periodName": "队伍",
+      "pinyin": "TEAM E",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "TEAM G",
+      "serverId": 1181256,
+      "channelId": 1410400,
+      "team": "TEAM G",
+      "teamId": 1201,
+      "groupName": "队伍",
+      "periodName": "队伍",
+      "pinyin": "TEAM G",
+      "isInGroup": false
+    },
+    {
       "ownerName": "TEAM GII",
       "serverId": 8996497,
       "channelId": 11224485,
@@ -13324,6 +13500,83 @@
       "groupName": "队伍",
       "periodName": "队伍",
       "pinyin": "TEAM GII",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "TEAM HII",
+      "serverId": 1181051,
+      "channelId": 1263504,
+      "team": "TEAM HII",
+      "teamId": 1003,
+      "groupName": "队伍",
+      "periodName": "队伍",
+      "pinyin": "TEAM HII",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "TEAM K",
+      "serverId": 8767434,
+      "channelId": 10864322,
+      "team": "TEAM K",
+      "teamId": 1402,
+      "groupName": "队伍",
+      "periodName": "队伍",
+      "pinyin": "TEAM K",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "TEAM NII",
+      "serverId": 1213978,
+      "channelId": 1263126,
+      "team": "TEAM NII",
+      "teamId": 1002,
+      "groupName": "队伍",
+      "periodName": "队伍",
+      "pinyin": "TEAM NII",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "TEAM NIII",
+      "serverId": 1164314,
+      "channelId": 1295812,
+      "team": "TEAM NIII",
+      "teamId": 1202,
+      "groupName": "队伍",
+      "periodName": "队伍",
+      "pinyin": "TEAM NIII",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "TEAM SII",
+      "serverId": 1214171,
+      "channelId": 1476237,
+      "team": "TEAM SII",
+      "teamId": 1001,
+      "groupName": "队伍",
+      "periodName": "队伍",
+      "pinyin": "TEAM SII",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "TEAM X",
+      "serverId": 1164313,
+      "channelId": 1459265,
+      "team": "TEAM X",
+      "teamId": 1004,
+      "groupName": "队伍",
+      "periodName": "队伍",
+      "pinyin": "TEAM X",
+      "isInGroup": false
+    },
+    {
+      "ownerName": "TEAM Z",
+      "serverId": 1148749,
+      "channelId": 1558437,
+      "team": "TEAM Z",
+      "teamId": 1203,
+      "groupName": "队伍",
+      "periodName": "队伍",
+      "pinyin": "TEAM Z",
       "isInGroup": false
     }
   ]
