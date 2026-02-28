@@ -7964,7 +7964,7 @@
       "jtime": "2022/10/2",
       "ptime": "2023/6/2",
       "note": "原GNZ48预备生",
-      "isInGroup": true
+      "isInGroup": false
     },
     {
       "id": 89653462,
@@ -9673,7 +9673,7 @@
       "birthplace": "重庆",
       "ptime": "2024/6/2",
       "note": "原GNZ48预备生",
-      "isInGroup": true
+      "isInGroup": false
     },
     {
       "id": 118489340,
@@ -12088,7 +12088,7 @@
       "birthday": "2006年12月23日",
       "birthplace": "江西",
       "jtime": "2025/10/5",
-      "isInGroup": true
+      "isInGroup": false
     },
     {
       "id": 161808459,
@@ -12611,7 +12611,7 @@
       "teamId": 1001,
       "groupName": "SNH48",
       "periodName": "SNH48 十三期生",
-      "pinyin": "?WangBeiNi",
+      "pinyin": "WangBeiNi",
       "birthday": "1996年1月16日",
       "birthplace": "安徽 安庆",
       "ptime": "2019/11/29",
@@ -12903,12 +12903,12 @@
       "isInGroup": false
     },
     {
-      "ownerName": "?陈怡馨",
+      "ownerName": "陈怡馨",
       "team": "TEAM HII",
       "teamId": 1003,
       "groupName": "SNH48",
       "periodName": "SNH48 三期生",
-      "pinyin": "?ChenYiXin",
+      "pinyin": "ChenYiXin",
       "birthday": "1996年9月17日",
       "birthplace": "福建 福州",
       "isInGroup": false
