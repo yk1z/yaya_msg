@@ -10210,9 +10210,9 @@
       "ownerName": "王苏南",
       "serverId": 16877453,
       "channelId": 22693667,
-      "team": "TEAM E",
-      "teamId": 1102,
-      "groupName": "BEJ48",
+      "team": "IDFT",
+      "teamId": 1501,
+      "groupName": "IDFT",
       "periodName": "BEJ48 十五期生",
       "pinyin": "WangSuNan",
       "liveRoomId": 9014019542,
@@ -10220,7 +10220,7 @@
       "birthplace": "江苏 徐州",
       "ptime": "2024/10/2",
       "qtime": "2025/6/25",
-      "isInGroup": false
+      "isInGroup": true
     },
     {
       "id": 134480670,
@@ -12611,7 +12611,7 @@
       "teamId": 1001,
       "groupName": "SNH48",
       "periodName": "SNH48 十三期生",
-      "pinyin": "WangBeiNi",
+      "pinyin": "?WangBeiNi",
       "birthday": "1996年1月16日",
       "birthplace": "安徽 安庆",
       "ptime": "2019/11/29",
@@ -12903,12 +12903,12 @@
       "isInGroup": false
     },
     {
-      "ownerName": "陈怡馨",
+      "ownerName": "?陈怡馨",
       "team": "TEAM HII",
       "teamId": 1003,
       "groupName": "SNH48",
       "periodName": "SNH48 三期生",
-      "pinyin": "ChenYiXin",
+      "pinyin": "?ChenYiXin",
       "birthday": "1996年9月17日",
       "birthplace": "福建 福州",
       "isInGroup": false
