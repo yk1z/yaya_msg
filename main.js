@@ -136,6 +136,7 @@ ipcMain.on('start-record', (event, { url, taskId, savePath }) => {
         recordCommands.delete(taskId);
     }).run();
 });
+
 ipcMain.on('stop-record', (event, { taskId, fileName }) => {
     const task = recordCommands.get(taskId);
     if (!task) return;
@@ -1049,3 +1050,98 @@ async function fetchGoogleInfo(port, sourceName) {
     }
     return { success: true, data: { query: '连接成功', country: 'Google', regionName: '通畅', isp: 'Google Services' } };
 }
+
+ipcMain.handle('fetch-room-album', async (event, { token, pa, channelId, nextTime }) => {
+    if (!token) return { success: false, msg: '缺少 Token' };
+    try {
+        const headers = createHeaders(token, pa);
+        const url = 'https://pocketapi.48.cn/im/api/v1/team/msg/list/img';
+
+        const payload = {
+            channelId: String(channelId),
+            nextTime: nextTime || 0
+        };
+
+        const res = await axios.post(url, payload, { headers });
+
+        if (res.status === 200 && res.data && res.data.status === 200) {
+            return { success: true, content: res.data.content };
+        }
+
+        return { success: false, msg: res.data ? res.data.message : 'API 错误' };
+    } catch (e) {
+        console.error('Fetch Room Album Error:', e);
+        return { success: false, msg: e.message };
+    }
+});
+
+ipcMain.handle('fetch-room-radio', async (event, { token, pa, channelId, serverId }) => {
+    if (!token) return { success: false, msg: '缺少 Token' };
+
+    try {
+        const headers = createHeaders(token, pa);
+        let finalServerId = serverId;
+
+        if (!finalServerId || finalServerId == 0) {
+            try {
+                const infoUrl = 'https://pocketapi.48.cn/im/api/v1/im/team/room/info';
+                const infoRes = await axios.post(infoUrl, { channelId: String(channelId) }, { headers });
+                if (infoRes.data.success) {
+                    finalServerId = infoRes.data.content.serverId;
+                }
+            } catch (e) {
+                console.warn('电台 ServerID 自动获取失败');
+            }
+        }
+
+        const url = 'https://pocketapi.48.cn/im/api/v1/team/voice/operate';
+        const payload = {
+            channelId: parseInt(channelId),
+            serverId: parseInt(finalServerId),
+            operateCode: 2 
+        };
+
+        const res = await axios.post(url, payload, { headers });
+
+        if (res.status === 200 && res.data && res.data.status === 200) {
+            return { success: true, content: res.data.content };
+        }
+
+        return { success: false, msg: res.data ? res.data.message : '电台未开启或获取失败' };
+    } catch (e) {
+        console.error('Fetch Room Radio Error:', e);
+        return { success: false, msg: e.message };
+    }
+});
+
+ipcMain.handle('start-radio-proxy', async (event, remoteUrl) => {
+    if (currentLiveCommand) {
+        try { currentLiveCommand.kill('SIGKILL'); } catch (e) { }
+        currentLiveCommand = null;
+    }
+    const streamId = 'radio_' + Date.now();
+    const localRtmp = `rtmp://localhost:1935/live/${streamId}`;
+    const localHttpFlv = `http://localhost:8888/live/${streamId}.flv`;
+
+    return new Promise((resolve) => {
+        let command = ffmpeg(remoteUrl)
+            .inputOptions([
+                '-rw_timeout 5000000',
+                '-fflags nobuffer',          
+                '-analyzeduration 500000',   
+                '-probesize 500000'          
+            ])
+            .outputOptions([
+                '-vn',                      
+                '-c:a copy',               
+                '-f flv'
+            ])
+            .output(localRtmp);
+
+        currentLiveCommand = command
+            .on('start', () => resolve(localHttpFlv))
+            .on('error', (err) => console.error('电台代理中断:', err.message));
+
+        currentLiveCommand.run();
+    });
+});
