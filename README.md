@@ -1,10 +1,9 @@
-# 🦷 牙牙消息 (yaya msg)
+# 🦷 牙牙消息 (yaya_msg)
 
 > 一个用于查看口袋48直播/回放，以及检索口袋房间消息的桌面端工具。
 
-## 📖 简介
+## 📖 主要功能
 
-本工具主要功能包括：
 - **抓取消息**：抓取成员房间消息并一键导入至软件内。
 - **消息检索**：根据关键词查找成员房间中的历史消息，可根据日期及消息类型进行筛选。
 - **数据统计**：统计成员房间每日消息条数、互动次数、翻牌相关数据。
@@ -20,19 +19,10 @@
 
 ## 📺 使用说明
 
-[点击观看使用说明](https://www.bilibili.com/video/BV1B2iPBPE6x)
-
-## ⬇️ 下载地址
-
-请根据您的网络环境选择下载方式：
-
-| 平台 | 链接 |
-| :--- | :--- |
-| **GitHub** | [点击前往下载页](https://github.com/yk1z/yaya_msg/releases) |
-| **百度网盘** | [点击前往下载页](https://pan.baidu.com/s/1XBbptH_FFct791CKOF0wBg?pwd=0403) |
+[哔哩哔哩](https://www.bilibili.com/video/BV1B2iPBPE6x)
 
 
-## 🛠️ 常见问题 (FAQ)
+## 🛠️ 常见问题
 
 
 ### 1. Windows 无法调用 PotPlayer 播放
@@ -81,4 +71,4 @@
 anyway，感谢使用。
 
 ---
-灵感来源：Gemini 48tools msg48 WebPocket48Assistant Partner48 </br>向以上致谢
+灵感来源：[Gemini](https://gemini.google.com)  [48tools](https://github.com/duan602728596/48tools)  [msg48](https://msg48.org/)  [WebPocket48Assistant](https://github.com/Lawaxi/WebPocket48Assistant)  [Partner48](https://github.com/Akimaylilll/Partner48) </br>向以上致谢
