@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>牙牙消息 v1.2.5</title>
+    <title>牙牙消息 v1.2.6</title>
     <link rel="icon" href="./icon.png" type="image/x-icon">
 
     <link rel="stylesheet" href="style.css">
@@ -15,7 +15,7 @@
     <script src="https://cdn.jsdelivr.net/npm/artplayer-plugin-danmuku/dist/artplayer-plugin-danmuku.js"></script>
     <script src="https://wlnimsc0.netease.im/nim-1.8.0.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dplayer/dist/DPlayer.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.24.2/dist/index.js"></script>
 
     <script>
         (function () {
@@ -48,7 +48,7 @@
                 </svg>
             </div>
             <img src="./icon.png" class="title-logo">
-            <span>牙牙消息 v1.2.5</span>
+            <span>牙牙消息 v1.2.6</span>
         </div>
         <div class="window-controls">
             <div class="control-btn" onclick="ipcRenderer.send('window-min')">
@@ -101,7 +101,7 @@
                 </button>
             </div>
             <div class="sidebar-group" id="sb-login-group" style="display: flex; flex-direction: column; gap: 10px;">
-                <div class="group-title" style="margin-bottom: 0;">账号登录</div>
+                <div class="group-title" style="margin-bottom: 0;">口袋功能</div>
 
                 <button id="btn-sb-login" class="btn btn-secondary btn-full" onclick="switchView('login')">
                     口袋账号设置
@@ -665,7 +665,7 @@
                         </div>
 
                         <div style="margin-top: 20px; text-align: center; color: var(--text-sub); font-size: 13px;">
-                            <p>您现在可以前往账号登录模块下使用相关功能。</p>
+                            <p>您现在可以前往使用相关功能。</p>
                         </div>
                     </div>
                 </div>
@@ -738,9 +738,18 @@
 
                         <div
                             style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-                            <h2 style="margin: 0; color: var(--primary);">往期音频电台</h2>
-                            <span id="audio-programs-status"
-                                style="font-size: 15px; font-weight: bold; color: var(--primary); margin-left: 10px;"></span>
+                            <div style="display: flex; align-items: center;">
+                                <h2 style="margin: 0; color: var(--primary);">往期音频电台</h2>
+                                <span id="audio-programs-status"
+                                    style="font-size: 15px; font-weight: bold; color: var(--primary); margin-left: 10px;"></span>
+                            </div>
+
+                            <div style="width: 200px; position: relative;">
+                                <input type="text" id="audio-inner-search" class="input-control" placeholder="搜索..."
+                                    style="height: 32px; padding-left: 30px; border-radius: 16px; font-size: 12px;"
+                                    oninput="debouncedAudioSearch(this.value)"> <span
+                                    style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); opacity: 0.5; font-size: 12px;">🔍</span>
+                            </div>
                         </div>
 
                         <div id="audio-programs-list"
@@ -782,16 +791,22 @@
                         <div style="flex: 2; min-width: 250px; display: flex; align-items: center; gap: 12px;">
                             <button id="custom-play-btn"
                                 style="width: 36px; height: 36px; border-radius: 50%; border: none; background: var(--primary); color: white; display: flex; justify-content: center; align-items: center; cursor: pointer; font-size: 14px; flex-shrink: 0; box-shadow: 0 4px 10px rgba(155, 106, 156, 0.3); transition: transform 0.1s;">▶</button>
-                            
-                            <span id="custom-time-current" style="font-size: 12px; color: var(--text-sub); width: 35px; text-align: right; flex-shrink: 0;">00:00</span>
-                            
-                            <input type="range" id="custom-progress-bar" min="0" max="100" value="0" class="premium-slider" style="flex: 1; min-width: 50px;">
-                            
-                            <span id="custom-time-duration" style="font-size: 12px; color: var(--text-sub); width: 35px; flex-shrink: 0;">00:00</span>
-                            
-                            <div style="display: flex; align-items: center; gap: 6px; margin-left: 5px; border-left: 1px solid var(--border); padding-left: 12px;">
-                                <span id="audio-volume-icon" title="静音/恢复" style="cursor: pointer; font-size: 14px; color: var(--text-sub); user-select: none; width: 16px; text-align: center;">🔊</span>
-                                <input type="range" id="audio-volume-bar" min="0" max="1" step="0.01" value="1" class="premium-slider" style="width: 60px;">
+
+                            <span id="custom-time-current"
+                                style="font-size: 12px; color: var(--text-sub); width: 35px; text-align: right; flex-shrink: 0;">00:00</span>
+
+                            <input type="range" id="custom-progress-bar" min="0" max="100" value="0"
+                                class="premium-slider" style="flex: 1; min-width: 50px;">
+
+                            <span id="custom-time-duration"
+                                style="font-size: 12px; color: var(--text-sub); width: 35px; flex-shrink: 0;">00:00</span>
+
+                            <div
+                                style="display: flex; align-items: center; gap: 6px; margin-left: 5px; border-left: 1px solid var(--border); padding-left: 12px;">
+                                <span id="audio-volume-icon" title="静音/恢复"
+                                    style="cursor: pointer; font-size: 14px; color: var(--text-sub); user-select: none; width: 16px; text-align: center;">🔊</span>
+                                <input type="range" id="audio-volume-bar" min="0" max="1" step="0.01" value="1"
+                                    class="premium-slider" style="width: 60px;">
                             </div>
 
                             <audio id="native-audio-player" style="display: none;"></audio>
@@ -806,10 +821,19 @@
 
                     <div
                         style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-                        <h2 style="margin: 0; color: var(--primary);">官方视频列表</h2>
-                        <span id="video-library"
-                            style="font-size: 15px; font-weight: bold; color: var(--primary); margin-left: 10px;">
-                        </span>
+                        <div style="display: flex; align-items: center;">
+                            <h2 style="margin: 0; color: var(--primary);">官方视频列表</h2>
+                            <span id="video-library"
+                                style="font-size: 15px; font-weight: bold; color: var(--primary); margin-left: 10px;"></span>
+                        </div>
+
+                        <div style="width: 200px; position: relative;">
+                            <input type="text" id="video-inner-search" class="input-control" placeholder="搜索..."
+                                style="height: 32px; padding-left: 30px; border-radius: 16px; font-size: 12px;"
+                                oninput="debouncedVideoSearch(this.value)">
+                            <span
+                                style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); opacity: 0.5; font-size: 12px;">🔍</span>
+                        </div>
                     </div>
 
                     <div id="video-category-bar" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px;">
@@ -854,7 +878,7 @@
                             <div style="width: 200px; position: relative;">
                                 <input type="text" id="music-inner-search" class="input-control" placeholder="搜索..."
                                     style="height: 32px; padding-left: 30px; border-radius: 16px; font-size: 12px;"
-                                    oninput="handleMusicSearch(this.value)">
+                                    oninput="debouncedMusicSearch(this.value)">
                                 <span
                                     style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); opacity: 0.5; font-size: 12px;">🔍</span>
                             </div>
@@ -899,16 +923,22 @@
                         <div style="flex: 2; min-width: 250px; display: flex; align-items: center; gap: 12px;">
                             <button id="music-play-btn"
                                 style="width: 36px; height: 36px; border-radius: 50%; border: none; background: var(--primary); color: white; display: flex; justify-content: center; align-items: center; cursor: pointer; font-size: 14px; flex-shrink: 0; box-shadow: 0 4px 10px rgba(155, 106, 156, 0.3); transition: transform 0.1s;">▶</button>
-                            
-                            <span id="music-time-current" style="font-size: 12px; color: var(--text-sub); width: 35px; text-align: right; flex-shrink: 0;">00:00</span>
-                            
-                            <input type="range" id="music-progress-bar" min="0" max="100" value="0" class="premium-slider" style="flex: 1; min-width: 50px;">
-                            
-                            <span id="music-time-duration" style="font-size: 12px; color: var(--text-sub); width: 35px; flex-shrink: 0;">00:00</span>
-                            
-                            <div style="display: flex; align-items: center; gap: 6px; margin-left: 5px; border-left: 1px solid var(--border); padding-left: 12px;">
-                                <span id="music-volume-icon" title="静音/恢复" style="cursor: pointer; font-size: 14px; color: var(--text-sub); user-select: none; width: 16px; text-align: center;">🔊</span>
-                                <input type="range" id="music-volume-bar" min="0" max="1" step="0.01" value="1" class="premium-slider" style="width: 60px;">
+
+                            <span id="music-time-current"
+                                style="font-size: 12px; color: var(--text-sub); width: 35px; text-align: right; flex-shrink: 0;">00:00</span>
+
+                            <input type="range" id="music-progress-bar" min="0" max="100" value="0"
+                                class="premium-slider" style="flex: 1; min-width: 50px;">
+
+                            <span id="music-time-duration"
+                                style="font-size: 12px; color: var(--text-sub); width: 35px; flex-shrink: 0;">00:00</span>
+
+                            <div
+                                style="display: flex; align-items: center; gap: 6px; margin-left: 5px; border-left: 1px solid var(--border); padding-left: 12px;">
+                                <span id="music-volume-icon" title="静音/恢复"
+                                    style="cursor: pointer; font-size: 14px; color: var(--text-sub); user-select: none; width: 16px; text-align: center;">🔊</span>
+                                <input type="range" id="music-volume-bar" min="0" max="1" step="0.01" value="1"
+                                    class="premium-slider" style="width: 60px;">
                             </div>
 
                             <audio id="music-native-audio" style="display: none;"></audio>
@@ -1080,8 +1110,8 @@
 
                                 <div style="display: flex; align-items: center; font-size: 14px; color: var(--text);">
                                     <span>需要消耗：</span>
-                                    <span id="flip-cost-display"
-                                        style="font-size: 18px; font-weight: bold; color: #fa8c16; margin: 0 2px; line-height: 1;">0</span>
+                                    <input type="number" id="flip-cost-input" value="0" onblur="checkFlipCostMin()"
+                                        style="width: 50px; font-size: 16px; font-weight: bold; color: #fa8c16; text-align: center; border: 1px solid var(--border); border-radius: 4px; background: var(--input-bg); margin: 0 4px; padding: 2px 0; outline: none;">
                                     <span style="font-size: 16px; line-height: 1;">🍗</span>
                                 </div>
                             </div>
@@ -1156,7 +1186,7 @@
                                     onclick="fetchAllRoomAlbum()">加载全部</button>
                             </div>
                             <button id="btn-room-album-dl-all" class="btn btn-secondary" style="width: 100%;"
-                                onclick="downloadAllRoomAlbum()">一键下载全部</button>
+                                onclick="downloadAllRoomAlbum()">一键下载</button>
                         </div>
                     </div>
 
@@ -1587,58 +1617,58 @@
         };
 
         var POCKET_GIFT_DATA = [
-          { name: "荧光棒-SII", cost: 5, id: "266592587658117120" },
-          { name: "荧光棒-NII", cost: 5, id: "266592588102713344" },
-          { name: "荧光棒-HII", cost: 5, id: "266592588543115264" },
-          { name: "荧光棒-X", cost: 5, id: "266592588983517184" },
-          { name: "荧光棒-G", cost: 5, id: "266592608512196608" },
-          { name: "荧光棒-NIII", cost: 5, id: "266592608860323840" },
-          { name: "荧光棒-Z", cost: 5, id: "266592610735177728" },
-          { name: "荧光棒-B", cost: 5, id: "266592593270095872" },
-          { name: "荧光棒-E", cost: 5, id: "266592593718886400" },
-          { name: "荧光棒-C", cost: 5, id: "266592630343548928" },
-          { name: "荧光棒-K", cost: 5, id: "266592630712647680" },
-          { name: "荧光棒-CII", cost: 5, id: "875790439471190016" },
-          { name: "荧光棒-GII", cost: 5, id: "875790628684632064" },
+            { name: "荧光棒-SII", cost: 5, id: "266592587658117120" },
+            { name: "荧光棒-NII", cost: 5, id: "266592588102713344" },
+            { name: "荧光棒-HII", cost: 5, id: "266592588543115264" },
+            { name: "荧光棒-X", cost: 5, id: "266592588983517184" },
+            { name: "荧光棒-G", cost: 5, id: "266592608512196608" },
+            { name: "荧光棒-NIII", cost: 5, id: "266592608860323840" },
+            { name: "荧光棒-Z", cost: 5, id: "266592610735177728" },
+            { name: "荧光棒-B", cost: 5, id: "266592593270095872" },
+            { name: "荧光棒-E", cost: 5, id: "266592593718886400" },
+            { name: "荧光棒-C", cost: 5, id: "266592630343548928" },
+            { name: "荧光棒-K", cost: 5, id: "266592630712647680" },
+            { name: "荧光棒-CII", cost: 5, id: "875790439471190016" },
+            { name: "荧光棒-GII", cost: 5, id: "875790628684632064" },
 
-          { name: "巧克力", cost: 10, id: "266592613964791808" },
-          { name: "玫瑰花", cost: 20, id: "266592591995027456" },
-          { name: "冰美式", cost: 48, id: "670237101300404224" },
-          { name: "秋天的奶茶", cost: 48, id: "517760052235145216", description: "普通礼物" },
-          { name: "生日礼物", cost: 48, id: "266592634915340288", description: "成员直播礼物" },
-          { name: "生日帽", cost: 48, id: "266592633254395904", description: "成员直播礼物" },
+            { name: "巧克力", cost: 10, id: "266592613964791808" },
+            { name: "玫瑰花", cost: 20, id: "266592591995027456" },
+            { name: "冰美式", cost: 48, id: "670237101300404224" },
+            { name: "秋天的奶茶", cost: 48, id: "517760052235145216", description: "普通礼物" },
+            { name: "生日礼物", cost: 48, id: "266592634915340288", description: "成员直播礼物" },
+            { name: "生日帽", cost: 48, id: "266592633254395904", description: "成员直播礼物" },
 
-          { name: "高级马卡龙", cost: 1048, id: "691322274260520960" },
-          { name: "夜蝶", cost: 1500, id: "566341364751339520", description: "qrlw" },
-          { name: "生日蛋糕", cost: 2880, id: "266592635540291584", description: "成员直播礼物" },
-          { name: "权杖", cost: 3000, id: "266592611095887872", description: "新权杖" },
-          { name: "皇冠", cost: 5000, id: "266592614883344384", description: "新皇冠" },
-          { name: "大饼", cost: 9999, id: "325232177465593856", description: "成员直播礼物" },
-          { name: "用爱发电", cost: 19999, id: "325233801525268480", description: "成员直播礼物" },
+            { name: "高级马卡龙", cost: 1048, id: "691322274260520960" },
+            { name: "夜蝶", cost: 1500, id: "566341364751339520", description: "qrlw" },
+            { name: "生日蛋糕", cost: 2880, id: "266592635540291584", description: "成员直播礼物" },
+            { name: "权杖", cost: 3000, id: "266592611095887872", description: "新权杖" },
+            { name: "皇冠", cost: 5000, id: "266592614883344384", description: "新皇冠" },
+            { name: "大饼", cost: 9999, id: "325232177465593856", description: "成员直播礼物" },
+            { name: "用爱发电", cost: 19999, id: "325233801525268480", description: "成员直播礼物" },
 
-          { name: "心锁", cost: 480, id: "1161700584686686208", description: "技能礼物" },
+            { name: "心锁", cost: 480, id: "1161700584686686208", description: "技能礼物" },
 
-          { name: "爱心礼盒", cost: 1200, id: "1223675156709052416", description: "2026情人节" },
-          { name: "恋人牌", cost: 1200, id: "1223674950697422848", description: "2026情人节" },
-          { name: "弦音予你", cost: 48, id: "1223674709768212480", description: "2026情人节" },
-          { name: "花束寄情", cost: 48, id: "1223674321786703872", description: "2026情人节" },
-          { name: "香入心扉", cost: 48, id: "1223674130916511744", description: "2026情人节" },
-          { name: "狂飙爱意", cost: 48, id: "1223673853681405952", description: "2026情人节" },
+            { name: "爱心礼盒", cost: 1200, id: "1223675156709052416", description: "2026情人节" },
+            { name: "恋人牌", cost: 1200, id: "1223674950697422848", description: "2026情人节" },
+            { name: "弦音予你", cost: 48, id: "1223674709768212480", description: "2026情人节" },
+            { name: "花束寄情", cost: 48, id: "1223674321786703872", description: "2026情人节" },
+            { name: "香入心扉", cost: 48, id: "1223674130916511744", description: "2026情人节" },
+            { name: "狂飙爱意", cost: 48, id: "1223673853681405952", description: "2026情人节" },
 
-          { name: "穹宇猫萌一", cost: 5050, id: "1159142638064832512", description: "张琼予定制" },
-          { name: "招财进宝", cost: 688, id: "1223654183268061184", description: "柏欣妤定制" },
-          { name: "豆鸡腿饱饱", cost: 5255, id: "1124398455441920000", description: "徐楚雯定制" },
-          { name: "鸟皇登基", cost: 11800, id: "1123956702633070592", description: "唐莉佳定制" },
-          { name: "宝宝是我", cost: 4545, id: "1123955157879296000", description: "方琪定制" },
-          { name: "第九次", cost: 9422, id: "1121167706391646208", description: "朱怡欣定制" },
-          { name: "圭矩", cost: 8888, id: "1120075775402119168", description: "韩家乐定制" },
-          { name: "怪可爱的", cost: 3689, id: "1117101004603330560", description: "刘力菲定制" },
-          { name: "沝啧", cost: 3726, id: "1104487300200206336", description: "杨冰怡定制" },
-          { name: "好想润", cost: 11150, id: "1104484678495965184", description: "张润定制" },
-          { name: "啵啵", cost: 5200, id: "1102284508739997696", description: "段艺璇定制" },
-          { name: "晴空霹雳掌", cost: 5280, id: "1101194508199858176", description: "林舒晴定制" },
+            { name: "穹宇猫萌一", cost: 5050, id: "1159142638064832512", description: "张琼予定制" },
+            { name: "招财进宝", cost: 688, id: "1223654183268061184", description: "柏欣妤定制" },
+            { name: "豆鸡腿饱饱", cost: 5255, id: "1124398455441920000", description: "徐楚雯定制" },
+            { name: "鸟皇登基", cost: 11800, id: "1123956702633070592", description: "唐莉佳定制" },
+            { name: "宝宝是我", cost: 4545, id: "1123955157879296000", description: "方琪定制" },
+            { name: "第九次", cost: 9422, id: "1121167706391646208", description: "朱怡欣定制" },
+            { name: "圭矩", cost: 8888, id: "1120075775402119168", description: "韩家乐定制" },
+            { name: "怪可爱的", cost: 3689, id: "1117101004603330560", description: "刘力菲定制" },
+            { name: "沝啧", cost: 3726, id: "1104487300200206336", description: "杨冰怡定制" },
+            { name: "好想润", cost: 11150, id: "1104484678495965184", description: "张润定制" },
+            { name: "啵啵", cost: 5200, id: "1102284508739997696", description: "段艺璇定制" },
+            { name: "晴空霹雳掌", cost: 5280, id: "1101194508199858176", description: "林舒晴定制" },
 
-         ];
+        ];
 
         function updateLocalGiftDatabase() {
             try {
@@ -2902,7 +2932,7 @@
             } catch (e) { }
         }
 
-        function scanFiles(isIncremental = false) {
+        async function scanFiles(isIncremental = false) {
             if (!fs.existsSync(FIXED_PATH)) {
                 hideShield();
                 statusMsg.textContent = "❌ 路径不存在";
@@ -2957,99 +2987,114 @@
 
             let newParsedCount = 0;
             let skippedCount = 0;
+            let newPosts = [];
 
-            setTimeout(() => {
-                try {
-                    const items = fs.readdirSync(FIXED_PATH, { withFileTypes: true });
-                    let newPosts = [];
-
-                    const readFilesFromDir = (dirPath, groupName) => {
-                        const files = fs.readdirSync(dirPath);
-                        files.forEach(file => {
-                            if (file.endsWith('.html')) {
-                                try {
-                                    const fullPath = path.join(dirPath, file);
-                                    const stats = fs.statSync(fullPath);
-                                    const fileKey = fullPath;
-
-                                    if (isIncremental && fileManifest[fileKey] === stats.mtimeMs) {
-                                        skippedCount++;
-                                        return;
-                                    }
-
-                                    const text = fs.readFileSync(fullPath, 'utf-8');
-                                    const parsed = parseHtmlContent(text, file, groupName);
-                                    newPosts = newPosts.concat(parsed);
-
-                                    fileManifest[fileKey] = stats.mtimeMs;
-                                    newParsedCount++;
-                                } catch (e) {
-                                    console.error("解析失败:", file, e);
-                                }
-                            }
+            const fileQueue = [];
+            async function gatherFilesAsync(dirPath, groupName) {
+                const items = await fs.promises.readdir(dirPath, { withFileTypes: true });
+                for (const item of items) {
+                    if (item.isDirectory()) {
+                        await gatherFilesAsync(path.join(dirPath, item.name), item.name);
+                    } else if (item.isFile() && item.name.endsWith('.html')) {
+                        fileQueue.push({
+                            fullPath: path.join(dirPath, item.name),
+                            fileName: item.name,
+                            group: groupName === 'html' ? '默认' : groupName
                         });
-                    };
-
-                    items.forEach(item => {
-                        if (item.isDirectory()) readFilesFromDir(path.join(FIXED_PATH, item.name), item.name);
-                        else if (item.isFile() && item.name.endsWith('.html')) readFilesFromDir(FIXED_PATH, '默认');
-                    });
-
-                    if (isIncremental) {
-                        allPosts = allPosts.concat(newPosts);
-                    } else {
-                        allPosts = newPosts;
                     }
-
-                    if (allPosts.length === 0) {
-                        hideShield();
-                        outputList.innerHTML = '<div class="placeholder-tip"><h3>📂 没有找到数据</h3><p>请在"html"文件夹内放入 .html 文件。</p></div>';
-                        if (fs.existsSync(CACHE_FILE)) try { fs.unlinkSync(CACHE_FILE); } catch (e) { }
-                        saveManifest();
-                        return;
-                    }
-
-                    statusMsg.textContent = "🧹 正在整理数据...";
-
-                    const uniqueMap = new Map();
-                    const uniquePosts = [];
-                    for (let i = allPosts.length - 1; i >= 0; i--) {
-                        const post = allPosts[i];
-                        const uniqueKey = `${post.timeStr}_${post.nameStr}_${(post.text || '').substring(0, 50)}`;
-                        if (!uniqueMap.has(uniqueKey)) {
-                            uniqueMap.set(uniqueKey, true);
-                            uniquePosts.push(post);
-                        }
-                    }
-                    allPosts = uniquePosts.reverse();
-                    allPosts.sort((a, b) => new Date(a.timeStr) - new Date(b.timeStr));
-
-                    allPosts.forEach((post, index) => {
-                        post.originalIndex = index;
-                    });
-
-                    statusMsg.textContent = "💾 正在保存...";
-
-                    saveCacheOptimized(allPosts).then(() => {
-                        saveManifest();
-                        const msg = isIncremental
-                            ? `✅ 更新: 新增 ${newParsedCount} 个文件`
-                            : `✅ 重建完成: 共 ${allPosts.length} 条`;
-                        statusMsg.textContent = msg;
-
-                        initUIWithData();
-                        hideShield();
-
-                    }).catch(e => {
-                        statusMsg.textContent = `⚠️ 缓存写入失败`;
-                        hideShield();
-                    });
-
-                } catch (err) {
-                    outputList.innerHTML = `<div class="placeholder-tip"><h3>❌ 读取错误</h3><p>${err.message}</p></div>`;
-                    hideShield();
                 }
-            }, 100);
+            }
+
+            try {
+                await gatherFilesAsync(FIXED_PATH, '默认');
+
+                const CHUNK_SIZE = 10;
+
+                for (let i = 0; i < fileQueue.length; i++) {
+                    const fileObj = fileQueue[i];
+                    try {
+                        const stats = await fs.promises.stat(fileObj.fullPath);
+                        const fileKey = fileObj.fullPath;
+
+                        if (isIncremental && fileManifest[fileKey] === stats.mtimeMs) {
+                            skippedCount++;
+                        } else {
+                            const text = await fs.promises.readFile(fileObj.fullPath, 'utf-8');
+                            const parsed = parseHtmlContent(text, fileObj.fileName, fileObj.group);
+                            newPosts = newPosts.concat(parsed);
+
+                            fileManifest[fileKey] = stats.mtimeMs;
+                            newParsedCount++;
+
+                            if (newParsedCount % 5 === 0) {
+                                statusMsg.textContent = `⏳ 正在解析... 已处理 ${newParsedCount} 个文件`;
+                            }
+                        }
+                    } catch (e) {
+                        console.error("解析失败:", fileObj.fileName, e);
+                    }
+
+                    if (i % CHUNK_SIZE === 0) {
+                        await new Promise(resolve => setTimeout(resolve, 0));
+                    }
+                }
+
+                if (isIncremental) {
+                    allPosts = allPosts.concat(newPosts);
+                } else {
+                    allPosts = newPosts;
+                }
+
+                if (allPosts.length === 0) {
+                    hideShield();
+                    outputList.innerHTML = '<div class="placeholder-tip"><h3>📂 没有找到数据</h3><p>请点击 房间消息 按钮抓取成员房间消息。</p></div>';
+                    if (fs.existsSync(CACHE_FILE)) try { fs.unlinkSync(CACHE_FILE); } catch (e) { }
+                    saveManifest();
+                    return;
+                }
+
+                statusMsg.textContent = "🧹 正在整理数据...";
+                await new Promise(resolve => setTimeout(resolve, 50));
+
+                const uniqueMap = new Map();
+                const uniquePosts = [];
+                for (let i = allPosts.length - 1; i >= 0; i--) {
+                    const post = allPosts[i];
+                    const uniqueKey = `${post.timeStr}_${post.nameStr}_${(post.text || '').substring(0, 50)}`;
+                    if (!uniqueMap.has(uniqueKey)) {
+                        uniqueMap.set(uniqueKey, true);
+                        uniquePosts.push(post);
+                    }
+                }
+
+                allPosts = uniquePosts.reverse();
+                allPosts.sort((a, b) => new Date(a.timeStr) - new Date(b.timeStr));
+
+                allPosts.forEach((post, index) => {
+                    post.originalIndex = index;
+                });
+
+                statusMsg.textContent = "💾 正在保存缓存...";
+
+                saveCacheOptimized(allPosts).then(() => {
+                    saveManifest();
+                    const msg = isIncremental
+                        ? `✅ 更新: 新增 ${newParsedCount} 个文件`
+                        : `✅ 重建完成: 共 ${allPosts.length} 条`;
+                    statusMsg.textContent = msg;
+
+                    initUIWithData();
+                    hideShield();
+
+                }).catch(e => {
+                    statusMsg.textContent = `⚠️ 缓存写入失败`;
+                    hideShield();
+                });
+
+            } catch (err) {
+                outputList.innerHTML = `<div class="placeholder-tip"><h3>❌ 读取错误</h3><p>${err.message}</p></div>`;
+                hideShield();
+            }
         }
 
         function initUIWithData() {
@@ -3151,50 +3196,34 @@
             if (val.length === 0) {
                 box.style.display = 'none';
             } else {
-                let matchNames = [];
+                let matches = memberData.filter(m => {
+                    const matchName = m.ownerName.includes(val);
+                    const pinyin = m.pinyin || "";
+                    const matchPinyin = pinyin.toLowerCase().includes(val);
+                    const initials = typeof getPinyinInitials === 'function' ? getPinyinInitials(pinyin) : "";
+                    const matchInitials = initials.toLowerCase().includes(val);
 
-                for (let name of bestNameMapForDisplay.values()) {
-                    const matchName = name.toLowerCase().includes(val);
-                    let matchPinyin = false;
-                    let matchInitials = false;
-                    if (typeof memberData !== 'undefined') {
-                        const mObj = memberData.find(m => m.ownerName === name);
-                        if (mObj && mObj.pinyin) {
-                            if (mObj.pinyin.toLowerCase().includes(val)) matchPinyin = true;
-                            const initials = getPinyinInitials(mObj.pinyin);
-                            if (initials.toLowerCase().includes(val)) matchInitials = true;
-                        }
-                    }
-                    if (matchName || matchPinyin || matchInitials) {
-                        matchNames.push(name);
-                    }
-                }
+                    return matchName || matchPinyin || matchInitials;
+                });
 
-                if (typeof memberData !== 'undefined' && memberData.length > 0) {
-                    matchNames.sort((nameA, nameB) => {
-                        const mA = memberData.find(m => m.ownerName === nameA);
-                        const mB = memberData.find(m => m.ownerName === nameB);
-                        return typeof memberSortLogic === 'function' ? memberSortLogic(mA, mB) : 0;
-                    });
-                }
+                matches.sort(memberSortLogic);
 
-                if (matchNames.length > 0) {
-                    box.innerHTML = matchNames.slice(0, 10).map(name => {
-                        const team = memberTeamMap.get(name) || '';
-                        const mObj = (typeof memberData !== 'undefined') ? memberData.find(m => m.ownerName === name) : null;
-                        const isInactive = mObj && mObj.isInGroup === false;
+                if (matches.length > 0) {
+                    const html = matches.slice(0, 10).map(m => {
+                        const isInactive = m.isInGroup === false;
                         const baseStyle = isInactive ? 'opacity:0.6; color:#999;' : '';
-
-                        const colorStyle = getTeamStyle(team, isInactive);
-                        const teamHtml = team ? `<span class="team-tag" style="${baseStyle} ${colorStyle}">${team}</span>` : '';
+                        let colorStyle = typeof getTeamStyle === 'function' ? getTeamStyle(m.team, isInactive) : '';
+                        const teamHtml = m.team ? `<span class="team-tag" style="${baseStyle} ${colorStyle}">${m.team}</span>` : '';
 
                         return `<div class="suggestion-item" 
-                             onclick="selectMember('${name}')"
+                             onclick="selectMember('${m.ownerName}')"
                              style="display: flex; justify-content: space-between; align-items: center;">
-                            <span style="font-weight:bold; ${baseStyle}">${name}</span>
+                            <span style="font-weight:bold; ${baseStyle}">${m.ownerName}</span>
                             ${teamHtml}
                         </div>`;
                     }).join('');
+
+                    box.innerHTML = html;
                     box.style.display = 'block';
                 } else {
                     box.style.display = 'none';
@@ -6559,7 +6588,7 @@
 
             let token = appToken || localStorage.getItem('yaya_p48_token');
             if (!token) {
-                container.innerHTML = '<div class="placeholder-tip"><h3>⚠️ 未登录</h3><p>请先前往“账号登录”页面验证 Token。</p></div>';
+                container.innerHTML = '<div class="placeholder-tip"><h3>⚠️ 未登录</h3><p>请先前往“口袋账号设置”页面验证 Token。</p></div>';
                 return;
             }
 
@@ -7256,7 +7285,7 @@
 
             const folderName = `【房间相册】${memberName}`;
             isBatchDownloadingRoom = true;
-            const originalText = '一键下载全部';
+            const originalText = '一键下载';
             const originalBg = '';
 
             let successCount = 0;
@@ -8040,14 +8069,39 @@
 
         function handleDanmuSearch(keyword) {
             const term = keyword.trim().toLowerCase();
+            const list = currentTimelineMode === 'danmu' ? currentDanmuList : currentSubtitleList;
 
-            currentDanmuList.forEach((item, index) => {
+            let termPinyin = term;
+            if (window.pinyinPro && term) {
+                termPinyin = pinyinPro.pinyin(term, { toneType: 'none', type: 'array' }).join('').toLowerCase();
+            }
+
+            list.forEach((item, index) => {
                 const row = document.getElementById(`dm-row-${index}`);
                 if (row) {
                     const text = (item.text || '').toLowerCase();
                     const name = (item.name || '').toLowerCase();
 
-                    if (text.includes(term) || name.includes(term)) {
+                    let isMatch = text.includes(term) || name.includes(term);
+
+                    if (!isMatch && window.pinyinPro && term) {
+
+                        if (item._pinyinText === undefined) {
+                            item._pinyinText = pinyinPro.pinyin(text, { toneType: 'none', type: 'array' }).join('').toLowerCase();
+                        }
+                        if (item._pinyinName === undefined) {
+                            item._pinyinName = pinyinPro.pinyin(name, { toneType: 'none', type: 'array' }).join('').toLowerCase();
+                        }
+
+                        const textPinyin = item._pinyinText || '';
+                        const namePinyin = item._pinyinName || '';
+
+                        if (textPinyin.includes(termPinyin) || namePinyin.includes(termPinyin)) {
+                            isMatch = true;
+                        }
+                    }
+
+                    if (isMatch) {
                         row.style.display = 'flex';
                     } else {
                         row.style.display = 'none';
@@ -8056,39 +8110,265 @@
             });
         }
 
+        let currentDanmuList = [];
+        let currentSubtitleList = [];
+        let currentTimelineMode = 'danmu';
+        let currentSubtitleUrl = '';
+
+
+
+        function parseSRT(srtText) {
+            const result = [];
+            if (!srtText || typeof srtText !== 'string') return result;
+            const pattern = "(\\d{1,2}:\\d{1,2}:\\d{1,2}[,.]\\d{1,3})\\s*-->\\s*(\\d{1,2}:\\d{1,2}:\\d{1,2}[,.]\\d{1,3})";
+            const timeRegex = new RegExp(pattern);
+            const normalizedText = srtText.replace(/(\d{1,2}:\d{1,2}:\d{1,2}[,.]\d{1,3}\s*-->)/g, '\n$1');
+            const lines = normalizedText.split('\n');
+
+            let currentItem = null;
+
+            for (let line of lines) {
+                line = line.trim();
+                if (!line) continue;
+
+                const timeMatch = line.match(timeRegex);
+                if (timeMatch) {
+                    if (currentItem) result.push(currentItem);
+
+                    const startStr = timeMatch[1];
+                    const endStr = timeMatch[2];
+
+                    const parseTime = (str) => {
+                        const parts = str.replace(',', '.').split(':');
+                        return (+parts[0]) * 3600 + (+parts[1]) * 60 + parseFloat(parts[2]);
+                    };
+
+                    const formatVTT = (t) => {
+                        let s = t.replace(',', '.');
+                        return s.split(':')[0].length === 1 ? '0' + s : s;
+                    };
+
+                    currentItem = {
+                        time: parseTime(startStr),
+                        vttStart: formatVTT(startStr),
+                        vttEnd: formatVTT(endStr),
+                        text: '',
+                        name: '字幕'
+                    };
+                } else if (currentItem) {
+                    if (/^\d+$/.test(line)) continue;
+                    currentItem.text += (currentItem.text ? ' ' : '') + line;
+                }
+            }
+
+            if (currentItem) result.push(currentItem);
+
+            return result.map(item => {
+                item.text = item.text.replace(/\s+\d+$/, '').trim();
+                return item;
+            });
+        }
+
+        async function fetchGithubSubtitle(nickname, rawT) {
+            const d = new Date(Number(rawT));
+            const offset = d.getTimezoneOffset() * 60000;
+            const utcTime = d.getTime() + offset;
+            const bjTime = new Date(utcTime + 3600000 * 8);
+
+            const pad = (n) => String(n).padStart(2, '0');
+            const fTimestamp = `${bjTime.getFullYear()}${pad(bjTime.getMonth() + 1)}${pad(bjTime.getDate())}_${pad(bjTime.getHours())}.${pad(bjTime.getMinutes())}.${pad(bjTime.getSeconds())}`;
+
+            const folderName = nickname;
+            const fileName = `【${nickname}】${fTimestamp}.srt`;
+
+            const rawUrl = `https://raw.githubusercontent.com/yk1z/yaya_srt/main/${encodeURIComponent(folderName)}/${encodeURIComponent(fileName)}`;
+
+            const tryUrls = [
+                `https://ghproxy.net/${rawUrl}`,
+                `https://mirror.ghproxy.com/${rawUrl}`,
+                `https://raw.gitmirror.com/${rawUrl}`
+            ];
+
+            console.log(`🔍 [字幕请求] 寻找字幕: ${fileName}`);
+
+            try {
+                const https = require('https');
+
+                const fetchUrl = (targetUrl) => {
+                    return new Promise((resolve, reject) => {
+                        const finalUrl = targetUrl + (targetUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
+                        https.get(finalUrl, {
+                            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+                            timeout: 5000
+                        }, (res) => {
+                            if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                                https.get(res.headers.location, (res2) => {
+                                    let data = '';
+                                    res2.on('data', chunk => data += chunk);
+                                    res2.on('end', () => resolve({ code: res2.statusCode, data }));
+                                }).on('error', reject);
+                                return;
+                            }
+                            let data = '';
+                            res.on('data', chunk => data += chunk);
+                            res.on('end', () => resolve({ code: res.statusCode, data }));
+                        }).on('error', reject);
+                    });
+                };
+
+                let text = null;
+                let successUrl = '';
+
+                for (let i = 0; i < tryUrls.length; i++) {
+                    try {
+                        const result = await fetchUrl(tryUrls[i]);
+                        if (result.code === 200 && result.data && result.data.includes('-->') && !result.data.includes('Package size exceeded')) {
+                            text = result.data;
+                            successUrl = tryUrls[i];
+                            console.log(`✅ [字幕请求] 节点 ${i + 1} 拉取成功!`);
+                            break;
+                        }
+                    } catch (err) {
+                        console.warn(`⚠️ [字幕请求] 节点 ${i + 1} 连接超时或失败`);
+                    }
+                }
+
+                if (text) {
+                    return { text, url: successUrl, fileName };
+                } else {
+                    console.warn("⚠️ [字幕请求] 所有节点均未找到有效字幕文件");
+                }
+            } catch (e) {
+                console.error('❌ [字幕请求] 发生致命错误:', e.message);
+            }
+
+            return { text: null, url: tryUrls[0], fileName };
+        }
+
         function renderDanmuListUI(danmuData) {
             const wrapper = document.getElementById('danmu-timeline-wrapper');
             const container = document.getElementById('danmu-list-body');
-            const countDisplay = document.getElementById('danmu-count-display');
-
-            const searchInput = document.getElementById('danmu-search-input');
-            if (searchInput) searchInput.value = '';
 
             lastActiveIndex = -1;
-
             currentDanmuList = danmuData || [];
+            currentSubtitleList = [];
+            currentTimelineMode = 'danmu';
+            currentSubtitleUrl = '';
 
             if (!wrapper || !container) return;
-
-            if (currentMode === 'live' || currentDanmuList.length === 0) {
+            if (currentMode === 'live') {
                 wrapper.style.display = 'none';
                 return;
             }
 
             wrapper.style.display = 'flex';
+
+            const headerDiv = wrapper.firstElementChild;
+            headerDiv.innerHTML = `
+                <div style="display: flex; gap: 15px; align-items: center;">
+                    <span id="tab-danmu" onclick="switchTimelineMode('danmu')" style="cursor:pointer; font-weight:bold; color:var(--primary); transition:all 0.2s; user-select:none;">💬 弹幕</span>
+                    <span id="tab-subtitle" onclick="switchTimelineMode('subtitle')" style="cursor:pointer; font-weight:normal; color:var(--text-sub); transition:all 0.2s; user-select:none;">📜 字幕</span>
+                </div>
+                <div style="display: flex; flex: 1; align-items: center;">
+                    <input type="text" id="danmu-search-input" class="input-control" placeholder="搜索内容 / 发送者" style="flex: 1; height: 26px; font-size: 12px; padding: 0 8px; margin-left: 10px;" oninput="handleDanmuSearch(this.value)">
+                    <button id="btn-danmu-analysis" class="btn btn-secondary" onclick="openDanmuAnalysis()" style="height: 26px; padding: 0 10px; font-size: 12px; margin-left: 10px;">统计</button>
+                    <span id="danmu-count-display" style="font-weight:normal; font-size:12px; color:var(--text-sub); white-space: nowrap; margin-left: 10px;"></span>
+                </div>
+            `;
+
+            refreshTimelineListUI();
+
+            if (currentPlayingItem && (currentPlayingItem.startTime || currentPlayingItem.ctime)) {
+                const nickname = currentPlayingItem.userInfo ? currentPlayingItem.userInfo.nickname : (currentPlayingItem.nickname || '');
+                const rawT = currentPlayingItem.startTime || currentPlayingItem.ctime;
+
+                if (nickname) {
+                    fetchGithubSubtitle(nickname, rawT).then(res => {
+                        if (res) {
+                            currentSubtitleUrl = res.url;
+                            if (res.text) {
+                                currentSubtitleList = parseSRT(res.text);
+
+                                let cleanVttContent = "WEBVTT\n\n";
+                                currentSubtitleList.forEach(item => {
+                                    cleanVttContent += `${item.vttStart} --> ${item.vttEnd}\n${item.text}\n\n`;
+                                });
+
+                                const blob = new Blob([cleanVttContent], { type: 'text/vtt;charset=utf-8' });
+                                const url = URL.createObjectURL(blob);
+
+                                if (art && art.subtitle) {
+                                    art.subtitle.switch(url, { type: 'vtt', name: 'GitHub纯净字幕' });
+                                }
+                            }
+                            if (currentTimelineMode === 'subtitle') refreshTimelineListUI();
+                        }
+                    });
+                }
+            }
+        }
+
+        window.switchTimelineMode = function (mode) {
+            currentTimelineMode = mode;
+            const tabDanmu = document.getElementById('tab-danmu');
+            const tabSubtitle = document.getElementById('tab-subtitle');
+
+            const analysisBtn = document.getElementById('btn-danmu-analysis');
+            const searchInput = document.getElementById('danmu-search-input');
+
+            if (mode === 'danmu') {
+                tabDanmu.style.color = 'var(--primary)';
+                tabDanmu.style.fontWeight = 'bold';
+                tabSubtitle.style.color = 'var(--text-sub)';
+                tabSubtitle.style.fontWeight = 'normal';
+
+                if (analysisBtn) analysisBtn.style.display = 'inline-flex';
+                if (searchInput) searchInput.placeholder = '搜索内容 / 发送者';
+            } else {
+                tabSubtitle.style.color = 'var(--primary)';
+                tabSubtitle.style.fontWeight = 'bold';
+                tabDanmu.style.color = 'var(--text-sub)';
+                tabDanmu.style.fontWeight = 'normal';
+
+                if (analysisBtn) analysisBtn.style.display = 'none';
+                if (searchInput) searchInput.placeholder = '搜索字幕内容';
+            }
+            lastActiveIndex = -1;
+            refreshTimelineListUI();
+        }
+
+        function refreshTimelineListUI() {
+            const container = document.getElementById('danmu-list-body');
+            const countDisplay = document.getElementById('danmu-count-display');
+            const searchInput = document.getElementById('danmu-search-input');
+            if (searchInput) searchInput.value = '';
+
+            const list = currentTimelineMode === 'danmu' ? currentDanmuList : currentSubtitleList;
+
             container.innerHTML = '';
             container.scrollTop = 0;
+            if (countDisplay) countDisplay.innerText = `共 ${list.length} 条`;
 
-            if (countDisplay) countDisplay.innerText = `共 ${currentDanmuList.length} 条`;
+            if (list.length === 0) {
+                if (currentTimelineMode === 'subtitle') {
+                    container.innerHTML = `
+                        <div style="text-align: center; padding: 30px 20px; color: var(--text-sub);">
+                            <div style="margin-bottom: 15px; font-weight: bold; font-size: 14px;">未在云端找到该场直播的字幕文件</div>
+                        </div>`;
+                } else {
+                    container.innerHTML = `<div style="text-align: center; padding: 40px 20px; color: var(--text-sub);">暂无弹幕数据</div>`;
+                }
+                return;
+            }
 
             const fragment = document.createDocumentFragment();
 
-            currentDanmuList.forEach((item, index) => {
+
+            list.forEach((item, index) => {
                 const div = document.createElement('div');
                 div.className = 'danmu-row';
                 div.id = `dm-row-${index}`;
                 div.dataset.time = item.time;
-
                 div.style.display = 'flex';
 
                 const s = Math.floor(item.time);
@@ -8096,40 +8376,45 @@
                 const h = Math.floor(s / 3600);
                 const m = Math.floor((s % 3600) / 60);
                 const sec = s % 60;
-
                 const pad = (n, w = 2) => String(n).padStart(w, '0');
                 const timeStr = `${pad(h)}:${pad(m)}:${pad(sec)}.${pad(ms, 3)}`;
 
                 const nameStr = item.name || '???';
 
+                const nameHtml = currentTimelineMode === 'subtitle'
+                    ? ``
+                    : `<span style="color: var(--text-sub); font-weight: bold; margin-right: 10px; white-space: nowrap;">${nameStr}</span>`;
+
                 div.innerHTML = `
-            <span class="danmu-time-col">${timeStr}</span>
-            <span style="color: var(--text-sub); font-weight: bold; margin-right: 10px; white-space: nowrap;">${nameStr}</span>
-            <span class="danmu-text-col" title="${item.text}">${item.text}</span>
-        `;
+                    <span class="danmu-time-col">${timeStr}</span>
+                    ${nameHtml}
+                    <span class="danmu-text-col" title="${item.text}">${item.text}</span>
+                `;
 
                 div.onclick = () => {
                     if (art) {
+                        const isPaused = art.video.paused;
+
                         art.seek = item.time;
-                        art.play();
+
+                        if (!isPaused) {
+                            art.play();
+                        }
                     }
                 };
-
                 fragment.appendChild(div);
             });
-
             container.appendChild(fragment);
         }
 
         let lastActiveIndex = -1;
         function syncDanmuHighlight(currentTime) {
-            if (!currentDanmuList.length) return;
+            const list = currentTimelineMode === 'danmu' ? currentDanmuList : currentSubtitleList;
+            if (!list || !list.length) return;
 
             let activeIndex = -1;
-            for (let i = 0; i < currentDanmuList.length; i++) {
-                if (currentDanmuList[i].time > currentTime) {
-                    break;
-                }
+            for (let i = 0; i < list.length; i++) {
+                if (list[i].time > currentTime) break;
                 activeIndex = i;
             }
 
@@ -8138,7 +8423,6 @@
                     const oldRow = document.getElementById(`dm-row-${lastActiveIndex}`);
                     if (oldRow) oldRow.classList.remove('active');
                 }
-
                 if (activeIndex !== -1) {
                     const newRow = document.getElementById(`dm-row-${activeIndex}`);
                     if (newRow) {
@@ -8365,13 +8649,36 @@
             });
         }
 
+        function checkFlipCostMin() {
+            const input = document.getElementById('flip-cost-input');
+            const msgDiv = document.getElementById('flip-send-msg');
+            if (!input) return;
+
+            const minPrice = parseInt(input.dataset.minPrice) || 0;
+            let currentVal = parseInt(input.value) || 0;
+
+            if (currentVal < minPrice) {
+                input.value = minPrice;
+                if (msgDiv) {
+                    msgDiv.innerText = `⚠️ 鸡腿数不能低于底价 ${minPrice} 🍗`;
+                    msgDiv.style.color = '#fa8c16';
+                    setTimeout(() => {
+                        if (msgDiv.innerText.includes('不能低于底价')) msgDiv.innerText = '';
+                    }, 3000);
+                }
+            }
+        }
+
         function updateFlipCostDisplay() {
             const answerTypeVal = document.getElementById('flip-answer-type').value;
             const privacyTypeVal = document.getElementById('flip-privacy-type').value;
-            const costDisplay = document.getElementById('flip-cost-display');
+            const costInput = document.getElementById('flip-cost-input');
+
+            if (!costInput) return;
 
             if (!answerTypeVal) {
-                costDisplay.innerText = '-';
+                costInput.value = '';
+                costInput.dataset.minPrice = '0';
                 return;
             }
 
@@ -8380,7 +8687,8 @@
 
             const config = currentFlipPrices.find(p => p.answerType === answerType);
             if (!config) {
-                costDisplay.innerText = '-';
+                costInput.value = '';
+                costInput.dataset.minPrice = '0';
                 return;
             }
 
@@ -8389,7 +8697,8 @@
             else if (privacyType === '2') price = config.privateCost;
             else if (privacyType === '3') price = config.anonymityCost;
 
-            costDisplay.innerText = price;
+            costInput.value = price;
+            costInput.dataset.minPrice = price;
         }
 
         function updateFlipCharCount(input) {
@@ -8408,7 +8717,10 @@
 
             const answerTypeVal = document.getElementById('flip-answer-type').value;
             const privacyTypeVal = document.getElementById('flip-privacy-type').value;
-            const costText = document.getElementById('flip-cost-display').innerText;
+
+            const costInput = document.getElementById('flip-cost-input');
+            const costText = costInput ? costInput.value : '0';
+            const minPrice = costInput ? (parseInt(costInput.dataset.minPrice) || 0) : 0;
 
             const msgDiv = document.getElementById('flip-send-msg');
             const btn = document.getElementById('btn-do-send-flip');
@@ -8423,12 +8735,19 @@
                 msgDiv.innerText = '⚠️ 请输入提问内容';
                 return;
             }
-            if (!answerTypeVal || costText === '-') {
-                msgDiv.innerText = '⚠️ 请选择有效的回答类型';
+            if (!answerTypeVal || !costText) {
+                msgDiv.innerText = '⚠️ 请选择有效的回答类型并确认鸡腿数';
                 return;
             }
 
             const cost = parseInt(costText);
+
+            if (cost < minPrice) {
+                msgDiv.innerText = `⚠️ 发送失败：您填写的鸡腿数不能低于官方设定的 ${minPrice} 🍗`;
+                costInput.value = minPrice;
+                return;
+            }
+
             const answerType = parseInt(answerTypeVal);
             const type = parseInt(privacyTypeVal);
 
@@ -9743,70 +10062,24 @@
                         if (e.data.size > 0) roomRadioChunks.push(e.data);
                     };
 
-                    roomRadioRecorder.onstop = async function () {
-                        btn.innerHTML = '⏳ 转换 MP3...';
-                        btn.style.color = '#fa8c16';
-                        btn.style.borderColor = '#fa8c16';
+                    roomRadioRecorder.onstop = function () {
+                        const blob = new Blob(roomRadioChunks, { type: 'audio/webm' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.style.display = 'none';
+                        a.href = url;
 
-                        try {
-                            const webmBlob = new Blob(roomRadioChunks, { type: 'audio/webm' });
-                            const arrayBuffer = await webmBlob.arrayBuffer();
+                        const now = new Date();
+                        const timeStr = `${now.getMonth() + 1}月${now.getDate()}日_${now.getHours()}时${now.getMinutes()}分`;
+                        a.download = `房间电台录音_${timeStr}.webm`;
 
-                            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                            const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                        document.body.appendChild(a);
+                        a.click();
 
-                            const channelData = audioBuffer.getChannelData(0);
-                            const sampleRate = audioBuffer.sampleRate;
-
-                            const samples = new Int16Array(channelData.length);
-                            for (let i = 0; i < channelData.length; i++) {
-                                let s = Math.max(-1, Math.min(1, channelData[i]));
-                                samples[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-                            }
-
-                            const mp3encoder = new lamejs.Mp3Encoder(1, sampleRate, 128);
-                            const mp3Data = [];
-                            const sampleBlockSize = 1152;
-
-                            for (let i = 0; i < samples.length; i += sampleBlockSize) {
-                                const sampleChunk = samples.subarray(i, i + sampleBlockSize);
-                                const mp3buf = mp3encoder.encodeBuffer(sampleChunk);
-                                if (mp3buf.length > 0) {
-                                    mp3Data.push(mp3buf);
-                                }
-                            }
-                            const finalBuf = mp3encoder.flush();
-                            if (finalBuf.length > 0) {
-                                mp3Data.push(finalBuf);
-                            }
-
-                            const mp3Blob = new Blob(mp3Data, { type: 'audio/mp3' });
-                            const url = URL.createObjectURL(mp3Blob);
-
-                            const a = document.createElement('a');
-                            a.style.display = 'none';
-                            a.href = url;
-
-                            const now = new Date();
-                            const timeStr = `${now.getMonth() + 1}月${now.getDate()}日_${now.getHours()}时${now.getMinutes()}分`;
-                            a.download = `房间电台_${memberName}_${timeStr}.mp3`;
-
-                            document.body.appendChild(a);
-                            a.click();
-
-                            setTimeout(() => {
-                                document.body.removeChild(a);
-                                URL.revokeObjectURL(url);
-                            }, 100);
-
-                        } catch (err) {
-                            console.error("MP3 转换失败:", err);
-                            alert("转换 MP3 失败，已取消保存。请检查是否引入了 lamejs。");
-                        } finally {
-                            btn.innerHTML = '⏺ 开始录制';
-                            btn.style.color = '';
-                            btn.style.borderColor = '';
-                        }
+                        setTimeout(() => {
+                            document.body.removeChild(a);
+                            URL.revokeObjectURL(url);
+                        }, 100);
                     };
 
                     roomRadioRecorder.start();
@@ -9826,6 +10099,9 @@
                 }
                 isRoomRadioRecording = false;
 
+                btn.innerHTML = '⏺ 开始录制';
+                btn.style.color = '';
+                btn.style.borderColor = '';
             }
         }
 
@@ -9842,7 +10118,6 @@
 
             if (startCtime === 0) {
                 container.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;">⏳ 正在连接服务器...</div>';
-                if (statusEl) statusEl.innerText = '准备加载...';
             }
 
             let currentCtime = startCtime;
@@ -9853,7 +10128,6 @@
                 if (startCtime === 0) container.innerHTML = '';
 
                 while (hasMore) {
-                    if (statusEl) statusEl.innerText = `加载中... (${totalCount})`;
 
                     const res = await fetchPocketAPI('/media/api/media/v1/talk/list', JSON.stringify({
                         ctime: currentCtime,
@@ -9932,6 +10206,11 @@
                         });
                         currentCtime = data[data.length - 1].ctime;
 
+                        const searchInput = document.getElementById('audio-inner-search');
+                        if (searchInput && searchInput.value.trim() !== '') {
+                            handleAudioSearch(searchInput.value);
+                        }
+
                         await new Promise(resolve => setTimeout(resolve, 300));
 
                     } else {
@@ -9951,7 +10230,7 @@
                 container.appendChild(errorMsg);
             } finally {
                 isAudioLoading = false;
-                if (statusEl) statusEl.innerText = `共 ${totalCount} 期`;
+                if (statusEl) statusEl.innerText = ``;
             }
         }
 
@@ -10081,7 +10360,7 @@
             const progressBar = document.getElementById('custom-progress-bar');
             const timeCurrent = document.getElementById('custom-time-current');
             const timeDuration = document.getElementById('custom-time-duration');
-            
+
             const volumeIcon = document.getElementById('audio-volume-icon');
             const volumeBar = document.getElementById('audio-volume-bar');
 
@@ -10121,7 +10400,7 @@
                 const percent = (progressBar.value / audioEl.duration) * 100 || 0;
                 progressBar.style.background = `linear-gradient(to right, var(--primary) ${percent}%, rgba(0,0,0,0.08) ${percent}%)`;
             });
-            
+
             const savedVolume = localStorage.getItem('yaya_music_volume');
             if (savedVolume !== null) {
                 const vol = parseFloat(savedVolume);
@@ -10148,8 +10427,8 @@
                 volumeBar.addEventListener('input', (e) => {
                     const vol = parseFloat(e.target.value);
                     audioEl.volume = vol;
-                    audioEl.muted = false; 
-                    localStorage.setItem('yaya_music_volume', vol); 
+                    audioEl.muted = false;
+                    localStorage.setItem('yaya_music_volume', vol);
                     updateVolumeUI(vol);
                 });
             }
@@ -10305,18 +10584,43 @@
             }
         }
 
+        let musicSearchTimeout = null;
+
+        function debouncedMusicSearch(keyword) {
+            if (musicSearchTimeout) clearTimeout(musicSearchTimeout);
+            musicSearchTimeout = setTimeout(() => {
+                handleMusicSearch(keyword);
+            }, 300);
+        }
+
         function handleMusicSearch(keyword) {
             const grid = document.getElementById('music-list-grid');
             if (!grid) return;
 
-            const cards = grid.querySelectorAll('.music-card');
             const kw = keyword.toLowerCase().trim();
 
+            let termPinyin = kw;
+            if (window.pinyinPro && kw) {
+                termPinyin = pinyinPro.pinyin(kw, { toneType: 'none', type: 'array' }).join('').toLowerCase();
+            }
+
+            const cards = grid.querySelectorAll('.music-card');
             let visibleCount = 0;
 
             cards.forEach(card => {
-                const text = card.innerText.toLowerCase();
-                const isMatch = text.includes(kw);
+                const text = card.textContent.toLowerCase();
+
+                let isMatch = text.includes(kw);
+
+                if (!isMatch && window.pinyinPro && kw) {
+                    if (card._cachedPinyin === undefined) {
+                        card._cachedPinyin = pinyinPro.pinyin(text, { toneType: 'none', type: 'array' }).join('').toLowerCase();
+                    }
+                    if (card._cachedPinyin.includes(termPinyin)) {
+                        isMatch = true;
+                    }
+                }
+
                 card.style.display = isMatch ? 'flex' : 'none';
                 if (isMatch) visibleCount++;
             });
@@ -10326,21 +10630,131 @@
                 if (!emptyTip) {
                     emptyTip = document.createElement('div');
                     emptyTip.id = 'music-empty-tip';
-                    emptyTip.style.cssText = `
-                        grid-column: 1 / -1; 
-                        width: 100%; 
-                        text-align: center; 
-                        padding: 80px 0; 
-                        color: var(--text-sub); 
-                        display: flex; 
-                        flex-direction: column; 
-                        align-items: center;
-                        opacity: 0.8;
-                    `;
-                    emptyTip.innerHTML = `
-                        <div style="font-size: 40px; margin-bottom: 15px; opacity: 0.2;">🎵</div>
-                        <div style="font-weight: 500;">未找到相关歌曲</div>
-                    `;
+                    emptyTip.style.cssText = `grid-column: 1 / -1; width: 100%; text-align: center; padding: 80px 0; color: var(--text-sub); display: flex; flex-direction: column; align-items: center; opacity: 0.8;`;
+                    emptyTip.innerHTML = `<div style="font-size: 40px; margin-bottom: 15px; opacity: 0.2;">🎵</div><div style="font-weight: 500;">未找到相关歌曲</div>`;
+                    grid.appendChild(emptyTip);
+                }
+                emptyTip.style.display = 'flex';
+            } else {
+                if (emptyTip) emptyTip.style.display = 'none';
+            }
+        }
+
+        let videoSearchTimeout = null;
+        function debouncedVideoSearch(keyword) {
+            if (videoSearchTimeout) clearTimeout(videoSearchTimeout);
+            videoSearchTimeout = setTimeout(() => {
+                handleVideoSearch(keyword);
+            }, 300);
+        }
+
+        function handleVideoSearch(keyword) {
+            const grid = document.getElementById('video-list-grid');
+            if (!grid) return;
+
+            const kw = keyword.toLowerCase().trim();
+
+            let termPinyin = kw;
+            if (window.pinyinPro && kw) {
+                termPinyin = pinyinPro.pinyin(kw, { toneType: 'none', type: 'array' }).join('').toLowerCase();
+            }
+
+            const children = grid.children;
+            let visibleCount = 0;
+
+            for (let i = 0; i < children.length; i++) {
+                const card = children[i];
+
+                if (card.id === 'video-loading-tip') continue;
+
+                const text = card.textContent.toLowerCase();
+                let isMatch = text.includes(kw);
+
+                if (!isMatch && window.pinyinPro && kw) {
+                    if (card._cachedPinyin === undefined) {
+                        card._cachedPinyin = pinyinPro.pinyin(text, { toneType: 'none', type: 'array' }).join('').toLowerCase();
+                    }
+                    if (card._cachedPinyin.includes(termPinyin)) {
+                        isMatch = true;
+                    }
+                }
+
+                card.style.display = isMatch ? 'block' : 'none';
+                if (isMatch) visibleCount++;
+            }
+
+            let emptyTip = document.getElementById('video-empty-tip');
+            if (visibleCount === 0 && kw !== '') {
+                if (!emptyTip) {
+                    emptyTip = document.createElement('div');
+                    emptyTip.id = 'video-empty-tip';
+                    emptyTip.style.cssText = `grid-column: 1 / -1; width: 100%; text-align: center; padding: 80px 0; color: var(--text-sub); display: flex; flex-direction: column; align-items: center; opacity: 0.8;`;
+                    emptyTip.innerHTML = `<div style="font-size: 40px; margin-bottom: 15px; opacity: 0.2;">🎬</div><div style="font-weight: 500;">未找到匹配视频</div>`;
+                    grid.appendChild(emptyTip);
+                }
+                emptyTip.style.display = 'flex';
+            } else {
+                if (emptyTip) emptyTip.style.display = 'none';
+            }
+        }
+
+        let audioSearchTimeout = null;
+
+        function debouncedAudioSearch(keyword) {
+            if (audioSearchTimeout) clearTimeout(audioSearchTimeout);
+
+            audioSearchTimeout = setTimeout(() => {
+                handleAudioSearch(keyword);
+            }, 300);
+        }
+
+        function handleAudioSearch(keyword) {
+            const grid = document.getElementById('audio-programs-list');
+            if (!grid) return;
+
+            const kw = keyword.toLowerCase().trim();
+
+            let termPinyin = kw;
+            if (window.pinyinPro && kw) {
+                termPinyin = pinyinPro.pinyin(kw, { toneType: 'none', type: 'array' }).join('').toLowerCase();
+            }
+
+            let visibleCount = 0;
+            const children = grid.children;
+
+            for (let i = 0; i < children.length; i++) {
+                const card = children[i];
+
+                if (card.id === 'audio-empty-tip' || card.textContent.includes('已加载全部')) {
+                    continue;
+                }
+
+                const text = card.textContent.toLowerCase();
+
+                let isMatch = text.includes(kw);
+
+                if (!isMatch && window.pinyinPro && kw) {
+                    if (card._cachedPinyin === undefined) {
+                        card._cachedPinyin = pinyinPro.pinyin(text, { toneType: 'none', type: 'array' }).join('').toLowerCase();
+                    }
+
+                    if (card._cachedPinyin.includes(termPinyin)) {
+                        isMatch = true;
+                    }
+                }
+
+                card.style.display = isMatch ? 'flex' : 'none';
+
+                if (isMatch) visibleCount++;
+            }
+
+            let emptyTip = document.getElementById('audio-empty-tip');
+            if (visibleCount === 0 && kw !== '') {
+                if (!emptyTip) {
+                    emptyTip = document.createElement('div');
+                    emptyTip.id = 'audio-empty-tip';
+                    emptyTip.style.cssText = `grid-column: 1 / -1; width: 100%; text-align: center; padding: 80px 0; color: var(--text-sub); display: flex; flex-direction: column; align-items: center; opacity: 0.8;`;
+                    emptyTip.innerHTML = `<div style="font-size: 40px; margin-bottom: 15px; opacity: 0.2;">📻</div><div style="font-weight: 500;">未找到相关电台</div>`;
                     grid.appendChild(emptyTip);
                 }
                 emptyTip.style.display = 'flex';
@@ -10360,7 +10774,7 @@
             const progressBar = document.getElementById('music-progress-bar');
             const timeCurrent = document.getElementById('music-time-current');
             const timeDuration = document.getElementById('music-time-duration');
-            
+
             const volumeIcon = document.getElementById('music-volume-icon');
             const volumeBar = document.getElementById('music-volume-bar');
 
@@ -10406,7 +10820,7 @@
                 progressBar.style.background = `linear-gradient(to right, var(--primary) ${percent}%, rgba(0,0,0,0.08) ${percent}%)`;
             });
 
-            
+
             const savedVolume = localStorage.getItem('yaya_music_volume');
             if (savedVolume !== null) {
                 const vol = parseFloat(savedVolume);
@@ -10431,7 +10845,7 @@
             volumeBar.addEventListener('input', (e) => {
                 const vol = parseFloat(e.target.value);
                 audioEl.volume = vol;
-                audioEl.muted = false; 
+                audioEl.muted = false;
                 localStorage.setItem('yaya_music_volume', vol);
                 updateVolumeUI(vol);
             });
@@ -10567,11 +10981,11 @@
                 loadingTip = document.createElement('div');
                 loadingTip.id = 'video-loading-tip';
                 loadingTip.style.cssText = 'grid-column: 1 / -1; text-align: center; padding: 20px; color: var(--text-sub); font-size: 13px;';
-                loadingTip.innerText = '正在加载内容...';
                 grid.appendChild(loadingTip);
             }
-            loadingTip.style.display = 'block';
-            if (!videoHasMore) loadingTip.innerText = '— 已经到底啦 —';
+
+            loadingTip.style.display = 'none'; 
+            loadingTip.innerText = '';
 
             try {
                 const res = await fetchPocketAPI('/media/api/media/v1/video/list', JSON.stringify({
@@ -10632,6 +11046,10 @@
 `;
                             card.onclick = () => playOfficialVideo(item.videoId, item.title, item.subTitle);
                             grid.insertBefore(card, loadingTip);
+                            const vSearchInput = document.getElementById('video-inner-search');
+                            if (vSearchInput && vSearchInput.value.trim() !== '') {
+                                handleVideoSearch(vSearchInput.value);
+                            }
                         });
 
                         videoNextCtime = data[data.length - 1].ctime;
