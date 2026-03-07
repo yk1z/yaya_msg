@@ -2571,7 +2571,7 @@
     },
     {
       "id": 48997,
-      "ownerName": "申/姣",
+      "ownerName": "申月姣",
       "pinyin": "ShenYueJiao",
       "nickname": "悠妮妮",
       "birthday": "1996/9/10",
@@ -2964,6 +2964,7 @@
     {
       "id": 63553,
       "ownerName": "杜雨微",
+      "pinyin": "DuYuWei",
       "nickname": "咖哩",
       "constellation": "双鱼座",
       "height": 170,
@@ -4400,7 +4401,7 @@
     },
     {
       "id": 327558,
-      "ownerName": "罗寒/",
+      "ownerName": "罗寒月",
       "pinyin": "LuoHanYue",
       "nickname": "小垣、寒/、暖、tsuki",
       "birthday": "1996/4/27",
@@ -6484,7 +6485,7 @@
     },
     {
       "id": 407071,
-      "ownerName": "吴/黎",
+      "ownerName": "吴月黎",
       "pinyin": "WuYueLi",
       "nickname": "蛋蛋",
       "birthday": "1996/5/15",
@@ -10753,6 +10754,7 @@
     {
       "id": 592320,
       "ownerName": "贺苏堃",
+      "pinyin": "HeSuKun",
       "nickname": "堃堃、方方兔",
       "constellation": "天蝎座",
       "height": 163,
@@ -12314,7 +12316,7 @@
     },
     {
       "id": 614752,
-      "ownerName": "樊曦/",
+      "ownerName": "樊曦月",
       "pinyin": "FanXiYue",
       "nickname": "安妮、Anne",
       "birthday": "1996/2/22",
@@ -13608,7 +13610,7 @@
     },
     {
       "id": 677406,
-      "ownerName": "张馨/",
+      "ownerName": "张馨月",
       "pinyin": "ZhangXinYue",
       "nickname": "宝半",
       "birthday": "1996/4/4",
@@ -14560,7 +14562,7 @@
       "status": 1,
       "ctime": 1553661473202,
       "utime": 1757659174974,
-      "isInGroup": true
+      "isInGroup": false
     },
     {
       "id": 722781,
@@ -14600,7 +14602,7 @@
       "status": 1,
       "ctime": 1553661473202,
       "utime": 1757658986771,
-      "isInGroup": true
+      "isInGroup": false
     },
     {
       "id": 722782,
@@ -14837,6 +14839,7 @@
     {
       "id": 841312,
       "ownerName": "张敏淇",
+      "pinyin": "ZhangMinQi",
       "nickname": "球球、阿球",
       "constellation": "射手座",
       "height": 162,
@@ -15209,8 +15212,8 @@
       "specialty": "运动、化妆、唱歌",
       "groupId": 10,
       "groupName": "SNH48",
-      "teamId": 1002,
-      "team": "TEAM NII",
+      "teamId": 1009,
+      "team": "荣誉毕业生",
       "periodId": 1010,
       "periodName": "SNH48 十期生",
       "jtime": "2018/9/9",
@@ -15231,7 +15234,7 @@
       "status": 1,
       "ctime": 1553661473202,
       "utime": 1768572347471,
-      "isInGroup": true
+      "isInGroup": false
     },
     {
       "id": 869171,
@@ -17037,7 +17040,7 @@
     },
     {
       "id": 54526102,
-      "ownerName": "张/铭",
+      "ownerName": "张月铭",
       "pinyin": "ZhangYueMing",
       "nickname": "张老师、铭子",
       "birthday": "1998/10/7",
@@ -20621,7 +20624,7 @@
     },
     {
       "id": 105710089,
-      "ownerName": "马星/",
+      "ownerName": "马星月",
       "pinyin": "MaXingYue",
       "nickname": "//、马太阳",
       "birthday": "2004/3/28",
@@ -23055,7 +23058,7 @@
     },
     {
       "id": 129564674,
-      "ownerName": "李秋/",
+      "ownerName": "李秋月",
       "pinyin": "LiQiuYue",
       "nickname": "秋秋、小海豹、小手办",
       "birthday": "2005/9/18",
@@ -25289,6 +25292,7 @@
     {
       "id": 143130774,
       "ownerName": "偶像初见计划",
+      "pinyin": "OuXiangChuJianJiHua",
       "nickname": "-",
       "constellation": "白羊座",
       "height": 0,
@@ -26427,6 +26431,7 @@
     {
       "id": 153157747,
       "ownerName": "见习偶像初见时刻",
+      "pinyin": "JianXiOuXiangChuJianShiKe",
       "nickname": "见习偶像初见时刻",
       "constellation": "白羊座",
       "height": 165,
