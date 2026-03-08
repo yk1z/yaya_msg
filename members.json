@@ -29292,6 +29292,21 @@
       "isInGroup": false
     },
     {
+      "id": 122355789,
+      "ownerName": "测试数据",
+      "pinyin": "CeShiShuJu",
+      "groupId": 12,
+      "groupName": "GNZ48",
+      "teamId": 1202,
+      "team": "TEAM NIII",
+      "periodId": 1221,
+      "periodName": "GNZ48 二十一期生",
+      "liveRoomId": 122355789,
+      "serverId": 122355789,
+      "channelId": 122355789,
+      "isInGroup": false
+    },
+    {
       "ownerName": "侯祎冉",
       "pinyin": "HouYiRan",
       "birthday": "2005/5/31",
