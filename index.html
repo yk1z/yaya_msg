@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>牙牙消息 v1.2.6</title>
+    <title>牙牙消息 v1.2.7</title>
     <link rel="icon" href="./icon.png" type="image/x-icon">
 
     <link rel="stylesheet" href="style.css">
@@ -48,7 +48,7 @@
                 </svg>
             </div>
             <img src="./icon.png" class="title-logo">
-            <span>牙牙消息 v1.2.6</span>
+            <span>牙牙消息 v1.2.7</span>
         </div>
         <div class="window-controls">
             <div class="control-btn" onclick="ipcRenderer.send('window-min')">
@@ -313,7 +313,7 @@
             </div>
 
             <div id="view-media"
-                style="height: 100%; overflow-y: auto; display: none; padding: 0 20px 20px 20px; box-sizing: border-box;">
+                style="height: 100%; overflow-y: auto; scrollbar-gutter: stable; display: none; padding: 0 20px 20px 20px; box-sizing: border-box;">
                 <div
                     style="display: flex; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-top: 15px;">
                     <h2 id="live-view-title" style="margin:0; font-size: 18px; white-space: nowrap;">直播/回放</h2>
@@ -372,9 +372,9 @@
                     </button>
                 </div>
 
-                <div id="media-list-controls">
-                    <div style="display: flex; gap: 12px; margin-bottom: 15px; align-items: center; flex-wrap: wrap;">
-
+                <div id="media-list-controls" style="width: 100%;">
+                    <div
+                        style="display: flex; gap: 12px; margin-bottom: 15px; align-items: center; flex-wrap: wrap; width: 100%;">
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <span style="white-space: nowrap; font-weight: bold; font-size: 14px;">团体</span>
                             <div id="vod-group-wrapper" style="position: relative; width: 120px;">
@@ -405,11 +405,14 @@
                             </div>
                         </div>
 
-                        <div style="position: relative; width: 240px;">
+                        <div style="position: relative; flex: 1; min-width: 240px;">
                             <input type="text" id="vod-member-filter" class="input-control" style="width: 100%;"
                                 placeholder="成员名 / 日期" oninput="handleMemberFilter()" autocomplete="off">
                             <div id="member-suggestions" class="suggestion-box"></div>
                         </div>
+
+                        <button id="load-all-btn" class="btn btn-primary" onclick="handleLoadAllVod()"
+                            style="white-space: nowrap; padding: 0 15px; height: 38px; background: #007bff; border-color: #007bff;">加载全部</button>
 
                         <button id="refresh-btn" class="btn btn-secondary" onclick="handleRefreshList()"
                             style="white-space: nowrap; padding: 0 15px; height: 38px;">刷新列表</button>
@@ -424,119 +427,166 @@
                     <div class="live-card-grid" id="vod-list-container" style="flex: 1;"></div>
                 </div>
 
-                <div id="live-player-view" style="display: none;">
+                <div id="live-player-view" style="display: none; height: 100%; flex-direction: column; padding: 0;">
                     <div
-                        style="margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; width: 100%;">
-                        <div style="flex: 1; text-align: left;">
-                            <button class="btn btn-secondary" onclick="backToLiveList()"
-                                style="height: 32px; font-size: 13px;">&lt; 返回列表</button>
-                        </div>
-                        <div style="flex: 2; text-align: center;">
-                            <span id="current-live-title"
-                                style="font-weight: bold; font-size: 15px; color: var(--text); letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; max-width: 100%;"></span>
-                        </div>
-                        <div style="flex: 1; text-align: right;">
-                            <span id="current-live-time" style="font-size: 12px; color: var(--text-sub);"></span>
-                        </div>
-                    </div>
-
-                    <div id="live-player-area">
-                        <div id="live-player-container">
-                            <video id="live-video" controls autoplay style="width: 100%; height: 100%;"></video>
-                        </div>
-                    </div>
-
-                    <div id="live-gift-container"
-                        style="display: none; margin-top: 0; border: 1px solid var(--border); border-top: none; background: var(--card); border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; overflow: hidden;">
-
-                        <div class="gift-control-bar" onclick="toggleGiftPanel()"
-                            style="padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; background: var(--input-bg); user-select: none;">
-                            <div style="display: flex; align-items: center;">
-                                <span style="font-weight: bold; margin-right: 10px;">🎁 赠送礼物</span>
-                                <span style="font-size: 12px; color: var(--text-sub);">
-                                    余额: <span id="live-gift-balance"
-                                        style="color: var(--primary); font-weight: bold; margin: 0 4px;">--</span> 🍗
-                                </span>
-                                <button class="btn btn-secondary" onclick="event.stopPropagation(); updateLiveBalance()"
-                                    style="padding: 0 6px; height: 20px; font-size: 12px; margin-left: 8px; line-height: 1;">↻</button>
-
-                                <a href="https://live.48.cn/Recharge/" target="_blank" onclick="event.stopPropagation()"
-                                    style="margin-left: 10px; font-size: 12px; color: #1890ff;">充值</a>
-
-                                <span
-                                    style="font-size: 11px; color: #ff4d4f; margin-left: 15px; opacity: 0.9; flex: 1; text-align: left;">
-                                    提示：送出后没有礼物弹幕，成员可能看不见送出的礼物。
-                                </span>
+                        style="display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; margin: 0 20px 15px 20px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); transition: box-shadow 0.3s ease;">
+                        <div style="display: flex; gap: 40px;">
+                            <div style="display: flex; flex-direction: column;">
+                                <span style="font-size: 11px; color: var(--text-sub); margin-bottom: 4px;">成员</span>
+                                <span id="current-live-author"
+                                    style="font-weight: bold; color: var(--text); font-size: 14px;">未知</span>
                             </div>
+                            <div style="display: flex; flex-direction: column;">
+                                <span style="font-size: 11px; color: var(--text-sub); margin-bottom: 4px;">标题</span>
+                                <span id="current-live-title"
+                                    style="font-weight: bold; color: var(--text); font-size: 14px;"></span>
+                            </div>
+                            <div style="display: flex; flex-direction: column;">
+                                <span style="font-size: 11px; color: var(--text-sub); margin-bottom: 4px;">日期</span>
+                                <span id="current-live-date"
+                                    style="font-weight: bold; color: var(--text); font-size: 14px;"></span>
+                            </div>
+                            <div style="display: flex; flex-direction: column;">
+                                <span style="font-size: 11px; color: var(--text-sub); margin-bottom: 4px;">时间</span>
+                                <span id="current-live-time"
+                                    style="font-weight: bold; color: var(--text); font-size: 14px;"></span>
+                            </div>
+                        </div>
+                        <button class="btn btn-secondary" onclick="backToLiveList()"
+                            style="height: 32px; font-size: 13px;">返回列表</button>
+                    </div>
 
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <div style="display:flex; align-items:center; background:var(--bg); border:1px solid var(--border); border-radius:4px; padding:0 4px; height:28px;"
-                                    onclick="event.stopPropagation()">
-                                    <span style="font-size:12px; color:var(--text-sub); margin-right:4px;">数量</span>
-                                    <input type="number" id="live-gift-num" value="1" min="1" max="9999"
-                                        style="width: 40px; border:none; background:transparent; color:var(--text); text-align:center; font-weight:bold; outline:none;">
+                    <div id="player-split-layout"
+                        style="display: flex; flex: 1; gap: 20px; min-height: 0; padding: 0 20px 20px 20px; transition: flex-direction 0.3s;">
+                        <div id="danmu-timeline-wrapper"
+                            style="flex: 1; max-width: 45%; display: flex; flex-direction: column; background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; min-height: 0;">
+                            <div
+                                style="padding: 12px; border-bottom: 1px solid var(--border); display: flex; gap: 10px; align-items: center; background: rgba(0,0,0,0.02);">
+                                <span id="tab-danmu" onclick="switchTimelineMode('danmu')"
+                                    style="cursor:pointer; font-weight:bold; color:var(--primary); font-size:14px; user-select:none;">💬
+                                    弹幕</span>
+                                <span id="tab-subtitle" onclick="switchTimelineMode('subtitle')"
+                                    style="cursor:pointer; color:var(--text-sub); font-size:14px; user-select:none;">📜
+                                    字幕</span>
+                                <input type="text" id="danmu-search-input" class="input-control" placeholder="搜索内容..."
+                                    style="flex: 1; height: 28px; font-size: 12px; margin-left: 10px; border-radius: 14px; padding: 0 15px;"
+                                    oninput="handleDanmuSearch(this.value)">
+                                <button id="btn-danmu-analysis" class="btn btn-secondary" onclick="openDanmuAnalysis()"
+                                    style="height: 28px; padding: 0 12px; font-size: 12px; border-radius: 14px;">统计</button>
+                            </div>
+                            <div
+                                style="display: flex; padding: 8px 15px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text-sub); font-weight: bold;">
+                                <span style="width: 30px; text-align: center;">序号</span>
+                                <span style="min-width: 80px; text-align: center; margin-left: 10px;">起始时间</span>
+                                <span style="flex: 1; padding-left: 15px;">字幕/弹幕内容</span>
+                                <span style="width: 70px; text-align: center;">操作</span>
+                            </div>
+                            <div id="danmu-list-body" style="flex: 1; overflow-y: auto;">
+                                <div style="text-align: center; padding: 20px; color: var(--text-sub);">暂无数据</div>
+                            </div>
+                        </div>
+
+                        <!-- 给右侧栏加 overflow-y: auto 和一点底部 padding 防止贴底 -->
+                        <div id="player-right-column"
+                            style="flex: 1.2; display: flex; flex-direction: column; gap: 15px; min-width: 0; overflow-y: auto; padding-right: 5px; padding-bottom: 20px;">
+
+                            <!-- 关键：flex 改为 1 0 auto，意思是允许放大，但不允许被压扁（0） -->
+                            <div id="player-combo-wrapper"
+                                style="flex: 1 0 auto; display: flex; flex-direction: column; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border: 1px solid var(--border); background: var(--card); transition: all 0.3s ease;">
+
+                                <div id="live-player-area"
+                                    style="flex: 1; min-height: 300px; background: #000; display: flex; align-items: center; justify-content: center; position: relative;">
+                                    <div id="live-player-container" style="width: 100%; height: 100%; margin: 0;">
+                                        <video id="live-video" controls autoplay
+                                            style="width: 100%; height: 100%;"></video>
+                                    </div>
                                 </div>
 
-                                <button id="btn-confirm-send-gift" class="btn btn-primary"
-                                    onclick="event.stopPropagation(); executeSendLiveGift()"
-                                    style="padding: 0 15px; height: 28px; font-size: 12px;" disabled>发送</button>
+                                <!-- 恢复原来的礼物面板代码（去掉之前我让你加的 position: absolute 等属性） -->
+                                <div id="live-gift-container"
+                                    style="display: none; background: transparent; border-top: 1px solid rgba(128,128,128,0.2);">
 
-                                <span id="gift-panel-arrow"
-                                    style="font-size: 12px; color: #999; transition: transform 0.2s;">▼</span>
+                                    <div class="gift-control-bar" onclick="toggleGiftPanel()"
+                                        style="padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; background: var(--input-bg); user-select: none;">
+                                        <div style="display: flex; align-items: center;">
+                                            <span style="font-weight: bold; margin-right: 10px;">🎁 赠送礼物</span>
+                                            <span style="font-size: 12px; color: var(--text-sub);">余额: <span
+                                                    id="live-gift-balance"
+                                                    style="color: var(--primary); font-weight: bold; margin: 0 4px;">--</span>
+                                                🍗</span>
+                                            <button class="btn btn-secondary"
+                                                onclick="event.stopPropagation(); updateLiveBalance()"
+                                                style="padding: 0 6px; height: 20px; font-size: 12px; margin-left: 8px;">↻</button>
+                                        </div>
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <div style="display:flex; align-items:center; background:var(--bg); border:1px solid var(--border); border-radius:4px; padding:0 4px; height:28px;"
+                                                onclick="event.stopPropagation()">
+                                                <span
+                                                    style="font-size:12px; color:var(--text-sub); margin-right:4px;">数量</span>
+                                                <input type="number" id="live-gift-num" value="1" min="1" max="9999"
+                                                    style="width: 40px; border:none; background:transparent; color:var(--text); text-align:center; font-weight:bold; outline:none;">
+                                            </div>
+                                            <button id="btn-confirm-send-gift" class="btn btn-primary"
+                                                onclick="event.stopPropagation(); executeSendLiveGift()"
+                                                style="padding: 0 15px; height: 28px; font-size: 12px;"
+                                                disabled>发送</button>
+                                            <span id="gift-panel-arrow"
+                                                style="font-size: 12px; color: #999; transition: transform 0.2s;">▼</span>
+                                        </div>
+                                    </div>
+
+                                    <div id="live-gift-panel"
+                                        style="display: none; padding: 10px; border-top: 1px solid var(--border); background: var(--bg);">
+                                        <div id="live-gift-grid" class="gift-grid-container"></div>
+                                    </div>
+                                </div>
+
                             </div>
-                        </div>
 
-                        <div id="live-gift-panel"
-                            style="display: none; padding: 10px; border-top: 1px solid var(--border); background: var(--bg);">
-                            <div id="live-gift-grid" class="gift-grid-container"
-                                style="max-height: 220px; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));">
+
+                            <div id="clip-toolbar"
+                                style="background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); backdrop-filter: blur(10px);">
+                                <div style="display: flex; gap: 15px; align-items: flex-end;">
+
+                                    <div style="flex: 1; display: flex; gap: 15px;">
+                                        <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
+                                            <span style="font-size: 11px; color: var(--text-sub);">设置切片起始时刻</span>
+                                            <div style="display: flex; gap: 5px;">
+                                                <div id="clip-start-display"
+                                                    style="flex: 1; background: var(--bg); border: 1px solid var(--border); padding: 0 12px; height: 38px; border-radius: 6px; font-family: monospace; font-size: 14px; color: var(--primary); font-weight:bold; display:flex; align-items:center;">
+                                                </div>
+                                                <button class="btn btn-secondary" onclick="setClipStart()"
+                                                    style="padding: 0 15px; height: 38px; line-height: 38px; white-space:nowrap; box-sizing: border-box;">起点</button>
+                                            </div>
+                                        </div>
+
+                                        <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
+                                            <span style="font-size: 11px; color: var(--text-sub);">设置切片结束时刻</span>
+                                            <div style="display: flex; gap: 5px;">
+                                                <div id="clip-end-display"
+                                                    style="flex: 1; background: var(--bg); border: 1px solid var(--border); padding: 0 12px; height: 38px; border-radius: 6px; font-family: monospace; font-size: 14px; color: var(--primary); font-weight:bold; display:flex; align-items:center;">
+                                                </div>
+                                                <button class="btn btn-secondary" onclick="setClipEnd()"
+                                                    style="padding: 0 15px; height: 38px; line-height: 38px; white-space:nowrap; box-sizing: border-box;">终点</button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+                                        <div id="clip-duration-display"
+                                            style="font-size: 11px; color: var(--text); font-weight: bold; width: 100%; text-align: center;">
+                                            切片时长: 0s</div>
+                                        <button class="btn btn-primary" onclick="executeClip()" id="btn-do-clip"
+                                            disabled
+                                            style="width: 100px; height: 38px; line-height: 38px; padding: 0; font-size: 14px; background: #28a745; border-color: #28a745; box-shadow: 0 2px 6px rgba(40,167,69,0.2); box-sizing: border-box;">切片</button>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    </div>
-
-                    <div id="clip-toolbar"
-                        style="margin-top: 15px; padding: 15px; background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
-                        <div style="flex: 1; min-width: 200px;">
-                            <div style="font-weight: bold; font-size: 14px; margin-bottom: 5px;">✂️ 视频切片工具</div>
-                            <div style="font-size: 12px; color: var(--text-sub); display: flex; gap: 15px;">
-                                <span id="clip-start-display">起点: 未设置</span>
-                                <span id="clip-end-display">终点: 未设置</span>
-                                <span id="clip-duration-display" style="color: var(--primary); font-weight: bold;">时长:
-                                    0s</span>
-                            </div>
-                        </div>
-                        <div class="btn-grid" style="grid-template-columns: auto auto auto; gap: 10px; display: flex;">
-                            <button class="btn btn-secondary" onclick="setClipStart()">切片开始</button>
-                            <button class="btn btn-secondary" onclick="setClipEnd()">切片结束</button>
-                            <button class="btn btn-primary" onclick="executeClip()" id="btn-do-clip"
-                                disabled>生成切片</button>
-                        </div>
-                    </div>
-                    <div id="danmu-timeline-wrapper"
-                        style="display: none; margin-top: 15px; border: 1px solid var(--border); border-radius: 8px; background: var(--input-bg); overflow: hidden; display: flex; flex-direction: column;">
-                        <div
-                            style="padding: 10px 15px; background: rgba(0,0,0,0.03); border-bottom: 1px solid var(--border); font-weight: bold; font-size: 14px; color: var(--text); display: flex; justify-content: space-between; align-items: center; gap: 10px;">
-                            <span style="white-space: nowrap;">💬 弹幕时间轴</span>
-
-                            <input type="text" id="danmu-search-input" class="input-control" placeholder="搜索内容 / 发送者"
-                                style="flex: 1; height: 26px; font-size: 12px; padding: 0 8px;"
-                                oninput="handleDanmuSearch(this.value)">
-
-                            <button class="btn btn-secondary" onclick="openDanmuAnalysis()"
-                                style="height: 26px; padding: 0 10px; font-size: 12px; margin-left: 10px;">
-                                弹幕统计
-                            </button>
-
-                            <span id="danmu-count-display"
-                                style="font-weight:normal; font-size:12px; color:var(--text-sub); white-space: nowrap; margin-left: 10px;"></span>
-                        </div>
-                        <div id="danmu-list-body" style="height: 300px; overflow-y: auto; padding: 0;">
-                            <div style="text-align: center; padding: 20px; color: var(--text-sub);">暂无弹幕数据</div>
                         </div>
                     </div>
                 </div>
-
                 <div id="vod-pagination-controls" class="pagination-container" style="padding-bottom: 20px;"></div>
+
             </div>
 
             <div id="view-login"
@@ -731,10 +781,10 @@
             </div>
 
             <div id="view-audio-programs"
-                style="height: 100%; display: none; flex-direction: column; padding: 20px 40px; box-sizing: border-box;">
+                style="height: 100%; display: none; flex-direction: column; padding: 20px 0 0 0; box-sizing: border-box;">
 
-                <div style="flex: 1; overflow-y: auto; min-height: 0; padding-right: 5px;">
-                    <div class="list-container" style="max-width: 900px; margin: 0 auto;">
+                <div style="flex: 1; overflow-y: auto; min-height: 0; padding: 0 40px;">
+                    <div class="list-container">
 
                         <div
                             style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
@@ -760,9 +810,9 @@
                 </div>
 
                 <div id="audio-player-bar-container"
-                    style="flex-shrink: 0; padding-top: 15px; display: flex; justify-content: center; background: transparent;">
+                    style="flex-shrink: 0; padding-top: 15px; padding-bottom: 25px; display: flex; justify-content: center; background: transparent;">
                     <div id="audio-player-bar" class="premium-player-bar"
-                        style="display: none; width: 100%; max-width: 900px; padding: 12px 20px; align-items: center; gap: 18px; border-radius: 16px; box-sizing: border-box;">
+                        style="display: none; width: 95%; padding: 12px 20px; align-items: center; gap: 18px; border-radius: 16px; box-sizing: border-box;">
 
                         <div
                             style="position: relative; width: 52px; height: 52px; border-radius: 50%; background: #111; padding: 2px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); flex-shrink: 0;">
@@ -817,7 +867,7 @@
 
             <div id="view-video-library" class="main-content"
                 style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box; background: transparent;">
-                <div class="list-container" style="max-width: 900px; margin: 0 auto;">
+                <div class="list-container">
 
                     <div
                         style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
@@ -861,10 +911,10 @@
             </div>
 
             <div id="view-music-library" class="main-content"
-                style="height: 100%; display: none; flex-direction: column; padding: 20px 40px; box-sizing: border-box; background: transparent;">
+                style="height: 100%; display: none; flex-direction: column; padding: 20px 0 0 0; box-sizing: border-box; background: transparent;">
 
-                <div id="music-scroll-area" style="flex: 1; overflow-y: auto; min-height: 0; padding-right: 5px;">
-                    <div class="list-container" style="max-width: 900px; margin: 0 auto;">
+                <div id="music-scroll-area" style="flex: 1; overflow-y: auto; min-height: 0; padding: 0 40px;">
+                    <div class="list-container">
 
                         <div
                             style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
@@ -895,9 +945,9 @@
                 </div>
 
                 <div id="music-player-bar-container"
-                    style="flex-shrink: 0; padding-top: 15px; display: flex; justify-content: center; background: transparent;">
+                    style="flex-shrink: 0; padding-top: 15px; padding-bottom: 25px; display: flex; justify-content: center; background: transparent;">
                     <div id="music-player-bar" class="premium-player-bar"
-                        style="display: none; width: 100%; max-width: 900px; padding: 12px 20px; align-items: center; gap: 18px; border-radius: 16px; box-sizing: border-box; box-shadow: 0 -4px 20px rgba(0,0,0,0.15);">
+                        style="display: none; width: 95%; padding: 12px 20px; align-items: center; gap: 18px; border-radius: 16px; box-sizing: border-box; box-shadow: 0 -4px 20px rgba(0,0,0,0.15);">
                         <div
                             style="position: relative; width: 52px; height: 52px; border-radius: 50%; background: #111; padding: 2px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); flex-shrink: 0;">
                             <img id="music-player-cover" class="vinyl-spin vinyl-pause" src=""
@@ -1149,7 +1199,7 @@
 
             <div id="view-room-album"
                 style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
-                <div class="list-container" style="max-width: 900px;">
+                <div class="list-container">
                     <div
                         style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
                         <h2 style="margin: 0; color: var(--primary);">房间相册</h2>
@@ -1201,7 +1251,7 @@
 
             <div id="view-photos"
                 style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
-                <div class="list-container" style="max-width: 900px;">
+                <div class="list-container">
                     <div
                         style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
                         <h2 style="margin: 0; color: var(--primary);">个人相册</h2>
@@ -1302,7 +1352,7 @@
 
             <div id="view-room-radio"
                 style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
-                <div class="list-container" style="max-width: 900px;">
+                <div class="list-container">
                     <div
                         style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
                         <h2 style="margin: 0; color: var(--primary);">房间电台</h2>
@@ -2055,11 +2105,10 @@
                 if (videoLibraryView) {
                     videoLibraryView.style.display = 'flex';
 
-                    initVideoScrollListener();
 
                     const grid = document.getElementById('video-list-grid');
                     if (grid && grid.innerHTML.trim() === '') {
-                        loadVideoLibrary(true);
+                        fetchAllVideoLibrary();
                     }
                 }
 
@@ -2490,10 +2539,6 @@
                     name: 'IDFT'
                 },
                 {
-                    apiId: 17,
-                    name: 'THE9'
-                },
-                {
                     apiId: 19,
                     name: '明星殿堂'
                 },
@@ -2504,6 +2549,10 @@
                 {
                     apiId: 16,
                     name: '海外练习生'
+                },
+                {
+                    apiId: 80,
+                    name: '燃烧吧团魂'
                 },
                 ];
                 this.currentPage = 1;
@@ -2557,6 +2606,38 @@
                 window.renderVODListUI();
             }
         }
+
+        function autoAdjustPageSize() {
+            if (!window.vodState) return;
+
+            const availableHeight = window.innerHeight - 250;
+
+            const cardHeight = 105;
+
+            let calculatedSize = Math.floor(availableHeight / cardHeight);
+
+            calculatedSize = Math.max(5, Math.min(calculatedSize, 30));
+
+            if (window.vodState.pageSize !== calculatedSize) {
+                window.vodState.pageSize = calculatedSize;
+
+                const mediaView = document.getElementById('view-media');
+                if (mediaView && mediaView.style.display !== 'none' && typeof currentMode !== 'undefined' && currentMode === 'vod') {
+                    if (window.vodState.list.length > 0) {
+                        window.renderVODListUI();
+                    }
+                }
+            }
+        }
+
+        window.addEventListener('resize', () => {
+            clearTimeout(window.resizeTimer);
+            window.resizeTimer = setTimeout(autoAdjustPageSize, 150);
+        });
+
+        window.addEventListener('DOMContentLoaded', () => {
+            autoAdjustPageSize();
+        });
 
         function parsePocketDanmu(fileContent) {
             const result = [];
@@ -3258,6 +3339,7 @@
         }
 
         function selectVodGroup(apiId, name) {
+            resetLoadAllButton();
             document.getElementById('vod-group-display').value = name;
             document.getElementById('vod-group-dropdown').style.display = 'none';
             handleGroupChange(apiId);
@@ -3271,6 +3353,7 @@
         }
 
         function selectVodType(value, name) {
+            resetLoadAllButton();
             document.getElementById('vod-type-display').value = name;
             document.getElementById('vod-type-filter').value = value;
             document.getElementById('vod-type-dropdown').style.display = 'none';
@@ -3283,11 +3366,95 @@
                 ensurePageData(2).then(() => renderVODListUI());
             }
         }
+
+        let isVodAutoLoading = false;
+
+        async function handleLoadAllVod() {
+            const loadBtn = document.getElementById('load-all-btn');
+
+            if (isVodAutoLoading) {
+                isVodAutoLoading = false;
+                if (loadBtn) {
+                    loadBtn.textContent = '继续加载';
+                    loadBtn.style.background = '#007bff';
+                    loadBtn.style.borderColor = '#007bff';
+                }
+                return;
+            }
+
+            if (!vodState.hasMore) {
+                if (loadBtn) {
+                    loadBtn.textContent = '加载完毕';
+                    loadBtn.style.background = '#28a745';
+                    loadBtn.style.borderColor = '#28a745';
+                    loadBtn.disabled = true;
+                }
+                return;
+            }
+
+            isVodAutoLoading = true;
+            if (loadBtn) {
+                loadBtn.textContent = '暂停加载';
+                loadBtn.style.background = '#dc3545';
+                loadBtn.style.borderColor = '#dc3545';
+            }
+
+            try {
+                let previousTotal = getFilteredVODList().length;
+
+                while (isVodAutoLoading && vodState.hasMore) {
+
+                    await fetchVODPageInternal();
+
+                    if (typeof renderVODListUI === 'function') {
+                        renderVODListUI();
+                    }
+
+                    const currentTotal = getFilteredVODList().length;
+
+                    if (currentTotal === previousTotal) {
+                        console.log("数据未增加，已到达真正的尽头，强制结束静默加载！");
+                        vodState.hasMore = false;
+                        break;
+                    }
+
+                    previousTotal = currentTotal;
+
+                    await new Promise(r => setTimeout(r, 600));
+                }
+            } catch (error) {
+                console.error("后台拉取数据时出错:", error);
+            }
+
+            if (!vodState.hasMore) {
+                isVodAutoLoading = false;
+                if (loadBtn) {
+                    loadBtn.textContent = '加载完毕';
+                    loadBtn.style.background = '#28a745';
+                    loadBtn.style.borderColor = '#28a745';
+                    loadBtn.disabled = true;
+                }
+            }
+        }
+
+        function resetLoadAllButton() {
+            isVodAutoLoading = false;
+
+            const loadBtn = document.getElementById('load-all-btn');
+            if (loadBtn) {
+                loadBtn.textContent = '加载全部';
+                loadBtn.style.background = '#007bff';
+                loadBtn.style.borderColor = '#007bff';
+                loadBtn.disabled = false;
+            }
+        }
+
         async function handleRefreshList() {
+            resetLoadAllButton();
             if (!window.vodState) return;
             const btn = document.getElementById('refresh-btn');
             const originalText = btn.textContent;
-            btn.textContent = '刷新中...';
+            btn.textContent = '正在刷新';
             btn.disabled = true;
 
             vodState.searchPageToken = 0;
@@ -3310,6 +3477,7 @@
                 btn.disabled = false;
             }
         }
+
         async function goToPage(page) {
             if (window.vodState) {
                 await ensurePageData(page);
@@ -3327,10 +3495,11 @@
                 renderVODListUI();
             }
         }
-        async function handleNextPage() {
+
+        async function handleNextPage(isAppend = false) {
             if (!window.vodState) return;
             const nextPage = vodState.currentPage + 1;
-            await goToPage(nextPage);
+            await goToPage(nextPage, isAppend);
         }
 
         function getFilteredVODList() {
@@ -3367,6 +3536,7 @@
                 return keywords.every(kw => name.includes(kw) || title.includes(kw) || userId.includes(kw) || timeStr.includes(kw));
             });
         }
+
         async function fetchVODPageInternal() {
             const memberFilterInput = document.getElementById('vod-member-filter');
             let filterText = memberFilterInput ? memberFilterInput.value.trim() : '';
@@ -3391,7 +3561,7 @@
                 };
                 if (memberId) {
                     payload.userId = parseInt(memberId, 10);
-                    document.getElementById('vod-loading').textContent = `🔍 正在检索 ID: ${memberId} 的回放...`;
+                    document.getElementById('vod-loading').textContent = `正在检索 ID: ${memberId} 的回放...`;
                 } else {
                     payload.groupId = groupId;
                     document.getElementById('vod-loading').textContent = `正在加载最近录播...`;
@@ -3769,10 +3939,84 @@
             liveRecordCount = 0;
             currentPlayingItem = item;
 
+            resetClipTool();
+
             document.getElementById('media-list-area').style.display = 'none';
             document.getElementById('vod-pagination-controls').style.display = 'none';
             document.getElementById('media-list-controls').style.display = 'none';
-            document.getElementById('live-player-view').style.display = 'block';
+
+            const playerView = document.getElementById('live-player-view');
+            if (playerView) playerView.style.display = 'flex';
+
+            const authorEl = document.getElementById('current-live-author');
+            if (authorEl) authorEl.textContent = item.userInfo ? item.userInfo.nickname : (item.nickname || '未知成员');
+
+            const splitLayout = document.getElementById('player-split-layout');
+            const timelineWrapper = document.getElementById('danmu-timeline-wrapper');
+            const playerArea = document.getElementById('live-player-area');
+
+            const rightWrapper = document.getElementById('player-right-column');
+            const comboWrapper = document.getElementById('player-combo-wrapper');
+
+            if (splitLayout) {
+                if (mode === 'live') {
+                    splitLayout.style.flexDirection = 'column';
+                    splitLayout.style.alignItems = 'stretch';
+                    if (timelineWrapper) timelineWrapper.style.display = 'none';
+
+                    if (rightWrapper) {
+                        rightWrapper.style.width = '100%';
+                        rightWrapper.style.maxWidth = '1200px';
+                        rightWrapper.style.margin = '0 auto';
+                        rightWrapper.style.overflowY = 'visible';
+                        rightWrapper.style.paddingRight = '0';
+                    }
+
+                    playerView.style.flex = '1';
+                    playerView.style.height = 'auto';
+                    playerView.style.minHeight = '0';
+                    playerView.style.setProperty('overflow', 'visible', 'important');
+
+                    if (comboWrapper) {
+                        comboWrapper.style.flex = 'none';
+                        comboWrapper.style.height = 'auto';
+                    }
+                    if (playerArea) {
+                        playerArea.style.flex = 'none';
+                        playerArea.style.height = 'auto';
+                        playerArea.style.aspectRatio = '16 / 9';
+                        playerArea.style.minHeight = '350px';
+                    }
+                } else {
+                    splitLayout.style.flexDirection = 'row';
+                    splitLayout.style.alignItems = 'stretch';
+                    if (timelineWrapper) timelineWrapper.style.display = 'flex';
+
+                    if (rightWrapper) {
+                        rightWrapper.style.width = 'auto';
+                        rightWrapper.style.maxWidth = 'none';
+                        rightWrapper.style.margin = '0';
+                        rightWrapper.style.overflowY = 'auto';
+                        rightWrapper.style.paddingRight = '5px';
+                    }
+
+                    playerView.style.flex = '1';
+                    playerView.style.height = 'auto';
+                    playerView.style.minHeight = '0';
+                    playerView.style.setProperty('overflow', 'hidden', 'important');
+
+                    if (comboWrapper) {
+                        comboWrapper.style.flex = '1 0 auto';
+                        comboWrapper.style.height = 'auto';
+                    }
+                    if (playerArea) {
+                        playerArea.style.flex = '1 0 auto';
+                        playerArea.style.height = 'auto';
+                        playerArea.style.aspectRatio = 'auto';
+                        playerArea.style.minHeight = '300px';
+                    }
+                }
+            }
 
             const giftContainer = document.getElementById('live-gift-container');
             if (giftContainer) {
@@ -3792,22 +4036,26 @@
             const liveControls = document.getElementById('live-list-controls');
             if (liveControls) liveControls.style.display = 'none';
 
-            if (typeof livePlayerView !== 'undefined') {
-                livePlayerView.style.display = 'block';
-            }
-
             const titleContainer = document.getElementById('current-live-title');
+            const dateContainer = document.getElementById('current-live-date');
             const timeContainer = document.getElementById('current-live-time');
+            let dateLabel = '';
             let timeLabel = '';
+
             if (item.startTime || item.ctime) {
                 const ts = Number(item.startTime || item.ctime);
                 if (!isNaN(ts)) {
                     const d = new Date(ts);
-                    timeLabel = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + ':' + String(d.getSeconds()).padStart(2, '0');
+                    const pad = (n) => String(n).padStart(2, '0');
+
+                    dateLabel = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+                    timeLabel = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
                 }
             }
-            titleContainer.textContent = `${item.userInfo.nickname || item.nickname || '成员'} - ${item.title || item.liveTitle || '直播/回放'}`;
-            timeContainer.textContent = timeLabel ? `直播时间: ${timeLabel}` : '';
+
+            titleContainer.textContent = item.title || item.liveTitle || '直播/回放';
+            if (dateContainer) dateContainer.textContent = dateLabel || '未知';
+            if (timeContainer) timeContainer.textContent = timeLabel || '未知';
 
             const oldNotice = document.querySelector('#live-player-area .live-link-info');
             if (oldNotice) oldNotice.remove();
@@ -3852,20 +4100,33 @@
             const endDisplay = document.getElementById('clip-end-display');
             const durationDisplay = document.getElementById('clip-duration-display');
             const clipBtn = document.getElementById('btn-do-clip');
-            startDisplay.textContent = clipStartTime !== null ? `起点: ${formatDuration(clipStartTime * 1000)}` : '起点: 未设置';
-            endDisplay.textContent = clipEndTime !== null ? `终点: ${formatDuration(clipEndTime * 1000)}` : '终点: 未设置';
+
+            const formatTimeMS = (s) => {
+                if (s === null || s === undefined) return '';
+                const h = Math.floor(s / 3600);
+                const m = Math.floor((s % 3600) / 60);
+                const sec = Math.floor(s % 60);
+                const ms = Math.floor((s % 1) * 1000);
+
+                const pad = (n, w = 2) => String(n).padStart(w, '0');
+                return `${pad(h)}:${pad(m)}:${pad(sec)}.${pad(ms, 3)}`;
+            };
+
+            if (startDisplay) startDisplay.textContent = formatTimeMS(clipStartTime);
+            if (endDisplay) endDisplay.textContent = formatTimeMS(clipEndTime);
+
             if (clipStartTime !== null && clipEndTime !== null) {
                 const dur = clipEndTime - clipStartTime;
                 if (dur > 0) {
-                    durationDisplay.textContent = `时长: ${dur.toFixed(1)}s`;
-                    clipBtn.disabled = false;
+                    if (durationDisplay) durationDisplay.textContent = `切片时长: ${dur.toFixed(2)}s`;
+                    if (clipBtn) clipBtn.disabled = false;
                 } else {
-                    durationDisplay.textContent = `时长: 无效`;
-                    clipBtn.disabled = true;
+                    if (durationDisplay) durationDisplay.textContent = `切片时长: 无效`;
+                    if (clipBtn) clipBtn.disabled = true;
                 }
             } else {
-                durationDisplay.textContent = '时长: 0s';
-                clipBtn.disabled = true;
+                if (durationDisplay) durationDisplay.textContent = '切片时长: 0s';
+                if (clipBtn) clipBtn.disabled = true;
             }
         }
 
@@ -3874,12 +4135,32 @@
             clipEndTime = null;
             currentRecordTaskId = null;
             updateClipUI();
-            const startEl = document.getElementById('clip-start-display');
-            const endEl = document.getElementById('clip-end-display');
-            if (startEl) startEl.textContent = "起点: 未设置";
-            if (endEl) endEl.textContent = "终点: 未设置";
-            console.log("切片工具已随视频切换自动重置");
         }
+
+        window.setClipStartFromTimeline = function (time) {
+            clipStartTime = time;
+            if (clipEndTime !== null && clipEndTime <= clipStartTime) clipEndTime = null;
+            updateClipUI();
+            if (art && art.notice) art.notice.show = `已打点起点`;
+            if (art) art.seek = time;
+        };
+
+        window.setClipEndFromTimeline = function (time) {
+            if (clipStartTime === null) {
+                if (art && art.notice) art.notice.show = '❌ 请先设置起点';
+                return;
+            }
+            if (time <= clipStartTime) {
+                if (art && art.notice) art.notice.show = '❌ 终点必须晚于起点';
+                return;
+            }
+            clipEndTime = time;
+            updateClipUI();
+            if (art && art.notice) art.notice.show = `已打点终点`;
+            if (art) art.seek = time;
+        };
+
+
         let currentRecordTaskId = null;
 
         function setClipStart() {
@@ -3905,7 +4186,7 @@
                 clipStartTime = art.currentTime;
                 if (clipEndTime !== null && clipEndTime <= clipStartTime) clipEndTime = null;
                 updateClipUI();
-                art.notice.show = `已设定起点: ${formatDuration(clipStartTime * 1000)}`;
+                art.notice.show = `已设定起点`;
             }
         }
 
@@ -3957,9 +4238,9 @@
                     art.notice.show = '❌ 终点必须晚于起点';
                     return;
                 }
-                clipEndTime = current;
+                clipEndTime = art.currentTime;
                 updateClipUI();
-                art.notice.show = `已设定终点: ${formatDuration(clipEndTime * 1000)}`;
+                art.notice.show = `已设定终点`;
             }
         }
 
@@ -4074,9 +4355,7 @@
                             url: localUrl
                         }
                     };
-                    clipStartTime = null;
-                    clipEndTime = null;
-                    updateClipUI();
+
                     setInterval(() => {
                         if (flvPlayer && flvPlayer.buffered.length) {
                             let diff = flvPlayer.buffered.end(0) - flvPlayer.currentTime;
@@ -4093,33 +4372,38 @@
             const loadSubtitle = (file) => {
                 if (!file || !art) return;
                 const ext = file.name.split('.').pop().toLowerCase();
-                if (ext === 'srt') {
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        let text = e.target.result;
-                        text = text.replace(/(^|[\r\n]+)\d+([\r\n]+)(?=\d{2}:\d{2}:\d{2})/g, '$1');
-                        text = text.replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2');
-                        if (!text.startsWith('WEBVTT')) text = 'WEBVTT\n\n' + text;
-                        const url = URL.createObjectURL(new Blob([text], {
-                            type: 'text/vtt;charset=utf-8'
-                        }));
-                        art.subtitle.switch(url, {
-                            type: 'vtt',
-                            name: '本地字幕'
-                        }).then(() => {
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    let text = e.target.result;
+
+                    if (ext === 'srt') {
+                        currentSubtitleList = parseSRT(text);
+                        if (typeof switchTimelineMode === 'function') {
+                            switchTimelineMode('subtitle');
+                        }
+                    } else {
+                        console.warn('时间轴目前主要支持解析 SRT 格式的本地字幕');
+                    }
+
+                    if (ext === 'srt') {
+                        let vttText = text.replace(/(^|[\r\n]+)\d+([\r\n]+)(?=\d{2}:\d{2}:\d{2})/g, '$1');
+                        vttText = vttText.replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2');
+                        if (!vttText.startsWith('WEBVTT')) vttText = 'WEBVTT\n\n' + vttText;
+
+                        const url = URL.createObjectURL(new Blob([vttText], { type: 'text/vtt;charset=utf-8' }));
+                        art.subtitle.switch(url, { type: 'vtt', name: '本地字幕' }).then(() => {
                             if (art.notice) art.notice.show = `字幕加载成功: ${file.name}`;
                         });
-                    };
-                    reader.readAsText(file);
-                } else {
-                    const url = URL.createObjectURL(file);
-                    art.subtitle.switch(url, {
-                        type: ext,
-                        name: '本地字幕'
-                    }).then(() => {
-                        if (art.notice) art.notice.show = `字幕加载成功: ${file.name}`;
-                    });
-                }
+                    } else {
+                        const url = URL.createObjectURL(file);
+                        art.subtitle.switch(url, { type: ext, name: '本地字幕' }).then(() => {
+                            if (art.notice) art.notice.show = `字幕加载成功: ${file.name}`;
+                        });
+                    }
+                };
+
+                reader.readAsText(file);
             };
             let subInput = document.getElementById('art-subtitle-loader');
             if (!subInput) {
@@ -4146,7 +4430,6 @@
                 fullscreenWeb: true,
                 setting: true,
                 subtitleOffset: true,
-                screenshot: true,
                 pip: true,
                 flip: true,
                 playbackRate: true,
@@ -4529,8 +4812,8 @@
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    min-width: 200px;  /* 初始最小宽度 */
-                    min-height: 120px; /* 初始最小高度 */
+                    min-width: 200px;  
+                    min-height: 120px; 
                     background: #000;
                     border-radius: 12px;
                     cursor: pointer;
@@ -4546,7 +4829,7 @@
                             position: absolute;
                             width: 100%;
                             height: 100%;
-                            object-fit: contain; /* 保持比例显示 */
+                            object-fit: contain; 
                             pointer-events: none;
                             z-index: 0;
                             background: #000;
@@ -7091,49 +7374,50 @@
                 let dateStr = '未知时间';
                 if (item.createTime || item.ctime) {
                     const d = new Date(Number(item.createTime || item.ctime));
-                    dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                    const pad = (n) => String(n).padStart(2, '0');
+                    dateStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
                 }
 
                 const costHtml = item.money ? `<span style="color: #fa8c16; font-weight: bold; font-size: 13px;">${item.money} 🍗</span>` : `<span style="color: #52c41a; font-weight: bold; font-size: 13px;">免费</span>`;
 
                 const downloadIcon = `
-                    <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                        <polyline points="7 10 12 15 17 10"></polyline>
-                        <line x1="12" y1="15" x2="12" y2="3"></line>
-                    </svg>保存
-                `;
+            <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>保存
+        `;
 
                 const mediaContainer = document.createElement('div');
-                mediaContainer.style.cssText = 'height: 200px; display: flex; align-items: center; justify-content: center; background: var(--input-bg); border-bottom: 1px solid var(--border); overflow: hidden; position: relative;';
+                mediaContainer.style.cssText = 'aspect-ratio: 1 / 1; width: 100%; display: flex; align-items: center; justify-content: center; background: var(--input-bg); border-bottom: 1px solid var(--border); overflow: hidden; position: relative;';
 
                 if (isAudio) {
                     const audioPlayer = createCustomAudioPlayer(safeUrl);
                     mediaContainer.style.flexDirection = 'column';
                     mediaContainer.style.background = 'linear-gradient(145deg, var(--input-bg) 0%, rgba(155, 106, 156, 0.06) 100%)';
                     mediaContainer.innerHTML = `
-                        <div style="width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, var(--primary) 0%, #d49bc6 100%); box-shadow: 0 6px 16px rgba(155, 106, 156, 0.35); display: flex; align-items: center; justify-content: center; margin-bottom: 18px; user-select: none;">
-                            <svg viewBox="0 0 24 24" width="30" height="30" stroke="#ffffff" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                                <line x1="12" y1="18" x2="12" y2="6"></line><line x1="8" y1="14" x2="8" y2="10"></line><line x1="16" y1="16" x2="16" y2="8"></line><line x1="4" y1="13" x2="4" y2="11"></line><line x1="20" y1="15" x2="20" y2="9"></line>
-                            </svg>
-                        </div>
-                    `;
+                <div style="width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, var(--primary) 0%, #d49bc6 100%); box-shadow: 0 6px 16px rgba(155, 106, 156, 0.35); display: flex; align-items: center; justify-content: center; margin-bottom: 18px; user-select: none;">
+                    <svg viewBox="0 0 24 24" width="30" height="30" stroke="#ffffff" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="18" x2="12" y2="6"></line><line x1="8" y1="14" x2="8" y2="10"></line><line x1="16" y1="16" x2="16" y2="8"></line><line x1="4" y1="13" x2="4" y2="11"></line><line x1="20" y1="15" x2="20" y2="9"></line>
+                    </svg>
+                </div>
+            `;
                     mediaContainer.appendChild(audioPlayer);
                 } else if (isVideo) {
                     let coverUrl = item.picPath ? (item.picPath.startsWith('http') ? item.picPath : `https://source.48.cn${item.picPath}`) : '';
 
                     mediaContainer.innerHTML = `
-                        <video data-src="${safeUrl}#t=0.1" preload="none" ${coverUrl ? `poster="${coverUrl}"` : ''} 
-                               style="width: 100%; height: 100%; object-fit: cover; background: #000; transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);"></video>
-                        
-                        <div class="album-video-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.15); cursor: pointer; transition: opacity 0.3s;">
-                            <div style="position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.5); color: white; font-size: 11px; padding: 2px 6px; border-radius: 4px; backdrop-filter: blur(4px);">🎬 视频</div>
-                            
-                            <div class="album-play-btn" style="width: 48px; height: 48px; border-radius: 50%; background: rgba(255,255,255,0.25); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,0.6); box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);">
-                                <svg viewBox="0 0 24 24" width="24" height="24" fill="white" style="margin-left: 4px;"><path d="M8 5v14l11-7z"/></svg>
-                            </div>
-                        </div>
-                    `;
+                <video data-src="${safeUrl}#t=0.1" preload="none" ${coverUrl ? `poster="${coverUrl}"` : ''} 
+                       style="width: 100%; height: 100%; object-fit: cover; background: #000; transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);"></video>
+                
+                <div class="album-video-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.15); cursor: pointer; transition: opacity 0.3s;">
+                    <div style="position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.5); color: white; font-size: 11px; padding: 2px 6px; border-radius: 4px; backdrop-filter: blur(4px);">🎬 视频</div>
+                    
+                    <div class="album-play-btn" style="width: 48px; height: 48px; border-radius: 50%; background: rgba(255,255,255,0.25); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,0.6); box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);">
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="white" style="margin-left: 4px;"><path d="M8 5v14l11-7z"/></svg>
+                    </div>
+                </div>
+            `;
 
                     const overlay = mediaContainer.querySelector('.album-video-overlay');
                     const playBtn = mediaContainer.querySelector('.album-play-btn');
@@ -7163,7 +7447,7 @@
                     };
                 } else {
                     const thumbUrl = typeof getOptimizedThumbUrl === 'function' ? getOptimizedThumbUrl(safeUrl) : safeUrl;
-                    mediaContainer.innerHTML = `<img src="${thumbUrl}" loading="lazy" onclick="openImageModal('${safeUrl}')" style="width:100%; height:100%; object-fit:cover; cursor:zoom-in; transition: transform 0.3s;">`;
+                    mediaContainer.innerHTML = `<img src="${thumbUrl}" loading="lazy" decoding="async" onclick="openImageModal('${safeUrl}')" style="width:100%; height:100%; object-fit:cover; object-position:center; cursor:zoom-in; transition: transform 0.3s;">`;
                     const imgEl = mediaContainer.querySelector('img');
                     imgEl.onmouseenter = () => imgEl.style.transform = 'scale(1.05)';
                     imgEl.onmouseleave = () => imgEl.style.transform = 'scale(1)';
@@ -7172,17 +7456,17 @@
                 const infoContainer = document.createElement('div');
                 infoContainer.style.padding = '12px';
                 infoContainer.innerHTML = `
-                    <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 6px;">${dateStr}</div>
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        ${costHtml}
-                        <span style="font-size: 12px; color: var(--text-sub);">发行: ${item.total || '不限'} | 已售: ${item.sold || 0}</span>
-                    </div>
-                    <div style="margin-top: 12px;">
-                        <button class="btn btn-secondary btn-full" style="height: 32px; font-size: 12px; border-radius: 16px;" onclick="downloadMediaFileIconMode('${safeUrl}', '${dlFilename}', this, this.innerHTML)">
-                            ${downloadIcon}
-                        </button>
-                    </div>
-                `;
+            <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 6px;">${dateStr}</div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                ${costHtml}
+                <span style="font-size: 12px; color: var(--text-sub);">发行: ${item.total || '不限'} | 已售: ${item.sold || 0}</span>
+            </div>
+            <div style="margin-top: 12px;">
+                <button class="btn btn-secondary btn-full" style="height: 32px; font-size: 12px; border-radius: 16px;" onclick="downloadMediaFileIconMode('${safeUrl}', '${dlFilename}', this, this.innerHTML)">
+                    ${downloadIcon}
+                </button>
+            </div>
+        `;
 
                 card.appendChild(mediaContainer);
                 card.appendChild(infoContainer);
@@ -7507,38 +7791,42 @@
                 let dateStr = '未知时间';
                 if (item.createTime) {
                     const d = new Date(Number(item.createTime));
-                    dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                    const pad = (n) => String(n).padStart(2, '0');
+                    dateStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
                 }
 
                 const downloadIcon = `
-                    <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                        <polyline points="7 10 12 15 17 10"></polyline>
-                        <line x1="12" y1="15" x2="12" y2="3"></line>
-                    </svg>保存
-                `;
+            <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>保存
+        `;
 
                 const mediaContainer = document.createElement('div');
-                mediaContainer.style.cssText = 'height: 220px; display: flex; align-items: center; justify-content: center; background: var(--input-bg); border-bottom: 1px solid var(--border); overflow: hidden; position: relative;';
+
+                mediaContainer.style.cssText = 'aspect-ratio: 1 / 1; width: 100%; display: flex; align-items: center; justify-content: center; background: var(--input-bg); border-bottom: 1px solid var(--border); overflow: hidden; position: relative;';
 
                 if (isVideo) {
                     mediaContainer.innerHTML = `
-                        <video data-src="${safeUrl}#t=0.1" preload="none" 
-                               style="width: 100%; height: 100%; object-fit: cover; background: #000; transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);"></video>
-                        
-                        <div class="album-video-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.15); cursor: pointer; transition: opacity 0.3s;">
-                            <div style="position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.5); color: white; font-size: 11px; padding: 2px 6px; border-radius: 4px; backdrop-filter: blur(4px);">🎬 视频</div>
-                            <div class="album-play-btn" style="width: 48px; height: 48px; border-radius: 50%; background: rgba(255,255,255,0.25); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,0.6); box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);">
-                                <svg viewBox="0 0 24 24" width="24" height="24" fill="white" style="margin-left: 4px;"><path d="M8 5v14l11-7z"/></svg>
-                            </div>
-                        </div>
-                    `;
+                <video data-src="${safeUrl}#t=0.1" preload="none" 
+                       style="width: 100%; height: 100%; object-fit: cover; background: #000; transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);"></video>
+                
+                <div class="album-video-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.15); cursor: pointer; transition: opacity 0.3s;">
+                    <div style="position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.5); color: white; font-size: 11px; padding: 2px 6px; border-radius: 4px; backdrop-filter: blur(4px);">🎬 视频</div>
+                    <div class="album-play-btn" style="width: 48px; height: 48px; border-radius: 50%; background: rgba(255,255,255,0.25); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,0.6); box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);">
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="white" style="margin-left: 4px;"><path d="M8 5v14l11-7z"/></svg>
+                    </div>
+                </div>
+            `;
 
                     const overlay = mediaContainer.querySelector('.album-video-overlay');
                     const playBtn = mediaContainer.querySelector('.album-play-btn');
                     const videoEl = mediaContainer.querySelector('video');
 
-                    albumVideoObserver.observe(videoEl);
+                    if (typeof albumVideoObserver !== 'undefined') {
+                        albumVideoObserver.observe(videoEl);
+                    }
 
                     overlay.onmouseenter = () => {
                         playBtn.style.transform = 'scale(1.15)';
@@ -7573,8 +7861,8 @@
                         videoEl.play();
                     };
                 } else {
-                    const thumbUrl = getOptimizedThumbUrl(safeUrl);
-                    mediaContainer.innerHTML = `<img src="${thumbUrl}" loading="lazy" onclick="openImageModal('${safeUrl}')" style="width:100%; height:100%; object-fit:cover; cursor:zoom-in; transition: transform 0.3s;">`;
+                    const thumbUrl = typeof getOptimizedThumbUrl === 'function' ? getOptimizedThumbUrl(safeUrl) : safeUrl;
+                    mediaContainer.innerHTML = `<img src="${thumbUrl}" loading="lazy" decoding="async" onclick="openImageModal('${safeUrl}')" style="width: 100%; height: 100%; object-fit: cover; object-position: center; cursor: zoom-in; transition: transform 0.3s;">`;
                     const imgEl = mediaContainer.querySelector('img');
                     imgEl.onmouseenter = () => imgEl.style.transform = 'scale(1.05)';
                     imgEl.onmouseleave = () => imgEl.style.transform = 'scale(1)';
@@ -7586,16 +7874,17 @@
                 const senderName = item.starName || memberName;
 
                 infoContainer.innerHTML = `
-                    <div style="font-size: 13px; font-weight: bold; color: var(--text); margin-bottom: 2px;">
-                        ${senderName}
-                    </div>
-                    <div style="font-size: 11px; color: var(--text-sub); margin-bottom: 10px;">${dateStr}</div>
-                    
-                    <div>
-<button class="btn btn-secondary btn-full album-single-dl-btn" data-url="${safeUrl}" data-filename="${dlFilename}" style="height: 30px; font-size: 12px; border-radius: 6px;" onclick="downloadMediaFileIconMode('${safeUrl}', '${dlFilename}', this, this.innerHTML, 'media', '【房间相册】${memberName}')">                            ${downloadIcon}
-                        </button>
-                    </div>
-                `;
+            <div style="font-size: 13px; font-weight: bold; color: var(--text); margin-bottom: 2px;">
+                ${senderName}
+            </div>
+            <div style="font-size: 11px; color: var(--text-sub); margin-bottom: 10px;">${dateStr}</div>
+            
+            <div>
+                <button class="btn btn-secondary btn-full album-single-dl-btn" data-url="${safeUrl}" data-filename="${dlFilename}" style="height: 30px; font-size: 12px; border-radius: 6px;" onclick="downloadMediaFileIconMode('${safeUrl}', '${dlFilename}', this, this.innerHTML, 'media', '【房间相册】${memberName}')">
+                    ${downloadIcon}
+                </button>
+            </div>
+        `;
 
                 card.appendChild(mediaContainer);
                 card.appendChild(infoContainer);
@@ -7933,7 +8222,9 @@
             returnToOpenLive = true;
 
             const playerView = document.getElementById('live-player-view');
-            playerView.style.display = 'block';
+            playerView.style.display = 'flex';
+            const authorEl = document.getElementById('current-live-author');
+            if (authorEl) authorEl.textContent = nickname || '未知成员';
 
             const sectionTitle = document.getElementById('live-view-title');
             if (sectionTitle) {
@@ -7941,26 +8232,28 @@
             }
 
             const titleEl = document.getElementById('current-live-title');
+            const dateEl = document.getElementById('current-live-date');
             const timeEl = document.getElementById('current-live-time');
 
-            if (titleEl) titleEl.textContent = `${nickname} - ${title}`;
+            if (titleEl) titleEl.textContent = title;
 
-            if (timeEl) {
-                if (startTime) {
-                    const d = new Date(Number(startTime));
-                    const offset = d.getTimezoneOffset() * 60000;
-                    const utcTime = d.getTime() + offset;
-                    const bjTime = new Date(utcTime + 3600000 * 8);
+            if (startTime) {
+                const d = new Date(Number(startTime));
+                const offset = d.getTimezoneOffset() * 60000;
+                const utcTime = d.getTime() + offset;
+                const bjTime = new Date(utcTime + 3600000 * 8);
+                const pad = (n) => String(n).padStart(2, '0');
 
-                    const timeStr = `${bjTime.getFullYear()}-${String(bjTime.getMonth() + 1).padStart(2, '0')}-${String(bjTime.getDate()).padStart(2, '0')} ${String(bjTime.getHours()).padStart(2, '0')}:${String(bjTime.getMinutes()).padStart(2, '0')}`;
-
-                    timeEl.textContent = `公演时间：${timeStr}`;
-                } else {
-                    timeEl.textContent = '';
-                }
+                if (dateEl) dateEl.textContent = `${bjTime.getFullYear()}-${pad(bjTime.getMonth() + 1)}-${pad(bjTime.getDate())}`;
+                if (timeEl) timeEl.textContent = `${pad(bjTime.getHours())}:${pad(bjTime.getMinutes())}:${pad(bjTime.getSeconds())}`;
+            } else {
+                if (dateEl) dateEl.textContent = '';
+                if (timeEl) timeEl.textContent = '';
             }
 
             currentPlayingItem = { liveId, title, nickname, startTime };
+
+            resetClipTool();
 
             try {
                 const token = appToken || localStorage.getItem('yaya_p48_token');
@@ -8120,12 +8413,23 @@
         function parseSRT(srtText) {
             const result = [];
             if (!srtText || typeof srtText !== 'string') return result;
+
             const pattern = "(\\d{1,2}:\\d{1,2}:\\d{1,2}[,.]\\d{1,3})\\s*-->\\s*(\\d{1,2}:\\d{1,2}:\\d{1,2}[,.]\\d{1,3})";
             const timeRegex = new RegExp(pattern);
             const normalizedText = srtText.replace(/(\d{1,2}:\d{1,2}:\d{1,2}[,.]\d{1,3}\s*-->)/g, '\n$1');
             const lines = normalizedText.split('\n');
 
             let currentItem = null;
+
+            const parseTime = (str) => {
+                const parts = str.replace(',', '.').split(':');
+                return (+parts[0]) * 3600 + (+parts[1]) * 60 + parseFloat(parts[2]);
+            };
+
+            const formatVTT = (t) => {
+                let s = t.replace(',', '.');
+                return s.split(':')[0].length === 1 ? '0' + s : s;
+            };
 
             for (let line of lines) {
                 line = line.trim();
@@ -8138,18 +8442,9 @@
                     const startStr = timeMatch[1];
                     const endStr = timeMatch[2];
 
-                    const parseTime = (str) => {
-                        const parts = str.replace(',', '.').split(':');
-                        return (+parts[0]) * 3600 + (+parts[1]) * 60 + parseFloat(parts[2]);
-                    };
-
-                    const formatVTT = (t) => {
-                        let s = t.replace(',', '.');
-                        return s.split(':')[0].length === 1 ? '0' + s : s;
-                    };
-
                     currentItem = {
                         time: parseTime(startStr),
+                        endTime: parseTime(endStr),
                         vttStart: formatVTT(startStr),
                         vttEnd: formatVTT(endStr),
                         text: '',
@@ -8168,8 +8463,11 @@
                 return item;
             });
         }
+        const COS_BASE_URL = "https://yaya-srt-1257454013.cos.ap-guangzhou.myqcloud.com";
 
-        async function fetchGithubSubtitle(nickname, rawT) {
+        async function fetchCosSubtitle(nickname, rawT) {
+            if (!nickname || !rawT) return null;
+
             const d = new Date(Number(rawT));
             const offset = d.getTimezoneOffset() * 60000;
             const utcTime = d.getTime() + offset;
@@ -8181,68 +8479,25 @@
             const folderName = nickname;
             const fileName = `【${nickname}】${fTimestamp}.srt`;
 
-            const rawUrl = `https://raw.githubusercontent.com/yk1z/yaya_srt/main/${encodeURIComponent(folderName)}/${encodeURIComponent(fileName)}`;
+            const srtUrl = `${COS_BASE_URL}/${encodeURIComponent(folderName)}/${encodeURIComponent(fileName)}`;
 
-            const tryUrls = [
-                `https://ghproxy.net/${rawUrl}`,
-                `https://mirror.ghproxy.com/${rawUrl}`,
-                `https://raw.gitmirror.com/${rawUrl}`
-            ];
-
-            console.log(`🔍 [字幕请求] 寻找字幕: ${fileName}`);
+            console.log(`🔍 [字幕请求] 正在从 COS 获取: ${folderName}/${fileName}`);
 
             try {
-                const https = require('https');
+                const res = await fetch(`${srtUrl}?t=${Date.now()}`);
 
-                const fetchUrl = (targetUrl) => {
-                    return new Promise((resolve, reject) => {
-                        const finalUrl = targetUrl + (targetUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
-                        https.get(finalUrl, {
-                            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-                            timeout: 5000
-                        }, (res) => {
-                            if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-                                https.get(res.headers.location, (res2) => {
-                                    let data = '';
-                                    res2.on('data', chunk => data += chunk);
-                                    res2.on('end', () => resolve({ code: res2.statusCode, data }));
-                                }).on('error', reject);
-                                return;
-                            }
-                            let data = '';
-                            res.on('data', chunk => data += chunk);
-                            res.on('end', () => resolve({ code: res.statusCode, data }));
-                        }).on('error', reject);
-                    });
-                };
-
-                let text = null;
-                let successUrl = '';
-
-                for (let i = 0; i < tryUrls.length; i++) {
-                    try {
-                        const result = await fetchUrl(tryUrls[i]);
-                        if (result.code === 200 && result.data && result.data.includes('-->') && !result.data.includes('Package size exceeded')) {
-                            text = result.data;
-                            successUrl = tryUrls[i];
-                            console.log(`✅ [字幕请求] 节点 ${i + 1} 拉取成功!`);
-                            break;
-                        }
-                    } catch (err) {
-                        console.warn(`⚠️ [字幕请求] 节点 ${i + 1} 连接超时或失败`);
-                    }
-                }
-
-                if (text) {
-                    return { text, url: successUrl, fileName };
+                if (res.ok) {
+                    const text = await res.text();
+                    console.log(`✅ [字幕加载成功] 来源于 COS`);
+                    return { text, url: srtUrl, fileName };
                 } else {
-                    console.warn("⚠️ [字幕请求] 所有节点均未找到有效字幕文件");
+                    console.log(`⚠️ [字幕提示] COS 中未找到该字幕 (${res.status})`);
+                    return null;
                 }
-            } catch (e) {
-                console.error('❌ [字幕请求] 发生致命错误:', e.message);
+            } catch (err) {
+                console.error(`❌ [字幕请求错误] 无法连接到 COS:`, err.message);
+                return null;
             }
-
-            return { text: null, url: tryUrls[0], fileName };
         }
 
         function renderDanmuListUI(danmuData) {
@@ -8283,23 +8538,21 @@
                 const rawT = currentPlayingItem.startTime || currentPlayingItem.ctime;
 
                 if (nickname) {
-                    fetchGithubSubtitle(nickname, rawT).then(res => {
-                        if (res) {
+                    fetchCosSubtitle(nickname, rawT).then(res => {
+                        if (res && res.text) {
                             currentSubtitleUrl = res.url;
-                            if (res.text) {
-                                currentSubtitleList = parseSRT(res.text);
+                            currentSubtitleList = parseSRT(res.text);
 
-                                let cleanVttContent = "WEBVTT\n\n";
-                                currentSubtitleList.forEach(item => {
-                                    cleanVttContent += `${item.vttStart} --> ${item.vttEnd}\n${item.text}\n\n`;
-                                });
+                            let cleanVttContent = "WEBVTT\n\n";
+                            currentSubtitleList.forEach(item => {
+                                cleanVttContent += `${item.vttStart} --> ${item.vttEnd}\n${item.text}\n\n`;
+                            });
 
-                                const blob = new Blob([cleanVttContent], { type: 'text/vtt;charset=utf-8' });
-                                const url = URL.createObjectURL(blob);
+                            const blob = new Blob([cleanVttContent], { type: 'text/vtt;charset=utf-8' });
+                            const url = URL.createObjectURL(blob);
 
-                                if (art && art.subtitle) {
-                                    art.subtitle.switch(url, { type: 'vtt', name: 'GitHub纯净字幕' });
-                                }
+                            if (art && art.subtitle) {
+                                art.subtitle.switch(url, { type: 'vtt', name: '云端字幕' });
                             }
                             if (currentTimelineMode === 'subtitle') refreshTimelineListUI();
                         }
@@ -8341,64 +8594,157 @@
             const container = document.getElementById('danmu-list-body');
             const countDisplay = document.getElementById('danmu-count-display');
             const searchInput = document.getElementById('danmu-search-input');
+            const wrapper = document.getElementById('danmu-timeline-wrapper');
             if (searchInput) searchInput.value = '';
 
             const list = currentTimelineMode === 'danmu' ? currentDanmuList : currentSubtitleList;
+
+            if (!document.getElementById('col-resize-style')) {
+                const style = document.createElement('style');
+                style.id = 'col-resize-style';
+                style.innerHTML = `
+                    .resizable-col { position: relative; }
+                    .col-resizer { 
+                        position: absolute; top: 0; right: -5px; width: 10px; height: 100%; 
+                        cursor: col-resize; z-index: 10; background: transparent;
+                    }
+                    .col-resizer::after {
+                        content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+                        width: 2px; height: 100%; background-color: var(--primary); opacity: 0;
+                        transition: opacity 0.15s, box-shadow 0.15s; border-radius: 1px;
+                    }
+                    .col-resizer:hover::after, .col-resizer.is-resizing::after { 
+                        opacity: 1; box-shadow: 0 0 5px var(--primary);
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+
+            if (!wrapper.style.getPropertyValue('--col-seq')) {
+                wrapper.style.setProperty('--col-seq', '40px');
+                wrapper.style.setProperty('--col-time', '95px');
+                wrapper.style.setProperty('--col-name', '80px');
+                wrapper.style.setProperty('--col-act', '80px');
+            }
+
+            const headerDiv = container.previousElementSibling;
+            if (headerDiv) {
+                headerDiv.style.paddingRight = '6px';
+
+                const createHeaderCol = (title, varName, isFlex = false, isLast = false) => {
+                    const wRule = isFlex ? 'flex: 1; padding-left: 15px;' : `width: var(${varName}); flex-shrink: 0; margin-left: ${varName === '--col-seq' ? '0' : '10px'};`;
+                    const resizerHtml = (!isFlex && !isLast) ? `<div class="col-resizer" data-var="${varName}"></div>` : '';
+                    return `<div class="resizable-col" style="${wRule} text-align: left; font-weight: bold;">${title}${resizerHtml}</div>`;
+                };
+
+                if (currentTimelineMode === 'subtitle') {
+                    headerDiv.innerHTML =
+                        createHeaderCol('序号', '--col-seq') +
+                        createHeaderCol('起始时间', '--col-time') +
+                        createHeaderCol('字幕内容', null, true) +
+                        createHeaderCol('操作', '--col-act', false, true);
+                } else {
+                    headerDiv.innerHTML =
+                        createHeaderCol('序号', '--col-seq') +
+                        createHeaderCol('起始时间', '--col-time') +
+                        createHeaderCol('发送者', '--col-name') +
+                        createHeaderCol('弹幕内容', null, true, true);
+                }
+
+                const resizers = headerDiv.querySelectorAll('.col-resizer');
+                resizers.forEach(resizer => {
+                    resizer.onmousedown = function (e) {
+                        e.preventDefault();
+                        const varName = this.getAttribute('data-var');
+                        const startX = e.pageX;
+                        const startWidth = parseFloat(getComputedStyle(wrapper).getPropertyValue(varName));
+
+                        const limits = {
+                            '--col-seq': [30, 80],
+                            '--col-time': [85, 180],
+                            '--col-name': [60, 250]
+                        };
+                        const [minW, maxW] = limits[varName] || [30, 200];
+                        const dynamicMaxW = Math.max(minW, wrapper.clientWidth - 180);
+                        const finalMaxW = Math.min(maxW, dynamicMaxW);
+
+                        this.classList.add('is-resizing');
+                        document.body.style.cursor = 'col-resize';
+
+                        const onMouseMove = (mv) => {
+                            let newWidth = Math.max(minW, Math.min(startWidth + (mv.pageX - startX), finalMaxW));
+                            wrapper.style.setProperty(varName, newWidth + 'px');
+                        };
+
+                        const onMouseUp = () => {
+                            this.classList.remove('is-resizing');
+                            document.body.style.cursor = 'default';
+                            document.removeEventListener('mousemove', onMouseMove);
+                            document.removeEventListener('mouseup', onMouseUp);
+                        };
+
+                        document.addEventListener('mousemove', onMouseMove);
+                        document.addEventListener('mouseup', onMouseUp);
+                    };
+                });
+            }
 
             container.innerHTML = '';
             container.scrollTop = 0;
             if (countDisplay) countDisplay.innerText = `共 ${list.length} 条`;
 
             if (list.length === 0) {
-                if (currentTimelineMode === 'subtitle') {
-                    container.innerHTML = `
-                        <div style="text-align: center; padding: 30px 20px; color: var(--text-sub);">
-                            <div style="margin-bottom: 15px; font-weight: bold; font-size: 14px;">未在云端找到该场直播的字幕文件</div>
-                        </div>`;
-                } else {
-                    container.innerHTML = `<div style="text-align: center; padding: 40px 20px; color: var(--text-sub);">暂无弹幕数据</div>`;
-                }
+                container.innerHTML = `<div style="text-align: center; padding: 40px; color: var(--text-sub);">${currentTimelineMode === 'subtitle' ? '未在云端找到字幕文件' : '暂无弹幕数据'}</div>`;
                 return;
             }
 
             const fragment = document.createDocumentFragment();
-
-
             list.forEach((item, index) => {
                 const div = document.createElement('div');
                 div.className = 'danmu-row';
                 div.id = `dm-row-${index}`;
-                div.dataset.time = item.time;
-                div.style.display = 'flex';
-
-                const s = Math.floor(item.time);
-                const ms = Math.floor((item.time % 1) * 1000);
-                const h = Math.floor(s / 3600);
-                const m = Math.floor((s % 3600) / 60);
-                const sec = s % 60;
+                div.style.cssText = 'display: flex; align-items: center; height: 36px; box-sizing: border-box; padding: 0 15px; border-bottom: 1px solid rgba(0,0,0,0.03);';
+                const s = Math.floor(item.time), ms = Math.floor((item.time % 1) * 1000);
+                const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
                 const pad = (n, w = 2) => String(n).padStart(w, '0');
                 const timeStr = `${pad(h)}:${pad(m)}:${pad(sec)}.${pad(ms, 3)}`;
 
-                const nameStr = item.name || '???';
+                const nameHtml = currentTimelineMode === 'subtitle' ? `` :
+                    `<div style="width: var(--col-name); margin-left: 10px; text-align: left; font-weight: bold; color: var(--text-sub); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 0;" title="${item.name || '???'}">${item.name || '???'}</div>`;
 
-                const nameHtml = currentTimelineMode === 'subtitle'
-                    ? ``
-                    : `<span style="color: var(--text-sub); font-weight: bold; margin-right: 10px; white-space: nowrap;">${nameStr}</span>`;
+                const endPointTime = (currentTimelineMode === 'subtitle' && item.endTime) ? item.endTime : item.time;
+
+                const actionHtml = currentTimelineMode === 'subtitle' ? `
+                    <div style="width: var(--col-act); display: flex; gap: 6px; justify-content: flex-end; align-items: center; flex-shrink: 0; margin-left: 10px; padding-right: 8px;">
+                        <button style="border: 1px solid #28a745; background: transparent; color: #28a745; padding: 2px 8px; font-size: 11px; border-radius: 4px; cursor: pointer; transition: all 0.2s;" 
+                                onmouseover="this.style.background='#28a745'; this.style.color='#fff'" 
+                                onmouseout="this.style.background='transparent'; this.style.color='#28a745'"
+                                onclick="event.stopPropagation(); setClipStartFromTimeline(${item.time})">起</button>
+                        <button style="border: 1px solid #dc3545; background: transparent; color: #dc3545; padding: 2px 8px; font-size: 11px; border-radius: 4px; cursor: pointer; transition: all 0.2s;" 
+                                onmouseover="this.style.background='#dc3545'; this.style.color='#fff'" 
+                                onmouseout="this.style.background='transparent'; this.style.color='#dc3545'"
+                                onclick="event.stopPropagation(); setClipEndFromTimeline(${endPointTime})">终</button>
+                    </div>
+                ` : '';
 
                 div.innerHTML = `
-                    <span class="danmu-time-col">${timeStr}</span>
+                    <div style="width: var(--col-seq); text-align: left; color: var(--text-sub); flex-shrink: 0;">${index + 1}</div>
+                    <div style="width: var(--col-time); text-align: left; flex-shrink: 0; margin-left: 10px; color: var(--primary); font-weight: bold;">${timeStr}</div>
                     ${nameHtml}
-                    <span class="danmu-text-col" title="${item.text}">${item.text}</span>
+                    <div title="${item.text}" style="padding-left: 15px; flex: 1; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text);">${item.text || '&nbsp;'}</div>
+                    ${actionHtml}
                 `;
 
                 div.onclick = () => {
                     if (art) {
-                        const isPaused = art.video.paused;
+                        const isPlaying = art.playing;
 
                         art.seek = item.time;
 
-                        if (!isPaused) {
+                        if (isPlaying) {
                             art.play();
+                        } else {
+                            art.pause();
                         }
                     }
                 };
@@ -10949,16 +11295,41 @@
         let videoCurrentTypeId = 0;
         let isCategoriesRendered = false;
 
+        let isVideoAutoLoading = false;
+
+        async function fetchAllVideoLibrary() {
+            if (isVideoAutoLoading) return;
+            isVideoAutoLoading = true;
+
+            const grid = document.getElementById('video-list-grid');
+
+            if (!grid || grid.innerHTML.trim() === '') {
+                await loadVideoLibrary(true);
+            }
+
+            while (isVideoAutoLoading && videoHasMore) {
+                await loadVideoLibrary(false);
+                await new Promise(r => setTimeout(r, 100));
+            }
+
+            isVideoAutoLoading = false;
+        }
+
         function selectVideoCategory(typeId) {
-            if (videoCurrentTypeId === typeId || isVideoLoading) return;
+            if (videoCurrentTypeId === typeId) return;
 
             videoCurrentTypeId = typeId;
+            isVideoAutoLoading = false;
 
             document.querySelectorAll('.video-tag').forEach(tag => {
                 tag.classList.toggle('active', parseInt(tag.dataset.id) === typeId);
             });
 
-            loadVideoLibrary(true);
+            setTimeout(() => {
+                const grid = document.getElementById('video-list-grid');
+                if (grid) grid.innerHTML = '';
+                fetchAllVideoLibrary();
+            }, 150);
         }
 
         async function loadVideoLibrary(isNew = false) {
@@ -10984,7 +11355,7 @@
                 grid.appendChild(loadingTip);
             }
 
-            loadingTip.style.display = 'none'; 
+            loadingTip.style.display = 'none';
             loadingTip.innerText = '';
 
             try {
@@ -11019,14 +11390,23 @@
                             const coverUrl = item.thumbPath ? `https://source.48.cn${item.thumbPath}` : '';
                             const dateStr = formatFullTime(item.ctime).split(' ')[0];
                             const card = document.createElement('div');
-                            card.style.cssText = `background: var(--input-bg); border-radius: 12px; overflow: hidden; border: 1px solid var(--border); cursor: pointer; transition: all 0.3s ease;`;
+
+                            card.style.cssText = `
+                                background: var(--input-bg); 
+                                border-radius: 12px; 
+                                overflow: hidden; 
+                                border: 1px solid var(--border); 
+                                cursor: pointer; 
+                                transition: transform 0.3s ease, border-color 0.3s ease;
+                                transform: translateZ(0);
+                            `;
 
                             card.onmouseover = () => { card.style.transform = 'translateY(-5px)'; card.style.borderColor = 'var(--primary)'; };
                             card.onmouseout = () => { card.style.transform = 'translateY(0)'; card.style.borderColor = 'var(--border)'; };
 
                             card.innerHTML = `
     <div style="width: 100%; aspect-ratio: 16 / 9; overflow: hidden; position: relative; background: #111; border-radius: 6px;">
-        <img src="${coverUrl}" style="width: 100%; height: 100%; object-fit: cover; display: block;">
+        <img src="${coverUrl}" loading="lazy" decoding="async" style="width: 100%; height: 100%; object-fit: cover; display: block;">
         
         <div style="position: absolute; bottom: 4px; right: 4px; background: rgba(0,0,0,0.6); color: white; font-size: 9px; padding: 1px 4px; border-radius: 3px; backdrop-filter: blur(2px);">
             ${item.typeName || '视频'}

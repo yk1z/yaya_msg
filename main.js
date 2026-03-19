@@ -876,7 +876,20 @@ ipcMain.handle('fetch-gift-list', async (event, { token, pa, liveId }) => {
             giftType: 1
         };
 
-        const res = await axios.post(url, payload, { headers });
+        const res = await axios.post(url, payload, {
+            headers,
+            transformResponse: [function (data) {
+                if (typeof data === 'string') {
+                    const fixedData = data.replace(/:\s*([0-9]{15,})/g, ':"$1"');
+                    try {
+                        return JSON.parse(fixedData);
+                    } catch (e) {
+                        return data;
+                    }
+                }
+                return data;
+            }]
+        });
 
         if (res.status === 200 && res.data && res.data.status === 200) {
             return {
@@ -1098,7 +1111,7 @@ ipcMain.handle('fetch-room-radio', async (event, { token, pa, channelId, serverI
         const payload = {
             channelId: parseInt(channelId),
             serverId: parseInt(finalServerId),
-            operateCode: 2 
+            operateCode: 2
         };
 
         const res = await axios.post(url, payload, { headers });
@@ -1127,13 +1140,13 @@ ipcMain.handle('start-radio-proxy', async (event, remoteUrl) => {
         let command = ffmpeg(remoteUrl)
             .inputOptions([
                 '-rw_timeout 5000000',
-                '-fflags nobuffer',          
-                '-analyzeduration 500000',   
-                '-probesize 500000'          
+                '-fflags nobuffer',
+                '-analyzeduration 500000',
+                '-probesize 500000'
             ])
             .outputOptions([
-                '-vn',                      
-                '-c:a copy',               
+                '-vn',
+                '-c:a copy',
                 '-f flv'
             ])
             .output(localRtmp);
