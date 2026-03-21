@@ -1158,3 +1158,28 @@ ipcMain.handle('start-radio-proxy', async (event, remoteUrl) => {
         currentLiveCommand.run();
     });
 });
+
+ipcMain.handle('fetch-live-rank', async (event, { token, pa, liveId }) => {
+    if (!token) return { success: false, msg: '缺少 Token' };
+    try {
+        const headers = createHeaders(token, pa);
+        const url = 'https://pocketapi.48.cn/live/api/v2/live/getLiveRank';
+        
+        const payload = {
+            type: 1,
+            liveId: String(liveId)
+        };
+
+        const res = await axios.post(url, payload, { headers });
+
+        if (res.status === 200 && res.data && res.data.status === 200) {
+            return {
+                success: true,
+                content: res.data.content
+            };
+        }
+        return { success: false, msg: res.data ? res.data.message : '获取榜单失败' };
+    } catch (e) {
+        return { success: false, msg: e.message };
+    }
+});

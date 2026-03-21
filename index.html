@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>牙牙消息 v1.2.7</title>
+    <title>牙牙消息 v1.2.8</title>
     <link rel="icon" href="./icon.png" type="image/x-icon">
 
     <link rel="stylesheet" href="style.css">
@@ -48,7 +48,7 @@
                 </svg>
             </div>
             <img src="./icon.png" class="title-logo">
-            <span>牙牙消息 v1.2.7</span>
+            <span>牙牙消息 v1.2.8</span>
         </div>
         <div class="window-controls">
             <div class="control-btn" onclick="ipcRenderer.send('window-min')">
@@ -295,7 +295,7 @@
             </div>
             <div class="sidebar-group">
                 <div class="status-bar" id="statusMsg">软件正在初始化...</div>
-                <a href="javascript:void(0)" onclick="openInBrowser('https://space.bilibili.com/5250403')"
+                <a href="javascript:void(0)" onclick="openInBrowser('https://space.bilibili.com/508441523')"
                     class="credit-link">presented by yk1z</a>
             </div>
         </aside>
@@ -486,13 +486,16 @@
                             </div>
                         </div>
 
-                        <!-- 给右侧栏加 overflow-y: auto 和一点底部 padding 防止贴底 -->
                         <div id="player-right-column"
                             style="flex: 1.2; display: flex; flex-direction: column; gap: 15px; min-width: 0; overflow-y: auto; padding-right: 5px; padding-bottom: 20px;">
 
-                            <!-- 关键：flex 改为 1 0 auto，意思是允许放大，但不允许被压扁（0） -->
                             <div id="player-combo-wrapper"
                                 style="flex: 1 0 auto; display: flex; flex-direction: column; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border: 1px solid var(--border); background: var(--card); transition: all 0.3s ease;">
+
+                                <div id="live-announcement-bar"
+                                    style="display: none; background: rgba(250, 140, 22, 0.1); color: #fa8c16; font-size: 12px; padding: 6px 12px; border-bottom: 1px solid rgba(250, 140, 22, 0.2);">
+                                    <marquee id="live-announcement-text" scrollamount="4">暂无公告</marquee>
+                                </div>
 
                                 <div id="live-player-area"
                                     style="flex: 1; min-height: 300px; background: #000; display: flex; align-items: center; justify-content: center; position: relative;">
@@ -502,7 +505,6 @@
                                     </div>
                                 </div>
 
-                                <!-- 恢复原来的礼物面板代码（去掉之前我让你加的 position: absolute 等属性） -->
                                 <div id="live-gift-container"
                                     style="display: none; background: transparent; border-top: 1px solid rgba(128,128,128,0.2);">
 
@@ -517,6 +519,11 @@
                                             <button class="btn btn-secondary"
                                                 onclick="event.stopPropagation(); updateLiveBalance()"
                                                 style="padding: 0 6px; height: 20px; font-size: 12px; margin-left: 8px;">↻</button>
+                                            <a href="https://live.48.cn/Recharge/" target="_blank"
+                                                onclick="event.stopPropagation();"
+                                                style="margin-left: 10px; font-size: 12px; color: #1890ff; text-decoration: none; cursor: pointer; font-weight: bold;">
+                                                充值
+                                            </a>
                                         </div>
                                         <div style="display: flex; align-items: center; gap: 8px;">
                                             <div style="display:flex; align-items:center; background:var(--bg); border:1px solid var(--border); border-radius:4px; padding:0 4px; height:28px;"
@@ -537,7 +544,39 @@
 
                                     <div id="live-gift-panel"
                                         style="display: none; padding: 10px; border-top: 1px solid var(--border); background: var(--bg);">
+
+                                        <div
+                                            style="font-size: 11px; color: #ff4d4f; margin-bottom: 8px; display: flex; align-items: center; justify-content: flex-start; background: rgba(255, 77, 79, 0.1); padding: 4px 8px; border-radius: 4px;">
+                                            <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor"
+                                                stroke-width="2" fill="none" stroke-linecap="round"
+                                                stroke-linejoin="round" style="margin-right: 4px; flex-shrink: 0;">
+                                                <path
+                                                    d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z">
+                                                </path>
+                                                <line x1="12" y1="9" x2="12" y2="13"></line>
+                                                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                            </svg>
+                                            提示：送出后仅增加贡献值，没有礼物特效，成员可能看不见送出的礼物。
+                                        </div>
+
                                         <div id="live-gift-grid" class="gift-grid-container"></div>
+                                    </div>
+                                </div>
+
+                                <div id="live-rank-container"
+                                    style="display: none; background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+                                    <div
+                                        style="padding: 10px 15px; background: var(--input-bg); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                                        <span style="font-weight: bold; font-size: 13px; color: var(--text);">🏆
+                                            贡献值榜</span>
+                                        <button class="btn btn-secondary" onclick="fetchLiveRank()"
+                                            style="height: 24px; padding: 0 8px; font-size: 11px;">刷新</button>
+                                    </div>
+                                    <div id="live-rank-list"
+                                        style="max-height: 250px; overflow-y: auto; padding: 10px;">
+                                        <div
+                                            style="text-align: center; color: var(--text-sub); font-size: 12px; padding: 10px;">
+                                            等待数据...</div>
                                     </div>
                                 </div>
 
@@ -3958,6 +3997,54 @@
             const rightWrapper = document.getElementById('player-right-column');
             const comboWrapper = document.getElementById('player-combo-wrapper');
 
+            let announcementBar = document.getElementById('live-announcement-bar');
+            if (!announcementBar && comboWrapper && playerArea) {
+                announcementBar = document.createElement('div');
+                announcementBar.id = 'live-announcement-bar';
+                comboWrapper.insertBefore(announcementBar, playerArea);
+            }
+            if (announcementBar) {
+                announcementBar.style.cssText = 'display: none; background: linear-gradient(135deg, rgba(250, 140, 22, 0.1) 0%, rgba(250, 140, 22, 0.02) 100%); color: #fa8c16; font-size: 13px; padding: 12px 16px; border-bottom: 1px solid rgba(250, 140, 22, 0.15); flex-shrink: 0; max-height: 120px; overflow-y: auto;';
+                
+                announcementBar.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+                        <div style="display:flex; align-items:flex-start; gap:8px; flex:1;">
+                            <span style="font-size:16px; line-height:1.4; filter: drop-shadow(0 2px 4px rgba(250, 140, 22, 0.3));">📢</span>
+                            <div id="live-announcement-text" style="white-space: pre-wrap; line-height: 1.6; letter-spacing: 0.5px; flex:1; font-weight: 500;"></div>
+                        </div>
+                        <button class="btn btn-secondary" onclick="event.stopPropagation(); refreshLiveAnnouncement(this);" style="height: 22px; padding: 0 8px; font-size: 11px; background: transparent; border: 1px solid rgba(250,140,22,0.3); color: #fa8c16; border-radius: 4px; flex-shrink: 0; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(250,140,22,0.1)'" onmouseout="this.style.background='transparent'">↻</button>
+                    </div>
+                `;
+            }
+
+            let rankContainer = document.getElementById('live-rank-container');
+
+            if (!rankContainer) {
+                rankContainer = document.createElement('div');
+                rankContainer.id = 'live-rank-container';
+            }
+
+            if (comboWrapper) {
+                comboWrapper.appendChild(rankContainer);
+            }
+
+            if (rankContainer) {
+                rankContainer.style.cssText = 'display: none; background: transparent; border-top: 1px solid rgba(128,128,128,0.2);';
+
+                rankContainer.innerHTML = `
+                    <div onclick="toggleRankPanel()" style="padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; background: var(--input-bg); user-select: none;">
+                        <div style="display: flex; align-items: center;">
+                            <span style="font-weight: bold; margin-right: 10px;">💡 贡献榜</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <button class="btn btn-secondary" onclick="event.stopPropagation(); fetchLiveRank();" style="padding: 0 6px; height: 20px; font-size: 12px;">↻</button>
+                            <span id="rank-panel-arrow" style="display: inline-block; font-size: 12px; color: #999; transition: transform 0.2s; transform: rotate(0deg);">▼</span>
+                        </div>
+                    </div>
+                    <div id="live-rank-list" style="display: none; padding: 10px; border-top: 1px solid var(--border); background: var(--bg); max-height: 250px; overflow-y: auto;"></div>
+                `;
+            }
+
             if (splitLayout) {
                 if (mode === 'live') {
                     splitLayout.style.flexDirection = 'column';
@@ -4033,6 +4120,11 @@
             if (arrow) arrow.style.transform = 'rotate(0deg)';
             selectedLiveGiftId = null;
 
+            const rankList = document.getElementById('live-rank-list');
+            const rankArrow = document.getElementById('rank-panel-arrow');
+            if (rankList) rankList.style.display = 'none';
+            if (rankArrow) rankArrow.style.transform = 'rotate(0deg)';
+
             const liveControls = document.getElementById('live-list-controls');
             if (liveControls) liveControls.style.display = 'none';
 
@@ -4072,6 +4164,27 @@
                     const isLive = (mode === 'live');
                     const danmuUrl = res.content.msgFilePath;
 
+                    if (announcementBar) {
+                        announcementBar.style.display = 'block'; 
+                        const textEl = document.getElementById('live-announcement-text');
+                        
+                        if (res.content.announcement) {
+                            textEl.innerText = res.content.announcement; 
+                            announcementBar.scrollTop = 0;
+                        } else {
+                            textEl.innerHTML = '<span style="opacity: 0.6; font-style: italic;">暂无公告</span>';
+                        }
+                    }
+
+                    if (rankContainer) {
+                        if (isLive) {
+                            rankContainer.style.display = 'block';
+                            if (typeof fetchLiveRank === 'function') fetchLiveRank(item.liveId);
+                        } else {
+                            rankContainer.style.display = 'none';
+                        }
+                    }
+
                     let danmuData = [];
                     if (!isLive && danmuUrl) {
                         try {
@@ -4092,6 +4205,124 @@
                 backToLiveList();
             }
         }
+
+async function refreshLiveAnnouncement(btnElement) {
+    if (!currentPlayingItem || !currentPlayingItem.liveId) return;
+    
+    const originalText = btnElement.innerText;
+    btnElement.innerText = '...';
+    btnElement.disabled = true;
+
+    try {
+        const res = await fetchPocketAPI('/live/api/v1/live/getLiveOne', JSON.stringify({
+            liveId: currentPlayingItem.liveId
+        }));
+        
+        if (res && res.status === 200 && res.content) {
+            const textEl = document.getElementById('live-announcement-text');
+            const barEl = document.getElementById('live-announcement-bar');
+            
+            const newText = res.content.announcement; 
+            
+            barEl.style.display = 'block'; 
+            
+            if (newText) {
+                textEl.innerText = newText;
+            } else {
+                textEl.innerHTML = '<span style="opacity: 0.6; font-style: italic;">暂无公告</span>';
+            }
+            
+            btnElement.innerText = '✓';
+        } else {
+            btnElement.innerText = '❌';
+        }
+    } catch (e) {
+        console.error('刷新公告失败:', e);
+        btnElement.innerText = '❌';
+    }
+
+    setTimeout(() => {
+        if (btnElement) {
+            btnElement.innerText = '↻';
+            btnElement.disabled = false;
+        }
+    }, 2000);
+}
+
+        function toggleRankPanel() {
+            const list = document.getElementById('live-rank-list');
+            const arrow = document.getElementById('rank-panel-arrow');
+
+            if (!list) return;
+
+            if (list.style.display === 'none' || list.style.display === '') {
+                list.style.display = 'block';
+                if (arrow) arrow.style.transform = 'rotate(180deg)';
+            } else {
+                list.style.display = 'none';
+                if (arrow) arrow.style.transform = 'rotate(0deg)';
+            }
+        }
+
+        async function fetchLiveRank(liveIdParam) {
+            const liveId = liveIdParam || (currentPlayingItem ? currentPlayingItem.liveId : null);
+            if (!liveId) return;
+
+            const listContainer = document.getElementById('live-rank-list');
+            if (!listContainer) return;
+
+            listContainer.innerHTML = '<div style="text-align: center; color: var(--text-sub); font-size: 12px; padding: 20px;"><div class="spinner" style="width:20px;height:20px;margin:0 auto 10px;"></div>正在加载数据...</div>';
+
+            const token = appToken || localStorage.getItem('yaya_p48_token');
+            const pa = window.getPA ? window.getPA() : null;
+
+            try {
+                const res = await ipcRenderer.invoke('fetch-live-rank', { token, pa, liveId });
+
+                if (res.success && res.content && res.content.data) {
+                    const rankData = res.content.data;
+
+                    if (rankData.length === 0) {
+                        listContainer.innerHTML = '<div style="text-align: center; color: var(--text-sub); font-size: 12px; padding: 15px;">本场暂无贡献数据</div>';
+                        return;
+                    }
+
+                    let html = '';
+                    rankData.forEach((item, index) => {
+                        const isTop3 = index < 3;
+                        const rClass = index === 0 ? 'rank-1' : (index === 1 ? 'rank-2' : (index === 2 ? 'rank-3' : ''));
+
+                        let avatar = './icon.png';
+                        if (item.user && item.user.userAvatar) {
+                            avatar = item.user.userAvatar.startsWith('http') ? item.user.userAvatar : `https://source.48.cn${item.user.userAvatar}`;
+                        }
+                        const userName = item.user ? item.user.userName : '未知用户';
+
+                        html += `
+                <div style="display: flex; align-items: center; padding: 10px 8px; border-bottom: 1px solid rgba(128,128,128,0.1); transition: background 0.2s; cursor: default;" onmouseover="this.style.background='var(--chip-hover)'" onmouseout="this.style.background='transparent'">
+                    <div class="rank-num ${rClass}" style="width: 24px; height: 24px; min-width: 24px; font-size: 11px; margin-right: 12px; margin-bottom: 0;">${index + 1}</div>
+                    
+                    <img src="${avatar}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; margin-right: 12px; border: 1px solid rgba(0,0,0,0.05); flex-shrink: 0;">
+                    
+                    <div style="flex: 1; font-size: 13px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: ${isTop3 ? 'bold' : '500'};">
+                        ${userName}
+                    </div>
+                    
+                    <div style="font-size: 14px; color: #fa8c16; font-weight: bold; margin-left: 10px; flex-shrink: 0; text-shadow: 0 0 10px rgba(250, 140, 22, 0.1);">
+                        ${item.money} <span style="font-size: 11px; color: var(--text-sub); font-weight: normal; opacity: 0.6; margin-left: 2px;">贡献值</span>
+                    </div>
+                </div>
+                `;
+                    });
+                    listContainer.innerHTML = html;
+                } else {
+                    listContainer.innerHTML = '<div style="text-align: center; color: var(--text-sub); font-size: 12px; padding: 15px;">获取榜单失败</div>';
+                }
+            } catch (e) {
+                listContainer.innerHTML = `<div style="text-align: center; color: #ff4d4f; font-size: 12px; padding: 15px;">出错了: ${e.message}</div>`;
+            }
+        }
+
         let clipStartTime = null;
         let clipEndTime = null;
 
@@ -10178,7 +10409,6 @@
                 handleDanmuSearch(name);
             }
         }
-
 
         function handleRoomRadioSearch(keyword) {
             const resultBox = document.getElementById('room-radio-search-results');
