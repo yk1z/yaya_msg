@@ -1621,7 +1621,7 @@
     {
       "id": 5560,
       "ownerName": "陈怡馨",
-      "pinyin": "?ChenYiXin",
+      "pinyin": "ChenYiXin",
       "nickname": "嘟嘟",
       "birthday": "1996/9/17",
       "birthplace": "福建 福州",
@@ -25048,7 +25048,7 @@
       "status": 1,
       "ctime": 1732259905440,
       "utime": 1758271053272,
-      "isInGroup": true
+      "isInGroup": false
     },
     {
       "id": 141623681,
@@ -28791,7 +28791,7 @@
     {
       "id": 5602541570,
       "ownerName": "王贝妮",
-      "pinyin": "?WangBeiNi",
+      "pinyin": "WangBeiNi",
       "nickname": "贝妮、妮妹",
       "birthday": "1996/1/16",
       "birthplace": "安徽 安庆",
