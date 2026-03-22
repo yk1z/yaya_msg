@@ -1621,7 +1621,7 @@
     {
       "id": 5560,
       "ownerName": "陈怡馨",
-      "pinyin": "ChenYiXin",
+      "pinyin": "?ChenYiXin",
       "nickname": "嘟嘟",
       "birthday": "1996/9/17",
       "birthplace": "福建 福州",
@@ -11580,8 +11580,8 @@
       "specialty": "跳舞、尤克里里、方向感",
       "groupId": 10,
       "groupName": "SNH48",
-      "teamId": 1001,
-      "team": "TEAM SII",
+      "teamId": 1009,
+      "team": "荣誉毕业生",
       "periodId": 1303,
       "periodName": "SHY48 三期生",
       "jtime": "2017/10/14",
@@ -11603,7 +11603,7 @@
       "status": 1,
       "ctime": 1553661473202,
       "utime": 1768572347473,
-      "isInGroup": true
+      "isInGroup": false
     },
     {
       "id": 610040,
@@ -28791,7 +28791,7 @@
     {
       "id": 5602541570,
       "ownerName": "王贝妮",
-      "pinyin": "WangBeiNi",
+      "pinyin": "?WangBeiNi",
       "nickname": "贝妮、妮妹",
       "birthday": "1996/1/16",
       "birthplace": "安徽 安庆",
