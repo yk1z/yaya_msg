@@ -17855,7 +17855,7 @@
       "status": 1,
       "ctime": 1639116060673,
       "utime": 1769134540750,
-      "isInGroup": false
+      "isInGroup": true
     },
     {
       "id": 70385991,
@@ -18043,7 +18043,7 @@
       "status": 1,
       "ctime": 1640585807688,
       "utime": 1757658816843,
-      "isInGroup": false
+      "isInGroup": true
     },
     {
       "id": 71500020,
@@ -22874,7 +22874,7 @@
       "status": 1,
       "ctime": 1715840597463,
       "utime": 1757658442214,
-      "isInGroup": false
+      "isInGroup": true
     },
     {
       "id": 128581634,
@@ -23339,7 +23339,7 @@
       "status": 1,
       "ctime": 1723614855459,
       "utime": 1769133516281,
-      "isInGroup": false
+      "isInGroup": true
     },
     {
       "id": 134480638,
@@ -25971,8 +25971,8 @@
       "specialty": "拼图、做手工and弹琴",
       "groupId": 10,
       "groupName": "SNH48",
-      "teamId": 1007,
-      "team": "预备生",
+      "teamId": 1003,
+      "team": "TEAM HII",
       "periodId": 1022,
       "periodName": "SNH48 二十二期生",
       "jtime": "2025/3/29",
@@ -27505,8 +27505,8 @@
       "specialty": "写微博速度特别快",
       "groupId": 10,
       "groupName": "SNH48",
-      "teamId": 1007,
-      "team": "预备生",
+      "teamId": 1004,
+      "team": "TEAM X",
       "periodId": 1023,
       "periodName": "SNH48 二十三期生",
       "jtime": "2025/9/23",
@@ -27668,8 +27668,8 @@
       "specialty": "唱歌、毛笔字、摄影、一动不动发呆时间特长、废话老长、地铁跑酷",
       "groupId": 10,
       "groupName": "SNH48",
-      "teamId": 1007,
-      "team": "预备生",
+      "teamId": 1002,
+      "team": "TEAM NII",
       "periodId": 1023,
       "periodName": "SNH48 二十三期生",
       "jtime": "2025/9/23",
@@ -27701,8 +27701,8 @@
       "specialty": "放空时间特长",
       "groupId": 10,
       "groupName": "SNH48",
-      "teamId": 1007,
-      "team": "预备生",
+      "teamId": 1001,
+      "team": "TEAM SII",
       "periodId": 1023,
       "periodName": "SNH48 二十三期生",
       "jtime": "2025/9/23",
@@ -27734,8 +27734,8 @@
       "specialty": "热衷于各种幼稚小游戏、跳一跳最高纪录八千多分、睡觉时间特别长",
       "groupId": 10,
       "groupName": "SNH48",
-      "teamId": 1007,
-      "team": "预备生",
+      "teamId": 1002,
+      "team": "TEAM NII",
       "periodId": 1023,
       "periodName": "SNH48 二十三期生",
       "jtime": "2025/9/23",
@@ -27868,8 +27868,8 @@
       "specialty": "特别能熬夜",
       "groupId": 10,
       "groupName": "SNH48",
-      "teamId": 1007,
-      "team": "预备生",
+      "teamId": 1002,
+      "team": "TEAM NII",
       "periodId": 1023,
       "periodName": "SNH48 二十三期生",
       "jtime": "2025/9/23",
@@ -27967,8 +27967,8 @@
       "specialty": "手机快速打字、单手骑自行车、能一下子睡很久",
       "groupId": 10,
       "groupName": "SNH48",
-      "teamId": 1007,
-      "team": "预备生",
+      "teamId": 1003,
+      "team": "TEAM HII",
       "periodId": 1023,
       "periodName": "SNH48 二十三期生",
       "jtime": "2025/9/23",
@@ -28215,7 +28215,7 @@
       "status": 1,
       "ctime": 1770346922643,
       "utime": 1770561962866,
-      "isInGroup": false
+      "isInGroup": true
     },
     {
       "id": 169934919,
