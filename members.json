@@ -17855,7 +17855,7 @@
       "status": 1,
       "ctime": 1639116060673,
       "utime": 1769134540750,
-      "isInGroup": true
+      "isInGroup": false
     },
     {
       "id": 70385991,
@@ -18043,7 +18043,7 @@
       "status": 1,
       "ctime": 1640585807688,
       "utime": 1757658816843,
-      "isInGroup": true
+      "isInGroup": false
     },
     {
       "id": 71500020,
@@ -22874,7 +22874,7 @@
       "status": 1,
       "ctime": 1715840597463,
       "utime": 1757658442214,
-      "isInGroup": true
+      "isInGroup": false
     },
     {
       "id": 128581634,
@@ -23339,7 +23339,7 @@
       "status": 1,
       "ctime": 1723614855459,
       "utime": 1769133516281,
-      "isInGroup": true
+      "isInGroup": false
     },
     {
       "id": 134480638,
@@ -28215,7 +28215,7 @@
       "status": 1,
       "ctime": 1770346922643,
       "utime": 1770561962866,
-      "isInGroup": true
+      "isInGroup": false
     },
     {
       "id": 169934919,
@@ -28408,7 +28408,7 @@
       "status": 1,
       "ctime": 1775108413313,
       "utime": 1775108428863,
-      "isInGroup": true
+      "isInGroup": false
     },
     {
       "id": 173539395,
@@ -28428,6 +28428,8 @@
       "periodId": 1118,
       "periodName": "BEJ48 十八期生",
       "jtime": "2026/4/4",
+      "serverId": 31150641,
+      "channelId": 38572794,
       "avatar": "https://source.48.cn/backstage/2026/0402/vo7xmyqr4vel03afsqdfrr2.jpg",
       "fullPhoto1": "https://source.48.cn/backstage/2026/0402/ea7edrtcfo4ivyqeii4a5x8.jpg",
       "fullPhoto2": "https://source.48.cn/backstage/2026/0402/26iijf6b3lhs9crrgo3a73k.jpg",
@@ -28464,7 +28466,7 @@
       "status": 1,
       "ctime": 1775109032557,
       "utime": 1775109032557,
-      "isInGroup": true
+      "isInGroup": false
     },
     {
       "id": 173539398,
@@ -28484,6 +28486,8 @@
       "periodId": 1118,
       "periodName": "BEJ48 十八期生",
       "jtime": "2026/4/4",
+      "serverId": 31150989,
+      "channelId": 38719880,
       "avatar": "https://source.48.cn/backstage/2026/0402/0ez1ql8x031w8c6nnio9r7c.jpg",
       "fullPhoto1": "https://source.48.cn/backstage/2026/0402/tdj2hza8f0s66ivr1ncdovx.jpg",
       "fullPhoto2": "https://source.48.cn/backstage/2026/0402/s0esskl8s8e4j93yy4y7t9o.jpg",
@@ -28512,6 +28516,8 @@
       "periodId": 1118,
       "periodName": "BEJ48 十八期生",
       "jtime": "2026/4/4",
+      "serverId": 31101167,
+      "channelId": 38621298,
       "avatar": "https://source.48.cn/backstage/2026/0402/9dm2wq7gc2nsubanu6jg5jf.jpg",
       "fullPhoto1": "https://source.48.cn/backstage/2026/0402/3lno1t78dv2h7hb8pw5x2t3.jpg",
       "fullPhoto2": "https://source.48.cn/backstage/2026/0402/jxufpzryfwfm8xx5b9q8o3t.jpg",
@@ -28540,6 +28546,8 @@
       "periodId": 1118,
       "periodName": "BEJ48 十八期生",
       "jtime": "2026/4/4",
+      "serverId": 31166857,
+      "channelId": 38753104,
       "avatar": "https://source.48.cn/backstage/2026/0402/f9j1y27zdjemf6ivebcffpf.jpg",
       "fullPhoto1": "https://source.48.cn/backstage/2026/0402/987kea8f49uyyqp55uhy2qa.jpg",
       "fullPhoto2": "https://source.48.cn/backstage/2026/0402/xpf0ddsq63e9t5ps1l97t83.jpg",
@@ -28568,6 +28576,8 @@
       "periodId": 1118,
       "periodName": "BEJ48 十八期生",
       "jtime": "2026/4/4",
+      "serverId": 31101168,
+      "channelId": 38605802,
       "avatar": "https://source.48.cn/backstage/2026/0402/bsyxtj1e9n7n9ula64lzq8r.jpg",
       "fullPhoto1": "https://source.48.cn/backstage/2026/0402/si97rmi3cy85yjd7qp1cboa.jpg",
       "fullPhoto2": "https://source.48.cn/backstage/2026/0402/s5q9itzk67souegdt6ba688.jpg",
@@ -28596,6 +28606,8 @@
       "periodId": 1118,
       "periodName": "BEJ48 十八期生",
       "jtime": "2026/4/4",
+      "serverId": 31117890,
+      "channelId": 38687317,
       "avatar": "https://source.48.cn/backstage/2026/0402/kri3rs68nxd5fa94xyw36vd.jpg",
       "fullPhoto1": "https://source.48.cn/backstage/2026/0402/cgf9933dn48a34oz52qyyt3.jpg",
       "fullPhoto2": "https://source.48.cn/backstage/2026/0402/e3h6hd0o3n05x6deoltvh84.jpg",
