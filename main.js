@@ -1164,7 +1164,7 @@ ipcMain.handle('fetch-live-rank', async (event, { token, pa, liveId }) => {
     try {
         const headers = createHeaders(token, pa);
         const url = 'https://pocketapi.48.cn/live/api/v2/live/getLiveRank';
-        
+
         const payload = {
             type: 1,
             liveId: String(liveId)
@@ -1179,6 +1179,73 @@ ipcMain.handle('fetch-live-rank', async (event, { token, pa, liveId }) => {
             };
         }
         return { success: false, msg: res.data ? res.data.message : '获取榜单失败' };
+    } catch (e) {
+        return { success: false, msg: e.message };
+    }
+});
+
+ipcMain.handle('fetch-friends-ids', async (event, { token, pa }) => {
+    try {
+        const headers = createHeaders(token, pa);
+        const url = 'https://pocketapi.48.cn/user/api/v1/friendships/friends/id';
+        const res = await axios.post(url, {}, { headers });
+        return res.data;
+    } catch (e) {
+        return { status: 500, message: e.message };
+    }
+});
+
+ipcMain.handle('fetch-last-messages', async (event, { token, pa, serverIdList }) => {
+    try {
+        const headers = createHeaders(token, pa);
+        const url = 'https://pocketapi.48.cn/im/api/v1/team/classic/last/message/get';
+
+        const payload = {
+            serverIdList: Array.isArray(serverIdList) ? serverIdList.map(Number) : [Number(serverIdList)]
+        };
+
+        const res = await axios.post(url, payload, { headers });
+        return res.data;
+    } catch (e) {
+        return { status: 500, message: e.message };
+    }
+});
+
+ipcMain.handle('follow-member', async (event, { token, pa, memberId }) => {
+    try {
+        const headers = createHeaders(token, pa);
+        const url = 'https://pocketapi.48.cn/user/api/v2/friendships/friends/add';
+        const payload = {
+            toSourceId: parseInt(memberId),
+            toType: 1
+        };
+
+        const res = await axios.post(url, payload, { headers });
+
+        if (res.status === 200 && res.data && res.data.success) {
+            return { success: true };
+        }
+        return { success: false, msg: res.data ? res.data.message : 'API 错误' };
+    } catch (e) {
+        return { success: false, msg: e.message };
+    }
+});
+
+ipcMain.handle('unfollow-member', async (event, { token, pa, memberId }) => {
+    try {
+        const headers = createHeaders(token, pa);
+        const url = 'https://pocketapi.48.cn/user/api/v2/friendships/friends/remove';
+        const payload = {
+            toSourceId: parseInt(memberId),
+            toType: 1
+        };
+
+        const res = await axios.post(url, payload, { headers });
+
+        if (res.status === 200 && res.data && res.data.success) {
+            return { success: true };
+        }
+        return { success: false, msg: res.data ? res.data.message : 'API 错误' };
     } catch (e) {
         return { success: false, msg: e.message };
     }

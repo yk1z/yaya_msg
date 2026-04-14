@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>牙牙消息 v1.2.8</title>
+    <title>牙牙消息 v1.2.9</title>
     <link rel="icon" href="./icon.png" type="image/x-icon">
 
     <link rel="stylesheet" href="style.css">
@@ -48,7 +48,7 @@
                 </svg>
             </div>
             <img src="./icon.png" class="title-logo">
-            <span>牙牙消息 v1.2.8</span>
+            <span>牙牙消息 v1.2.9</span>
         </div>
         <div class="window-controls">
             <div class="control-btn" onclick="ipcRenderer.send('window-min')">
@@ -104,13 +104,18 @@
                 <div class="group-title" style="margin-bottom: 0;">口袋功能</div>
 
                 <button id="btn-sb-login" class="btn btn-secondary btn-full" onclick="switchView('login')">
-                    口袋账号设置
+                    账号设置
+                </button>
+
+                <button id="btn-sb-followed-rooms" class="btn btn-secondary btn-full"
+                    onclick="switchView('followed-rooms')">
+                    口袋房间
                 </button>
 
                 <div style="display: flex; gap: 10px;">
                     <button id="btn-sb-fetch" class="btn btn-secondary btn-full" style="flex: 1; padding: 0;"
                         onclick="switchView('fetch')">
-                        房间消息
+                        抓取消息
                     </button>
                     <button id="btn-sb-room-radio" class="btn btn-secondary btn-full" style="flex: 1; padding: 0;"
                         onclick="switchView('room-radio')">
@@ -300,6 +305,120 @@
             </div>
         </aside>
         <main class="main-content" id="mainContentArea">
+
+            <div id="view-followed-rooms"
+                style="height: 100%; overflow: hidden; display: none; padding: 20px 40px; box-sizing: border-box;">
+                <div
+                    style="display: flex; height: 100%; gap: 0; background: var(--card); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow: hidden;">
+
+                    <div
+                        style="width: 280px; border-right: 1px solid var(--border); display: flex; flex-direction: column; background: var(--input-bg); flex-shrink: 0;">
+                        <div
+                            style="padding: 15px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--sidebar-bg);">
+                            <h2 style="margin: 0; color: var(--primary); font-size: 16px;">聚聚</h2>
+                            <div style="display: flex; gap: 8px;">
+                                <div id="followed-sort-wrapper" style="position: relative; width: 135px;">
+                                    <input type="hidden" id="followed-sort-value" value="default">
+                                    <input type="text" id="followed-sort-display" class="input-control" value="自定义排序"
+                                        readonly onclick="toggleFollowedSortDropdown()"
+                                        style="cursor: pointer; height: 26px; font-size: 12px; padding: 0 20px 0 8px; text-align: left;">
+                                    <div
+                                        style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text-sub); font-size: 10px;">
+                                        ▼
+                                    </div>
+                                    <div id="followed-sort-dropdown" class="suggestion-box"
+                                        style="display: none; top: 30px;">
+                                        <div class="suggestion-item" onclick="selectFollowedSort('default', '自定义排序')">
+                                            自定义排序</div>
+                                        <div class="suggestion-item" onclick="selectFollowedSort('name', '按名字拼音')">按名字拼音
+                                        </div>
+                                        <div class="suggestion-item" onclick="selectFollowedSort('team', '按所属队伍')">按所属队伍
+                                        </div>
+                                    </div>
+                                </div>
+                                <button class="btn btn-secondary" onclick="loadFollowedRooms()"
+                                    style="height: 26px; padding: 0 10px; font-size: 12px;">刷新</button>
+                            </div>
+                        </div>
+                        <div style="display: flex; flex-direction: column; flex: 1; min-height: 0;">
+
+                            <div id="followed-rooms-container" style="flex: 1; overflow-y: auto; padding: 10px;">
+                                <div class="empty-state" style="margin-top: 50px;">点击上方刷新获取列表</div>
+                            </div>
+                            <div
+                                style="padding: 10px; border-top: 1px solid var(--border); background: var(--sidebar-bg); flex-shrink: 0;">
+                                <div style="display: flex; gap: 8px; position: relative;">
+                                    <div style="flex: 1; position: relative;">
+                                        <input type="text" id="quick-follow-input" class="input-control"
+                                            placeholder="搜索成员" style="height: 30px; font-size: 12px; width: 100%;"
+                                            oninput="handleQuickFollowSearch(this.value)"
+                                            onfocus="handleQuickFollowSearch(this.value)" autocomplete="off">
+
+                                        <div id="quick-follow-results" class="suggestion-box"
+                                            style="bottom: 35px; top: auto; width: 100%; max-height: 250px; display: none;">
+                                        </div>
+                                    </div>
+                                    <button id="btn-quick-action" class="btn btn-secondary"
+                                        onclick="executeQuickAction()"
+                                        style="height: 30px; padding: 0 10px; font-size: 12px; white-space: nowrap;">
+                                        关注
+                                    </button>
+                                </div>
+                                <input type="hidden" id="quick-follow-id">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div
+                        style="flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--bg); position: relative;">
+
+                        <div id="followed-chat-header"
+                            style="padding: 12px 20px; border-bottom: 1px solid var(--border); background: var(--sidebar-bg); display: flex; justify-content: space-between; align-items: center; visibility: hidden; flex-shrink: 0;">
+
+                            <div
+                                style="flex: 1; min-width: 0; margin-right: 15px; display: flex; align-items: center; gap: 12px;">
+                                <img id="followed-chat-avatar" src="./icon.png"
+                                    style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1.5px solid var(--primary); display: none;">
+
+                                <div style="flex: 1; min-width: 0;">
+                                    <div id="followed-chat-title"
+                                        style="font-weight: bold; font-size: 16px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                        成员房间</div>
+                                    <div id="followed-chat-subtitle"
+                                        style="font-size: 11px; color: var(--text-sub); margin-top: 2px;">Channel ID: --
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="display: flex; gap: 10px; align-items: center; flex-shrink: 0;">
+                                <button id="btn-toggle-room-type" class="btn btn-secondary"
+                                    onclick="toggleFollowedRoomType()"
+                                    style="height: 30px; padding: 0 10px; font-size: 12px; display: flex; justify-content: center; align-items: center; transition: all 0.2s;">
+                                    大房间
+                                </button>
+
+                                <button id="btn-toggle-followed-mode" class="btn btn-secondary"
+                                    onclick="toggleFollowedChatMode()"
+                                    style="height: 30px; width: 85px; padding: 0; font-size: 12px; display: flex; justify-content: center; align-items: center;">
+                                    成员消息
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="followed-chat-messages"
+                            style="flex: 1; overflow-y: auto; overflow-x: hidden; padding: 20px; position: relative;">
+
+                            <div class="empty-state"
+                                style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--text-sub); font-size: 14px;">
+                                请选择成员房间
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+            </div>
 
             <div id="view-messages"
                 style="height: 100%; overflow-y: auto; display: block; padding: 20px 40px; box-sizing: border-box;">
@@ -592,7 +711,7 @@
                                             <span style="font-size: 11px; color: var(--text-sub);">设置切片起始时刻</span>
                                             <div style="display: flex; gap: 5px;">
                                                 <div id="clip-start-display"
-                                                    style="flex: 1; background: var(--bg); border: 1px solid var(--border); padding: 0 12px; height: 38px; border-radius: 6px; font-family: monospace; font-size: 14px; color: var(--primary); font-weight:bold; display:flex; align-items:center;">
+                                                    style="flex: 1; background: var(--bg); border: 1px solid var(--border); padding: 0 12px; height: 38px; border-radius: 6px;  font-size: 14px; color: var(--primary); font-weight:bold; display:flex; align-items:center;">
                                                 </div>
                                                 <button class="btn btn-secondary" onclick="setClipStart()"
                                                     style="padding: 0 15px; height: 38px; line-height: 38px; white-space:nowrap; box-sizing: border-box;">起点</button>
@@ -603,7 +722,7 @@
                                             <span style="font-size: 11px; color: var(--text-sub);">设置切片结束时刻</span>
                                             <div style="display: flex; gap: 5px;">
                                                 <div id="clip-end-display"
-                                                    style="flex: 1; background: var(--bg); border: 1px solid var(--border); padding: 0 12px; height: 38px; border-radius: 6px; font-family: monospace; font-size: 14px; color: var(--primary); font-weight:bold; display:flex; align-items:center;">
+                                                    style="flex: 1; background: var(--bg); border: 1px solid var(--border); padding: 0 12px; height: 38px; border-radius: 6px; font-size: 14px; color: var(--primary); font-weight:bold; display:flex; align-items:center;">
                                                 </div>
                                                 <button class="btn btn-secondary" onclick="setClipEnd()"
                                                     style="padding: 0 15px; height: 38px; line-height: 38px; white-space:nowrap; box-sizing: border-box;">终点</button>
@@ -633,7 +752,7 @@
                 <div class="list-container">
 
                     <div style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border);">
-                        <h2 style="margin: 0; color: var(--primary);">口袋账号设置</h2>
+                        <h2 style="margin: 0; color: var(--primary);">账号设置</h2>
                     </div>
 
                     <div id="panel-login" class="Box-row">
@@ -702,7 +821,7 @@
                                         如果您已通过抓包获取了 Token，可直接粘贴：
                                     </p>
                                     <textarea id="login-token" class="input-control"
-                                        style="height: 100px; resize: none; padding: 10px; font-family: monospace;"
+                                        style="height: 100px; resize: none; padding: 10px;"
                                         placeholder="在此粘贴 Token"></textarea>
                                 </div>
                                 <button class="btn btn-primary btn-full" onclick="checkToken()"
@@ -765,7 +884,7 @@
                 <div class="list-container">
                     <div
                         style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-                        <h2 style="margin: 0; color: var(--primary);">房间消息</h2>
+                        <h2 style="margin: 0; color: var(--primary);">抓取消息</h2>
                         <span id="fetch-status"
                             style="font-size: 12px; font-weight: normal; color: var(--text-sub);"></span>
                     </div>
@@ -787,767 +906,791 @@
                                 <div style="flex: 1;">
                                     <label style="font-size: 11px; color: var(--text-sub); display:block;">Server
                                         ID</label>
-                                    <input type="text" id="tool-server" class="input-control" placeholder="Server ID"
-                                        style="font-family: monospace;">
+                                    <input type="text" id="tool-server" class="input-control" placeholder="Server ID" ">
                                 </div>
-                                <div style="flex: 1;">
+                                <div style=" flex: 1;">
                                     <label style="font-size: 11px; color: var(--text-sub); display:block;">Channel ID
                                     </label>
-                                    <input type="text" id="tool-channel" class="input-control" placeholder="Channel ID"
-                                        style="font-family: monospace;">
+                                    <input type="text" id="tool-channel" class="input-control" placeholder="Channel ID" ">
                                 </div>
                             </div>
                         </div>
 
-                        <div class="btn-grid" style="margin-bottom: 15px;">
-                            <button class="btn btn-primary" onclick="fetchMsgs()" id="btn-fetch-one">抓取最新</button>
-                            <button class="btn btn-secondary" onclick="fetchAllMsgs()" id="btn-fetch-all">加载全部</button>
-                            <button id="btn-toggle-mode" class="btn btn-secondary"
-                                onclick="toggleFetchMode()">模式：只看成员</button>
-                            <button class="btn btn-secondary" onclick="exportMsgsToHtml()" id="btn-export-html"
-                                disabled>导出至成员消息</button>
-                        </div>
-
-                        <div id="msg-result"
-                            style="margin-top: 15px; height: 300px; overflow-y: auto; background: var(--input-bg); border-radius: 6px; padding: 10px; font-size: 13px; border: 1px solid var(--border);">
-                            <div style="color: var(--text-sub); text-align: center; margin-top: 50px;">
-                                暂无消息<br>
-                                <span style="font-size:12px; opacity:0.7">(请先选择成员并点击抓取)</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="view-audio-programs"
-                style="height: 100%; display: none; flex-direction: column; padding: 20px 0 0 0; box-sizing: border-box;">
-
-                <div style="flex: 1; overflow-y: auto; min-height: 0; padding: 0 40px;">
-                    <div class="list-container">
-
-                        <div
-                            style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-                            <div style="display: flex; align-items: center;">
-                                <h2 style="margin: 0; color: var(--primary);">往期音频电台</h2>
-                                <span id="audio-programs-status"
-                                    style="font-size: 15px; font-weight: bold; color: var(--primary); margin-left: 10px;"></span>
-                            </div>
-
-                            <div style="width: 200px; position: relative;">
-                                <input type="text" id="audio-inner-search" class="input-control" placeholder="搜索..."
-                                    style="height: 32px; padding-left: 30px; border-radius: 16px; font-size: 12px;"
-                                    oninput="debouncedAudioSearch(this.value)"> <span
-                                    style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); opacity: 0.5; font-size: 12px;">🔍</span>
-                            </div>
-                        </div>
-
-                        <div id="audio-programs-list"
-                            style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; padding-bottom: 20px;">
-                        </div>
-
-                    </div>
-                </div>
-
-                <div id="audio-player-bar-container"
-                    style="flex-shrink: 0; padding-top: 15px; padding-bottom: 25px; display: flex; justify-content: center; background: transparent;">
-                    <div id="audio-player-bar" class="premium-player-bar"
-                        style="display: none; width: 95%; padding: 12px 20px; align-items: center; gap: 18px; border-radius: 16px; box-sizing: border-box;">
-
-                        <div
-                            style="position: relative; width: 52px; height: 52px; border-radius: 50%; background: #111; padding: 2px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); flex-shrink: 0;">
-                            <img id="audio-player-cover" class="vinyl-spin vinyl-pause" src=""
-                                style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; opacity: 0.9;">
-                            <div
-                                style="position: absolute; top: 50%; left: 50%; width: 12px; height: 12px; background: var(--input-bg); border-radius: 50%; transform: translate(-50%, -50%); border: 1px solid rgba(0,0,0,0.5); box-shadow: inset 0 1px 2px rgba(0,0,0,0.3);">
-                            </div>
-                        </div>
-
-                        <div
-                            style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;">
-                            <div class="title-scroll-container">
-                                <div id="audio-player-title" class="title-scroll-text">未播放</div>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <div id="audio-status-dot"
-                                    style="width: 8px; height: 8px; border-radius: 50%; background: #ccc; box-shadow: 0 0 4px #ccc; transition: all 0.3s;">
+                        <div class=" btn-grid" style="margin-bottom: 15px;">
+                                    <button class="btn btn-primary" onclick="fetchMsgs()"
+                                        id="btn-fetch-one">抓取最新</button>
+                                    <button class="btn btn-secondary" onclick="fetchAllMsgs()"
+                                        id="btn-fetch-all">加载全部</button>
+                                    <button id="btn-toggle-mode" class="btn btn-secondary"
+                                        onclick="toggleFetchMode()">模式：只看成员</button>
+                                    <button class="btn btn-secondary" onclick="exportMsgsToHtml()" id="btn-export-html"
+                                        disabled>导出至成员消息</button>
                                 </div>
-                                <div id="audio-player-subtitle"
-                                    style="font-size: 12px; color: var(--text-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                                    准备就绪</div>
+
+                                <div id="msg-result"
+                                    style="margin-top: 15px; height: 300px; overflow-y: auto; background: var(--input-bg); border-radius: 6px; padding: 10px; font-size: 13px; border: 1px solid var(--border);">
+                                    <div style="color: var(--text-sub); text-align: center; margin-top: 50px;">
+                                        暂无消息<br>
+                                        <span style="font-size:12px; opacity:0.7">(请先选择成员并点击抓取)</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="view-audio-programs"
+                        style="height: 100%; display: none; flex-direction: column; padding: 20px 0 0 0; box-sizing: border-box;">
+
+                        <div style="flex: 1; overflow-y: auto; min-height: 0; padding: 0 40px;">
+                            <div class="list-container">
+
+                                <div
+                                    style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                                    <div style="display: flex; align-items: center;">
+                                        <h2 style="margin: 0; color: var(--primary);">往期音频电台</h2>
+                                        <span id="audio-programs-status"
+                                            style="font-size: 15px; font-weight: bold; color: var(--primary); margin-left: 10px;"></span>
+                                    </div>
+
+                                    <div style="width: 200px; position: relative;">
+                                        <input type="text" id="audio-inner-search" class="input-control"
+                                            placeholder="搜索..."
+                                            style="height: 32px; padding-left: 30px; border-radius: 16px; font-size: 12px;"
+                                            oninput="debouncedAudioSearch(this.value)"> <span
+                                            style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); opacity: 0.5; font-size: 12px;">🔍</span>
+                                    </div>
+                                </div>
+
+                                <div id="audio-programs-list"
+                                    style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; padding-bottom: 20px;">
+                                </div>
+
                             </div>
                         </div>
 
-                        <div style="flex: 2; min-width: 250px; display: flex; align-items: center; gap: 12px;">
-                            <button id="custom-play-btn"
-                                style="width: 36px; height: 36px; border-radius: 50%; border: none; background: var(--primary); color: white; display: flex; justify-content: center; align-items: center; cursor: pointer; font-size: 14px; flex-shrink: 0; box-shadow: 0 4px 10px rgba(155, 106, 156, 0.3); transition: transform 0.1s;">▶</button>
+                        <div id="audio-player-bar-container"
+                            style="flex-shrink: 0; padding-top: 15px; padding-bottom: 25px; display: flex; justify-content: center; background: transparent;">
+                            <div id="audio-player-bar" class="premium-player-bar"
+                                style="display: none; width: 95%; padding: 12px 20px; align-items: center; gap: 18px; border-radius: 16px; box-sizing: border-box;">
 
-                            <span id="custom-time-current"
-                                style="font-size: 12px; color: var(--text-sub); width: 35px; text-align: right; flex-shrink: 0;">00:00</span>
+                                <div
+                                    style="position: relative; width: 52px; height: 52px; border-radius: 50%; background: #111; padding: 2px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); flex-shrink: 0;">
+                                    <img id="audio-player-cover" class="vinyl-spin vinyl-pause" src=""
+                                        style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; opacity: 0.9;">
+                                    <div
+                                        style="position: absolute; top: 50%; left: 50%; width: 12px; height: 12px; background: var(--input-bg); border-radius: 50%; transform: translate(-50%, -50%); border: 1px solid rgba(0,0,0,0.5); box-shadow: inset 0 1px 2px rgba(0,0,0,0.3);">
+                                    </div>
+                                </div>
 
-                            <input type="range" id="custom-progress-bar" min="0" max="100" value="0"
-                                class="premium-slider" style="flex: 1; min-width: 50px;">
+                                <div
+                                    style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;">
+                                    <div class="title-scroll-container">
+                                        <div id="audio-player-title" class="title-scroll-text">未播放</div>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 6px;">
+                                        <div id="audio-status-dot"
+                                            style="width: 8px; height: 8px; border-radius: 50%; background: #ccc; box-shadow: 0 0 4px #ccc; transition: all 0.3s;">
+                                        </div>
+                                        <div id="audio-player-subtitle"
+                                            style="font-size: 12px; color: var(--text-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                            准备就绪</div>
+                                    </div>
+                                </div>
 
-                            <span id="custom-time-duration"
-                                style="font-size: 12px; color: var(--text-sub); width: 35px; flex-shrink: 0;">00:00</span>
+                                <div style="flex: 2; min-width: 250px; display: flex; align-items: center; gap: 12px;">
+                                    <button id="custom-play-btn"
+                                        style="width: 36px; height: 36px; border-radius: 50%; border: none; background: var(--primary); color: white; display: flex; justify-content: center; align-items: center; cursor: pointer; font-size: 14px; flex-shrink: 0; box-shadow: 0 4px 10px rgba(155, 106, 156, 0.3); transition: transform 0.1s;">▶</button>
+
+                                    <span id="custom-time-current"
+                                        style="font-size: 12px; color: var(--text-sub); width: 35px; text-align: right; flex-shrink: 0;">00:00</span>
+
+                                    <input type="range" id="custom-progress-bar" min="0" max="100" value="0"
+                                        class="premium-slider" style="flex: 1; min-width: 50px;">
+
+                                    <span id="custom-time-duration"
+                                        style="font-size: 12px; color: var(--text-sub); width: 35px; flex-shrink: 0;">00:00</span>
+
+                                    <div
+                                        style="display: flex; align-items: center; gap: 6px; margin-left: 5px; border-left: 1px solid var(--border); padding-left: 12px;">
+                                        <span id="audio-volume-icon" title="静音/恢复"
+                                            style="cursor: pointer; font-size: 14px; color: var(--text-sub); user-select: none; width: 16px; text-align: center;">🔊</span>
+                                        <input type="range" id="audio-volume-bar" min="0" max="1" step="0.01" value="1"
+                                            class="premium-slider" style="width: 60px;">
+                                    </div>
+
+                                    <audio id="native-audio-player" style="display: none;"></audio>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="view-video-library" class="main-content"
+                        style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box; background: transparent;">
+                        <div class="list-container">
 
                             <div
-                                style="display: flex; align-items: center; gap: 6px; margin-left: 5px; border-left: 1px solid var(--border); padding-left: 12px;">
-                                <span id="audio-volume-icon" title="静音/恢复"
-                                    style="cursor: pointer; font-size: 14px; color: var(--text-sub); user-select: none; width: 16px; text-align: center;">🔊</span>
-                                <input type="range" id="audio-volume-bar" min="0" max="1" step="0.01" value="1"
-                                    class="premium-slider" style="width: 60px;">
+                                style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                                <div style="display: flex; align-items: center;">
+                                    <h2 style="margin: 0; color: var(--primary);">官方视频列表</h2>
+                                    <span id="video-library"
+                                        style="font-size: 15px; font-weight: bold; color: var(--primary); margin-left: 10px;"></span>
+                                </div>
+
+                                <div style="width: 200px; position: relative;">
+                                    <input type="text" id="video-inner-search" class="input-control" placeholder="搜索..."
+                                        style="height: 32px; padding-left: 30px; border-radius: 16px; font-size: 12px;"
+                                        oninput="debouncedVideoSearch(this.value)">
+                                    <span
+                                        style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); opacity: 0.5; font-size: 12px;">🔍</span>
+                                </div>
                             </div>
 
-                            <audio id="native-audio-player" style="display: none;"></audio>
-                        </div>
-                    </div>
-                </div>
-            </div>
+                            <div id="video-category-bar"
+                                style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px;">
+                            </div>
 
-            <div id="view-video-library" class="main-content"
-                style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box; background: transparent;">
-                <div class="list-container">
-
-                    <div
-                        style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-                        <div style="display: flex; align-items: center;">
-                            <h2 style="margin: 0; color: var(--primary);">官方视频列表</h2>
-                            <span id="video-library"
-                                style="font-size: 15px; font-weight: bold; color: var(--primary); margin-left: 10px;"></span>
-                        </div>
-
-                        <div style="width: 200px; position: relative;">
-                            <input type="text" id="video-inner-search" class="input-control" placeholder="搜索..."
-                                style="height: 32px; padding-left: 30px; border-radius: 16px; font-size: 12px;"
-                                oninput="debouncedVideoSearch(this.value)">
-                            <span
-                                style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); opacity: 0.5; font-size: 12px;">🔍</span>
-                        </div>
-                    </div>
-
-                    <div id="video-category-bar" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px;">
-                    </div>
-
-                    <div id="video-list-grid" style="display: grid; 
+                            <div id="video-list-grid" style="display: grid; 
             grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); 
             gap: 15px; 
             padding-bottom: 40px;
             align-content: start;">
-                    </div>
-                </div>
-            </div>
-
-            <div id="video-player-modal"
-                style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 2000; align-items: center; justify-content: center; flex-direction: column;">
-                <button onclick="closeVideoPlayer()"
-                    style="position: absolute; top: 20px; right: 20px; background: none; border: none; color: white; font-size: 30px; cursor: pointer;">&times;</button>
-                <video id="main-video-player" controls
-                    style="max-width: 90%; max-height: 80%; border-radius: 8px; box-shadow: 0 0 30px rgba(0,0,0,0.5);"></video>
-                <div id="video-player-info" style="color: white; margin-top: 15px; text-align: center;">
-                    <h3 id="video-playing-title" style="margin: 0 0 5px 0;"></h3>
-                    <p id="video-playing-subtitle" style="margin: 0; opacity: 0.7; font-size: 14px;"></p>
-                </div>
-            </div>
-
-            <div id="view-music-library" class="main-content"
-                style="height: 100%; display: none; flex-direction: column; padding: 20px 0 0 0; box-sizing: border-box; background: transparent;">
-
-                <div id="music-scroll-area" style="flex: 1; overflow-y: auto; min-height: 0; padding: 0 40px;">
-                    <div class="list-container">
-
-                        <div
-                            style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-
-                            <div style="display: flex; align-items: center;">
-                                <h2 style="margin: 0; color: var(--primary);">官方音乐列表</h2>
-                                <span id="music-library-status"
-                                    style="font-size: 15px; font-weight: bold; color: var(--primary); margin-left: 10px;"></span>
-                            </div>
-
-                            <div style="width: 200px; position: relative;">
-                                <input type="text" id="music-inner-search" class="input-control" placeholder="搜索..."
-                                    style="height: 32px; padding-left: 30px; border-radius: 16px; font-size: 12px;"
-                                    oninput="debouncedMusicSearch(this.value)">
-                                <span
-                                    style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); opacity: 0.5; font-size: 12px;">🔍</span>
                             </div>
                         </div>
+                    </div>
 
-                        <div id="music-list-grid" style="width: 100%; 
+                    <div id="video-player-modal"
+                        style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 2000; align-items: center; justify-content: center; flex-direction: column;">
+                        <button onclick="closeVideoPlayer()"
+                            style="position: absolute; top: 20px; right: 20px; background: none; border: none; color: white; font-size: 30px; cursor: pointer;">&times;</button>
+                        <video id="main-video-player" controls
+                            style="max-width: 90%; max-height: 80%; border-radius: 8px; box-shadow: 0 0 30px rgba(0,0,0,0.5);"></video>
+                        <div id="video-player-info" style="color: white; margin-top: 15px; text-align: center;">
+                            <h3 id="video-playing-title" style="margin: 0 0 5px 0;"></h3>
+                            <p id="video-playing-subtitle" style="margin: 0; opacity: 0.7; font-size: 14px;"></p>
+                        </div>
+                    </div>
+
+                    <div id="view-music-library" class="main-content"
+                        style="height: 100%; display: none; flex-direction: column; padding: 20px 0 0 0; box-sizing: border-box; background: transparent;">
+
+                        <div id="music-scroll-area" style="flex: 1; overflow-y: auto; min-height: 0; padding: 0 40px;">
+                            <div class="list-container">
+
+                                <div
+                                    style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+
+                                    <div style="display: flex; align-items: center;">
+                                        <h2 style="margin: 0; color: var(--primary);">官方音乐列表</h2>
+                                        <span id="music-library-status"
+                                            style="font-size: 15px; font-weight: bold; color: var(--primary); margin-left: 10px;"></span>
+                                    </div>
+
+                                    <div style="width: 200px; position: relative;">
+                                        <input type="text" id="music-inner-search" class="input-control"
+                                            placeholder="搜索..."
+                                            style="height: 32px; padding-left: 30px; border-radius: 16px; font-size: 12px;"
+                                            oninput="debouncedMusicSearch(this.value)">
+                                        <span
+                                            style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); opacity: 0.5; font-size: 12px;">🔍</span>
+                                    </div>
+                                </div>
+
+                                <div id="music-list-grid" style="width: 100%; 
             display: grid; 
             grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); 
             gap: 15px; 
             padding-bottom: 20px; 
             min-height: 500px; 
             align-content: start;"> </div>
-                    </div>
-                </div>
-
-                <div id="music-player-bar-container"
-                    style="flex-shrink: 0; padding-top: 15px; padding-bottom: 25px; display: flex; justify-content: center; background: transparent;">
-                    <div id="music-player-bar" class="premium-player-bar"
-                        style="display: none; width: 95%; padding: 12px 20px; align-items: center; gap: 18px; border-radius: 16px; box-sizing: border-box; box-shadow: 0 -4px 20px rgba(0,0,0,0.15);">
-                        <div
-                            style="position: relative; width: 52px; height: 52px; border-radius: 50%; background: #111; padding: 2px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); flex-shrink: 0;">
-                            <img id="music-player-cover" class="vinyl-spin vinyl-pause" src=""
-                                style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; opacity: 0.9;">
-                            <div
-                                style="position: absolute; top: 50%; left: 50%; width: 12px; height: 12px; background: var(--input-bg); border-radius: 50%; transform: translate(-50%, -50%); border: 1px solid rgba(0,0,0,0.5); box-shadow: inset 0 1px 2px rgba(0,0,0,0.3);">
                             </div>
                         </div>
-                        <div
-                            style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;">
-                            <div class="title-scroll-container">
-                                <div id="music-player-title" class="title-scroll-text">未播放</div>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <div id="music-status-dot"
-                                    style="width: 8px; height: 8px; border-radius: 50%; background: #ccc; box-shadow: 0 0 4px #ccc; transition: all 0.3s;">
+
+                        <div id="music-player-bar-container"
+                            style="flex-shrink: 0; padding-top: 15px; padding-bottom: 25px; display: flex; justify-content: center; background: transparent;">
+                            <div id="music-player-bar" class="premium-player-bar"
+                                style="display: none; width: 95%; padding: 12px 20px; align-items: center; gap: 18px; border-radius: 16px; box-sizing: border-box; box-shadow: 0 -4px 20px rgba(0,0,0,0.15);">
+                                <div
+                                    style="position: relative; width: 52px; height: 52px; border-radius: 50%; background: #111; padding: 2px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); flex-shrink: 0;">
+                                    <img id="music-player-cover" class="vinyl-spin vinyl-pause" src=""
+                                        style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; opacity: 0.9;">
+                                    <div
+                                        style="position: absolute; top: 50%; left: 50%; width: 12px; height: 12px; background: var(--input-bg); border-radius: 50%; transform: translate(-50%, -50%); border: 1px solid rgba(0,0,0,0.5); box-shadow: inset 0 1px 2px rgba(0,0,0,0.3);">
+                                    </div>
                                 </div>
-                                <div id="music-player-subtitle"
-                                    style="font-size: 12px; color: var(--text-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                                    准备就绪</div>
+                                <div
+                                    style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;">
+                                    <div class="title-scroll-container">
+                                        <div id="music-player-title" class="title-scroll-text">未播放</div>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 6px;">
+                                        <div id="music-status-dot"
+                                            style="width: 8px; height: 8px; border-radius: 50%; background: #ccc; box-shadow: 0 0 4px #ccc; transition: all 0.3s;">
+                                        </div>
+                                        <div id="music-player-subtitle"
+                                            style="font-size: 12px; color: var(--text-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                            准备就绪</div>
+                                    </div>
+                                </div>
+                                <div style="flex: 2; min-width: 250px; display: flex; align-items: center; gap: 12px;">
+                                    <button id="music-play-btn"
+                                        style="width: 36px; height: 36px; border-radius: 50%; border: none; background: var(--primary); color: white; display: flex; justify-content: center; align-items: center; cursor: pointer; font-size: 14px; flex-shrink: 0; box-shadow: 0 4px 10px rgba(155, 106, 156, 0.3); transition: transform 0.1s;">▶</button>
+
+                                    <span id="music-time-current"
+                                        style="font-size: 12px; color: var(--text-sub); width: 35px; text-align: right; flex-shrink: 0;">00:00</span>
+
+                                    <input type="range" id="music-progress-bar" min="0" max="100" value="0"
+                                        class="premium-slider" style="flex: 1; min-width: 50px;">
+
+                                    <span id="music-time-duration"
+                                        style="font-size: 12px; color: var(--text-sub); width: 35px; flex-shrink: 0;">00:00</span>
+
+                                    <div
+                                        style="display: flex; align-items: center; gap: 6px; margin-left: 5px; border-left: 1px solid var(--border); padding-left: 12px;">
+                                        <span id="music-volume-icon" title="静音/恢复"
+                                            style="cursor: pointer; font-size: 14px; color: var(--text-sub); user-select: none; width: 16px; text-align: center;">🔊</span>
+                                        <input type="range" id="music-volume-bar" min="0" max="1" step="0.01" value="1"
+                                            class="premium-slider" style="width: 60px;">
+                                    </div>
+
+                                    <audio id="music-native-audio" style="display: none;"></audio>
+                                </div>
                             </div>
-                        </div>
-                        <div style="flex: 2; min-width: 250px; display: flex; align-items: center; gap: 12px;">
-                            <button id="music-play-btn"
-                                style="width: 36px; height: 36px; border-radius: 50%; border: none; background: var(--primary); color: white; display: flex; justify-content: center; align-items: center; cursor: pointer; font-size: 14px; flex-shrink: 0; box-shadow: 0 4px 10px rgba(155, 106, 156, 0.3); transition: transform 0.1s;">▶</button>
-
-                            <span id="music-time-current"
-                                style="font-size: 12px; color: var(--text-sub); width: 35px; text-align: right; flex-shrink: 0;">00:00</span>
-
-                            <input type="range" id="music-progress-bar" min="0" max="100" value="0"
-                                class="premium-slider" style="flex: 1; min-width: 50px;">
-
-                            <span id="music-time-duration"
-                                style="font-size: 12px; color: var(--text-sub); width: 35px; flex-shrink: 0;">00:00</span>
-
-                            <div
-                                style="display: flex; align-items: center; gap: 6px; margin-left: 5px; border-left: 1px solid var(--border); padding-left: 12px;">
-                                <span id="music-volume-icon" title="静音/恢复"
-                                    style="cursor: pointer; font-size: 14px; color: var(--text-sub); user-select: none; width: 16px; text-align: center;">🔊</span>
-                                <input type="range" id="music-volume-bar" min="0" max="1" step="0.01" value="1"
-                                    class="premium-slider" style="width: 60px;">
-                            </div>
-
-                            <audio id="music-native-audio" style="display: none;"></audio>
                         </div>
                     </div>
-                </div>
-            </div>
 
-            <div id="view-flip"
-                style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
-                <div class="list-container">
-                    <div
-                        style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                    <div id="view-flip"
+                        style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
+                        <div class="list-container">
+                            <div
+                                style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
 
-                        <div style="display: flex; align-items: baseline; gap: 12px;">
-                            <h2 style="margin: 0; color: var(--primary);">翻牌记录</h2>
-                            <span id="flip-status-text" style="font-size: 12px; color: var(--text-sub);"></span>
+                                <div style="display: flex; align-items: baseline; gap: 12px;">
+                                    <h2 style="margin: 0; color: var(--primary);">翻牌记录</h2>
+                                    <span id="flip-status-text" style="font-size: 12px; color: var(--text-sub);"></span>
+                                </div>
+
+                                <div style="display: flex; gap: 10px; align-items: center;">
+
+                                    <div id="flip-type-wrapper" style="position: relative; width: 110px;">
+                                        <input type="text" id="flip-type-display" class="input-control" value="全部类型"
+                                            readonly onclick="toggleFlipTypeDropdown()"
+                                            style="cursor: pointer; text-align: left; padding-right: 25px;">
+
+                                        <div
+                                            style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text-sub); font-size: 12px;">
+                                            ▼
+                                        </div>
+
+                                        <div id="flip-type-dropdown" class="suggestion-box"
+                                            style="display: none; top: 42px;">
+                                            <div class="suggestion-item" onclick="selectFlipType('0', '全部类型')">全部类型
+                                            </div>
+                                            <div class="suggestion-item" onclick="selectFlipType('1', '文字')">文字</div>
+                                            <div class="suggestion-item" onclick="selectFlipType('2', '语音')">语音</div>
+                                            <div class="suggestion-item" onclick="selectFlipType('3', '视频')">视频</div>
+                                        </div>
+                                    </div>
+
+                                    <input type="text" id="flipSearchInput" class="input-control" style="width: 180px;"
+                                        placeholder="搜索成员或内容..." oninput="applyFlipSearch()">
+
+                                    <button class="btn btn-secondary" style="padding: 0 20px;"
+                                        onclick="updateLatestFlips()">
+                                        刷新
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div id="flip-list-container">
+                                <div class="placeholder-tip">
+                                    <h3>👋 准备就绪</h3>
+                                    <p>请确保您已在“账号设置”页面登录成功，然后点击刷新。</p>
+                                </div>
+                            </div>
+
+                            <div class="pagination-container" style="margin-top: 20px; padding-bottom: 30px;">
+                                <button class="pagination-btn" onclick="changeFlipPage(-1)">上一页</button>
+                                <span id="flip-page-info"
+                                    style="font-size: 13px; color: var(--text-sub); margin: 0 10px; line-height: 32px;">第
+                                    1
+                                    页</span>
+                                <button class="pagination-btn" onclick="changeFlipPage(1)">下一页</button>
+                            </div>
                         </div>
+                    </div>
 
-                        <div style="display: flex; gap: 10px; align-items: center;">
+                    <div id="view-send-flip"
+                        style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
+                        <div class="list-container">
+                            <div
+                                style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border);">
+                                <h2 style="margin: 0; color: var(--primary);">翻牌提问</h2>
+                            </div>
 
-                            <div id="flip-type-wrapper" style="position: relative; width: 110px;">
-                                <input type="text" id="flip-type-display" class="input-control" value="全部类型" readonly
-                                    onclick="toggleFlipTypeDropdown()"
-                                    style="cursor: pointer; text-align: left; padding-right: 25px;">
+                            <div class="Box-row" style="z-index: 20;">
+                                <h3
+                                    style="margin-top: 0; font-size: 16px; margin-bottom: 15px; border-left: 4px solid var(--primary); padding-left: 10px; color: var(--text);">
+                                    选择成员</h3>
+
+                                <div id="flip-member-wrapper" style="position: relative;">
+                                    <input type="text" id="flip-send-member-input" class="input-control"
+                                        placeholder="输入成员名字或拼音首字母搜索..." oninput="handleFlipSendSearch(this.value)"
+                                        onfocus="handleFlipSendSearch(this.value)"
+                                        onclick="handleFlipSendSearch(this.value)" autocomplete="off"
+                                        style="padding-right: 10px;">
+
+                                    <input type="hidden" id="flip-send-member-id">
+
+                                    <div id="flip-send-search-results" class="suggestion-box"
+                                        style="width: 100%; max-height: 200px; overflow-y: auto;"></div>
+                                </div>
+                            </div>
+
+                            <div id="flip-price-loading"
+                                style="display:none; text-align:center; padding: 20px; color: var(--text-sub);">
+                                <div class="spinner"></div> 正在获取该成员的翻牌设置...
+                            </div>
+
+                            <div id="flip-config-area" style="display:none;">
+
+                                <div class="Box-row" style="z-index: 15;">
+                                    <h3
+                                        style="margin-top: 0; font-size: 16px; margin-bottom: 15px; border-left: 4px solid var(--primary); padding-left: 10px; color: var(--text);">
+                                        设置类型</h3>
+
+                                    <div style="display: flex; gap: 20px;">
+                                        <div style="flex: 1;">
+                                            <label
+                                                style="display:block; margin-bottom: 5px; font-weight: bold; font-size: 13px; color: var(--text-sub);">翻牌类型</label>
+
+                                            <div id="flip-answer-wrapper" style="position: relative;">
+                                                <input type="hidden" id="flip-answer-type">
+                                                <input type="text" id="flip-answer-display" class="input-control"
+                                                    value="请选择" readonly onclick="toggleFlipAnswerDropdown()"
+                                                    style="cursor: pointer; text-align: left; padding-right: 30px;">
+
+                                                <div
+                                                    style="position: absolute; right: 10px; top: 10px; pointer-events: none; color: var(--text-sub); font-size: 12px;">
+                                                    ▼</div>
+
+                                                <div id="flip-answer-dropdown" class="suggestion-box"
+                                                    style="display: none;">
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div style="flex: 1;">
+                                            <label
+                                                style="display:block; margin-bottom: 5px; font-weight: bold; font-size: 13px; color: var(--text-sub);">公开设置</label>
+
+                                            <div id="flip-privacy-wrapper" style="position: relative;">
+                                                <input type="hidden" id="flip-privacy-type" value="1">
+                                                <input type="text" id="flip-privacy-display" class="input-control"
+                                                    value="公开 (所有人可见)" readonly onclick="toggleFlipPrivacyDropdown()"
+                                                    style="cursor: pointer; text-align: left; padding-right: 30px;">
+
+                                                <div
+                                                    style="position: absolute; right: 10px; top: 10px; pointer-events: none; color: var(--text-sub); font-size: 12px;">
+                                                    ▼</div>
+
+                                                <div id="flip-privacy-dropdown" class="suggestion-box"
+                                                    style="display: none;">
+                                                    <div class="suggestion-item"
+                                                        onclick="selectFlipPrivacy('1', '公开 (所有人可见)')">
+                                                        公开 (所有人可见)
+                                                    </div>
+
+                                                    <div class="suggestion-item"
+                                                        onclick="selectFlipPrivacy('3', '匿名 (所有人可见，隐藏ID)')">
+                                                        匿名 (所有人可见，隐藏ID)
+                                                    </div>
+
+                                                    <div class="suggestion-item"
+                                                        onclick="selectFlipPrivacy('2', '私密 (仅自己和成员可见)')">
+                                                        私密 (仅自己和成员可见)
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div
+                                        style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed var(--border); padding-top: 15px;">
+                                        <div
+                                            style="display: flex; align-items: center; font-size: 14px; color: var(--text);">
+                                            <span>我的鸡腿：</span>
+                                            <span id="flip-user-balance"
+                                                style="font-size: 18px; font-weight: bold; color: var(--primary); margin: 0 2px; line-height: 1;">0</span>
+                                            <span style="font-size: 16px; line-height: 1;">🍗</span>
+
+                                            <a href="https://live.48.cn/Recharge/" target="_blank"
+                                                style="margin-left: 10px; font-size: 12px; color: #1890ff; text-decoration: none; cursor: pointer;">
+                                                充值
+                                            </a>
+                                        </div>
+
+                                        <div
+                                            style="display: flex; align-items: center; font-size: 14px; color: var(--text);">
+                                            <span>需要消耗：</span>
+                                            <input type="number" id="flip-cost-input" value="0"
+                                                onblur="checkFlipCostMin()"
+                                                style="width: 50px; font-size: 16px; font-weight: bold; color: #fa8c16; text-align: center; border: 1px solid var(--border); border-radius: 4px; background: var(--input-bg); margin: 0 4px; padding: 2px 0; outline: none;">
+                                            <span style="font-size: 16px; line-height: 1;">🍗</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="Box-row">
+                                    <h3
+                                        style="margin-top: 0; font-size: 16px; margin-bottom: 15px; border-left: 4px solid var(--primary); padding-left: 10px; color: var(--text);">
+                                        提问内容</h3>
+
+                                    <div style="position: relative;">
+                                        <textarea id="flip-content-input" class="input-control" maxlength="200"
+                                            oninput="updateFlipCharCount(this)"
+                                            style="width: 100%; height: 150px; resize: none; padding: 15px; padding-bottom: 30px; font-size: 14px; line-height: 1.5; font-family: inherit;"
+                                            placeholder="在这里写下你想对成员说的话..."></textarea>
+
+                                        <div id="flip-content-count"
+                                            style="position: absolute; bottom: 10px; right: 15px; font-size: 12px; color: #999; pointer-events: none;">
+                                            0/200</div>
+                                    </div>
+
+                                    <div id="flip-send-msg"
+                                        style="margin-top: 10px; min-height: 20px; text-align: right; font-size: 13px;">
+                                    </div>
+
+                                    <div style="margin-top: 20px;">
+                                        <button id="btn-do-send-flip" class="btn btn-primary btn-full"
+                                            style="padding: 12px; font-size: 16px;" onclick="executeSendFlip()">
+                                            提问
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="view-room-album"
+                        style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
+                        <div class="list-container">
+                            <div
+                                style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                                <h2 style="margin: 0; color: var(--primary);">房间相册</h2>
+                                <span id="room-album-status" style="font-size: 13px; color: var(--text-sub);"></span>
+                            </div>
+
+                            <div class="Box-row" style="z-index: 100; position: relative;">
+                                <div style="display: flex; gap: 15px; margin-bottom: 15px;">
+
+                                    <div class="search-wrapper" style="flex: 1;">
+                                        <label
+                                            style="font-size: 12px; color: var(--text-sub); display:block; margin-bottom:5px;">搜索成员</label>
+                                        <input type="text" id="room-album-member-input" class="input-control"
+                                            placeholder="请输入成员名" oninput="handleRoomAlbumSearch(this.value)"
+                                            onfocus="handleRoomAlbumSearch(this.value)">
+                                        <div id="room-album-search-results" class="suggestion-box"></div>
+                                    </div>
+
+                                    <div style="flex: 1;">
+                                        <label
+                                            style="font-size: 12px; color: var(--text-sub); display:block; margin-bottom:5px;">Channel
+                                            ID</label>
+                                        <input type="text" id="room-album-channel-id" class="input-control"
+                                            placeholder="Channel ID (可手动修改)">
+                                    </div>
+
+                                </div>
+
+                                <div style="display: flex; flex-direction: column; gap: 10px;">
+                                    <div style="display: flex; gap: 10px;">
+                                        <button class="btn btn-primary" style="flex: 1;"
+                                            onclick="fetchRoomAlbum(false)">查询最新</button>
+                                        <button id="btn-room-album-all" class="btn btn-secondary" style="flex: 1;"
+                                            onclick="fetchAllRoomAlbum()">加载全部</button>
+                                    </div>
+                                    <button id="btn-room-album-dl-all" class="btn btn-secondary" style="width: 100%;"
+                                        onclick="downloadAllRoomAlbum()">一键下载</button>
+                                </div>
+                            </div>
+
+                            <div id="room-album-result-container" style="margin-top: 20px;">
+                                <div class="placeholder-tip">
+                                    <h3>等待查询</h3>
+                                    <p>搜索并选择成员，提取她在口袋房间里发过的日常照片与视频。</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="view-photos"
+                        style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
+                        <div class="list-container">
+                            <div
+                                style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                                <h2 style="margin: 0; color: var(--primary);">个人相册</h2>
+                                <span id="photos-status" style="font-size: 13px; color: var(--text-sub);"></span>
+                            </div>
+
+                            <div class="Box-row" style="z-index: 100; position: relative;">
+                                <div class="search-wrapper">
+                                    <label
+                                        style="font-size: 12px; color: var(--text-sub); display:block; margin-bottom:5px;">搜索成员</label>
+                                    <input type="text" id="photo-member-input" class="input-control"
+                                        placeholder="请输入成员名" oninput="handlePhotoSearch(this.value)"
+                                        onfocus="handlePhotoSearch(this.value)">
+                                    <input type="hidden" id="photo-member-id">
+                                    <div id="photo-search-results" class="suggestion-box"></div>
+                                </div>
+                                <div class="btn-grid" style="margin-top: 10px;">
+                                    <button class="btn btn-primary" onclick="fetchMemberPhotos(false)">查询最新</button>
+                                    <button id="btn-photos-all" class="btn btn-secondary"
+                                        onclick="fetchAllMemberPhotos()">加载全部</button>
+                                </div>
+                            </div>
+
+                            <div id="photos-result-container" style="margin-top: 20px;">
+                                <div class="placeholder-tip">
+                                    <h3>等待查询</h3>
+                                    <p>搜索并选择成员，查看其发布的个人相册与专属语音。</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="view-profile"
+                        style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
+                        <div class="list-container">
+                            <div
+                                style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border);">
+                                <h2 style="margin: 0; color: var(--primary);">详细档案</h2>
+                            </div>
+
+                            <div class="Box-row" style="z-index: 100; position: relative;">
+                                <div class="search-wrapper">
+                                    <label
+                                        style="font-size: 12px; color: var(--text-sub); display:block; margin-bottom:5px;">搜索成员</label>
+                                    <input type="text" id="profile-member-input" class="input-control"
+                                        placeholder="请输入成员名" oninput="handleProfileSearch(this.value)"
+                                        onfocus="handleProfileSearch(this.value)">
+                                    <input type="hidden" id="profile-member-id">
+                                    <div id="profile-search-results" class="suggestion-box"></div>
+                                </div>
+                                <button class="btn btn-primary" onclick="loadStarProfile()"
+                                    style="width: 100%;">获取档案</button>
+                            </div>
+
+                            <div id="profile-result-container" style="margin-top: 20px;">
+                                <div class="placeholder-tip">
+                                    <h3>等待查询</h3>
+                                    <p>搜索并选择成员，查看详细资料和公式照。</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="view-open-live"
+                        style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
+                        <div class="list-container">
+                            <div
+                                style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                                <h2 style="margin: 0; color: var(--primary);">公演记录</h2>
+                                <span id="openlive-status"
+                                    style="font-size: 15px; font-weight: bold; color: var(--primary); margin-left: 10px;"></span>
+                            </div>
+
+                            <div class="Box-row" style="z-index: 100; position: relative;">
+                                <div class="search-wrapper">
+                                    <label
+                                        style="font-size: 12px; color: var(--text-sub); display:block; margin-bottom:5px;">搜索成员</label>
+                                    <input type="text" id="openlive-member-input" class="input-control"
+                                        placeholder="请输入成员名" oninput="handleOpenLiveSearch(this.value)"
+                                        onfocus="handleOpenLiveSearch(this.value)">
+                                    <input type="hidden" id="openlive-member-id">
+                                    <div id="openlive-search-results" class="suggestion-box"></div>
+                                </div>
+
+                                <div class="btn-grid" style="margin-top: 10px;">
+                                    <button class="btn btn-primary" onclick="fetchOpenLiveList(false)">查询最新</button>
+                                    <button id="btn-openlive-all" class="btn btn-secondary"
+                                        onclick="fetchAllOpenLive()">加载全部</button>
+                                </div>
+
+                                <div id="openlive-list-container" style="margin-top: 20px;">
+                                    <div class="placeholder-tip">
+                                        <h3>等待查询</h3>
+                                        <p>请选择成员并点击查询，将显示参加的公演列表。</p>
+                                    </div>
+                                </div>
+
+                                <div id="openlive-load-more" style="text-align: center; margin: 20px 0; display: none;">
+                                    <button class="btn btn-secondary" onclick="fetchOpenLiveList(true)">加载更多</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="view-room-radio"
+                        style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
+                        <div class="list-container">
+                            <div
+                                style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                                <h2 style="margin: 0; color: var(--primary);">房间电台</h2>
+                                <span id="room-radio-status" style="font-size: 13px; color: var(--text-sub);"></span>
+                            </div>
+
+                            <div class="Box-row" style="z-index: 100; position: relative;">
+                                <div style="display: flex; gap: 15px; margin-bottom: 15px;">
+
+                                    <div class="search-wrapper" style="flex: 1;">
+                                        <label
+                                            style="font-size: 12px; color: var(--text-sub); display:block; margin-bottom:5px;">搜索成员</label>
+                                        <input type="text" id="room-radio-member-input" class="input-control"
+                                            placeholder="请输入成员名" oninput="handleRoomRadioSearch(this.value)"
+                                            onfocus="handleRoomRadioSearch(this.value)">
+                                        <div id="room-radio-search-results" class="suggestion-box"></div>
+                                    </div>
+
+                                    <div style="flex: 1;">
+                                        <label
+                                            style="font-size: 12px; color: var(--text-sub); display:block; margin-bottom:5px;">Channel
+                                            ID</label>
+                                        <input type="text" id="room-radio-channel-id" class="input-control"
+                                            placeholder="Channel ID (支持手动修改)">
+                                    </div>
+
+                                    <input type="hidden" id="room-radio-server-id">
+                                </div>
+
+                                <button class="btn btn-primary" style="width: 100%;"
+                                    onclick="connectRoomRadio()">连接电台</button>
+                            </div>
+
+                            <div id="room-radio-result-container" style="margin-top: 20px;">
+                                <div class="placeholder-tip">
+                                    <h3>等待连接</h3>
+                                    <p>搜索并选择成员后，点击连接，若房间正在进行语音/连麦，将自动跳转播放。</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="view-settings"
+                        style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
+                        <div class="list-container">
+                            <div
+                                style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; align-items: center;">
+                                <h2 style="margin: 0; color: var(--primary);">通用设置</h2>
+                            </div>
+
+                            <div class="Box-row" style="margin-bottom: 30px;">
+                                <h3 style="margin-top: 0; color: var(--text);">🎨 外观设置</h3>
 
                                 <div
-                                    style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text-sub); font-size: 12px;">
-                                    ▼
-                                </div>
-
-                                <div id="flip-type-dropdown" class="suggestion-box" style="display: none; top: 42px;">
-                                    <div class="suggestion-item" onclick="selectFlipType('0', '全部类型')">全部类型</div>
-                                    <div class="suggestion-item" onclick="selectFlipType('1', '文字')">文字</div>
-                                    <div class="suggestion-item" onclick="selectFlipType('2', '语音')">语音</div>
-                                    <div class="suggestion-item" onclick="selectFlipType('3', '视频')">视频</div>
-                                </div>
-                            </div>
-
-                            <input type="text" id="flipSearchInput" class="input-control" style="width: 180px;"
-                                placeholder="搜索成员或内容..." oninput="applyFlipSearch()">
-
-                            <button class="btn btn-secondary" style="padding: 0 20px;" onclick="forceReloadFlips()">
-                                刷新
-                            </button>
-                        </div>
-                    </div>
-
-                    <div id="flip-list-container">
-                        <div class="placeholder-tip">
-                            <h3>👋 准备就绪</h3>
-                            <p>请确保您已在“口袋账号设置”页面登录成功，然后点击刷新。</p>
-                        </div>
-                    </div>
-
-                    <div class="pagination-container" style="margin-top: 20px; padding-bottom: 30px;">
-                        <button class="pagination-btn" onclick="changeFlipPage(-1)">上一页</button>
-                        <span id="flip-page-info"
-                            style="font-size: 13px; color: var(--text-sub); margin: 0 10px; line-height: 32px;">第 1
-                            页</span>
-                        <button class="pagination-btn" onclick="changeFlipPage(1)">下一页</button>
-                    </div>
-                </div>
-            </div>
-
-            <div id="view-send-flip"
-                style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
-                <div class="list-container">
-                    <div style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border);">
-                        <h2 style="margin: 0; color: var(--primary);">翻牌提问</h2>
-                    </div>
-
-                    <div class="Box-row" style="z-index: 20;">
-                        <h3
-                            style="margin-top: 0; font-size: 16px; margin-bottom: 15px; border-left: 4px solid var(--primary); padding-left: 10px; color: var(--text);">
-                            选择成员</h3>
-
-                        <div id="flip-member-wrapper" style="position: relative;">
-                            <input type="text" id="flip-send-member-input" class="input-control"
-                                placeholder="输入成员名字或拼音首字母搜索..." oninput="handleFlipSendSearch(this.value)"
-                                onfocus="handleFlipSendSearch(this.value)" onclick="handleFlipSendSearch(this.value)"
-                                autocomplete="off" style="padding-right: 10px;">
-
-                            <input type="hidden" id="flip-send-member-id">
-
-                            <div id="flip-send-search-results" class="suggestion-box"
-                                style="width: 100%; max-height: 200px; overflow-y: auto;"></div>
-                        </div>
-                    </div>
-
-                    <div id="flip-price-loading"
-                        style="display:none; text-align:center; padding: 20px; color: var(--text-sub);">
-                        <div class="spinner"></div> 正在获取该成员的翻牌设置...
-                    </div>
-
-                    <div id="flip-config-area" style="display:none;">
-
-                        <div class="Box-row" style="z-index: 15;">
-                            <h3
-                                style="margin-top: 0; font-size: 16px; margin-bottom: 15px; border-left: 4px solid var(--primary); padding-left: 10px; color: var(--text);">
-                                设置类型</h3>
-
-                            <div style="display: flex; gap: 20px;">
-                                <div style="flex: 1;">
-                                    <label
-                                        style="display:block; margin-bottom: 5px; font-weight: bold; font-size: 13px; color: var(--text-sub);">翻牌类型</label>
-
-                                    <div id="flip-answer-wrapper" style="position: relative;">
-                                        <input type="hidden" id="flip-answer-type">
-                                        <input type="text" id="flip-answer-display" class="input-control" value="请选择"
-                                            readonly onclick="toggleFlipAnswerDropdown()"
-                                            style="cursor: pointer; text-align: left; padding-right: 30px;">
-
-                                        <div
-                                            style="position: absolute; right: 10px; top: 10px; pointer-events: none; color: var(--text-sub); font-size: 12px;">
-                                            ▼</div>
-
-                                        <div id="flip-answer-dropdown" class="suggestion-box" style="display: none;">
-                                        </div>
+                                    style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+                                    <div>
+                                        <label
+                                            style="display:block; font-weight:bold; color:var(--text);">自定义背景图片</label>
+                                        <span style="font-size: 12px; color: var(--text-sub);">设置一张喜欢的图片作为软件背景</span>
                                     </div>
-                                </div>
-
-                                <div style="flex: 1;">
-                                    <label
-                                        style="display:block; margin-bottom: 5px; font-weight: bold; font-size: 13px; color: var(--text-sub);">公开设置</label>
-
-                                    <div id="flip-privacy-wrapper" style="position: relative;">
-                                        <input type="hidden" id="flip-privacy-type" value="1">
-                                        <input type="text" id="flip-privacy-display" class="input-control"
-                                            value="公开 (所有人可见)" readonly onclick="toggleFlipPrivacyDropdown()"
-                                            style="cursor: pointer; text-align: left; padding-right: 30px;">
-
-                                        <div
-                                            style="position: absolute; right: 10px; top: 10px; pointer-events: none; color: var(--text-sub); font-size: 12px;">
-                                            ▼</div>
-
-                                        <div id="flip-privacy-dropdown" class="suggestion-box" style="display: none;">
-                                            <div class="suggestion-item" onclick="selectFlipPrivacy('1', '公开 (所有人可见)')">
-                                                公开 (所有人可见)
-                                            </div>
-
-                                            <div class="suggestion-item"
-                                                onclick="selectFlipPrivacy('3', '匿名 (所有人可见，隐藏ID)')">
-                                                匿名 (所有人可见，隐藏ID)
-                                            </div>
-
-                                            <div class="suggestion-item"
-                                                onclick="selectFlipPrivacy('2', '私密 (仅自己和成员可见)')">
-                                                私密 (仅自己和成员可见)
-                                            </div>
-                                        </div>
+                                    <div style="display: flex; gap: 10px;">
+                                        <button class="btn btn-secondary" onclick="triggerBgInput()">选择图片</button>
+                                        <button class="btn btn-secondary" onclick="resetBackground()"
+                                            style="color: #ff4d4f;">恢复默认</button>
                                     </div>
                                 </div>
                             </div>
 
-                            <div
-                                style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed var(--border); padding-top: 15px;">
-                                <div style="display: flex; align-items: center; font-size: 14px; color: var(--text);">
-                                    <span>我的鸡腿：</span>
-                                    <span id="flip-user-balance"
-                                        style="font-size: 18px; font-weight: bold; color: var(--primary); margin: 0 2px; line-height: 1;">0</span>
-                                    <span style="font-size: 16px; line-height: 1;">🍗</span>
+                            <div class="Box-row">
+                                <h3 style="margin-top: 0; color: var(--text);">📂 下载路径</h3>
 
-                                    <a href="https://live.48.cn/Recharge/" target="_blank"
-                                        style="margin-left: 10px; font-size: 12px; color: #1890ff; text-decoration: none; cursor: pointer;">
-                                        充值
-                                    </a>
+                                <div style="margin-bottom: 20px;">
+                                    <label
+                                        style="display:block; font-weight:bold; margin-bottom:8px; color:var(--text);">录播弹幕</label>
+                                    <div style="display: flex; gap: 10px;">
+                                        <input type="text" id="path-danmu" class="input-control"
+                                            placeholder="默认路径 (未设置)" onchange="saveCustomPaths()">
+                                        <button class="btn btn-secondary"
+                                            onclick="triggerSelectPath('path-danmu')">选择文件夹</button>
+                                    </div>
                                 </div>
 
-                                <div style="display: flex; align-items: center; font-size: 14px; color: var(--text);">
-                                    <span>需要消耗：</span>
-                                    <input type="number" id="flip-cost-input" value="0" onblur="checkFlipCostMin()"
-                                        style="width: 50px; font-size: 16px; font-weight: bold; color: #fa8c16; text-align: center; border: 1px solid var(--border); border-radius: 4px; background: var(--input-bg); margin: 0 4px; padding: 2px 0; outline: none;">
-                                    <span style="font-size: 16px; line-height: 1;">🍗</span>
+                                <div style="margin-bottom: 20px;">
+                                    <label
+                                        style="display:block; font-weight:bold; margin-bottom:8px; color:var(--text);">录播回放</label>
+                                    <div style="display: flex; gap: 10px;">
+                                        <input type="text" id="path-video" class="input-control"
+                                            placeholder="默认路径 (未设置)" onchange="saveCustomPaths()">
+                                        <button class="btn btn-secondary"
+                                            onclick="triggerSelectPath('path-video')">选择文件夹</button>
+                                    </div>
+                                </div>
+
+                                <div style="margin-bottom: 20px;">
+                                    <label
+                                        style="display:block; font-weight:bold; margin-bottom:8px; color:var(--text);">切片</label>
+                                    <div style="display: flex; gap: 10px;">
+                                        <input type="text" id="path-clip" class="input-control" placeholder="默认路径 (未设置)"
+                                            onchange="saveCustomPaths()">
+                                        <button class="btn btn-secondary"
+                                            onclick="triggerSelectPath('path-clip')">选择文件夹</button>
+                                    </div>
+                                </div>
+
+                                <div style="margin-bottom: 20px;">
+                                    <label
+                                        style="display:block; font-weight:bold; margin-bottom:8px; color:var(--text);">相册</label>
+                                    <div style="display: flex; gap: 10px;">
+                                        <input type="text" id="path-media" class="input-control"
+                                            placeholder="默认路径 (未设置)" onchange="saveCustomPaths()">
+                                        <button class="btn btn-secondary"
+                                            onclick="triggerSelectPath('path-media')">选择文件夹</button>
+                                    </div>
+                                </div>
+
+                                <div style="margin-bottom: 20px;">
+                                    <label
+                                        style="display:block; font-weight:bold; margin-bottom:8px; color:var(--text);">翻牌</label>
+                                    <div style="display: flex; gap: 10px;">
+                                        <input type="text" id="path-flip" class="input-control" placeholder="默认路径 (未设置)"
+                                            onchange="saveCustomPaths()">
+                                        <button class="btn btn-secondary"
+                                            onclick="triggerSelectPath('path-flip')">选择文件夹</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="Box-row">
+                                <div
+                                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                    <h3 style="margin: 0; color: var(--text);">🌐 IP检测</h3>
+                                    <button id="btn-check-all" class="btn btn-primary btn-sm"
+                                        onclick="checkAllNetwork()">
+                                        开始检测
+                                    </button>
+                                </div>
+
+                                <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 15px;">
+                                    分别检测国内直连、通用出口及 Google 代理通道的 IP 归属。
+                                </div>
+
+                                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+
+                                    <div class="ip-card" id="card-domestic">
+                                        <div class="card-title">国内网站</div>
+                                        <div class="card-content" id="res-domestic">等待检测</div>
+                                    </div>
+
+                                    <div class="ip-card" id="card-foreign">
+                                        <div class="card-title">海外网站</div>
+                                        <div class="card-content" id="res-foreign">等待检测</div>
+                                    </div>
+
+                                    <div class="ip-card" id="card-google">
+                                        <div class="card-title">GFW网站</div>
+                                        <div class="card-content" id="res-google">等待检测</div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-
-                        <div class="Box-row">
-                            <h3
-                                style="margin-top: 0; font-size: 16px; margin-bottom: 15px; border-left: 4px solid var(--primary); padding-left: 10px; color: var(--text);">
-                                提问内容</h3>
-
-                            <div style="position: relative;">
-                                <textarea id="flip-content-input" class="input-control" maxlength="200"
-                                    oninput="updateFlipCharCount(this)"
-                                    style="width: 100%; height: 150px; resize: none; padding: 15px; padding-bottom: 30px; font-size: 14px; line-height: 1.5; font-family: inherit;"
-                                    placeholder="在这里写下你想对成员说的话..."></textarea>
-
-                                <div id="flip-content-count"
-                                    style="position: absolute; bottom: 10px; right: 15px; font-size: 12px; color: #999; pointer-events: none;">
-                                    0/200</div>
-                            </div>
-
-                            <div id="flip-send-msg"
-                                style="margin-top: 10px; min-height: 20px; text-align: right; font-size: 13px;"></div>
-
-                            <div style="margin-top: 20px;">
-                                <button id="btn-do-send-flip" class="btn btn-primary btn-full"
-                                    style="padding: 12px; font-size: 16px;" onclick="executeSendFlip()">
-                                    提问
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="view-room-album"
-                style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
-                <div class="list-container">
-                    <div
-                        style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-                        <h2 style="margin: 0; color: var(--primary);">房间相册</h2>
-                        <span id="room-album-status" style="font-size: 13px; color: var(--text-sub);"></span>
-                    </div>
-
-                    <div class="Box-row" style="z-index: 100; position: relative;">
-                        <div style="display: flex; gap: 15px; margin-bottom: 15px;">
-
-                            <div class="search-wrapper" style="flex: 1;">
-                                <label
-                                    style="font-size: 12px; color: var(--text-sub); display:block; margin-bottom:5px;">搜索成员</label>
-                                <input type="text" id="room-album-member-input" class="input-control"
-                                    placeholder="请输入成员名" oninput="handleRoomAlbumSearch(this.value)"
-                                    onfocus="handleRoomAlbumSearch(this.value)">
-                                <div id="room-album-search-results" class="suggestion-box"></div>
-                            </div>
-
-                            <div style="flex: 1;">
-                                <label
-                                    style="font-size: 12px; color: var(--text-sub); display:block; margin-bottom:5px;">Channel
-                                    ID</label>
-                                <input type="text" id="room-album-channel-id" class="input-control"
-                                    placeholder="Channel ID (可手动修改)">
-                            </div>
-
-                        </div>
-
-                        <div style="display: flex; flex-direction: column; gap: 10px;">
-                            <div style="display: flex; gap: 10px;">
-                                <button class="btn btn-primary" style="flex: 1;"
-                                    onclick="fetchRoomAlbum(false)">查询最新</button>
-                                <button id="btn-room-album-all" class="btn btn-secondary" style="flex: 1;"
-                                    onclick="fetchAllRoomAlbum()">加载全部</button>
-                            </div>
-                            <button id="btn-room-album-dl-all" class="btn btn-secondary" style="width: 100%;"
-                                onclick="downloadAllRoomAlbum()">一键下载</button>
-                        </div>
-                    </div>
-
-                    <div id="room-album-result-container" style="margin-top: 20px;">
-                        <div class="placeholder-tip">
-                            <h3>等待查询</h3>
-                            <p>搜索并选择成员，提取她在口袋房间里发过的日常照片与视频。</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="view-photos"
-                style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
-                <div class="list-container">
-                    <div
-                        style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-                        <h2 style="margin: 0; color: var(--primary);">个人相册</h2>
-                        <span id="photos-status" style="font-size: 13px; color: var(--text-sub);"></span>
-                    </div>
-
-                    <div class="Box-row" style="z-index: 100; position: relative;">
-                        <div class="search-wrapper">
-                            <label
-                                style="font-size: 12px; color: var(--text-sub); display:block; margin-bottom:5px;">搜索成员</label>
-                            <input type="text" id="photo-member-input" class="input-control" placeholder="请输入成员名"
-                                oninput="handlePhotoSearch(this.value)" onfocus="handlePhotoSearch(this.value)">
-                            <input type="hidden" id="photo-member-id">
-                            <div id="photo-search-results" class="suggestion-box"></div>
-                        </div>
-                        <div class="btn-grid" style="margin-top: 10px;">
-                            <button class="btn btn-primary" onclick="fetchMemberPhotos(false)">查询最新</button>
-                            <button id="btn-photos-all" class="btn btn-secondary"
-                                onclick="fetchAllMemberPhotos()">加载全部</button>
-                        </div>
-                    </div>
-
-                    <div id="photos-result-container" style="margin-top: 20px;">
-                        <div class="placeholder-tip">
-                            <h3>等待查询</h3>
-                            <p>搜索并选择成员，查看其发布的个人相册与专属语音。</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="view-profile"
-                style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
-                <div class="list-container">
-                    <div style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border);">
-                        <h2 style="margin: 0; color: var(--primary);">详细档案</h2>
-                    </div>
-
-                    <div class="Box-row" style="z-index: 100; position: relative;">
-                        <div class="search-wrapper">
-                            <label
-                                style="font-size: 12px; color: var(--text-sub); display:block; margin-bottom:5px;">搜索成员</label>
-                            <input type="text" id="profile-member-input" class="input-control" placeholder="请输入成员名"
-                                oninput="handleProfileSearch(this.value)" onfocus="handleProfileSearch(this.value)">
-                            <input type="hidden" id="profile-member-id">
-                            <div id="profile-search-results" class="suggestion-box"></div>
-                        </div>
-                        <button class="btn btn-primary" onclick="loadStarProfile()" style="width: 100%;">获取档案</button>
-                    </div>
-
-                    <div id="profile-result-container" style="margin-top: 20px;">
-                        <div class="placeholder-tip">
-                            <h3>等待查询</h3>
-                            <p>搜索并选择成员，查看详细资料和公式照。</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div id="view-open-live"
-                style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
-                <div class="list-container">
-                    <div
-                        style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-                        <h2 style="margin: 0; color: var(--primary);">公演记录</h2>
-                        <span id="openlive-status"
-                            style="font-size: 15px; font-weight: bold; color: var(--primary); margin-left: 10px;"></span>
-                    </div>
-
-                    <div class="Box-row" style="z-index: 100; position: relative;">
-                        <div class="search-wrapper">
-                            <label
-                                style="font-size: 12px; color: var(--text-sub); display:block; margin-bottom:5px;">搜索成员</label>
-                            <input type="text" id="openlive-member-input" class="input-control" placeholder="请输入成员名"
-                                oninput="handleOpenLiveSearch(this.value)" onfocus="handleOpenLiveSearch(this.value)">
-                            <input type="hidden" id="openlive-member-id">
-                            <div id="openlive-search-results" class="suggestion-box"></div>
-                        </div>
-
-                        <div class="btn-grid" style="margin-top: 10px;">
-                            <button class="btn btn-primary" onclick="fetchOpenLiveList(false)">查询最新</button>
-                            <button id="btn-openlive-all" class="btn btn-secondary"
-                                onclick="fetchAllOpenLive()">加载全部</button>
-                        </div>
-
-                        <div id="openlive-list-container" style="margin-top: 20px;">
-                            <div class="placeholder-tip">
-                                <h3>等待查询</h3>
-                                <p>请选择成员并点击查询，将显示参加的公演列表。</p>
-                            </div>
-                        </div>
-
-                        <div id="openlive-load-more" style="text-align: center; margin: 20px 0; display: none;">
-                            <button class="btn btn-secondary" onclick="fetchOpenLiveList(true)">加载更多</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="view-room-radio"
-                style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
-                <div class="list-container">
-                    <div
-                        style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-                        <h2 style="margin: 0; color: var(--primary);">房间电台</h2>
-                        <span id="room-radio-status" style="font-size: 13px; color: var(--text-sub);"></span>
-                    </div>
-
-                    <div class="Box-row" style="z-index: 100; position: relative;">
-                        <div style="display: flex; gap: 15px; margin-bottom: 15px;">
-
-                            <div class="search-wrapper" style="flex: 1;">
-                                <label
-                                    style="font-size: 12px; color: var(--text-sub); display:block; margin-bottom:5px;">搜索成员</label>
-                                <input type="text" id="room-radio-member-input" class="input-control"
-                                    placeholder="请输入成员名" oninput="handleRoomRadioSearch(this.value)"
-                                    onfocus="handleRoomRadioSearch(this.value)">
-                                <div id="room-radio-search-results" class="suggestion-box"></div>
-                            </div>
-
-                            <div style="flex: 1;">
-                                <label
-                                    style="font-size: 12px; color: var(--text-sub); display:block; margin-bottom:5px;">Channel
-                                    ID</label>
-                                <input type="text" id="room-radio-channel-id" class="input-control"
-                                    placeholder="Channel ID (支持手动修改)">
-                            </div>
-
-                            <input type="hidden" id="room-radio-server-id">
-                        </div>
-
-                        <button class="btn btn-primary" style="width: 100%;" onclick="connectRoomRadio()">连接电台</button>
-                    </div>
-
-                    <div id="room-radio-result-container" style="margin-top: 20px;">
-                        <div class="placeholder-tip">
-                            <h3>等待连接</h3>
-                            <p>搜索并选择成员后，点击连接，若房间正在进行语音/连麦，将自动跳转播放。</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="view-settings"
-                style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
-                <div class="list-container">
-                    <div
-                        style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; align-items: center;">
-                        <h2 style="margin: 0; color: var(--primary);">通用设置</h2>
-                    </div>
-
-                    <div class="Box-row" style="margin-bottom: 30px;">
-                        <h3 style="margin-top: 0; color: var(--text);">🎨 外观设置</h3>
-
-                        <div
-                            style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
-                            <div>
-                                <label style="display:block; font-weight:bold; color:var(--text);">自定义背景图片</label>
-                                <span style="font-size: 12px; color: var(--text-sub);">设置一张喜欢的图片作为软件背景</span>
-                            </div>
-                            <div style="display: flex; gap: 10px;">
-                                <button class="btn btn-secondary" onclick="triggerBgInput()">选择图片</button>
-                                <button class="btn btn-secondary" onclick="resetBackground()"
-                                    style="color: #ff4d4f;">恢复默认</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="Box-row">
-                        <h3 style="margin-top: 0; color: var(--text);">📂 下载路径</h3>
-
-                        <div style="margin-bottom: 20px;">
-                            <label
-                                style="display:block; font-weight:bold; margin-bottom:8px; color:var(--text);">录播弹幕</label>
-                            <div style="display: flex; gap: 10px;">
-                                <input type="text" id="path-danmu" class="input-control" placeholder="默认路径 (未设置)"
-                                    onchange="saveCustomPaths()">
-                                <button class="btn btn-secondary"
-                                    onclick="triggerSelectPath('path-danmu')">选择文件夹</button>
-                            </div>
-                        </div>
-
-                        <div style="margin-bottom: 20px;">
-                            <label
-                                style="display:block; font-weight:bold; margin-bottom:8px; color:var(--text);">录播回放</label>
-                            <div style="display: flex; gap: 10px;">
-                                <input type="text" id="path-video" class="input-control" placeholder="默认路径 (未设置)"
-                                    onchange="saveCustomPaths()">
-                                <button class="btn btn-secondary"
-                                    onclick="triggerSelectPath('path-video')">选择文件夹</button>
-                            </div>
-                        </div>
-
-                        <div style="margin-bottom: 20px;">
-                            <label
-                                style="display:block; font-weight:bold; margin-bottom:8px; color:var(--text);">切片</label>
-                            <div style="display: flex; gap: 10px;">
-                                <input type="text" id="path-clip" class="input-control" placeholder="默认路径 (未设置)"
-                                    onchange="saveCustomPaths()">
-                                <button class="btn btn-secondary"
-                                    onclick="triggerSelectPath('path-clip')">选择文件夹</button>
-                            </div>
-                        </div>
-
-                        <div style="margin-bottom: 20px;">
-                            <label
-                                style="display:block; font-weight:bold; margin-bottom:8px; color:var(--text);">相册</label>
-                            <div style="display: flex; gap: 10px;">
-                                <input type="text" id="path-media" class="input-control" placeholder="默认路径 (未设置)"
-                                    onchange="saveCustomPaths()">
-                                <button class="btn btn-secondary"
-                                    onclick="triggerSelectPath('path-media')">选择文件夹</button>
-                            </div>
-                        </div>
-
-                        <div style="margin-bottom: 20px;">
-                            <label
-                                style="display:block; font-weight:bold; margin-bottom:8px; color:var(--text);">翻牌</label>
-                            <div style="display: flex; gap: 10px;">
-                                <input type="text" id="path-flip" class="input-control" placeholder="默认路径 (未设置)"
-                                    onchange="saveCustomPaths()">
-                                <button class="btn btn-secondary"
-                                    onclick="triggerSelectPath('path-flip')">选择文件夹</button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="Box-row">
-                        <div
-                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                            <h3 style="margin: 0; color: var(--text);">🌐 IP检测</h3>
-                            <button id="btn-check-all" class="btn btn-primary btn-sm" onclick="checkAllNetwork()">
-                                开始检测
-                            </button>
-                        </div>
-
-                        <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 15px;">
-                            分别检测国内直连、通用出口及 Google 代理通道的 IP 归属。
-                        </div>
-
-                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
-
-                            <div class="ip-card" id="card-domestic">
-                                <div class="card-title">国内网站</div>
-                                <div class="card-content" id="res-domestic">等待检测</div>
-                            </div>
-
-                            <div class="ip-card" id="card-foreign">
-                                <div class="card-title">海外网站</div>
-                                <div class="card-content" id="res-foreign">等待检测</div>
-                            </div>
-
-                            <div class="ip-card" id="card-google">
-                                <div class="card-title">GFW网站</div>
-                                <div class="card-content" id="res-google">等待检测</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
         </main>
     </div>
     <div class="modal-overlay" id="userModal">
@@ -1675,7 +1818,7 @@
             const statusSpan = document.getElementById('sdk-status');
             if (statusSpan) statusSpan.innerText = '正在更新成员列表...';
             try {
-                const url = `https://fastly.jsdelivr.net/gh/yk1z/yaya_msg@master/members.json?t=${Date.now()}`;
+                const url = `https://yaya-srt-1257454013.cos.ap-guangzhou.myqcloud.com/members.json?t=${Date.now()}`;
                 const res = await fetch(url);
                 const data = await res.json();
                 if (data && data.roomId) {
@@ -1963,6 +2106,7 @@
             const audioProgramsView = document.getElementById('view-audio-programs');
             const videoLibraryView = document.getElementById('view-video-library');
             const musicLibraryView = document.getElementById('view-music-library');
+            const followedRoomsView = document.getElementById('view-followed-rooms');
 
             if (msgView) msgView.style.display = 'none';
             if (mediaView) mediaView.style.display = 'none';
@@ -1979,6 +2123,7 @@
             if (audioProgramsView) audioProgramsView.style.display = 'none';
             if (videoLibraryView) videoLibraryView.style.display = 'none';
             if (musicLibraryView) musicLibraryView.style.display = 'none';
+            if (followedRoomsView) followedRoomsView.style.display = 'none';
 
             destroyPlayers();
 
@@ -2139,6 +2284,13 @@
                     }
                 }
 
+            } else if (viewName === 'followed-rooms') {
+                toggleSidebarMode('login');
+                if (followedRoomsView) {
+                    followedRoomsView.style.display = 'block';
+                    loadFollowedRooms();
+                }
+
             } else if (viewName === 'video-library') {
                 toggleSidebarMode('login');
                 if (videoLibraryView) {
@@ -2160,8 +2312,8 @@
 
         function updateSidebarButtons(viewName, mode) {
             const bottomButtons = [
-                { id: 'btn-sb-login', defaultText: '口袋账号设置', targetView: 'login' },
-                { id: 'btn-sb-fetch', defaultText: '房间消息', targetView: 'fetch' },
+                { id: 'btn-sb-login', defaultText: '账号设置', targetView: 'login' },
+                { id: 'btn-sb-fetch', defaultText: '抓取消息', targetView: 'fetch' },
                 { id: 'btn-sb-flip', defaultText: '翻牌记录', targetView: 'flip' },
                 { id: 'btn-sb-send-flip', defaultText: '发送翻牌', targetView: 'send-flip' },
                 { id: 'btn-sb-profile', defaultText: '详细档案', targetView: 'profile' },
@@ -2172,7 +2324,8 @@
                 { id: 'btn-sb-room-radio', defaultText: '房间电台', targetView: 'room-radio' },
                 { id: 'btn-sb-audio-programs', defaultText: '电台', targetView: 'audio-programs' },
                 { id: 'btn-sb-video-library', defaultText: '视频', targetView: 'video-library' },
-                { id: 'btn-sb-music-library', defaultText: '音乐', targetView: 'music-library' }
+                { id: 'btn-sb-music-library', defaultText: '音乐', targetView: 'music-library' },
+                { id: 'btn-sb-followed-rooms', defaultText: '口袋房间', targetView: 'followed-rooms' },
             ];
 
             bottomButtons.forEach(btn => {
@@ -2325,7 +2478,7 @@
         let bestNameMapForDisplay = new Map();
 
         async function autoUpdateMemberData() {
-            const url = `https://fastly.jsdelivr.net/gh/yk1z/yaya_msg@master/members.json?t=${Date.now()}`;
+            const url = `https://yaya-srt-1257454013.cos.ap-guangzhou.myqcloud.com/members.json?t=${Date.now()}`;
             const csvPath = path.join(__dirname, 'members_id.csv');
 
             if (statusMsg) statusMsg.textContent = "⏳ 正在更新完整成员列表...";
@@ -3167,7 +3320,7 @@
 
                 if (allPosts.length === 0) {
                     hideShield();
-                    outputList.innerHTML = '<div class="placeholder-tip"><h3>📂 没有找到数据</h3><p>请点击 房间消息 按钮抓取成员房间消息。</p></div>';
+                    outputList.innerHTML = '<div class="placeholder-tip"><h3>📂 没有找到数据</h3><p>请点击 抓取消息 按钮抓取成员房间消息。</p></div>';
                     if (fs.existsSync(CACHE_FILE)) try { fs.unlinkSync(CACHE_FILE); } catch (e) { }
                     saveManifest();
                     return;
@@ -4005,7 +4158,7 @@
             }
             if (announcementBar) {
                 announcementBar.style.cssText = 'display: none; background: linear-gradient(135deg, rgba(250, 140, 22, 0.1) 0%, rgba(250, 140, 22, 0.02) 100%); color: #fa8c16; font-size: 13px; padding: 12px 16px; border-bottom: 1px solid rgba(250, 140, 22, 0.15); flex-shrink: 0; max-height: 120px; overflow-y: auto;';
-                
+
                 announcementBar.innerHTML = `
                     <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
                         <div style="display:flex; align-items:flex-start; gap:8px; flex:1;">
@@ -4165,11 +4318,11 @@
                     const danmuUrl = res.content.msgFilePath;
 
                     if (announcementBar) {
-                        announcementBar.style.display = 'block'; 
+                        announcementBar.style.display = 'block';
                         const textEl = document.getElementById('live-announcement-text');
-                        
+
                         if (res.content.announcement) {
-                            textEl.innerText = res.content.announcement; 
+                            textEl.innerText = res.content.announcement;
                             announcementBar.scrollTop = 0;
                         } else {
                             textEl.innerHTML = '<span style="opacity: 0.6; font-style: italic;">暂无公告</span>';
@@ -4206,48 +4359,48 @@
             }
         }
 
-async function refreshLiveAnnouncement(btnElement) {
-    if (!currentPlayingItem || !currentPlayingItem.liveId) return;
-    
-    const originalText = btnElement.innerText;
-    btnElement.innerText = '...';
-    btnElement.disabled = true;
+        async function refreshLiveAnnouncement(btnElement) {
+            if (!currentPlayingItem || !currentPlayingItem.liveId) return;
 
-    try {
-        const res = await fetchPocketAPI('/live/api/v1/live/getLiveOne', JSON.stringify({
-            liveId: currentPlayingItem.liveId
-        }));
-        
-        if (res && res.status === 200 && res.content) {
-            const textEl = document.getElementById('live-announcement-text');
-            const barEl = document.getElementById('live-announcement-bar');
-            
-            const newText = res.content.announcement; 
-            
-            barEl.style.display = 'block'; 
-            
-            if (newText) {
-                textEl.innerText = newText;
-            } else {
-                textEl.innerHTML = '<span style="opacity: 0.6; font-style: italic;">暂无公告</span>';
+            const originalText = btnElement.innerText;
+            btnElement.innerText = '...';
+            btnElement.disabled = true;
+
+            try {
+                const res = await fetchPocketAPI('/live/api/v1/live/getLiveOne', JSON.stringify({
+                    liveId: currentPlayingItem.liveId
+                }));
+
+                if (res && res.status === 200 && res.content) {
+                    const textEl = document.getElementById('live-announcement-text');
+                    const barEl = document.getElementById('live-announcement-bar');
+
+                    const newText = res.content.announcement;
+
+                    barEl.style.display = 'block';
+
+                    if (newText) {
+                        textEl.innerText = newText;
+                    } else {
+                        textEl.innerHTML = '<span style="opacity: 0.6; font-style: italic;">暂无公告</span>';
+                    }
+
+                    btnElement.innerText = '✓';
+                } else {
+                    btnElement.innerText = '❌';
+                }
+            } catch (e) {
+                console.error('刷新公告失败:', e);
+                btnElement.innerText = '❌';
             }
-            
-            btnElement.innerText = '✓';
-        } else {
-            btnElement.innerText = '❌';
-        }
-    } catch (e) {
-        console.error('刷新公告失败:', e);
-        btnElement.innerText = '❌';
-    }
 
-    setTimeout(() => {
-        if (btnElement) {
-            btnElement.innerText = '↻';
-            btnElement.disabled = false;
+            setTimeout(() => {
+                if (btnElement) {
+                    btnElement.innerText = '↻';
+                    btnElement.disabled = false;
+                }
+            }, 2000);
         }
-    }, 2000);
-}
 
         function toggleRankPanel() {
             const list = document.getElementById('live-rank-list');
@@ -6775,7 +6928,7 @@ async function refreshLiveAnnouncement(btnElement) {
         let autoCloseTimer = null;
         async function checkGitHubNotice() {
             try {
-                const res = await fetch(`https://cdn.jsdelivr.net/gh/yk1z/yaya_msg@master/notice.json?t=${Date.now()}`, {
+                const res = await fetch(`https://yaya-srt-1257454013.cos.ap-guangzhou.myqcloud.com/notice.json?t=${Date.now()}`, {
                     method: 'GET',
                     cache: 'no-store'
                 });
@@ -7095,6 +7248,52 @@ async function refreshLiveAnnouncement(btnElement) {
             loadFlipList(0);
         }
 
+        async function updateLatestFlips() {
+            const token = appToken || localStorage.getItem('yaya_p48_token');
+            if (!token) return;
+
+            const statusText = document.getElementById('flip-status-text');
+            if (statusText) statusText.innerText = '正在同步最新翻牌...';
+
+            try {
+                const pa = window.getPA ? window.getPA() : null;
+                const res = await ipcRenderer.invoke('fetch-flip-list', {
+                    token: token,
+                    pa: pa,
+                    beginLimit: 0,
+                    limit: 20
+                });
+
+                if (res.success && res.content) {
+                    const latestList = res.content || [];
+                    let addedCount = 0;
+
+                    latestList.reverse().forEach(newItem => {
+                        const existingIndex = allFlipData.findIndex(item => String(item.questionId) === String(newItem.questionId));
+                        if (existingIndex !== -1) {
+                            allFlipData[existingIndex] = newItem;
+                        } else {
+                            allFlipData.unshift(newItem);
+                            addedCount++;
+                        }
+                    });
+
+                    if (statusText) statusText.innerText = `已同步最新状态 (新增 ${addedCount} 条)`;
+                } else {
+                    if (statusText) statusText.innerText = `同步失败: ${res.msg}`;
+                }
+            } catch (e) {
+                if (statusText) statusText.innerText = `同步出错: ${e.message}`;
+            }
+
+            currentSearchKeyword = "";
+            const input = document.getElementById('flipSearchInput');
+            if (input) input.value = "";
+
+            flipCurrentPage = 0;
+            renderLocalPage(0);
+        }
+
         async function startAutoFetchAll() {
             const container = document.getElementById('flip-list-container');
             const statusText = document.getElementById('flip-status-text');
@@ -7102,7 +7301,7 @@ async function refreshLiveAnnouncement(btnElement) {
 
             let token = appToken || localStorage.getItem('yaya_p48_token');
             if (!token) {
-                container.innerHTML = '<div class="placeholder-tip"><h3>⚠️ 未登录</h3><p>请先前往“口袋账号设置”页面验证 Token。</p></div>';
+                container.innerHTML = '<div class="placeholder-tip"><h3>⚠️ 未登录</h3><p>请先前往“账号设置”页面验证 Token。</p></div>';
                 return;
             }
 
@@ -7381,7 +7580,7 @@ async function refreshLiveAnnouncement(btnElement) {
                 container.innerHTML = `
             <div class="placeholder-tip">
                 <h3 style="color: #ff4d4f;">⚠️ 未登录</h3>
-                <p>请先在左侧“口袋账号设置”中登录。</p>
+                <p>请先在左侧“账号设置”中登录。</p>
             </div>`;
                 return;
             }
@@ -7523,7 +7722,7 @@ async function refreshLiveAnnouncement(btnElement) {
             const token = appToken || localStorage.getItem('yaya_p48_token');
             const statusEl = document.getElementById('photos-status');
 
-            if (!token) return showToast('⚠️ 请先在“口袋账号设置”中登录');
+            if (!token) return showToast('⚠️ 请先在“账号设置”中登录');
             if (!memberId) return showToast('⚠️ 请先搜索并选择成员');
             if (isFetchingPhotos) return;
 
@@ -7901,7 +8100,7 @@ async function refreshLiveAnnouncement(btnElement) {
             const token = appToken || localStorage.getItem('yaya_p48_token');
             const statusEl = document.getElementById('room-album-status');
 
-            if (!token) return showToast('⚠️ 请先在“口袋账号设置”中登录');
+            if (!token) return showToast('⚠️ 请先在“账号设置”中登录');
             if (!channelId || channelId === 'undefined') return showToast('⚠️ 请先搜索成员，或手动输入房间 Channel ID');
             if (isFetchingRoomAlbum) return;
 
@@ -9364,7 +9563,7 @@ async function refreshLiveAnnouncement(btnElement) {
                         btn.innerText = '提问';
                         msgDiv.innerText = '';
 
-                        forceReloadFlips();
+                        updateLatestFlips();
 
                     }, 2000);
 
@@ -9403,6 +9602,7 @@ async function refreshLiveAnnouncement(btnElement) {
                 { wrapperId: 'live-group-wrapper', dropdownId: 'live-group-dropdown' },
                 { wrapperId: 'live-type-wrapper', dropdownId: 'live-type-dropdown' },
                 { wrapperId: 'search-type-wrapper', dropdownId: 'search-type-dropdown' },
+                { wrapperId: 'followed-sort-wrapper', dropdownId: 'followed-sort-dropdown' },
 
                 { wrapperId: 'flip-member-wrapper', dropdownId: 'flip-send-search-results' },
                 { wrapperId: 'flip-answer-wrapper', dropdownId: 'flip-answer-dropdown' },
@@ -10465,7 +10665,7 @@ async function refreshLiveAnnouncement(btnElement) {
             const memberName = document.getElementById('room-radio-member-input').value.trim() || '该房间';
             const token = appToken || localStorage.getItem('yaya_p48_token');
 
-            if (!token) return showToast('⚠️ 请先在“口袋账号设置”中登录');
+            if (!token) return showToast('⚠️ 请先在“账号设置”中登录');
             if (!channelId || channelId === 'undefined') return showToast('⚠️ 请先搜索成员，或手动输入 Channel ID');
 
             stopRoomRadio(false);
@@ -11720,6 +11920,910 @@ async function refreshLiveAnnouncement(btnElement) {
             modal.style.display = 'none';
         }
 
+        let activeFollowedChannel = '';
+        let activeFollowedServer = '';
+        let activeFollowedName = '';
+        let activeFollowedNextTime = 0;
+        let isFollowedChatLoading = false;
+        let currentFollowedData = [];
+        window.allFollowedIds = new Set();
+
+        function toggleFollowedSortDropdown() {
+            const list = document.getElementById('followed-sort-dropdown');
+            if (list) {
+                list.style.display = (list.style.display === 'block') ? 'none' : 'block';
+            }
+        }
+
+        function selectFollowedSort(value, text) {
+            document.getElementById('followed-sort-value').value = value;
+            document.getElementById('followed-sort-display').value = text;
+            document.getElementById('followed-sort-dropdown').style.display = 'none';
+
+            if (typeof sortFollowedRooms === 'function') {
+                sortFollowedRooms();
+            }
+        }
+
+        window.sortFollowedRooms = function () {
+            const sortMode = document.getElementById('followed-sort-value')?.value || 'default'; let sortedData = [...currentFollowedData];
+
+            if (sortMode === 'name') {
+                sortedData.sort((a, b) => {
+                    const isInactiveA = a.isInGroup === false;
+                    const isInactiveB = b.isInGroup === false;
+
+                    if (isInactiveA !== isInactiveB) {
+                        return isInactiveA ? 1 : -1;
+                    }
+
+                    if (window.pinyinPro) {
+                        const pA = pinyinPro.pinyin(a.bigDisplayName, { toneType: 'none', type: 'array' }).join('');
+                        const pB = pinyinPro.pinyin(b.bigDisplayName, { toneType: 'none', type: 'array' }).join('');
+                        return pA.localeCompare(pB);
+                    }
+                    return a.bigDisplayName.localeCompare(b.bigDisplayName, 'zh-CN');
+                });
+            } else if (sortMode === 'team') {
+                sortedData.sort((a, b) => {
+                    const isInactiveA = a.isInGroup === false;
+                    const isInactiveB = b.isInGroup === false;
+
+                    if (isInactiveA !== isInactiveB) {
+                        return isInactiveA ? 1 : -1;
+                    }
+
+                    const idA = parseInt(a.teamId) || 999999;
+                    const idB = parseInt(b.teamId) || 999999;
+
+                    if (idA !== idB) {
+                        return idA - idB;
+                    }
+
+                    if (window.pinyinPro) {
+                        const pA = pinyinPro.pinyin(a.bigDisplayName, { toneType: 'none', type: 'array' }).join('');
+                        const pB = pinyinPro.pinyin(b.bigDisplayName, { toneType: 'none', type: 'array' }).join('');
+                        return pA.localeCompare(pB);
+                    }
+                    return a.bigDisplayName.localeCompare(b.bigDisplayName, 'zh-CN');
+                });
+            } else {
+                const savedOrder = JSON.parse(localStorage.getItem('yaya_followed_custom_order') || '[]');
+
+                if (savedOrder.length > 0) {
+                    sortedData.sort((a, b) => {
+                        const indexA = savedOrder.indexOf(String(a.channelId));
+                        const indexB = savedOrder.indexOf(String(b.channelId));
+
+                        if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+                        if (indexA !== -1) return -1;
+                        if (indexB !== -1) return 1;
+                        return b.msgTime - a.msgTime;
+                    });
+                } else {
+                    sortedData.sort((a, b) => b.msgTime - a.msgTime);
+                }
+            }
+
+            renderFollowedRoomsList(sortedData);
+        };
+
+        async function loadFollowedRooms() {
+            const container = document.getElementById('followed-rooms-container');
+            const token = appToken || localStorage.getItem('yaya_p48_token');
+            if (!token) {
+                container.innerHTML = '<div class="placeholder-tip"><h3>⚠️ 未登录</h3></div>';
+                return;
+            }
+
+            const refreshBtn = document.querySelector('button[onclick="loadFollowedRooms()"]');
+            if (refreshBtn) {
+                refreshBtn.innerText = '刷新';
+                refreshBtn.disabled = true;
+            }
+
+            if (!container.querySelector('.session-card')) {
+                container.innerHTML = '<div class="empty-state">正在加载</div>';
+            }
+
+            try {
+                const pa = window.getPA ? window.getPA() : null;
+                const friendsRes = await ipcRenderer.invoke('fetch-friends-ids', { token, pa });
+                if (friendsRes.status !== 200 || !friendsRes.content?.data) throw new Error('获取失败');
+
+                const followedIds = friendsRes.content.data;
+
+                window.allFollowedIds = new Set(followedIds.map(id => String(id)));
+
+                if (!window.isMemberDataLoaded) await loadMemberData();
+
+                const followedMembers = [];
+                const serverIds = new Set();
+
+                followedIds.forEach(uid => {
+                    const member = memberData.find(m => String(m.id || m.userId) === String(uid));
+                    if (member && member.channelId) {
+                        followedMembers.push(member);
+                        if (member.serverId) serverIds.add(member.serverId);
+                    }
+                });
+
+                const msgRes = await ipcRenderer.invoke('fetch-last-messages', {
+                    token, pa, serverIdList: Array.from(serverIds)
+                });
+
+                const lastMsgs = msgRes.content?.lastMsgList || [];
+
+                currentFollowedData = followedMembers.map(m => {
+                    const msg = lastMsgs.find(msg => String(msg.channelId) === String(m.channelId)) || {};
+                    const apiStarName = msg.starName || m.ownerName || '未知';
+                    let bigDisplayName = m.ownerName || '未知成员';
+
+                    if (bigDisplayName.includes('SNH48-') || bigDisplayName.includes('GNZ48-') ||
+                        bigDisplayName.includes('BEJ48-') || bigDisplayName.includes('CKG48-') ||
+                        bigDisplayName.includes('CGT48-')) {
+                        bigDisplayName = bigDisplayName.split('-')[1] || bigDisplayName;
+                    }
+
+                    let lastText = msg.msgContent || '[暂无新消息]';
+
+                    return {
+                        ...m,
+                        bigDisplayName: bigDisplayName,
+                        pinkStarName: apiStarName,
+                        lastText: typeof replaceTencentEmoji === 'function' ? replaceTencentEmoji(lastText) : lastText,
+                        msgTime: msg.msgTime || 0,
+                        unread: parseInt(msg.unreadCount || 0)
+                    };
+                });
+
+                sortFollowedRooms();
+
+                const currentSearchId = document.getElementById('quick-follow-id')?.value;
+                const currentSearchName = document.getElementById('quick-follow-input')?.value;
+                if (currentSearchId && typeof selectQuickFollowMember === 'function') {
+                    selectQuickFollowMember(currentSearchName, currentSearchId);
+                }
+
+            } catch (e) {
+                container.innerHTML = `<div class="empty-state">❌ ${e.message}</div>`;
+            } finally {
+                if (refreshBtn) {
+                    refreshBtn.innerText = '刷新';
+                    refreshBtn.disabled = false;
+                }
+            }
+        }
+
+        function renderFollowedRoomsList(renderData) {
+            const container = document.getElementById('followed-rooms-container');
+            const sortMode = document.getElementById('followed-sort-select')?.value || 'default';
+            const isCustomSort = sortMode === 'default';
+
+            let html = '';
+            renderData.forEach(item => {
+                const teamName = item.team || '';
+                const isInactive = item.isInGroup === false;
+                let colorStyle = (typeof getTeamStyle === 'function') ? getTeamStyle(teamName, isInactive) : '';
+
+                const teamHtml = teamName ?
+                    `<span class="team-tag" style="font-size: 10px; padding: 0 6px; height: 16px; line-height: 14px; font-weight: 500; border-radius: 8px; ${colorStyle}">${teamName}</span>`
+                    : '';
+
+                const unreadHtml = item.unread > 0
+                    ? `<span style="background:#ff4d4f; color:#fff; font-size:10px; padding:0 6px; border-radius:10px; margin-left:8px; font-weight:bold;">${item.unread}</span>`
+                    : '';
+
+                const isActive = activeFollowedChannel === item.channelId ? 'active' : '';
+
+                const draggableAttr = isCustomSort ? 'draggable="true"' : '';
+                const cursorStyle = isCustomSort ? 'cursor: grab;' : 'cursor: pointer;';
+
+                html += `
+        <div class="session-card ${isActive}" id="session-card-${item.channelId}" data-channelid="${item.channelId}" ${draggableAttr} onclick="openFollowedChat('${item.bigDisplayName}', '${item.channelId}', '${item.serverId}')" style="padding: 12px 16px; border-bottom: 1px solid var(--border); transition: 0.2s; ${cursorStyle}">
+            <div class="session-info" style="flex: 1; min-width: 0; pointer-events: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <div style="display: flex; align-items: center; min-width: 0; flex: 1;">
+                        <div class="session-title" style="font-size: 15px; font-weight: bold; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            ${item.bigDisplayName}
+                        </div>
+                        ${unreadHtml}
+                    </div>
+                    <div style="display: flex; align-items: center; flex-shrink: 0; margin-left: 10px;">
+                        ${teamHtml}
+                    </div>
+                </div>
+                <div class="session-msg" style="font-size: 12px; color: var(--text-sub); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    <span style="color:var(--primary); font-weight:bold;">${item.pinkStarName}</span>: ${item.lastText}
+                </div>
+            </div>
+        </div>
+    `;
+            });
+
+            container.innerHTML = html;
+
+            if (isCustomSort) {
+                const cards = container.querySelectorAll('.session-card');
+                cards.forEach(card => {
+                    card.addEventListener('dragstart', handleDragStart);
+                    card.addEventListener('dragover', handleDragOver);
+                    card.addEventListener('dragenter', handleDragEnter);
+                    card.addEventListener('dragleave', handleDragLeave);
+                    card.addEventListener('drop', handleDrop);
+                    card.addEventListener('dragend', handleDragEnd);
+                });
+            }
+        }
+
+        let draggedCard = null;
+
+        function handleDragStart(e) {
+            draggedCard = this;
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', '');
+            this.style.opacity = '0.4';
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            return false;
+        }
+
+        function handleDragEnter(e) {
+            e.preventDefault();
+            if (this !== draggedCard) {
+                this.classList.add('drag-over-target');
+            }
+        }
+
+        function handleDragLeave(e) {
+            this.classList.remove('drag-over-target');
+        }
+
+        function handleDrop(e) {
+            e.stopPropagation();
+            this.classList.remove('drag-over-target');
+
+            if (draggedCard !== this) {
+                const container = document.getElementById('followed-rooms-container');
+                const cards = Array.from(container.querySelectorAll('.session-card'));
+                const draggedIndex = cards.indexOf(draggedCard);
+                const targetIndex = cards.indexOf(this);
+
+                if (draggedIndex < targetIndex) {
+                    this.parentNode.insertBefore(draggedCard, this.nextSibling);
+                } else {
+                    this.parentNode.insertBefore(draggedCard, this);
+                }
+
+                saveCustomRoomOrder();
+            }
+            return false;
+        }
+
+        function handleDragEnd(e) {
+            this.style.opacity = '1';
+            document.querySelectorAll('.session-card').forEach(c => {
+                c.classList.remove('drag-over-target');
+            });
+        }
+
+        function saveCustomRoomOrder() {
+            const container = document.getElementById('followed-rooms-container');
+            const cards = container.querySelectorAll('.session-card');
+            const newOrder = Array.from(cards).map(card => card.getAttribute('data-channelid'));
+            localStorage.setItem('yaya_followed_custom_order', JSON.stringify(newOrder));
+        }
+
+        let followedAutoRefreshTimer = null;
+        let activeFollowedMainChannel = '';
+        let isFollowedSmallRoomMode = false;
+
+        window.openFollowedChat = function (ownerName, channelId, serverId) {
+            activeFollowedChannel = channelId;
+            activeFollowedMainChannel = channelId;
+            activeFollowedServer = serverId;
+            activeFollowedName = ownerName;
+            activeFollowedNextTime = 0;
+            isFollowedSmallRoomMode = false;
+
+            if (followedAutoRefreshTimer) {
+                clearInterval(followedAutoRefreshTimer);
+                followedAutoRefreshTimer = null;
+            }
+
+            const roomBtn = document.getElementById('btn-toggle-room-type');
+            if (roomBtn) {
+                roomBtn.innerText = "大房间";
+                roomBtn.classList.remove('btn-primary');
+                roomBtn.classList.add('btn-secondary');
+            }
+
+            document.querySelectorAll('.session-card').forEach(card => card.classList.remove('active'));
+            const selectedCard = document.getElementById(`session-card-${channelId}`);
+            if (selectedCard) selectedCard.classList.add('active');
+
+            const header = document.getElementById('followed-chat-header');
+            header.style.visibility = 'visible';
+            document.getElementById('followed-chat-title').innerText = `${ownerName} 的房间`;
+            document.getElementById('followed-chat-subtitle').innerText = `Channel ID: ${channelId}`;
+
+            const avatarImg = document.getElementById('followed-chat-avatar');
+            const memberInfo = memberData.find(m => String(m.channelId) === String(channelId));
+
+            if (memberInfo && memberInfo.id) {
+                const avatarPath = window.globalAvatarCache[memberInfo.id] ||
+                    (memberInfo.avatar ? (memberInfo.avatar.startsWith('http') ? memberInfo.avatar : `https://source.48.cn${memberInfo.avatar}`) : null);
+
+                if (avatarPath) {
+                    avatarImg.src = avatarPath;
+                    avatarImg.style.display = 'block';
+                } else {
+                    avatarImg.style.display = 'none';
+                }
+            } else {
+                avatarImg.style.display = 'none';
+            }
+
+            const msgBox = document.getElementById('followed-chat-messages');
+            msgBox.style.transition = 'opacity 0.2s';
+            msgBox.style.opacity = '0.4';
+            msgBox.style.pointerEvents = 'none';
+
+            loadFollowedChatPage(false).finally(() => {
+                followedAutoRefreshTimer = setInterval(() => {
+                    const view = document.getElementById('view-followed-rooms');
+                    if (document.hidden || (view && view.style.display === 'none')) {
+                        return;
+                    }
+                    loadFollowedChatPage(false, true);
+                }, 5000);
+            });
+        };
+
+        window.toggleFollowedRoomType = function () {
+            if (isFollowedChatLoading || !activeFollowedName) return;
+
+            const memberInfo = memberData.find(m => m.ownerName === activeFollowedName);
+
+            if (!isFollowedSmallRoomMode) {
+                const smallRoomId = memberInfo ? memberInfo.yklzId : null;
+                if (!smallRoomId) {
+                    showToast(`⚠️ 未在数据中找到 ${activeFollowedName} 的小房间 ID`);
+                    return;
+                }
+                isFollowedSmallRoomMode = true;
+                activeFollowedChannel = smallRoomId;
+            } else {
+                isFollowedSmallRoomMode = false;
+                activeFollowedChannel = activeFollowedMainChannel;
+            }
+
+            const btn = document.getElementById('btn-toggle-room-type');
+            if (isFollowedSmallRoomMode) {
+                btn.innerText = "小房间";
+            } else {
+                btn.innerText = "大房间";
+            }
+
+            document.getElementById('followed-chat-subtitle').innerText = `Channel ID: ${activeFollowedChannel} ${isFollowedSmallRoomMode ? '' : ''}`;
+
+            activeFollowedNextTime = 0;
+            const msgBox = document.getElementById('followed-chat-messages');
+            msgBox.style.transition = 'opacity 0.2s';
+            msgBox.style.opacity = '0.4';
+            msgBox.style.pointerEvents = 'none';
+            msgBox.innerHTML = '';
+
+            loadFollowedChatPage(false);
+        };
+
+        window.jumpToFullRoom = function () {
+            if (!activeFollowedChannel) return;
+            switchView('fetch');
+            document.getElementById('member-search').value = activeFollowedName;
+            document.getElementById('tool-channel').value = activeFollowedChannel;
+            document.getElementById('tool-server').value = activeFollowedServer;
+            setTimeout(() => document.getElementById('btn-fetch-one').click(), 300);
+        };
+
+        let isFollowedChatAllMode = false;
+
+        window.toggleFollowedChatMode = function () {
+            if (isFollowedChatLoading) return;
+
+            isFollowedChatAllMode = !isFollowedChatAllMode;
+            const btn = document.getElementById('btn-toggle-followed-mode');
+            const msgBox = document.getElementById('followed-chat-messages');
+
+            btn.innerText = "切换中...";
+            btn.disabled = true;
+
+            msgBox.style.transition = 'opacity 0.2s';
+            msgBox.style.opacity = '0.4';
+
+            if (isFollowedChatAllMode) {
+            } else {
+            }
+
+            activeFollowedNextTime = 0;
+
+            loadFollowedChatPage(false).finally(() => {
+                btn.innerText = isFollowedChatAllMode ? "全部消息" : "成员消息";
+                btn.disabled = false;
+            });
+        };
+
+        async function loadFollowedChatPage(isLoadMore, isAutoRefresh = false) {
+            if (isFollowedChatLoading) return;
+            isFollowedChatLoading = true;
+
+            const msgBox = document.getElementById('followed-chat-messages');
+            const token = appToken || localStorage.getItem('yaya_p48_token');
+            const pa = window.getPA ? window.getPA() : null;
+
+            const oldScrollHeight = msgBox.scrollHeight;
+
+            const isAtBottom = (msgBox.scrollHeight - msgBox.scrollTop - msgBox.clientHeight) < 50;
+
+            try {
+                const fetchNextTime = isAutoRefresh ? 0 : activeFollowedNextTime;
+
+                const res = await ipcRenderer.invoke('fetch-room-messages', {
+                    token: token,
+                    serverId: activeFollowedServer,
+                    channelId: activeFollowedChannel,
+                    pa: pa,
+                    nextTime: fetchNextTime,
+                    fetchAll: isFollowedChatAllMode
+                });
+
+                if (res.success && res.data.content) {
+                    if (res.usedServerId) activeFollowedServer = res.usedServerId;
+                    const content = res.data.content;
+                    let list = content.messageList || content.message || [];
+
+                    list = list.filter(m => {
+                        let sid = m.senderUserId || m.senderId || m.uid;
+                        if (!sid && m.extInfo) {
+                            try {
+                                const ext = typeof m.extInfo === 'string' ? JSON.parse(m.extInfo) : m.extInfo;
+                                if (ext.user) sid = ext.user.userId || ext.user.id;
+                            } catch (e) { }
+                        }
+                        return String(sid) !== '121569667';
+                    });
+
+                    if (!isAutoRefresh && !isLoadMore) {
+                        activeFollowedNextTime = content.nextTime;
+                        if (list.length === 0) activeFollowedNextTime = 0;
+                    } else if (isLoadMore) {
+                        activeFollowedNextTime = content.nextTime;
+                    }
+
+                    if (!isLoadMore && !isAutoRefresh) msgBox.innerHTML = '';
+                    const oldBtn = document.getElementById('btn-load-more-followed');
+                    if (oldBtn) oldBtn.remove();
+
+                    if (list.length === 0 && !isLoadMore && !isAutoRefresh) {
+                        msgBox.innerHTML = '<div class="empty-state" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--text-sub); font-size: 14px;">暂无新消息</div>';
+                        isFollowedChatLoading = false;
+                        return;
+                    }
+
+                    const reversedList = [...list].reverse();
+
+                    const existingIds = new Set();
+                    if (isAutoRefresh) {
+                        msgBox.querySelectorAll('.msg-item').forEach(el => {
+                            if (el.dataset.msgid) existingIds.add(el.dataset.msgid);
+                        });
+                    }
+
+                    const batchHtml = reversedList.map(m => {
+                        const msgId = m.msgidClient || m.msgId || m.msgTime;
+
+                        if (typeof isAutoRefresh !== 'undefined' && isAutoRefresh && typeof existingIds !== 'undefined' && existingIds.has(String(msgId))) {
+                            return '';
+                        }
+
+                        let txt = '[不支持的消息格式]';
+                        let isMember = false;
+                        let displayName = m.senderName || '未知用户';
+                        let avatarUrl = './icon.png';
+                        let body = m.bodys || m.msgContent || '';
+                        let extraHtml = '';
+
+                        const safeStr = (str) => String(str || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+                        if (m.extInfo) {
+                            try {
+                                const safeExtInfo = typeof m.extInfo === 'string' ? m.extInfo.replace(/:\s*([0-9]{16,})/g, ':"$1"') : m.extInfo;
+                                const ext = typeof safeExtInfo === 'string' ? JSON.parse(safeExtInfo) : safeExtInfo;
+                                if (ext && ext.user) {
+                                    if (ext.user.roleId > 1) isMember = true;
+                                    if (ext.user.nickName) displayName = ext.user.nickName;
+                                    if (ext.user.avatar) {
+                                        avatarUrl = ext.user.avatar.startsWith('http') ? ext.user.avatar : `https://source.48.cn${ext.user.avatar}`;
+                                    }
+                                }
+                            } catch (e) { console.warn('用户信息(extInfo)解析失败', e); }
+                        }
+
+                        try {
+                            let json = null;
+                            if (typeof body === 'string' && (body.startsWith('{') || body.startsWith('['))) {
+                                try {
+                                    json = JSON.parse(body);
+                                    if (typeof json === 'string') json = JSON.parse(json);
+                                } catch (parseErr) { }
+                            } else if (typeof body === 'object' && body !== null) {
+                                json = body;
+                            }
+
+                            if (json) {
+                                const msgType = (m.msgType || '').toUpperCase();
+                                const jsonType = (json.messageType || '').toUpperCase();
+
+                                if (msgType === 'TEXT') {
+                                    txt = `<p class="mb-2 template-pre">${safeStr(json.text || json.bodys || body)}</p>`;
+                                } else if (msgType === 'IMAGE') {
+                                    const url = json.url.startsWith('http') ? json.url : `https://source3.48.cn${json.url}`;
+                                    txt = `<div class="mb-2"><img class="template-media" src="${url}" loading="lazy" style="max-height: 250px; border-radius: 8px; cursor: zoom-in;" onclick="openImageModal('${url}')"></div>`;
+                                } else if (msgType === 'EXPRESSIMAGE') {
+                                    const url = json.expressImgInfo ? json.expressImgInfo.emotionRemote : json.url;
+                                    txt = `<div class="mb-2"><img class="template-image-express-image" src="${url.startsWith('http') ? url : 'https://source3.48.cn' + url}"></div>`;
+                                } else if (msgType === 'REPLY' || msgType === 'GIFTREPLY') {
+                                    let info = json.replyInfo || json.giftReplyInfo || (json.bodys && (json.bodys.replyInfo || json.bodys.giftReplyInfo));
+                                    const rName = safeStr(info?.replyName || '用户');
+                                    const rText = safeStr(info?.replyText || '消息');
+                                    const myText = safeStr(info?.text || json.text || body);
+                                    txt = `<p class="mb-2 template-pre">${myText}</p>
+                                           <blockquote class="ml-2 mb-2 p-2" style="background: var(--blockquote-bg); border-left: 4px solid var(--border); color: var(--text-sub); border-radius: 0 4px 4px 0;">
+                                               ${rName}：${rText}
+                                           </blockquote>`;
+                                } else if (msgType === 'AUDIO') {
+                                    let mediaUrl = json.url.startsWith('http') ? json.url : `https://mp4.48.cn${json.url.startsWith('/') ? '' : '/'}${json.url}`;
+                                    txt = `<div class="mb-2 preview-media-placeholder" data-type="audio" data-src="${mediaUrl}"></div>`;
+                                } else if (msgType === 'VIDEO') {
+                                    let mediaUrl = json.url.startsWith('http') ? json.url : `https://mp4.48.cn${json.url.startsWith('/') ? '' : '/'}${json.url}`;
+                                    txt = `<div class="mb-2 preview-media-placeholder" data-type="video" data-src="${mediaUrl}"></div>`;
+                                } else if (jsonType === 'GIFT_TEXT' || msgType === 'GIFT_TEXT') {
+                                    const info = json.giftInfo || json;
+                                    let unitCost = info.money || info.cost;
+                                    if (!unitCost && typeof POCKET_GIFT_DATA !== 'undefined') {
+                                        const g = POCKET_GIFT_DATA.find(x => x.id == (info.giftId || info.id) || x.name === info.giftName);
+                                        if (g) unitCost = g.cost;
+                                    }
+                                    const totalCostStr = unitCost ? ` (约 ${unitCost * info.giftNum} 🍗)` : '';
+                                    txt = `<p class="mb-2" style="color:#eb2f96; font-weight:bold;">🎁 送出了 [${safeStr(info.giftName)}] x${info.giftNum}${totalCostStr}</p>`;
+                                } else if (msgType.includes('FLIPCARD') || jsonType.includes('FLIPCARD')) {
+                                    const possibleKeys = ['flipCardInfo', 'filpCardInfo', 'flipCardAudioInfo', 'filpCardAudioInfo', 'flipCardVideoInfo', 'filpCardVideoInfo'];
+                                    let flipInfo = null;
+                                    for (const key of possibleKeys) {
+                                        if (json[key]) { flipInfo = json[key]; break; }
+                                        if (json.bodys && json.bodys[key]) { flipInfo = json.bodys[key]; break; }
+                                    }
+                                    const qText = flipInfo?.question || json.question || '（无法解析的问题内容）';
+                                    let aContent = flipInfo?.answer || json.answer || '';
+                                    let ansHtml = '';
+                                    if (msgType === 'FLIPCARD' || (jsonType === 'FLIPCARD' && typeof aContent === 'string' && !aContent.includes('url'))) {
+                                        ansHtml = `<div style="font-size:14px; color:var(--text); line-height:1.6; padding:0 4px;">${safeStr(aContent)}</div>`;
+                                    } else {
+                                        try {
+                                            const ansObj = typeof aContent === 'string' ? JSON.parse(aContent) : aContent;
+                                            if (ansObj && ansObj.url) {
+                                                let mediaUrl = ansObj.url.startsWith('http') ? ansObj.url : `https://mp4.48.cn${ansObj.url.startsWith('/') ? '' : '/'}${ansObj.url}`;
+                                                const mType = (msgType.includes('AUDIO') || jsonType.includes('AUDIO')) ? 'audio' : 'video';
+                                                ansHtml = `<div class="preview-media-placeholder" data-type="${mType}" data-src="${mediaUrl}" style="margin-top:8px;"></div>`;
+                                            }
+                                        } catch (e) { }
+                                    }
+                                    txt = `<div style="margin-bottom: 8px;">
+                                                <span class="flip-label question-tag" style="margin-right:8px; transform:none; display:inline-flex;">翻牌提问</span>
+                                                <span style="font-size:14px; color:var(--text); line-height: 1.5;">${safeStr(qText)}</span>
+                                           </div>
+                                           <div style="margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 8px;">
+                                                <span class="flip-label answer-tag" style="margin-right:8px; transform:none; display:inline-flex;">成员回答</span>
+                                                ${ansHtml}
+                                           </div>`;
+                                } else if (msgType === 'LIVEPUSH' || msgType === 'LIVE_PUSH' || jsonType === 'LIVEPUSH') {
+                                    const info = json.livePushInfo || json;
+                                    const liveTitle = safeStr(info.liveTitle || '直播开始了');
+                                    const liveId = info.liveId;
+                                    const cover = info.liveCover ? (info.liveCover.startsWith('http') ? info.liveCover : `https://source.48.cn${info.liveCover}`) : './icon.png';
+                                    const d = new Date(m.msgTime);
+                                    const pad = (n) => String(n).padStart(2, '0');
+                                    const tStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+                                    const escapedTitle = liveTitle.replace(/'/g, "\\'");
+                                    const escapedName = safeStr(displayName).replace(/'/g, "\\'");
+                                    txt = `<div class="vod-card-row" style="margin-top: 8px; width: 100%; box-sizing: border-box; background: var(--bg); border: 1px solid var(--border); box-shadow: none;" 
+                                         onclick="event.stopPropagation(); playArchiveFromMessage('${liveId}', '${escapedName}', '${tStr}', '${escapedTitle}')">
+                                        <div class="vod-row-cover-container" style="width: 100px; height: 56px; border-radius: 6px;">
+                                            <img src="${cover}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 6px;">
+                                            <div class="vod-badge badge-replay" style="bottom: 4px; right: 4px; background-color: #52c41a;">回放</div>
+                                        </div>
+                                        <div class="vod-row-info" style="height: 56px; justify-content: space-between;">
+                                            <div class="vod-row-name" style="font-size: 14px; color: var(--text);">${safeStr(displayName)}</div>
+                                            <div class="vod-row-title" style="font-size: 12px; color: var(--text-sub);">${liveTitle}</div>
+                                            <div class="vod-row-time" style="font-size: 11px; color: var(--text-sub); opacity: 0.6;">${tStr}</div>
+                                        </div>
+                                    </div>`;
+                                } else if (msgType === 'AUDIO_GIFT_REPLY' || jsonType === 'AUDIO_GIFT_REPLY') {
+                                    const info = json.giftReplyInfo || json;
+                                    let voiceUrl = info.voiceUrl || '';
+                                    if (voiceUrl && !voiceUrl.startsWith('http')) {
+                                        voiceUrl = `https://mp4.48.cn${voiceUrl.startsWith('/') ? '' : '/'}${voiceUrl}`;
+                                    }
+                                    const rName = safeStr(info.replyName || '未知用户');
+                                    const rText = safeStr(info.replyText || '');
+                                    txt = '';
+                                    extraHtml = `<div style="background: var(--blockquote-bg); padding: 8px 12px; border-radius: 6px; border-left: 3px solid var(--border); margin-bottom: 8px; color: var(--text-sub); font-size: 13px; line-height: 1.5;">
+                                                回复 ${rName}：${rText}
+                                            </div>
+                                            <div class="mb-2 preview-media-placeholder" data-type="audio" data-src="${voiceUrl}"></div>`;
+                                } else {
+                                    txt = `<p class="mb-2 template-pre">${safeStr(body)}</p>`;
+                                }
+                            } else {
+                                txt = `<p class="mb-2 template-pre">${safeStr(body)}</p>`;
+                            }
+                            if (typeof replaceTencentEmoji === 'function' && txt) txt = replaceTencentEmoji(txt);
+                        } catch (e) {
+                            txt = `<p class="mb-2 template-pre" style="color: #fa8c16;">[原生内容] ${safeStr(body)}</p>`;
+                        }
+
+                        const d = new Date(m.msgTime);
+                        const pad = (n) => String(n).padStart(2, '0');
+                        const timeStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+
+                        const nameColor = isMember ? '#FB7299' : 'var(--text)';
+                        const fontWeight = 'bold';
+                        const safeTxt = txt || '';
+                        const idDisplay = (m.senderUserId && String(m.senderUserId) !== '0')
+                            ? `<span style="color: var(--text-sub); opacity: 0.7; font-size:10px; margin-left:6px; ">(ID:${m.senderUserId})</span>`
+                            : '';
+
+                        const nameColorVar = isMember ? 'var(--msg-name-member)' : 'var(--msg-name-fan)';
+
+                        return `
+    <div class="msg-item" data-msgid="${msgId}" style="display: flex; padding: 8px 0; border-bottom: 1px solid var(--border);">
+        <img src="${avatarUrl}" class="avatar" 
+             style="width: 34px; height: 34px; border-radius: 50%; margin-right: 12px; margin-top: 2px; flex-shrink: 0; object-fit: cover; border: 1px solid rgba(0,0,0,0.05);">
+        <div style="flex: 1; min-width: 0;">
+            <div style="display: flex; align-items: center; margin-bottom: 2px;">
+                <span style="color: ${nameColorVar}; font-weight: bold; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 75%;">
+                    ${safeStr(displayName)}
+                </span>
+                
+                <span style="margin-left: auto; color: var(--text-sub); font-size: 10px; opacity: 0.5; flex-shrink: 0;">
+                    ${timeStr}
+                </span>
+            </div>
+            <div style="color: var(--text); font-size: 13.5px; line-height: 1.4; word-break: break-all; margin-top: 2px;">
+                ${txt}
+                ${extraHtml}
+            </div>
+        </div>
+   </div>`;
+                    }).join('');
+
+                    if (isAutoRefresh && !batchHtml) {
+                        return;
+                    }
+
+                    const fragment = document.createRange().createContextualFragment(batchHtml);
+
+                    if (isLoadMore) {
+                        msgBox.prepend(fragment);
+                        const newScrollTop = msgBox.scrollHeight - oldScrollHeight;
+
+                        msgBox.scrollTop = newScrollTop <= 0 ? 1 : newScrollTop;
+                    } else {
+                        msgBox.appendChild(fragment);
+
+                        if (!isAutoRefresh || isAtBottom) {
+                            msgBox.scrollTop = msgBox.scrollHeight;
+                        }
+
+                        const goBottomSmart = () => {
+                            if (!isAutoRefresh || isAtBottom) {
+                                msgBox.scrollTop = msgBox.scrollHeight;
+                            }
+                        };
+
+                        msgBox.querySelectorAll('img').forEach(img => {
+                            if (!img.complete) {
+                                img.addEventListener('load', goBottomSmart, { once: true });
+                                img.addEventListener('error', goBottomSmart, { once: true });
+                            }
+                        });
+
+                        setTimeout(goBottomSmart, 300);
+                    }
+
+                    if (activeFollowedNextTime > 0) {
+                        const oldTip = document.getElementById('btn-load-more-followed');
+                        if (oldTip) oldTip.remove();
+                    }
+
+                    msgBox.querySelectorAll('.preview-media-placeholder').forEach(el => {
+                        const type = el.getAttribute('data-type');
+                        const src = el.getAttribute('data-src');
+                        if (src) {
+                            if (type === 'audio' && typeof createCustomAudioPlayer === 'function') {
+                                el.appendChild(createCustomAudioPlayer(src));
+                            } else if (type === 'video' && typeof createCustomVideoPlayer === 'function') {
+                                el.appendChild(createCustomVideoPlayer(src));
+                            }
+                        }
+                        el.classList.remove('preview-media-placeholder');
+                    });
+                }
+            } catch (e) {
+                console.error(e);
+            } finally {
+                isFollowedChatLoading = false;
+
+                const msgBox = document.getElementById('followed-chat-messages');
+                if (!isAutoRefresh) {
+                    msgBox.style.opacity = '1';
+                    msgBox.style.pointerEvents = 'auto';
+                }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const followedMsgBox = document.getElementById('followed-chat-messages');
+            if (followedMsgBox) {
+                followedMsgBox.addEventListener('scroll', function () {
+                    if (isFollowedChatLoading || !activeFollowedNextTime || activeFollowedNextTime === 0) return;
+
+                    if (this.scrollTop < 100) {
+                        loadFollowedChatPage(true);
+                    }
+                });
+            }
+        });
+
+        window.globalAvatarCache = window.globalAvatarCache || {};
+
+        async function loadMemberAvatar(memberId, channelId) {
+            if (!memberId || !channelId) return;
+
+            if (window.globalAvatarCache[memberId]) {
+                updateSessionAvatar(channelId, window.globalAvatarCache[memberId]);
+                return;
+            }
+
+            const token = appToken || localStorage.getItem('yaya_p48_token');
+            const pa = window.getPA ? window.getPA() : null;
+
+            try {
+                const res = await ipcRenderer.invoke('fetch-star-archives', { token, pa, memberId });
+                if (res.success && res.content) {
+                    const info = res.content.starInfo || res.content;
+                    let avatarPath = info.avatar || info.userAvatar;
+
+                    if (avatarPath) {
+                        const fullUrl = avatarPath.startsWith('http') ? avatarPath : `https://source.48.cn${avatarPath}`;
+                        window.globalAvatarCache[memberId] = fullUrl;
+                        updateSessionAvatar(channelId, fullUrl);
+                    }
+                }
+            } catch (e) {
+            }
+        }
+
+        function updateSessionAvatar(channelId, url) {
+            const card = document.getElementById(`session-card-${channelId}`);
+            if (card) {
+                const img = card.querySelector('.session-avatar');
+                if (img) {
+                    img.src = url;
+                    img.style.animation = 'fadeIn 0.5s ease-in';
+                }
+            }
+        }
+
+        window.handleQuickFollowSearch = function (keyword) {
+            const resultBox = document.getElementById('quick-follow-results');
+            if (!keyword || !keyword.trim()) {
+                resultBox.style.display = 'none';
+                return;
+            }
+
+            if (!window.isMemberDataLoaded) {
+                if (typeof loadMemberData === 'function') loadMemberData();
+            }
+
+            const lowerKw = keyword.toLowerCase();
+            let matches = memberData.filter(m => {
+                const matchName = m.ownerName.includes(keyword);
+                const pinyin = m.pinyin || "";
+                const initials = typeof getPinyinInitials === 'function' ? getPinyinInitials(pinyin) : "";
+                return matchName || pinyin.toLowerCase().includes(lowerKw) || initials.toLowerCase().includes(lowerKw);
+            });
+
+            matches.sort(memberSortLogic);
+
+            if (matches.length > 0) {
+                const html = matches.slice(0, 10).map(m => {
+                    const isInactive = m.isInGroup === false;
+                    const colorStyle = typeof getTeamStyle === 'function' ? getTeamStyle(m.team, isInactive) : '';
+                    return `
+                <div class="suggestion-item" onclick="selectQuickFollowMember('${m.ownerName}', '${m.id || m.userId}')" 
+                     style="display: flex; justify-content: space-between; align-items: center; padding: 8px;">
+                    <span style="font-weight:bold; font-size:12px; ${isInactive ? 'opacity:0.6' : ''}">${m.ownerName}</span>
+                    <span class="team-tag" style="font-size:10px; padding:0 4px; height:16px; line-height:14px; ${colorStyle}">${m.team}</span>
+                </div>`;
+                }).join('');
+                resultBox.innerHTML = html;
+                resultBox.style.display = 'block';
+            } else {
+                resultBox.innerHTML = '<div class="suggestion-item" style="font-size:12px; color:#999;">未找到该成员</div>';
+                resultBox.style.display = 'block';
+            }
+        };
+
+        window.selectQuickFollowMember = function (name, id) {
+            document.getElementById('quick-follow-input').value = name;
+            document.getElementById('quick-follow-id').value = id;
+            document.getElementById('quick-follow-results').style.display = 'none';
+
+            const btn = document.getElementById('btn-quick-action');
+            if (window.allFollowedIds.has(String(id))) {
+                btn.innerText = "取关";
+                btn.style.color = "#ff4d4f";
+            } else {
+                btn.innerText = "关注";
+                btn.style.color = "";
+            }
+        };
+
+        window.executeQuickAction = async function () {
+            const memberId = document.getElementById('quick-follow-id').value;
+            const memberName = document.getElementById('quick-follow-input').value;
+            const btn = document.getElementById('btn-quick-action');
+            const token = appToken || localStorage.getItem('yaya_p48_token');
+            const pa = window.getPA ? window.getPA() : null;
+
+            if (!token || !memberId) return showToast('⚠️ 请先选择成员');
+
+            const isUnfollow = btn.innerText === "取关";
+            const channel = isUnfollow ? 'unfollow-member' : 'follow-member';
+
+            showToast(`正在${isUnfollow ? '取消关注' : '关注'} ${memberName}...`);
+
+            try {
+                const res = await ipcRenderer.invoke(channel, { token, pa, memberId });
+                if (res.success) {
+                    showToast(`✅ ${isUnfollow ? '已取消关注' : '成功关注'} ${memberName}`);
+
+                    document.getElementById('quick-follow-input').value = '';
+                    document.getElementById('quick-follow-id').value = '';
+                    btn.innerText = "关注";
+                    btn.style.color = "";
+
+                    if (typeof loadFollowedRooms === 'function') setTimeout(loadFollowedRooms, 500);
+                } else {
+                    showToast(`❌ 失败: ${res.msg}`);
+                }
+            } catch (e) {
+                showToast(`❌ 错误: ${e.message}`);
+            }
+        };
+
+        document.addEventListener('mousedown', function (e) {
+            const resultBox = document.getElementById('quick-follow-results');
+            const input = document.getElementById('quick-follow-input');
+            if (resultBox && !resultBox.contains(e.target) && e.target !== input) {
+                resultBox.style.display = 'none';
+            }
+        });
+
         document.addEventListener('click', function (e) {
             if (e.target.classList.contains('modal-overlay')) {
                 const modalId = e.target.id;
@@ -12417,7 +13521,7 @@ async function refreshLiveAnnouncement(btnElement) {
 
                         const displayName = m.senderName || (m.extInfo && (typeof m.extInfo === 'string' ? JSON.parse(m.extInfo) : m.extInfo).user.nickName) || '未知用户';
                         const idDisplay = (senderId && String(senderId) !== '0')
-                            ? `<span style="color:#999; font-size:10px; margin-left:6px; font-family: monospace;">(ID:${senderId})</span>`
+                            ? `<span style="color:#999; font-size:10px; margin-left:6px; ">(ID:${senderId})</span>`
                             : '';
 
 
