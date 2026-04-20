@@ -2,13 +2,17 @@
   "name": "yaya_msg",
   "version": "2.0.0",
   "description": "牙牙消息",
+  "homepage": "https://github.com/yk1z/yaya_msg",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "pack": "electron-builder --dir",
     "dist": "electron-builder"
   },
-  "author": "yk1z",
+  "author": {
+    "name": "yk1z",
+    "email": "yk1z@users.noreply.github.com"
+  },
   "license": "ISC",
   "dependencies": {
     "axios": "^1.13.2",
@@ -95,7 +99,8 @@
         }
       ],
       "icon": "icon.png",
-      "category": "Utility"
+      "category": "Utility",
+      "maintainer": "yk1z <yk1z@users.noreply.github.com>"
     },
     "nsis": {
       "oneClick": false,
