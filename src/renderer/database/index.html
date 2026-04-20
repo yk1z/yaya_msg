@@ -1,0 +1,1810 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>牙牙消息数据库 | presented by yk1z</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        gray: {
+                            750: '#2d3748',
+                            850: '#1a202c',
+                            950: '#0d1117',
+                        },
+                        gold: {
+                            500: '#EAB308',
+                            100: '#FEF9C3'
+                        },
+                        silver: {
+                            500: '#94A3B8',
+                            100: '#F1F5F9'
+                        },
+                        bronze: {
+                            500: '#B45309',
+                            100: '#FFEDD5'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <script type="importmap">
+    {
+        "imports": {
+            "react": "https://esm.sh/react@18.2.0",
+            "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+            "lucide-react": "https://esm.sh/lucide-react@0.292.0"
+        }
+    }
+    </script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        :root {
+            --db-bg: transparent;
+            --db-card: rgba(255, 255, 255, 0.72);
+            --db-card-strong: rgba(255, 255, 255, 0.88);
+            --db-soft: rgba(255, 255, 255, 0.56);
+            --db-border: rgba(225, 228, 232, 0.68);
+            --db-text: #24292e;
+            --db-text-sub: #667085;
+            --db-accent: #9b6a9c;
+        }
+
+        .dark {
+            --db-bg: transparent;
+            --db-card: rgba(22, 27, 34, 0.78);
+            --db-card-strong: rgba(22, 27, 34, 0.9);
+            --db-soft: rgba(13, 17, 23, 0.62);
+            --db-border: rgba(48, 54, 61, 0.62);
+            --db-text: #c9d1d9;
+            --db-text-sub: #8b949e;
+            --db-accent: #b583b6;
+        }
+
+        .db-app {
+            background: transparent !important;
+            color: var(--db-text);
+            min-height: auto !important;
+        }
+
+        .db-main {
+            max-width: none !important;
+            padding: 0 !important;
+        }
+
+        .db-header {
+            position: static !important;
+            top: auto !important;
+            z-index: auto !important;
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            margin-bottom: 18px;
+        }
+
+        .db-tabs-shell {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px 0;
+            border-radius: 16px;
+            background: var(--db-card);
+            border: 1px solid var(--db-border);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+            backdrop-filter: blur(12px);
+        }
+
+        .db-app .bg-white,
+        .db-app .bg-gray-50,
+        .db-app .bg-gray-100 {
+            background: var(--db-card) !important;
+        }
+
+        .dark .db-app .dark\:bg-gray-900,
+        .dark .db-app .dark\:bg-gray-800 {
+            background: var(--db-card) !important;
+        }
+
+        .db-app .border-gray-200,
+        .db-app .border-gray-100,
+        .db-app .border-dashed {
+            border-color: var(--db-border) !important;
+        }
+
+        .db-app .text-gray-900,
+        .db-app .text-gray-800,
+        .dark .db-app .dark\:text-gray-100,
+        .dark .db-app .dark\:text-gray-200 {
+            color: var(--db-text) !important;
+        }
+
+        .db-app .text-gray-600,
+        .db-app .text-gray-500,
+        .db-app .text-gray-400,
+        .dark .db-app .dark\:text-gray-300,
+        .dark .db-app .dark\:text-gray-400 {
+            color: var(--db-text-sub) !important;
+        }
+
+        .db-app .shadow-sm,
+        .db-app .hover\:shadow-md:hover {
+            box-shadow: 0 8px 22px rgba(0, 0, 0, 0.05) !important;
+        }
+
+        .db-app .text-pink-500,
+        .db-app .text-pink-600,
+        .dark .db-app .dark\:text-pink-400 {
+            color: var(--db-accent) !important;
+        }
+
+        .db-app .border-pink-500 {
+            border-color: var(--db-accent) !important;
+        }
+
+        .db-app .focus\:ring-pink-300:focus,
+        .dark .db-app .dark\:focus\:ring-pink-500:focus {
+            --tw-ring-color: color-mix(in srgb, var(--db-accent) 35%, transparent) !important;
+        }
+
+        .db-app .bg-gradient-to-r,
+        .db-theme-toggle {
+            display: none !important;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #e5e7eb;
+            border-radius: 20px;
+        }
+
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #4b5563;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background-color: #d1d5db;
+        }
+
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background-color: #6b7280;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .animate-backdrop {
+            animation: fadeIn 0.2s ease-out forwards;
+        }
+
+        @keyframes modalPop {
+            from {
+                opacity: 0;
+                transform: scale(0.96) translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        .animate-modal {
+            animation: modalPop 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes contentSlide {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-content {
+            animation: contentSlide 0.4s ease-out forwards;
+            opacity: 0;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 text-gray-900 font-sans transition-colors duration-300 dark:bg-gray-950 dark:text-gray-100">
+    <div id="root"></div>
+    <script type="text/babel" data-type="module">
+        import React, { useState, useMemo, useRef, useEffect } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import { Search, Users, Filter, Upload, BarChart3, Heart, MapPin, Calendar, Hash, X, ChevronRight, Layers, Flag, CheckCircle2, ChevronDown, Check, Cake, Trophy, FileText, Clock, ArrowUpCircle, LogOut, GraduationCap, Copy, Moon, Sun, List, UserSquare2, Sparkles, TrendingUp, TrendingDown, Minus, Music, Disc, AlertCircle, Mic2, Loader2, ExternalLink, ClipboardCopy, Star, Ruler, Droplet, UserCircle, CalendarDays, Activity } from 'lucide-react';
+        const DEMO_DATA = [];
+
+        const COS_BASE = 'https://yaya-data.pages.dev';
+        const LYRICS_REPO_URL = 'https://github.com/yk1z/yaya_data/tree/main/lyrics';
+        const LYRICS_SEARCH_URL = 'https://github.com/yk1z/yaya_data/search?q=';
+
+        const DATA_URLS = {
+            members: `${COS_BASE}/members.json`,
+            zx: `${COS_BASE}/zx.json`,
+            stages: `${COS_BASE}/stages.json`,
+            fxzp: `${COS_BASE}/fxzp.json`,
+            lyrics: `${COS_BASE}/lyrics/`
+        };
+
+        const LYRICS_INDEX_URL = `${COS_BASE}/lyrics-index.json`;
+        let lyricsIndexPromise = null;
+
+        const fetchLyricsIndex = () => {
+            if (!lyricsIndexPromise) {
+                lyricsIndexPromise = fetch(LYRICS_INDEX_URL)
+                    .then(res => {
+                        if (!res.ok) throw new Error('Lyrics index not found');
+                        return res.json();
+                    })
+                    .catch(err => {
+                        lyricsIndexPromise = null;
+                        throw err;
+                    });
+            }
+            return lyricsIndexPromise;
+        };
+
+        const encodeLyricPath = (path) => path.split('/').map(encodeURIComponent).join('/');
+
+        const normalizeLyricToken = (value) => String(value || '')
+            .normalize('NFKC')
+            .replace(/[’'＇]/g, "'")
+            .replace(/[“”]/g, '"')
+            .replace(/[（]/g, '(')
+            .replace(/[）]/g, ')')
+            .replace(/[《〈]/g, '<')
+            .replace(/[》〉]/g, '>')
+            .replace(/[！]/g, '!')
+            .replace(/[？]/g, '?')
+            .replace(/[：]/g, ':')
+            .replace(/[·•・]/g, '·')
+            .replace(/[<>]/g, '')
+            .replace(/\s+/g, '')
+            .toLowerCase();
+
+        const buildLyricNameVariants = (name) => {
+            const raw = String(name || '').trim();
+            if (!raw) return [];
+            const variants = new Set([raw]);
+            const push = (value) => value && variants.add(value);
+
+            push(raw.replace(/[！]/g, '!'));
+            push(raw.replace(/!/g, '！'));
+            push(raw.replace(/[（]/g, '(').replace(/[）]/g, ')'));
+            push(raw.replace(/\(/g, '（').replace(/\)/g, '）'));
+            push(raw.replace(/[《〈]/g, '<').replace(/[》〉]/g, '>'));
+            push(raw.replace(/[<>]/g, ''));
+            push(raw.replace(/[《》〈〉]/g, ''));
+            push(raw.replace(/[·•・]/g, '·'));
+            push(raw.replace(/[·•・]/g, ''));
+            push(raw.replace(/\s+/g, ''));
+
+            return [...variants];
+        };
+
+        const buildLegacyLyricPaths = (song) => {
+            const paths = [];
+            const titleVariants = buildLyricNameVariants(song.歌曲名);
+
+            if (song.lrcPath) {
+                paths.push(song.lrcPath);
+            }
+
+            if (song.分团 && song.类型 && song.专辑序号 && song.专辑) {
+                const folderName = `${song.类型}${song.专辑序号} ${song.专辑}`;
+                for (const title of titleVariants) {
+                    paths.push(`${song.分团}/${folderName}/${song.分团} - ${title}.lrc`);
+                }
+            }
+
+            if (song.分团 && song.专辑) {
+                const folderCandidates = new Set();
+                if (song.类型) {
+                    folderCandidates.add(`${song.类型}${song.专辑序号 ? `${song.专辑序号} ` : ' '}${song.专辑}`.trim());
+                    folderCandidates.add(`${song.类型} ${song.专辑}`.trim());
+                }
+                if (song.类型 === '其它歌曲' || song.类型 === '音乐影片') {
+                    folderCandidates.add('Single');
+                }
+                if (song.类型 === '周年主题曲') {
+                    folderCandidates.add('Single');
+                }
+
+                for (const folderName of folderCandidates) {
+                    for (const title of titleVariants) {
+                        paths.push(`${song.分团}/${folderName}/${song.分团} - ${title}.lrc`);
+                    }
+                }
+            }
+
+            for (const title of titleVariants) {
+                paths.push(`${title}.lrc`);
+            }
+
+            return [...new Set(paths)];
+        };
+
+        const buildIndexedLyricPaths = (song, index) => {
+            if (!Array.isArray(index) || !song) return [];
+            const titleVariants = buildLyricNameVariants(song.歌曲名).map(normalizeLyricToken);
+            const titleSet = new Set(titleVariants);
+            const normalizedAlbum = normalizeLyricToken(song.专辑);
+            const normalizedType = normalizeLyricToken(song.类型);
+            const normalizedSeq = normalizeLyricToken(song.专辑序号);
+
+            const scored = index
+                .filter(item => item && item.group === song.分团)
+                .filter(item => titleSet.has(normalizeLyricToken(item.songTitle)))
+                .map(item => {
+                    const folder = String(item.folder || '');
+                    const normalizedFolder = normalizeLyricToken(folder);
+                    let score = 0;
+
+                    if (song.lrcPath && item.path === song.lrcPath) score += 1000;
+                    if (normalizedAlbum && normalizedFolder.includes(normalizedAlbum)) score += 300;
+
+                    if (song.类型 === '公演专辑' && folder.startsWith('公演专辑')) score += 180;
+                    if (song.类型 === 'EP' && folder.startsWith('EP')) score += 180;
+                    if (song.类型 === '专辑' && folder.startsWith('专辑')) score += 180;
+                    if ((song.类型 === '其它歌曲' || song.类型 === '音乐影片') && folder === 'Single') score += 180;
+                    if (song.类型 === '周年主题曲' && (folder === 'Single' || folder.startsWith('EP'))) score += 120;
+
+                    if (normalizedType && normalizedFolder.startsWith(normalizedType)) score += 80;
+                    if (normalizedSeq && normalizedFolder.includes(normalizedSeq)) score += 40;
+
+                    if (normalizeLyricToken(item.file).includes(normalizeLyricToken(`${song.分团}-${song.歌曲名}`))) score += 20;
+
+                    return { path: item.path, score };
+                })
+                .sort((a, b) => b.score - a.score);
+
+            return [...new Set(scored.map(item => item.path))];
+        };
+
+        const GROUP_COLORS = {
+            "SNH48": "bg-blue-100 text-blue-600 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800",
+            "GNZ48": "bg-green-100 text-green-600 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800",
+            "BEJ48": "bg-pink-100 text-pink-600 border-pink-200 dark:bg-pink-900/30 dark:text-pink-300 dark:border-pink-800",
+            "CKG48": "bg-orange-100 text-orange-600 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-800",
+            "CGT48": "bg-red-100 text-red-600 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800",
+            "SHY48": "bg-purple-100 text-purple-600 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800",
+            "7SENSES": "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700",
+            "IDFT": "bg-[#900058]/10 text-[#900058] border-[#900058]/30 dark:bg-[#900058]/20 dark:text-[#ffb3d9] dark:border-[#900058]/50",
+            "明星殿堂": "bg-purple-100 text-purple-600 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800",
+            "官方": "bg-gray-200 text-gray-700 border-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600",
+            "default": "bg-gray-50 text-gray-500 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700"
+        };
+
+        const ALBUM_CARD_STYLES = {
+            "SNH48": "bg-white border-blue-200 dark:bg-blue-900/20 dark:border-blue-800/50",
+            "GNZ48": "bg-white border-green-200 dark:bg-green-900/20 dark:border-green-800/50",
+            "BEJ48": "bg-white border-pink-200 dark:bg-pink-900/20 dark:border-pink-800/50",
+            "CKG48": "bg-white border-orange-200 dark:bg-orange-900/20 dark:border-orange-800/50",
+            "CGT48": "bg-white border-red-200 dark:bg-red-900/20 dark:border-red-800/50",
+            "SHY48": "bg-white border-purple-200 dark:bg-purple-900/20 dark:border-purple-800/50",
+            "7SENSES": "bg-white border-gray-300 dark:bg-gray-800/40 dark:border-gray-600",
+            "DEMOON": "bg-white border-fuchsia-200 dark:bg-fuchsia-900/20 dark:border-fuchsia-800/50",
+            "BLUEV": "bg-white border-cyan-200 dark:bg-cyan-900/20 dark:border-cyan-800/50",
+            "IDFT": "bg-white border-[#900058]/20 dark:bg-[#900058]/10 dark:border-[#900058]/30",
+            "明星殿堂": "bg-white border-purple-200 dark:bg-purple-900/20 dark:border-purple-800/50",
+            "官方": "bg-white border-gray-200 dark:bg-gray-800/40 dark:border-gray-700",
+            "default": "bg-white border-gray-200 dark:bg-gray-900 dark:border-gray-800"
+        };
+        const getAlbumCardStyle = (group) => ALBUM_CARD_STYLES[group] || ALBUM_CARD_STYLES["default"];
+
+        const TEAM_COLORS = {
+            "TEAM SII": "text-[#A1D5ED] bg-[#A1D5ED]/10 border-[#A1D5ED]/30 dark:bg-[#A1D5ED]/20",
+            "TEAM NII": "text-[#BE98C7] bg-[#BE98C7]/10 border-[#BE98C7]/30 dark:bg-[#BE98C7]/20",
+            "TEAM HII": "text-[#F8941D] bg-[#F8941D]/10 border-[#F8941D]/30 dark:bg-[#F8941D]/20",
+            "TEAM X": "text-[#B1D61B] bg-[#B1D61B]/10 border-[#B1D61B]/30 dark:bg-[#B1D61B]/20",
+            "TEAM B": "text-[#FF4083] bg-[#FF4083]/10 border-[#FF4083]/30 dark:bg-[#FF4083]/20",
+            "TEAM E": "text-[#0CC8C3] bg-[#0CC8C3]/10 border-[#0CC8C3]/30 dark:bg-[#0CC8C3]/20",
+            "TEAM J": "text-[#192F6B] bg-[#192F6B]/10 border-[#192F6B]/30 dark:text-[#6a8be8] dark:bg-[#6a8be8]/20 dark:border-[#6a8be8]/30",
+            "TEAM G": "text-[#9FBF40] bg-[#9FBF40]/10 border-[#9FBF40]/30 dark:bg-[#9FBF40]/20",
+            "TEAM NIII": "text-[#FFE249] bg-[#FFE249]/10 border-[#FFE249]/30 dark:bg-[#FFE249]/20",
+            "TEAM Z": "text-[#EA617B] bg-[#EA617B]/10 border-[#EA617B]/30 dark:bg-[#EA617B]/20",
+            "TEAM C": "text-[#FEB90D] bg-[#FEB90D]/10 border-[#FEB90D]/30 dark:bg-[#FEB90D]/20",
+            "TEAM K": "text-[#FF5043] bg-[#FF5043]/10 border-[#FF5043]/30 dark:bg-[#FF5043]/20",
+            "TEAM CII": "text-[#D21217] bg-[#D21217]/10 border-[#D21217]/30 dark:text-[#ff6b6e] dark:bg-[#ff6b6e]/20 dark:border-[#ff6b6e]/30",
+            "TEAM GII": "text-[#0061C0] bg-[#0061C0]/10 border-[#0061C0]/30 dark:text-[#4d9eff] dark:bg-[#4d9eff]/20 dark:border-[#4d9eff]/30",
+            "荣誉毕业生": "text-gray-500 bg-gray-100 border-gray-200 dark:text-gray-400 dark:bg-gray-800 dark:border-gray-700",
+            "预备生": "text-gray-500 bg-gray-100 border-gray-200 dark:text-gray-400 dark:bg-gray-800 dark:border-gray-700",
+            "海外练习生": "text-gray-500 bg-gray-100 border-gray-200 dark:text-gray-400 dark:bg-gray-800 dark:border-gray-700",
+            "default": "text-gray-500 bg-gray-50 border-gray-100 dark:text-gray-400 dark:bg-gray-800 dark:border-gray-700"
+        };
+
+        const TEAM_SORT_ORDER = [
+            "TEAM SII", "TEAM NII", "TEAM HII", "TEAM X",
+            "TEAM G", "TEAM NIII", "TEAM Z",
+            "TEAM B", "TEAM E", "TEAM J",
+            "TEAM C", "TEAM K",
+            "TEAM CII", "TEAM GII", "TEAM CGT",
+            "预备生", "海外练习生", "荣誉毕业生", "明星殿堂"
+        ];
+
+        const getGroupStyle = (groupName) => GROUP_COLORS[groupName] || GROUP_COLORS["default"];
+
+        const getTeamStyle = (teamName) => {
+            if (!teamName) return TEAM_COLORS["default"];
+            const upperName = teamName.toUpperCase();
+            if (TEAM_COLORS[upperName]) return TEAM_COLORS[upperName];
+            if (TEAM_COLORS[`TEAM ${upperName}`]) return TEAM_COLORS[`TEAM ${upperName}`];
+            if (upperName.startsWith("TEAM ")) {
+                if (TEAM_COLORS[upperName]) return TEAM_COLORS[upperName];
+            } else {
+                if (TEAM_COLORS[`TEAM ${upperName}`]) return TEAM_COLORS[`TEAM ${upperName}`];
+            }
+            if (TEAM_COLORS[teamName]) return TEAM_COLORS[teamName];
+            return TEAM_COLORS["default"];
+        };
+
+        const checkIsActive = (member) => {
+            if (member.isy === 'y' || member.isy === 'Y') return true;
+            if (member.isInGroup === true) return true;
+            return false;
+        };
+
+        const parseChinesePeriod = (name) => {
+            if (!name) return 9999;
+            const match = name.match(/([一二三四五六七八九十]+)期/);
+            if (!match) return 9999;
+            const cn = match[1];
+            const map = { '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10 };
+            if (map[cn]) return map[cn];
+            if (cn.startsWith('十')) return 10 + (map[cn[1]] || 0);
+            if (cn.startsWith('二十')) return (cn === '二十' ? 20 : 20 + (map[cn[2]] || 0));
+            if (cn.startsWith('三十')) return 30 + (map[cn[2]] || 0);
+            return 9999;
+        };
+
+        const formatDate = (dateStr) => {
+            if (!dateStr) return null;
+            const match = dateStr.match(/(\d{4})[^\d]+(\d{1,2})[^\d]+(\d{1,2})/);
+            if (match) {
+                const year = match[1];
+                const month = match[2].padStart(2, '0');
+                const day = match[3].padStart(2, '0');
+                return `${year}.${month}.${day}`;
+            }
+            return dateStr;
+        };
+
+        const getPinyinInitials = (pinyin) => {
+            if (!pinyin) return '';
+            return pinyin
+                .replace(/([a-z])([A-Z])/g, '$1 $2')
+                .split(/[\s_-]+/)
+                .filter(Boolean)
+                .map(part => part[0]?.toLowerCase() || '')
+                .join('');
+        };
+
+        const StageCard = ({ data, index }) => {
+            const isLeftCard = index % 2 === 0;
+
+            return (
+                <div className={`rounded-xl border border-gray-200 bg-white dark:bg-gray-900 dark:border-gray-800 p-5 shadow-sm hover:shadow-md transition-all duration-300 group flex flex-col justify-between h-full text-left ${isLeftCard ? 'md:text-right' : 'md:text-left'}`}>
+                    <div>
+                        <div className={`flex items-start mb-2 ${isLeftCard ? 'md:flex-row-reverse justify-between' : 'justify-between'}`}>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full border font-bold ${getTeamStyle(data.队伍)}`}>
+                                {data.队伍}
+                            </span>
+                            <span className={`text-xs font-mono text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-800 px-1.5 py-0.5 rounded border ${getGroupStyle(data.分团)}`}>
+                                {data.分团}
+                            </span>
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-1 group-hover:text-pink-500 transition-colors">
+                            {data.名称}
+                        </h3>
+
+                        <div className="space-y-2 mt-4">
+                            <div className={`flex items-start text-xs text-gray-600 dark:text-gray-400 ${isLeftCard ? 'md:flex-row-reverse' : ''}`}>
+                                <Calendar className={`w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-gray-400 mr-2 ${isLeftCard ? 'md:ml-2 md:mr-0' : 'mr-2'}`} />
+                                <span className="break-words">{data.日期}</span>
+                            </div>
+                            <div className={`flex items-center text-xs text-gray-600 dark:text-gray-400 ${isLeftCard ? 'md:flex-row-reverse' : ''}`}>
+                                <List className={`w-3.5 h-3.5 flex-shrink-0 text-gray-400 ${isLeftCard ? 'md:ml-2 mr-2 md:mr-0' : 'mr-2'}`} />
+                                <span>{data.场次}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {data.备注 && (
+                        <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 text-xs text-gray-400 dark:text-gray-500 italic">
+                            {data.备注}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const AlbumCard = ({ album, onSongClick }) => {
+            const [isExpanded, setIsExpanded] = useState(false);
+            const displayedSongs = isExpanded ? album.songs : album.songs.slice(0, 3);
+            const hasMore = album.songs.length > 3;
+            const cardStyle = getAlbumCardStyle(album.分团);
+
+            return (
+                <div className={`rounded-xl border overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300 animate-content group ${cardStyle}`}>
+                    <div className="p-5 border-b border-black/5 dark:border-white/5 flex items-start justify-between">
+                        <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                                <span className="text-[10px] px-1.5 py-0.5 rounded border border-black/10 dark:border-white/10 bg-white dark:bg-black/20 text-gray-700 dark:text-gray-300 font-bold">
+                                    {album.分团}
+                                </span>
+                                <span className="text-[10px] px-1.5 py-0.5 rounded border border-black/10 dark:border-white/10 bg-white dark:bg-black/10 text-gray-600 dark:text-gray-400">
+                                    {album.类型}
+                                </span>
+                            </div>
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 group-hover:text-pink-600 dark:group-hover:text-pink-400 transition-colors">
+                                {album.专辑名}
+                            </h3>
+                            <div className="flex items-center text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                <Calendar className="w-3.5 h-3.5 mr-1" />
+                                {album.hasMultipleDates ? (
+                                    <span>多种日期 / 见详情</span>
+                                ) : (
+                                    <span>{album.发行日期}</span>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="p-3 bg-white dark:bg-black/20">
+                        <div className="space-y-1">
+                            {displayedSongs.map((song, idx) => (
+                                <div
+                                    key={idx}
+                                    className="flex items-center text-sm p-2 rounded hover:bg-white/60 dark:hover:bg-black/30 transition-colors cursor-pointer group/song"
+                                    onClick={() => onSongClick(song)}
+                                >
+                                    <span className="text-gray-500 dark:text-gray-500 w-6 font-mono text-xs flex-shrink-0">{song.歌曲序号}</span>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="font-medium text-gray-800 dark:text-gray-200 truncate group-hover/song:text-pink-600 dark:group-hover/song:text-pink-400 transition-colors">{song.歌曲名}</div>
+                                        <div className="flex flex-wrap gap-x-2 text-xs text-gray-500 dark:text-gray-500">
+                                            {song.演唱者 && <span className="truncate max-w-[150px]">{song.演唱者}</span>}
+                                            {album.hasMultipleDates && song.发行日期 && (
+                                                <span className="text-gray-400 dark:text-gray-600">{song.发行日期}</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center text-gray-400 dark:text-gray-500 flex-shrink-0 group-hover/song:text-pink-500 dark:group-hover/song:text-pink-400">
+                                        <span className="text-[10px] mr-1 opacity-0 group-hover/song:opacity-100 transition-opacity">查看歌词</span>
+                                        <Mic2 className="w-3.5 h-3.5" />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {hasMore && (
+                            <button
+                                onClick={() => setIsExpanded(!isExpanded)}
+                                className="w-full mt-2 py-1.5 text-xs text-gray-600 hover:text-pink-600 dark:text-gray-400 dark:hover:text-pink-400 transition-colors flex items-center justify-center border-t border-black/5 dark:border-white/5"
+                            >
+                                {isExpanded ? '收起' : `查看全部 ${album.songs.length} 首`}
+                                <ChevronDown className={`w-3 h-3 ml-1 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                            </button>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const LyricModal = ({ song, onClose }) => {
+            if (!song) return null;
+            const [lyrics, setLyrics] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState(false);
+            const [fullUrl, setFullUrl] = useState('');
+            const [copySuccess, setCopySuccess] = useState(false);
+
+            useEffect(() => {
+                let cancelled = false;
+
+                const fetchLyric = async (url) => {
+                    const res = await fetch(url);
+                    if (!res.ok) throw new Error("Lyrics not found");
+                    return res.text();
+                };
+
+                const tryLyricUrls = async (urls) => {
+                    for (const url of urls) {
+                        try {
+                            const text = await fetchLyric(url);
+                            if (cancelled) return;
+                            setFullUrl(url);
+                            setLyrics(text);
+                            setLoading(false);
+                            return;
+                        } catch (err) {
+                            console.error("Failed to load lyrics from:", url, err);
+                        }
+                    }
+
+                    if (!cancelled) {
+                        setError(true);
+                        setLoading(false);
+                    }
+                };
+
+                const resolveAndFetchLyrics = async () => {
+                    const urls = [];
+
+                    if (song.lrcPath) {
+                        urls.push(`${DATA_URLS.lyrics}${encodeLyricPath(song.lrcPath)}`);
+                    }
+
+                    try {
+                        const index = await fetchLyricsIndex();
+                        buildIndexedLyricPaths(song, index).forEach(path => {
+                            urls.push(`${DATA_URLS.lyrics}${encodeLyricPath(path)}`);
+                        });
+                    } catch (err) {
+                        console.error('Failed to load lyrics index:', err);
+                    }
+
+                    buildLegacyLyricPaths(song).forEach(path => {
+                        urls.push(`${DATA_URLS.lyrics}${encodeLyricPath(path)}`);
+                    });
+
+                    const uniqueUrls = [...new Set(urls)];
+                    if (uniqueUrls.length > 0) {
+                        setFullUrl(uniqueUrls[0]);
+                    }
+                    await tryLyricUrls(uniqueUrls);
+                };
+
+                setLoading(true);
+                setError(false);
+                setLyrics(null);
+                setCopySuccess(false);
+                resolveAndFetchLyrics();
+
+                return () => {
+                    cancelled = true;
+                };
+            }, [song]);
+
+            const parsedLyrics = useMemo(() => {
+                if (!lyrics) return [];
+                return lyrics.split('\n')
+                    .filter(line => !/^\[(ti|ar|al|offset|tool|by|length):/.test(line.trim()))
+                    .map(line => {
+                        return line.replace(/\[\d{2}:\d{2}(\.\d{2,3})?\]/g, '').trim();
+                    })
+                    .filter(line => line);
+            }, [lyrics]);
+
+            const handleCopyLyrics = () => {
+                if (!parsedLyrics.length) return;
+                const textToCopy = parsedLyrics.join('\n');
+
+                const textArea = document.createElement("textarea");
+                textArea.value = textToCopy;
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    setCopySuccess(true);
+                    setTimeout(() => setCopySuccess(false), 2000);
+                } catch (err) {
+                    console.error('Failed to copy lyrics', err);
+                }
+                document.body.removeChild(textArea);
+            };
+
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-60 backdrop-blur-sm animate-backdrop" onClick={onClose}>
+                    <div
+                        className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col transform transition-all scale-100 dark:bg-gray-900 dark:border dark:border-gray-800 animate-modal"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex justify-between items-center p-4 border-b border-gray-100 bg-white sticky top-0 z-10 dark:bg-gray-900 dark:border-gray-800">
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">{song.歌曲名}</h3>
+                                {song.演唱者 && <p className="text-xs text-gray-500 dark:text-gray-400">{song.演唱者}</p>}
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {!loading && !error && parsedLyrics.length > 0 && (
+                                    <button
+                                        onClick={handleCopyLyrics}
+                                        className="p-1.5 hover:bg-gray-100 rounded-full transition-colors text-gray-500 dark:text-gray-400 dark:hover:bg-gray-800 relative group"
+                                        title="复制歌词"
+                                    >
+                                        {copySuccess ? <Check className="w-5 h-5 text-green-500" /> : <ClipboardCopy className="w-5 h-5" />}
+                                    </button>
+                                )}
+                                <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-full transition-colors text-gray-500 dark:text-gray-400 dark:hover:bg-gray-800"><X className="w-5 h-5" /></button>
+                            </div>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar text-center">
+                            {loading ? (
+                                <div className="flex flex-col items-center justify-center h-40">
+                                    <Loader2 className="w-8 h-8 text-pink-500 animate-spin mb-2" />
+                                    <p className="text-gray-500 text-sm">正在加载歌词...</p>
+                                </div>
+                            ) : error ? (
+                                <div className="flex flex-col items-center justify-center h-40 text-gray-400">
+                                    <FileText className="w-12 h-12 mb-2 opacity-50" />
+                                    <p>暂无歌词</p>
+                                    <p className="text-xs mt-2 text-gray-500 max-w-xs break-all">尝试路径: {fullUrl.split('/').pop()}</p>
+                                    <a href={LYRICS_REPO_URL} target="_blank" rel="noopener noreferrer" className="mt-4 px-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-full text-xs text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors flex items-center">
+                                        去仓库看看 <ExternalLink className="w-3 h-3 ml-1" />
+                                    </a>
+                                </div>
+                            ) : (
+                                <div className="space-y-4 text-gray-700 dark:text-gray-300 leading-relaxed font-medium">
+                                    {parsedLyrics.length > 0 ? parsedLyrics.map((line, idx) => (
+                                        <p key={idx} className="min-h-[1.5em]">{line}</p>
+                                    )) : (
+                                        <p className="text-gray-400 italic">纯音乐或无歌词文本</p>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="p-3 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 text-center">
+                            <a href={LYRICS_REPO_URL} target="_blank" rel="noopener noreferrer" className="text-xs text-pink-500 hover:underline flex items-center justify-center">
+                                <span className="mr-1">歌词来源: yaya_data/lyrics</span>
+                                <ChevronRight className="w-3 h-3" />
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const ElectionCard = ({ data, index, showEdition }) => {
+            let rankColor = "text-gray-500 dark:text-gray-400";
+            let bgColor = "bg-white dark:bg-gray-800";
+            let borderColor = "border-gray-100 dark:border-gray-700";
+
+            const rankStr = data.排名.toString();
+            const cleanRankStr = rankStr.replace("新人", "");
+            const rankNum = parseInt(cleanRankStr);
+            const displayRank = cleanRankStr;
+
+            if (rankNum === 1) {
+                rankColor = "text-yellow-600 dark:text-yellow-400";
+                bgColor = "bg-white dark:bg-yellow-900/10";
+                borderColor = "border-yellow-200 dark:border-yellow-800";
+            } else if (rankNum === 2) {
+                rankColor = "text-slate-500 dark:text-slate-400";
+                bgColor = "bg-white dark:bg-slate-800/50";
+                borderColor = "border-slate-200 dark:border-slate-700";
+            } else if (rankNum === 3) {
+                rankColor = "text-orange-700 dark:text-orange-400";
+                bgColor = "bg-white dark:bg-orange-900/10";
+                borderColor = "border-orange-200 dark:border-orange-800";
+            } else if (!isNaN(rankNum) && rankNum <= 7) {
+                borderColor = "border-pink-200 dark:border-pink-900";
+            } else if (!isNaN(rankNum) && rankNum <= 16) {
+                borderColor = "border-blue-100 dark:border-blue-900";
+            }
+
+            const getRankTrend = (trend) => {
+                if (!trend || trend === '-') return null;
+                let trendStr = trend.toString();
+                const cleanTrendStr = trendStr.replace(/[^\d.新人-]/g, "").trim();
+
+                if (trendStr.includes('↑') || trendStr.includes('+') || trendStr.includes('上升') || trendStr.includes('▲')) {
+                    return <div className="flex items-center text-red-500 dark:text-red-400 font-bold text-xs"><TrendingUp className="w-3 h-3 mr-0.5" />{cleanTrendStr || trendStr}</div>;
+                }
+                if (trendStr.includes('↓') || trendStr.includes('-') || trendStr.includes('下降') || trendStr.includes('▼')) {
+                    return <div className="flex items-center text-green-500 dark:text-green-400 font-bold text-xs"><TrendingDown className="w-3 h-3 mr-0.5" />{cleanTrendStr || trendStr}</div>;
+                }
+
+                if (trendStr.trim() !== "") {
+                    return <div className="flex items-center text-gray-400 text-xs">{trendStr}</div>;
+                }
+                return null;
+            };
+
+            return (
+                <div className={`rounded-xl border ${borderColor} ${bgColor} p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-all duration-300 animate-content group`}>
+                    <div className="flex items-center gap-4">
+                        <div className={`w-12 h-12 flex-shrink-0 flex items-center justify-center rounded-full font-bold ${displayRank.length > 2 ? 'text-sm' : 'text-lg'} ${rankColor} bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700`}>
+                            {displayRank}
+                        </div>
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <h3 className="font-bold text-gray-800 dark:text-gray-100 text-lg">{data.成员}</h3>
+                                {data.排名升降 && (
+                                    <div className="scale-90 origin-left">
+                                        {getRankTrend(data.排名升降)}
+                                    </div>
+                                )}
+                            </div>
+                            <div className="flex gap-2 mt-1">
+                                {showEdition && (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded border border-gray-200 bg-gray-100 text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">{data.届数}选</span>
+                                )}
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded border ${getGroupStyle(data.分团)}`}>{data.分团}</span>
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded border ${getTeamStyle(data.队伍)}`}>{data.队伍}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="text-right">
+                        <div className="text-xs text-gray-400 mb-0.5">得票数</div>
+                        <div className="font-mono font-bold text-pink-500 dark:text-pink-400 text-lg">
+                            {data.得票数 ? parseFloat(data.得票数).toFixed(1) : '-'}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const CustomSelect = ({ options, value, onChange }) => {
+            const [isOpen, setIsOpen] = useState(false);
+            const dropdownRef = useRef(null);
+
+            useEffect(() => {
+                const handleClickOutside = (event) => {
+                    if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                        setIsOpen(false);
+                    }
+                };
+                document.addEventListener('mousedown', handleClickOutside);
+                return () => document.removeEventListener('mousedown', handleClickOutside);
+            }, []);
+
+            const selectedOption = options.find(opt => opt.value === value) || options[0] || { label: '加载中...', value: '' };
+
+            return (
+                <div className="relative w-full sm:w-auto min-w-[120px]" ref={dropdownRef}>
+                    <button
+                        onClick={() => setIsOpen(!isOpen)}
+                        className={`w-full px-4 py-3 bg-white hover:bg-white hover:shadow-md rounded-full flex items-center justify-between text-sm text-gray-800 font-medium transition-all duration-200 border border-gray-200 focus:border-pink-300 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700 dark:hover:bg-gray-700 dark:focus:border-pink-500 ${isOpen ? 'bg-white shadow-md ring-2 ring-pink-100 border-pink-200 dark:ring-pink-900 dark:border-pink-500/40' : ''}`}
+                    >
+                        <span className="flex items-center truncate text-gray-800 dark:text-gray-200">
+                            {selectedOption.label}
+                        </span>
+                        <ChevronDown className={`w-4 h-4 text-gray-600 transition-transform duration-200 dark:text-gray-400 ${isOpen ? 'rotate-180 text-pink-500 dark:text-pink-400' : ''}`} />
+                    </button>
+
+                    {isOpen && (
+                        <div className="absolute top-full left-0 mt-2 w-full min-w-[160px] bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50 p-1 animate-fadeIn dark:bg-gray-800 dark:border-gray-700">
+                            <div className="max-h-64 overflow-y-auto custom-scrollbar">
+                                {options.map((option) => {
+                                    const isSelected = option.value === value;
+                                    return (
+                                        <div
+                                            key={option.value}
+                                            onClick={() => {
+                                                onChange(option.value);
+                                                setIsOpen(false);
+                                            }}
+                                            className={`px-4 py-2.5 text-sm rounded-xl cursor-pointer flex items-center justify-between transition-colors mb-0.5 ${isSelected
+                                                ? 'bg-pink-100 text-pink-700 font-semibold dark:bg-pink-900/30 dark:text-pink-300'
+                                                : 'text-gray-800 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700'
+                                                }`}
+                                        >
+                                            <span className="truncate">{option.label}</span>
+                                            {isSelected && <Check className="w-4 h-4 flex-shrink-0" />}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const StatsCard = ({ title, value, icon: Icon, colorClass }) => (
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center space-x-4 hover:shadow-md transition-shadow dark:bg-gray-800 dark:border-gray-700">
+                <div className={`p-3 rounded-lg ${colorClass} bg-opacity-10 dark:bg-opacity-20`}>
+                    <Icon className={`w-6 h-6 ${colorClass.replace('bg-', 'text-')}`} />
+                </div>
+                <div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{title}</p>
+                    <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-100">{value}</h3>
+                </div>
+            </div>
+        );
+
+        const MemberDetailModal = ({ member, onClose }) => {
+            if (!member) return null;
+            const isActive = checkIsActive(member);
+            const InfoItem = ({ icon: Icon, label, value, colorClass = "text-gray-800", isCopyable = false }) => {
+                const [copied, setCopied] = useState(false);
+                const handleCopy = (e) => {
+                    if (!isCopyable || !value) return;
+                    e.stopPropagation();
+                    const textArea = document.createElement("textarea");
+                    textArea.value = value;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    try { document.execCommand('copy'); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch (err) { }
+                    document.body.removeChild(textArea);
+                };
+                return (
+                    <div onClick={handleCopy} className={`bg-gray-50 p-3 rounded-lg border border-gray-100 transition-all relative overflow-hidden dark:bg-gray-800 dark:border-gray-700 ${isCopyable ? 'hover:bg-white hover:shadow-md cursor-pointer group dark:hover:bg-gray-750' : 'hover:bg-white hover:shadow-sm dark:hover:bg-gray-750'}`}>
+                        <span className="text-xs text-gray-400 block mb-1.5 flex items-center justify-between dark:text-gray-500">
+                            <span className="flex items-center"><Icon className="w-3 h-3 mr-1" />{label}</span>
+                            {isCopyable && <span className={`text-[10px] transition-opacity duration-300 ${copied ? 'text-green-500 opacity-100' : 'opacity-0 group-hover:opacity-100 text-gray-400 dark:text-gray-500'}`}>{copied ? '已复制' : '点击复制'}</span>}
+                        </span>
+                        <span className={`text-sm font-medium ${colorClass} break-words dark:text-gray-200`}>{value || '-'}</span>
+                        {copied && <div className="absolute inset-0 border-2 border-green-400 rounded-lg pointer-events-none animate-pulse"></div>}
+                    </div>
+                );
+            };
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-40 backdrop-blur-sm animate-backdrop" onClick={onClose}>
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto custom-scrollbar transform transition-all scale-100 dark:bg-gray-900 dark:border dark:border-gray-800 animate-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex justify-between items-center p-5 border-b border-gray-100 bg-white sticky top-0 z-10 dark:bg-gray-900 dark:border-gray-800">
+                            <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">成员档案</h3>
+                            <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-full transition-colors text-gray-500 dark:text-gray-400 dark:hover:bg-gray-800"><X className="w-5 h-5" /></button>
+                        </div>
+                        <div className="p-6 space-y-8">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <h2 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3 dark:text-white">
+                                        {member.ownerName}
+                                        {isActive ? <span className="bg-green-100 text-green-600 text-xs px-2.5 py-0.5 rounded-full border border-green-200 font-bold dark:bg-green-900/30 dark:text-green-400 dark:border-green-800">在团</span> : <span className="bg-gray-100 text-gray-500 text-xs px-2.5 py-0.5 rounded-full border border-gray-200 font-bold dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700">{member.gtime ? "已毕业" : "不在团"}</span>}
+                                    </h2>
+                                    <div className="flex items-center space-x-3">
+                                        <span className="text-sm text-gray-500 tracking-wide font-mono bg-gray-50 px-2 py-0.5 rounded dark:bg-gray-800 dark:text-gray-400">{member.pinyin || '-'}</span>
+                                    </div>
+                                </div>
+                                <div className="flex flex-col items-end gap-2">
+                                    <span className={`px-3 py-1 rounded-lg text-sm font-bold border ${getGroupStyle(member.groupName)}`}>{member.groupName}</span>
+                                    <div className={`px-3 py-1 rounded-lg text-sm font-bold border ${getTeamStyle(member.team)}`}>{member.team}</div>
+                                </div>
+                            </div>
+
+                            <div className="animate-content" style={{ animationDelay: '0.05s' }}>
+                                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center dark:text-gray-500"><Users className="w-3.5 h-3.5 mr-1.5" />个人资料</h4>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                                    {member.nickname && <InfoItem icon={UserCircle} label="昵称" value={member.nickname} />}
+                                    <InfoItem icon={Cake} label="生日" value={formatDate(member.birthday)} colorClass="text-pink-600 dark:text-pink-400" />
+                                    <InfoItem icon={MapPin} label="出生地" value={member.birthplace} />
+                                    {member.constellation && <InfoItem icon={Star} label="星座" value={member.constellation} />}
+                                    {member.height && <InfoItem icon={Ruler} label="身高" value={`${member.height} cm`} />}
+                                    {member.bloodType && <InfoItem icon={Droplet} label="血型" value={`${member.bloodType}型`} />}
+                                </div>
+                                {(member.hobbies || member.specialty) && (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                                        {member.hobbies && <InfoItem icon={Heart} label="爱好" value={member.hobbies} />}
+                                        {member.specialty && <InfoItem icon={Sparkles} label="特长" value={member.specialty} />}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="animate-content" style={{ animationDelay: '0.1s' }}>
+                                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center dark:text-gray-500"><Calendar className="w-3.5 h-3.5 mr-1.5" />生涯历程</h4>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                    <InfoItem icon={Layers} label="期数" value={member.periodName} colorClass="text-blue-600 dark:text-blue-400" />
+                                    {member.jtime && <InfoItem icon={CalendarDays} label="加入时间" value={formatDate(member.jtime)} colorClass="text-emerald-600 dark:text-emerald-400" />}
+                                    {member.ptime && <InfoItem icon={ArrowUpCircle} label="升格时间" value={formatDate(member.ptime)} colorClass="text-purple-600 dark:text-purple-400" />}
+                                    {member.gtime && <InfoItem icon={GraduationCap} label="毕业时间" value={member.gtime} colorClass="text-indigo-600 dark:text-indigo-400" />}
+                                    {member.qtime && <InfoItem icon={LogOut} label="退团时间" value={member.qtime} colorClass="text-red-500 dark:text-red-400" />}
+                                </div>
+                            </div>
+
+                            <div className="animate-content" style={{ animationDelay: '0.15s' }}>
+                                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center dark:text-gray-500"><Hash className="w-3.5 h-3.5 mr-1.5" />技术参数</h4>
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                    <InfoItem icon={Hash} label="口袋 ID" value={member.id} colorClass="font-mono text-gray-600 dark:text-gray-300" isCopyable={true} />
+                                    <InfoItem icon={Hash} label="服务器 ID" value={member.serverId} colorClass="font-mono text-gray-600 dark:text-gray-300" isCopyable={true} />
+                                    <InfoItem icon={Hash} label="大房间 ID" value={member.channelId} colorClass="font-mono text-gray-600 dark:text-gray-300" isCopyable={true} />
+                                    {member.yklzId && <InfoItem icon={Hash} label="小房间 ID" value={member.yklzId} colorClass="font-mono text-gray-600 dark:text-gray-300" isCopyable={true} />}
+                                </div>
+                            </div>
+                            {member.note && (
+                                <div className="animate-content" style={{ animationDelay: '0.2s' }}>
+                                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center dark:text-gray-500"><FileText className="w-3.5 h-3.5 mr-1.5" />备注</h4>
+                                    <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-100 text-sm text-yellow-800 leading-relaxed dark:bg-yellow-900/20 dark:border-yellow-900/30 dark:text-yellow-200">{member.note}</div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const MemberCard = ({ member, onClick }) => {
+            const isActive = checkIsActive(member);
+            return (
+                <div
+                    className={`bg-white rounded-lg shadow-sm hover:shadow-md border p-3 cursor-pointer transition-all duration-200 group flex items-center justify-between hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-750 ${isActive ? 'border-gray-200 dark:border-gray-700' : 'border-gray-100 bg-gray-50 opacity-80 dark:bg-gray-800/50 dark:border-gray-800'}`}
+                    onClick={() => onClick(member)}
+                >
+                    <div className="flex flex-col min-w-0 flex-1">
+                        <div className="mb-1 min-w-0">
+                            <span className={`block font-bold text-base leading-tight whitespace-nowrap ${isActive ? 'text-gray-800 dark:text-gray-200' : 'text-gray-500 dark:text-gray-500'}`}>{member.ownerName}</span>
+                            {member.pinyin && <span className="block text-xs text-gray-400 font-light truncate dark:text-gray-500">{member.pinyin}</span>}
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${getTeamStyle(member.team)}`}>{member.team}</span>
+                        </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-500 transition-colors dark:text-gray-600 dark:group-hover:text-gray-400" />
+                </div>
+            );
+        };
+
+        function App() {
+            const [members, setMembers] = useState(DEMO_DATA);
+            const [zxData, setZxData] = useState([]);
+            const [stagesData, setStagesData] = useState([]);
+            const [fxzpData, setFxzpData] = useState([]);
+            const [searchTerm, setSearchTerm] = useState('');
+            const [selectedGroup, setSelectedGroup] = useState('ALL');
+
+            const [sortBy, setSortBy] = useState('team');
+            const [statusFilter, setStatusFilter] = useState('ACTIVE');
+
+            const [isDataLoaded, setIsDataLoaded] = useState(false);
+            const [selectedMember, setSelectedMember] = useState(null);
+
+            const [activeTab, setActiveTab] = useState('members');
+            const [selectedEdition, setSelectedEdition] = useState('12');
+            const [electionSearch, setElectionSearch] = useState('');
+
+            const [stageSearch, setStageSearch] = useState('');
+            const [stageGroupFilter, setStageGroupFilter] = useState('ALL');
+            const [stageTeamFilter, setStageTeamFilter] = useState('ALL');
+
+            const [albumSearch, setAlbumSearch] = useState('');
+            const [albumGroupFilter, setAlbumGroupFilter] = useState('ALL');
+            const [albumTypeFilter, setAlbumTypeFilter] = useState('ALL');
+            const [fxzpError, setFxzpError] = useState(null);
+            const [currentLyricSong, setCurrentLyricSong] = useState(null);
+
+            const [isDarkMode, setIsDarkMode] = useState(() => {
+                if (typeof window !== 'undefined') {
+                    const docTheme = window.document.documentElement.getAttribute('data-theme');
+                    if (docTheme) {
+                        return docTheme === 'dark';
+                    }
+                    return localStorage.getItem('theme') === 'dark' ||
+                        (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                }
+                return false;
+            });
+
+            useEffect(() => {
+                const root = document.getElementById('database-root') || window.document.documentElement;
+                if (isDarkMode) {
+                    root.classList.add('dark');
+                } else {
+                    root.classList.remove('dark');
+                }
+            }, [isDarkMode]);
+
+            useEffect(() => {
+                const appRoot = window.document.documentElement;
+                const syncTheme = () => {
+                    setIsDarkMode(appRoot.getAttribute('data-theme') === 'dark');
+                };
+                syncTheme();
+                const observer = new MutationObserver(syncTheme);
+                observer.observe(appRoot, { attributes: true, attributeFilter: ['data-theme'] });
+                return () => observer.disconnect();
+            }, []);
+
+            useEffect(() => {
+                fetch(DATA_URLS.members)
+                    .then(res => res.json())
+                    .then(data => {
+                        const membersData = Array.isArray(data) ? data : (data.roomId || []);
+                        if (Array.isArray(membersData)) {
+                            setMembers(membersData);
+                            setIsDataLoaded(true);
+                        }
+                    })
+                    .catch(err => console.error("Failed to fetch members data:", err));
+            }, []);
+
+            useEffect(() => {
+                fetch(DATA_URLS.zx)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (Array.isArray(data)) {
+                            setZxData(data);
+                            const uniqueEditions = [...new Set(data.map(item => item.届数))];
+                            if (uniqueEditions.length > 0) {
+                                uniqueEditions.sort((a, b) => parseInt(b) - parseInt(a));
+                                setSelectedEdition(uniqueEditions[0]);
+                            }
+                        }
+                    })
+                    .catch(err => console.error("Failed to fetch election data:", err));
+            }, []);
+
+            useEffect(() => {
+                fetch(DATA_URLS.stages)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (Array.isArray(data)) {
+                            setStagesData(data);
+                        }
+                    })
+                    .catch(err => console.error("Failed to fetch stages data:", err));
+            }, []);
+
+            useEffect(() => {
+                fetch(DATA_URLS.fxzp)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (Array.isArray(data)) {
+                            setFxzpData(data);
+                            setFxzpError(null);
+                        } else {
+                            throw new Error("Data is not an array");
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Failed to fetch albums data:", err);
+                        setFxzpError(err.message);
+                    });
+            }, []);
+
+            const parseStageDate = (dateStr) => {
+                if (!dateStr) return 0;
+                const match = dateStr.match(/(\d{4})[^\d]+(\d{1,2})[^\d]+(\d{1,2})/);
+                if (match) {
+                    const year = parseInt(match[1]);
+                    const month = parseInt(match[2]) - 1;
+                    const day = parseInt(match[3]);
+                    return new Date(year, month, day).getTime();
+                }
+                return 0;
+            };
+
+            const parseAlbumDate = (dateStr) => {
+                if (!dateStr) return 0;
+                const match = dateStr.match(/(\d{4})[^\d]+(\d{1,2})[^\d]+(\d{1,2})/);
+                if (match) {
+                    return new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3])).getTime();
+                }
+                return 0;
+            };
+
+            const groupOptions = useMemo(() => {
+                const uniqueGroups = [...new Set(members.map(m => m.groupName).filter(Boolean))];
+                const order = ['SNH48', 'GNZ48', 'BEJ48', 'CKG48', 'CGT48', 'IDFT', '明星殿堂'];
+                const sortedGroups = uniqueGroups.sort((a, b) => {
+                    const indexA = order.indexOf(a);
+                    const indexB = order.indexOf(b);
+                    if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+                    if (indexA !== -1) return -1;
+                    if (indexB !== -1) return 1;
+                    return a.localeCompare(b);
+                });
+                return [{ value: 'ALL', label: '所有分团' }, ...sortedGroups.map(g => ({ value: g, label: g }))];
+            }, [members]);
+
+            const editionOptions = useMemo(() => {
+                const uniqueEditions = [...new Set(zxData.map(item => item.届数))];
+                uniqueEditions.sort((a, b) => parseInt(b) - parseInt(a));
+                return uniqueEditions.map(e => ({ value: e, label: `${e}选` }));
+            }, [zxData]);
+
+            const stageGroupOptions = useMemo(() => {
+                const uniqueGroups = [...new Set(stagesData.map(s => s.分团).filter(Boolean))];
+                return [{ value: 'ALL', label: '所有分团' }, ...uniqueGroups.map(g => ({ value: g, label: g }))];
+            }, [stagesData]);
+
+            const stageTeamOptions = useMemo(() => {
+                let filteredStages = stagesData;
+                if (stageGroupFilter !== 'ALL') {
+                    filteredStages = stagesData.filter(s => s.分团 === stageGroupFilter);
+                }
+                const uniqueTeams = [...new Set(filteredStages.map(s => s.队伍).filter(Boolean))];
+                return [{ value: 'ALL', label: '所有队伍' }, ...uniqueTeams.map(t => ({ value: t, label: t }))];
+            }, [stagesData, stageGroupFilter]);
+
+            const albumGroupOptions = useMemo(() => {
+                const uniqueGroups = [...new Set(fxzpData.map(a => a.分团).filter(Boolean))];
+                const customOrder = ['SNH48', 'GNZ48', 'BEJ48', 'CKG48', 'SHY48', '7SENSES', 'DEMOON', 'BLUEV'];
+
+                const sortedGroups = uniqueGroups.sort((a, b) => {
+                    const indexA = customOrder.indexOf(a);
+                    const indexB = customOrder.indexOf(b);
+
+                    if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+                    if (indexA !== -1) return -1;
+                    if (indexB !== -1) return 1;
+                    return a.localeCompare(b);
+                });
+
+                return [{ value: 'ALL', label: '所有分团' }, ...sortedGroups.map(g => ({ value: g, label: g }))];
+            }, [fxzpData]);
+
+            const albumTypeOptions = useMemo(() => {
+                const uniqueTypes = [...new Set(fxzpData.map(a => a.类型).filter(Boolean))];
+                return [{ value: 'ALL', label: '所有类型' }, ...uniqueTypes.sort().map(t => ({ value: t, label: t }))];
+            }, [fxzpData]);
+
+
+            const stats = useMemo(() => {
+                const total = members.length;
+                const activeCount = members.filter(m => checkIsActive(m)).length;
+                const groupCounts = members.reduce((acc, curr) => {
+                    acc[curr.groupName] = (acc[curr.groupName] || 0) + 1;
+                    return acc;
+                }, {});
+                const topGroup = Object.entries(groupCounts).sort((a, b) => b[1] - a[1])[0];
+                return {
+                    total,
+                    activeCount,
+                    groupCounts,
+                    topGroupName: topGroup ? topGroup[0] : '-',
+                    topGroupCount: topGroup ? topGroup[1] : 0
+                };
+            }, [members]);
+
+            const categorizedMembers = useMemo(() => {
+                const filtered = members.filter(member => {
+                    const normalizedSearch = searchTerm.toLowerCase().replace(/\s+/g, '');
+                    const memberPinyin = member.pinyin || '';
+                    const memberPinyinLower = memberPinyin.toLowerCase();
+                    const memberPinyinJoined = memberPinyinLower.replace(/[\s_-]+/g, '');
+                    const memberInitials = getPinyinInitials(memberPinyin);
+                    const matchesSearch = (
+                        member.ownerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        memberPinyinLower.includes(searchTerm.toLowerCase()) ||
+                        memberPinyinJoined.includes(normalizedSearch) ||
+                        memberInitials.includes(normalizedSearch) ||
+                        member.periodName?.toLowerCase().includes(searchTerm.toLowerCase())
+                    );
+                    const matchesGroup = selectedGroup === 'ALL' || member.groupName === selectedGroup;
+                    const isActive = checkIsActive(member);
+                    const matchesStatus = statusFilter === 'ALL' || (statusFilter === 'ACTIVE' && isActive);
+                    return matchesSearch && matchesGroup && matchesStatus;
+                });
+
+                const grouping = {};
+                filtered.forEach(member => {
+                    const gName = member.groupName || '其他';
+                    const subKey = sortBy === 'period' ? (member.periodName || '未知期数') : (member.team || '未知队伍');
+                    if (!grouping[gName]) grouping[gName] = {};
+                    if (!grouping[gName][subKey]) grouping[gName][subKey] = [];
+                    grouping[gName][subKey].push(member);
+                });
+
+                const sortedGroups = Object.keys(grouping).sort((a, b) => {
+                    const order = ['SNH48', 'GNZ48', 'BEJ48', 'CKG48', 'CGT48', 'IDFT', '明星殿堂'];
+                    const indexA = order.indexOf(a);
+                    const indexB = order.indexOf(b);
+                    if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+                    if (indexA !== -1) return -1;
+                    if (indexB !== -1) return 1;
+                    return a.localeCompare(b);
+                });
+
+                return sortedGroups.map(group => {
+                    const subKeys = Object.keys(grouping[group]).sort((a, b) => {
+                        if (sortBy === 'period') {
+                            return parseChinesePeriod(a) - parseChinesePeriod(b);
+                        } else {
+                            const indexA = TEAM_SORT_ORDER.indexOf(a);
+                            const indexB = TEAM_SORT_ORDER.indexOf(b);
+                            if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+                            if (indexA !== -1) return -1;
+                            if (indexB !== -1) return 1;
+                            return a.localeCompare(b);
+                        }
+                    });
+                    return {
+                        groupName: group,
+                        subGroups: subKeys.map(key => ({ name: key, members: grouping[group][key] }))
+                    };
+                });
+            }, [members, searchTerm, selectedGroup, sortBy, statusFilter]);
+
+            const displayedCount = categorizedMembers.reduce((acc, group) => {
+                return acc + group.subGroups.reduce((pAcc, p) => pAcc + p.members.length, 0);
+            }, 0);
+
+            const { regularElectionData, newcomerElectionData, electionName, isSearchResult } = useMemo(() => {
+                const regular = [];
+                const newcomer = [];
+                let name = '';
+                let isSearch = false;
+
+                let filtered = [];
+                if (electionSearch.trim()) {
+                    isSearch = true;
+                    filtered = zxData.filter(item =>
+                        item.成员?.includes(electionSearch) ||
+                        item.队伍?.includes(electionSearch)
+                    );
+                    name = `搜索 "${electionSearch}" 的结果`;
+                } else {
+                    filtered = zxData.filter(item => {
+                        const matchEdition = item.届数 === selectedEdition;
+                        if (matchEdition && !name) name = item.名称;
+                        return matchEdition;
+                    });
+                }
+
+                filtered.forEach(item => {
+                    if (item.排名 && item.排名.toString().includes("新人")) {
+                        newcomer.push(item);
+                    } else {
+                        regular.push(item);
+                    }
+                });
+
+                const getRankNum = (rankStr) => {
+                    if (!rankStr) return 999;
+                    const cleanStr = rankStr.toString().replace("新人", "");
+                    return parseInt(cleanStr) || 999;
+                };
+
+                if (isSearch) {
+                    const sortFn = (a, b) => {
+                        const editionDiff = parseInt(b.届数) - parseInt(a.届数);
+                        if (editionDiff !== 0) return editionDiff;
+                        return getRankNum(a.排名) - getRankNum(b.排名);
+                    };
+                    regular.sort(sortFn);
+                    newcomer.sort(sortFn);
+                } else {
+                    regular.sort((a, b) => getRankNum(a.排名) - getRankNum(b.排名));
+                    newcomer.sort((a, b) => getRankNum(a.排名) - getRankNum(b.排名));
+                }
+
+                return { regularElectionData: regular, newcomerElectionData: newcomer, electionName: name, isSearchResult: isSearch };
+            }, [zxData, selectedEdition, electionSearch]);
+
+            const filteredStages = useMemo(() => {
+                const filtered = stagesData.filter(stage => {
+                    const matchesSearch = stage.名称?.toLowerCase().includes(stageSearch.toLowerCase());
+                    const matchesGroup = stageGroupFilter === 'ALL' || stage.分团 === stageGroupFilter;
+                    const matchesTeam = stageTeamFilter === 'ALL' || stage.队伍 === stageTeamFilter;
+                    return matchesSearch && matchesGroup && matchesTeam;
+                });
+
+                return filtered.sort((a, b) => {
+                    return parseStageDate(a.日期) - parseStageDate(b.日期);
+                });
+            }, [stagesData, stageSearch, stageGroupFilter, stageTeamFilter]);
+
+            const processedAlbums = useMemo(() => {
+                const filtered = fxzpData.filter(item => {
+                    const matchesSearch = (item.专辑 || item.歌曲名)?.toLowerCase().includes(albumSearch.toLowerCase());
+                    const matchesGroup = albumGroupFilter === 'ALL' || item.分团 === albumGroupFilter;
+                    const matchesType = albumTypeFilter === 'ALL' || item.类型 === albumTypeFilter;
+                    return matchesSearch && matchesGroup && matchesType;
+                });
+
+                const albumGroups = {};
+                filtered.forEach(item => {
+                    const key = `${item.分团}-${item.类型}-${item.专辑序号}-${item.专辑}`;
+                    if (!albumGroups[key]) {
+                        albumGroups[key] = {
+                            分团: item.分团,
+                            类型: item.类型,
+                            专辑序号: item.专辑序号,
+                            专辑名: item.专辑,
+                            发行日期: item.发行日期,
+                            songs: [],
+                            uniqueDates: new Set([item.发行日期])
+                        };
+                    } else {
+                        albumGroups[key].uniqueDates.add(item.发行日期);
+                    }
+                    albumGroups[key].songs.push(item);
+                });
+
+                const result = Object.values(albumGroups).map(group => {
+                    const hasMultipleDates = group.uniqueDates.size > 1;
+                    return {
+                        ...group,
+                        hasMultipleDates,
+                        songs: hasMultipleDates
+                            ? group.songs.sort((a, b) => parseAlbumDate(b.发行日期) - parseAlbumDate(a.发行日期))
+                            : group.songs
+                    };
+                });
+
+                return result.sort((a, b) => {
+                    return parseAlbumDate(a.发行日期) - parseAlbumDate(b.发行日期);
+                });
+            }, [fxzpData, albumSearch, albumGroupFilter, albumTypeFilter]);
+
+            return (
+                <div className="db-app min-h-screen bg-gray-50 font-sans text-gray-900 transition-colors duration-300 dark:bg-gray-950 dark:text-gray-100 flex flex-col">
+                    <header className="db-header bg-white border-b border-gray-200 sticky top-0 z-20 shadow-sm transition-colors duration-300 dark:bg-gray-900 dark:border-gray-800">
+                        <div className="db-tabs-shell max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                            <div className="flex space-x-6 -mb-px overflow-x-auto no-scrollbar">
+                                <button
+                                    onClick={() => setActiveTab('members')}
+                                    className={`pb-3 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${activeTab === 'members'
+                                        ? 'border-pink-500 text-pink-600 dark:text-pink-400'
+                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                                        }`}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <UserSquare2 className="w-4 h-4" />
+                                        成员图鉴
+                                    </div>
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('elections')}
+                                    className={`pb-3 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${activeTab === 'elections'
+                                        ? 'border-pink-500 text-pink-600 dark:text-pink-400'
+                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                                        }`}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <Trophy className="w-4 h-4" />
+                                        总选记录
+                                    </div>
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('stages')}
+                                    className={`pb-3 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${activeTab === 'stages'
+                                        ? 'border-pink-500 text-pink-600 dark:text-pink-400'
+                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                                        }`}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <Music className="w-4 h-4" />
+                                        公演数据
+                                    </div>
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('albums')}
+                                    className={`pb-3 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${activeTab === 'albums'
+                                        ? 'border-pink-500 text-pink-600 dark:text-pink-400'
+                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                                        }`}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <Disc className="w-4 h-4" />
+                                        发行作品
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+                    </header>
+
+                    <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+
+                        {activeTab === 'members' && (
+                            <div className="animate-fadeIn">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                                    <StatsCard title="成员总数" value={stats.total} icon={Users} colorClass="text-blue-500 bg-blue-500" />
+                                    <StatsCard title="在团人数" value={stats.activeCount} icon={CheckCircle2} colorClass="text-green-500 bg-green-500" />
+                                    <StatsCard title="当前显示" value={displayedCount} icon={Filter} colorClass="text-pink-500 bg-pink-500" />
+                                </div>
+
+                                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6 space-y-4 transition-colors duration-300 dark:bg-gray-900 dark:border-gray-800">
+                                    <div className="flex flex-col lg:flex-row gap-4">
+                                        <div className="flex-1 relative group">
+                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
+                                                <Search className="h-5 w-5 text-gray-400 group-focus-within:text-pink-500 transition-colors duration-300 dark:text-gray-500" />
+                                            </div>
+                                            <input
+                                                type="text"
+                                                placeholder="搜索成员姓名、拼音、首字母或期数..."
+                                                className="w-full pl-10 pr-4 py-3 bg-gray-100 border-transparent text-gray-900 rounded-full focus:bg-white focus:ring-2 focus:ring-pink-300 focus:border-transparent focus:shadow-md outline-none transition-all duration-300 ease-in-out placeholder-gray-500 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 dark:focus:bg-gray-750 dark:focus:ring-pink-500"
+                                                value={searchTerm}
+                                                onChange={(e) => setSearchTerm(e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="flex flex-col sm:flex-row gap-2">
+                                            <CustomSelect options={groupOptions} value={selectedGroup} onChange={setSelectedGroup} />
+                                            <div className="bg-gray-100 p-1 rounded-full flex sm:w-auto w-full dark:bg-gray-800">
+                                                <button onClick={() => setSortBy('period')} className={`flex-1 sm:flex-none px-4 py-2 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 ${sortBy === 'period' ? 'bg-white shadow text-pink-600 dark:bg-gray-700 dark:text-pink-400' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'}`}>按期数</button>
+                                                <button onClick={() => setSortBy('team')} className={`flex-1 sm:flex-none px-4 py-2 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 ${sortBy === 'team' ? 'bg-white shadow text-pink-600 dark:bg-gray-700 dark:text-pink-400' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'}`}>按队伍</button>
+                                            </div>
+                                            <div className="bg-gray-100 p-1 rounded-full flex sm:w-auto w-full dark:bg-gray-800">
+                                                <button onClick={() => setStatusFilter('ALL')} className={`flex-1 sm:flex-none px-4 py-2 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 ${statusFilter === 'ALL' ? 'bg-white shadow text-pink-600 dark:bg-gray-700 dark:text-pink-400' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'}`}>全部</button>
+                                                <button onClick={() => setStatusFilter('ACTIVE')} className={`flex-1 sm:flex-none px-4 py-2 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 ${statusFilter === 'ACTIVE' ? 'bg-white shadow text-green-600 dark:bg-gray-700 dark:text-green-400' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'}`}>只看在团</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {categorizedMembers.length > 0 ? (
+                                    <div className="space-y-12">
+                                        {categorizedMembers.map((groupData) => (
+                                            <div key={groupData.groupName} className="animate-fadeIn">
+                                                <div className="flex items-center mb-6 pb-2 border-b border-gray-200 dark:border-gray-800">
+                                                    <span className={`w-2 h-8 rounded-full mr-3 ${getGroupStyle(groupData.groupName).split(' ')[0].replace('bg-', 'bg-')}`}></span>
+                                                    <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">{groupData.groupName}</h2>
+                                                    <span className="ml-3 px-2 py-0.5 bg-gray-100 text-gray-500 text-xs rounded-full font-medium dark:bg-gray-800 dark:text-gray-400">
+                                                        {groupData.subGroups.reduce((acc, p) => acc + p.members.length, 0)} 人
+                                                    </span>
+                                                </div>
+                                                <div className="space-y-8 pl-0 md:pl-5">
+                                                    {groupData.subGroups.map((subGroupData) => (
+                                                        <div key={subGroupData.name}>
+                                                            <h3 className={`text-sm font-bold uppercase tracking-wider mb-3 flex items-center ${sortBy === 'team' ? getTeamStyle(subGroupData.name).split(' ')[0] : 'text-gray-500 dark:text-gray-400'}`}>
+                                                                {sortBy === 'period' ? <Calendar className="w-4 h-4 mr-2 text-gray-400 dark:text-gray-500" /> : <Flag className="w-4 h-4 mr-2" />}
+                                                                {subGroupData.name}
+                                                            </h3>
+                                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                                                                {subGroupData.members.map(member => (
+                                                                    <MemberCard key={member.id || Math.random()} member={member} onClick={setSelectedMember} />
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-20 bg-white rounded-xl border border-dashed border-gray-300 dark:bg-gray-800 dark:border-gray-700">
+                                        <Users className="w-12 h-12 text-gray-300 mx-auto mb-4 dark:text-gray-600" />
+                                        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-200">未找到成员</h3>
+                                        <p className="text-gray-500 mt-1 dark:text-gray-400">尝试调整搜索词或筛选条件</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {activeTab === 'elections' && (
+                            <div className="animate-fadeIn">
+                                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6 space-y-4 transition-colors duration-300 dark:bg-gray-900 dark:border-gray-800">
+                                    <div className="flex flex-col sm:flex-row gap-4">
+                                        <div className="flex-1 relative group">
+                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
+                                                <Search className="h-5 w-5 text-gray-400 group-focus-within:text-pink-500 transition-colors duration-300 dark:text-gray-500" />
+                                            </div>
+                                            <input
+                                                type="text"
+                                                placeholder="搜索成员姓名..."
+                                                className="w-full pl-10 pr-4 py-3 bg-gray-100 border-transparent text-gray-900 rounded-full focus:bg-white focus:ring-2 focus:ring-pink-300 focus:border-transparent focus:shadow-md outline-none transition-all duration-300 ease-in-out placeholder-gray-500 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 dark:focus:bg-gray-750 dark:focus:ring-pink-500"
+                                                value={electionSearch}
+                                                onChange={(e) => setElectionSearch(e.target.value)}
+                                            />
+                                        </div>
+                                        <div>
+                                            <CustomSelect
+                                                options={editionOptions}
+                                                value={selectedEdition}
+                                                onChange={setSelectedEdition}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-8">
+                                    {regularElectionData.length > 0 && (
+                                        <div>
+                                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-4">
+                                                <div className="flex items-center gap-2">
+                                                    <Trophy className="w-5 h-5 text-yellow-500" />
+                                                    <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 whitespace-nowrap">
+                                                        {electionName ? `${electionName}` : `第 ${selectedEdition} 届总选结果`}
+                                                    </h2>
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                {regularElectionData.map((item, index) => (
+                                                    <ElectionCard key={index} data={item} index={index} showEdition={isSearchResult} />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {newcomerElectionData.length > 0 && (
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-4 mt-8 pt-6 border-t border-gray-100 dark:border-gray-800">
+                                                <Sparkles className="w-5 h-5 text-pink-500" />
+                                                <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">
+                                                    新人 TOP16
+                                                </h2>
+                                            </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                {newcomerElectionData.map((item, index) => (
+                                                    <ElectionCard key={`new-${index}`} data={item} index={index} showEdition={isSearchResult} />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {regularElectionData.length === 0 && newcomerElectionData.length === 0 && (
+                                        <div className="text-center py-20 bg-white rounded-xl border border-dashed border-gray-300 dark:bg-gray-800 dark:border-gray-700">
+                                            <Trophy className="w-12 h-12 text-gray-300 mx-auto mb-4 dark:text-gray-600" />
+                                            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-200">无相关数据</h3>
+                                            <p className="text-gray-500 mt-1 dark:text-gray-400">请尝试切换届数或搜索其他关键词</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'stages' && (
+                            <div className="animate-fadeIn">
+                                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6 space-y-4 transition-colors duration-300 dark:bg-gray-900 dark:border-gray-800">
+                                    <div className="flex flex-col lg:flex-row gap-4">
+                                        <div className="flex-1 relative group">
+                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
+                                                <Search className="h-5 w-5 text-gray-400 group-focus-within:text-pink-500 transition-colors duration-300 dark:text-gray-500" />
+                                            </div>
+                                            <input
+                                                type="text"
+                                                placeholder="搜索公演名称..."
+                                                className="w-full pl-10 pr-4 py-3 bg-gray-100 border-transparent text-gray-900 rounded-full focus:bg-white focus:ring-2 focus:ring-pink-300 focus:border-transparent focus:shadow-md outline-none transition-all duration-300 ease-in-out placeholder-gray-500 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 dark:focus:bg-gray-750 dark:focus:ring-pink-500"
+                                                value={stageSearch}
+                                                onChange={(e) => setStageSearch(e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="flex flex-col sm:flex-row gap-2">
+                                            <CustomSelect
+                                                options={stageGroupOptions}
+                                                value={stageGroupFilter}
+                                                onChange={(val) => {
+                                                    setStageGroupFilter(val);
+                                                    setStageTeamFilter('ALL');
+                                                }}
+                                            />
+                                            <CustomSelect
+                                                options={stageTeamOptions}
+                                                value={stageTeamFilter}
+                                                onChange={setStageTeamFilter}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="relative">
+                                    <div className="absolute left-4 md:left-1/2 top-0 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-800 -ml-px"></div>
+
+                                    {filteredStages.length > 0 ? (
+                                        filteredStages.map((stage, index) => (
+                                            <div key={index} className={`mb-8 flex items-center w-full ${index % 2 === 0 ? 'md:flex-row-reverse' : ''}`}>
+                                                <div className="hidden md:block md:w-1/2"></div>
+                                                <div className="absolute left-4 md:left-1/2 w-4 h-4 bg-white dark:bg-gray-900 border-2 border-pink-500 rounded-full z-10 -ml-2 shadow-sm"></div>
+                                                <div className={`w-full md:w-1/2 pl-12 md:pl-0 ${index % 2 === 0 ? 'md:pr-12' : 'md:pl-12'}`}>
+                                                    <StageCard data={stage} index={index} />
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="col-span-full text-center py-20 bg-white rounded-xl border border-dashed border-gray-300 dark:bg-gray-800 dark:border-gray-700 relative z-20 ml-10 md:ml-0">
+                                            <Music className="w-12 h-12 text-gray-300 mx-auto mb-4 dark:text-gray-600" />
+                                            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-200">无相关公演</h3>
+                                            <p className="text-gray-500 mt-1 dark:text-gray-400">请尝试调整筛选条件</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'albums' && (
+                            <div className="animate-fadeIn">
+                                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6 space-y-4 transition-colors duration-300 dark:bg-gray-900 dark:border-gray-800">
+                                    <div className="flex flex-col lg:flex-row gap-4">
+                                        <div className="flex-1 relative group">
+                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
+                                                <Search className="h-5 w-5 text-gray-400 group-focus-within:text-pink-500 transition-colors duration-300 dark:text-gray-500" />
+                                            </div>
+                                            <input
+                                                type="text"
+                                                placeholder="搜索专辑或歌曲..."
+                                                className="w-full pl-10 pr-4 py-3 bg-gray-100 border-transparent text-gray-900 rounded-full focus:bg-white focus:ring-2 focus:ring-pink-300 focus:border-transparent focus:shadow-md outline-none transition-all duration-300 ease-in-out placeholder-gray-500 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 dark:focus:bg-gray-750 dark:focus:ring-pink-500"
+                                                value={albumSearch}
+                                                onChange={(e) => setAlbumSearch(e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="flex flex-col sm:flex-row gap-2">
+                                            <CustomSelect
+                                                options={albumGroupOptions}
+                                                value={albumGroupFilter}
+                                                onChange={setAlbumGroupFilter}
+                                            />
+                                            <CustomSelect
+                                                options={albumTypeOptions}
+                                                value={albumTypeFilter}
+                                                onChange={setAlbumTypeFilter}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {fxzpError && (
+                                        <div className="flex items-center p-4 mb-4 text-sm text-red-800 border border-red-300 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400 dark:border-red-800">
+                                            <AlertCircle className="flex-shrink-0 inline w-4 h-4 mr-3" />
+                                            <div>
+                                                <span className="font-medium">数据加载失败!</span> {fxzpError}. 请检查 JSON 文件格式。
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {albumSearch && (
+                                        <div className="text-center mt-2 pb-2">
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                想搜索歌词内容？
+                                                <a
+                                                    href={`${LYRICS_SEARCH_URL}${encodeURIComponent(albumSearch)}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-pink-500 hover:underline ml-1 inline-flex items-center"
+                                                >
+                                                    在歌词仓库中搜索 "{albumSearch}" <ExternalLink className="w-3 h-3 ml-0.5" />
+                                                </a>
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {processedAlbums.length > 0 ? (
+                                        processedAlbums.map((album, index) => (
+                                            <AlbumCard key={index} album={album} onSongClick={setCurrentLyricSong} />
+                                        ))
+                                    ) : (
+                                        <div className="col-span-full text-center py-20 bg-white rounded-xl border border-dashed border-gray-300 dark:bg-gray-800 dark:border-gray-700">
+                                            <Disc className="w-12 h-12 text-gray-300 mx-auto mb-4 dark:text-gray-600" />
+                                            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-200">无相关作品</h3>
+                                            <p className="text-gray-500 mt-1 dark:text-gray-400">请尝试搜索其他关键词或调整筛选</p>
+
+                                            {albumSearch && (
+                                                <a
+                                                    href={`${LYRICS_SEARCH_URL}${encodeURIComponent(albumSearch)}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="mt-4 inline-flex items-center px-4 py-2 bg-pink-50 text-pink-600 rounded-full text-sm font-medium hover:bg-pink-100 transition-colors dark:bg-pink-900/30 dark:text-pink-300 dark:hover:bg-pink-900/50"
+                                                >
+                                                    <Search className="w-4 h-4 mr-2" />
+                                                    去歌词库搜索
+                                                </a>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                    </main>
+
+                    <footer className="bg-white border-t border-gray-200 py-6 mt-12 dark:bg-gray-900 dark:border-gray-800">
+                        <div className="max-w-7xl mx-auto px-4 text-center text-gray-500 text-sm dark:text-gray-400">
+                            <p>presented by yk1z</p>
+                        </div>
+                    </footer>
+
+                    <MemberDetailModal
+                        member={selectedMember}
+                        onClose={() => setSelectedMember(null)}
+                    />
+
+                    <LyricModal
+                        song={currentLyricSong}
+                        onClose={() => setCurrentLyricSong(null)}
+                    />
+                </div>
+            );
+        }
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,14 @@
+node_modules/
+dist/
+html/
+.npmrc
+
+*.log
+*.tmp
+*.temp
+
+.DS_Store
+Thumbs.db
+
+codex-start.err.log
+codex-start.out.log

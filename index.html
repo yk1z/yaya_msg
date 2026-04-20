@@ -1,3 +1,2217 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:9e91b76a28e1fa4f713c4e5bcba50ef7dfef9cd29ecc1f6d82645be5cf5c1456
-size 89974
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>牙牙消息 v2.0</title>
+    <link rel="icon" href="./icon.png" type="image/x-icon">
+
+    <link rel="stylesheet" href="style.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.4.0/dist/hls.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/artplayer/dist/artplayer.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/artplayer-plugin-danmuku/dist/artplayer-plugin-danmuku.js"></script>
+    <script src="https://wlnimsc0.netease.im/nim-1.8.0.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dplayer/dist/DPlayer.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.24.2/dist/index.js"></script>
+
+    <script src="./src/renderer/theme-init.js"></script>
+
+</head>
+
+<body>
+    <script>
+        document.documentElement.dataset.platform = (window.desktop && window.desktop.platform) || '';
+    </script>
+    <div id="loading-shield" style="display: none;">
+        <div class="spinner"></div>
+        <div id="shield-status">正在初始化</div>
+        <div id="shield-detail">请稍候</div>
+    </div>
+    <input type="file" id="bgInput" accept="image/*">
+    <div class="custom-title-bar">
+        <div class="title-info">
+            <div class="control-btn" onclick="toggleSidebar()" title="返回主页" style="margin-right: 8px; width: 32px;">
+                <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 10.5L12 3l9 7.5"></path>
+                    <path d="M5.5 9.5V21h13V9.5"></path>
+                    <path d="M9.5 21v-6h5v6"></path>
+                </svg>
+            </div>
+            <img src="./icon.png" class="title-logo">
+                    <span>牙牙消息 v2.0</span>
+        </div>
+        <div class="window-controls">
+            <div class="control-btn" onclick="ipcRenderer.send('window-min')">
+                <svg width="10" height="1" viewBox="0 0 10 1">
+                    <rect width="10" height="1" fill="currentColor" />
+                </svg>
+            </div>
+            <div class="control-btn" onclick="ipcRenderer.send('window-max')">
+                <svg width="10" height="10" viewBox="0 0 10 10">
+                    <path d="M1,1 L9,1 L9,9 L1,9 Z" fill="none" stroke="currentColor" stroke-width="1" />
+                </svg>
+            </div>
+            <div class="control-btn close-btn" onclick="ipcRenderer.send('window-close')">
+                <svg width="10" height="10" viewBox="0 0 10 10">
+                    <path d="M1,1 L9,9 M9,1 L1,9" fill="none" stroke="currentColor" stroke-width="1.2" />
+                </svg>
+            </div>
+        </div>
+    </div>
+    <div class="app-container">
+        <aside class="sidebar app-sidebar-disabled home-hidden">
+            <h2 id="sidebar-title" onclick="triggerEasterEgg()"
+                style="margin: 0 0 10px 0; font-size: 20px; color: var(--primary); text-align: center; user-select: none;">
+                牙牙消息</h2>
+            <div class="sidebar-group" id="sb-settings-group">
+                <div class="group-title">软件设置</div>
+                <div class="btn-grid">
+                    <button class="btn btn-secondary" onclick="toggleTheme()" id="themeBtn"
+                        data-theme-toggle-label="compact">🌞 模式</button>
+                    <button id="btn-sb-settings" class="btn btn-secondary" onclick="switchView('settings')">⚙️
+                        设置</button>
+                </div>
+                <button id="btn-sb-home" class="btn btn-secondary btn-full" onclick="switchView('home')">主页</button>
+            </div>
+            <div class="sidebar-group" id="sb-live-group" style="display: flex; flex-direction: column; gap: 10px;">
+                <div class="group-title" style="margin-bottom: 0;">口袋直播</div>
+
+                <div class="btn-grid" id="live-btns-container" style="display: flex; gap: 10px;">
+                    <button id="btn-sb-live" class="btn btn-secondary" onclick="switchView('media', 'live')"
+                        style="flex: 1;">
+                        正在直播
+                    </button>
+                    <button id="btn-sb-vod" class="btn btn-secondary" onclick="switchView('media', 'vod')"
+                        style="flex: 1;">
+                        录播回放
+                    </button>
+                </div>
+
+                <button class="btn btn-secondary btn-full"
+                    onclick="openInBrowser('https://www.bilibili.com/video/BV1Ba8FzxEje')">
+                    牙牙回放
+                </button>
+            </div>
+            <div class="sidebar-group" id="sb-login-group" style="display: flex; flex-direction: column; gap: 10px;">
+                <div class="group-title" style="margin-bottom: 0;">口袋功能</div>
+
+                <button id="btn-sb-login" class="btn btn-secondary btn-full" onclick="switchView('login')">
+                    账号设置
+                </button>
+
+                <button id="btn-sb-followed-rooms" class="btn btn-secondary btn-full"
+                    onclick="switchView('followed-rooms')">
+                    口袋房间
+                </button>
+
+                <div style="display: flex; gap: 10px;">
+                    <button id="btn-sb-fetch" class="btn btn-secondary btn-full" style="flex: 1; padding: 0;"
+                        onclick="switchView('fetch')">
+                        抓取消息
+                    </button>
+                    <button id="btn-sb-room-radio" class="btn btn-secondary btn-full" style="flex: 1; padding: 0;"
+                        onclick="switchView('room-radio')">
+                        房间电台
+                    </button>
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                    <button id="btn-sb-room-album" class="btn btn-secondary btn-full" style="flex: 1; padding: 0;"
+                        onclick="switchView('room-album')">
+                        房间相册
+                    </button>
+                    <button id="btn-sb-photos" class="btn btn-secondary btn-full" style="flex: 1; padding: 0;"
+                        onclick="switchView('photos')">
+                        个人相册
+                    </button>
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                    <button id="btn-sb-open-live" class="btn btn-secondary btn-full" style="flex: 1; padding: 0;"
+                        onclick="switchView('openlive')">
+                        公演记录
+                    </button>
+                    <button id="btn-sb-profile" class="btn btn-secondary btn-full" style="flex: 1; padding: 0;"
+                        onclick="switchView('profile')">
+                        详细档案
+                    </button>
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                    <button id="btn-sb-flip" class="btn btn-secondary btn-full" style="flex: 1;"
+                        onclick="switchView('flip')">
+                        翻牌记录
+                    </button>
+                    <button id="btn-sb-send-flip" class="btn btn-secondary btn-full" style="flex: 1;"
+                        onclick="switchView('send-flip')">
+                        发送翻牌
+                    </button>
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                    <button id="btn-sb-video-library" class="btn btn-secondary btn-full"
+                        style="flex: 1; height: 38px; padding: 0;" onclick="switchView('video-library')">视频</button>
+                    <button id="btn-sb-music-library" class="btn btn-secondary btn-full"
+                        style="flex: 1; height: 38px; padding: 0;" onclick="switchView('music-library')">音乐</button>
+                    <button id="btn-sb-audio-programs" class="btn btn-secondary btn-full"
+                        style="flex: 1; height: 38px; padding: 0;" onclick="switchView('audio-programs')">电台</button>
+                </div>
+            </div>
+
+            <div class="sidebar-group" id="sb-search" style="display: flex; flex-direction: column; gap: 10px;">
+                <div class="group-title" style="margin-bottom: 0;">消息搜索</div>
+
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <div style="display: flex; align-items: center;">
+                        <span style="font-size: 12px; color: var(--text-main); width: 60px; flex-shrink: 0;">消息内容</span>
+                        <div style="position: relative; flex: 1;">
+                            <input type="text" id="search-content-input" class="input-control" placeholder="请输入关键词"
+                                style="width: 100%;">
+                        </div>
+                    </div>
+
+                    <div style="display: flex; align-items: center;">
+                        <span style="font-size: 12px; color: var(--text-main); width: 60px; flex-shrink: 0;">昵称 /
+                            ID</span>
+                        <div style="position: relative; flex: 1;">
+                            <input type="text" id="search-user-input" class="input-control" placeholder="请输入昵称或ID"
+                                style="width: 100%;">
+                        </div>
+                    </div>
+                </div>
+
+                <button id="btn-clear-search" class="btn btn-secondary btn-full">清空输入框</button>
+            </div>
+            <div class="sidebar-group" id="sb-members" style="display: flex; flex-direction: column; gap: 10px;">
+                <div class="group-title" style="margin-bottom: 0;">成员选择</div>
+
+                <div style="position: relative;">
+                    <input type="text" id="groupInput" class="input-control" placeholder="全部成员" value="全部成员"
+                        onfocus="showMemberDropdown()" oninput="renderMemberDropdown(this.value)"
+                        onclick="showMemberDropdown()" autocomplete="off" style="width: 100%;">
+
+                    <div
+                        style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text-sub); font-size: 12px;">
+                        ▼
+                    </div>
+
+                    <div id="memberDropdownList" class="suggestion-box" style="max-height: 300px;"></div>
+                </div>
+
+                <button class="btn btn-secondary btn-full" onclick="forceReloadData()">
+                    更新 / 重扫数据
+                </button>
+            </div>
+            <div class="sidebar-group" id="sb-date" style="display: flex; flex-direction: column; gap: 10px;">
+                <div class="group-title" style="margin-bottom: 0;">日期筛选</div>
+
+                <div id="year-wrapper" style="position: relative;">
+                    <input type="hidden" id="yearSelect" value="all">
+                    <input type="text" id="yearSelectDisplay" class="input-control" value="全部" readonly
+                        onclick="toggleDateDropdown('year')" style="cursor: pointer; width: 100%;" disabled>
+
+                    <div
+                        style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text-sub); font-size: 12px;">
+                        ▼
+                    </div>
+                    <div id="year-dropdown" class="suggestion-box"></div>
+                </div>
+
+                <div class="btn-grid" style="display: flex; gap: 10px;">
+                    <div id="month-wrapper" style="position: relative; flex: 1;">
+                        <input type="hidden" id="monthSelect" value="all">
+                        <input type="text" id="monthSelectDisplay" class="input-control" value="全年" readonly
+                            onclick="toggleDateDropdown('month')" style="cursor: pointer; width: 100%;" disabled>
+
+                        <div
+                            style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text-sub); font-size: 12px;">
+                            ▼
+                        </div>
+                        <div id="month-dropdown" class="suggestion-box"></div>
+                    </div>
+
+                    <div id="day-wrapper" style="position: relative; flex: 1;">
+                        <input type="hidden" id="daySelect" value="all">
+                        <input type="text" id="daySelectDisplay" class="input-control" value="全月" readonly
+                            onclick="toggleDateDropdown('day')" style="cursor: pointer; width: 100%;" disabled>
+
+                        <div
+                            style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text-sub); font-size: 12px;">
+                            ▼
+                        </div>
+                        <div id="day-dropdown" class="suggestion-box"></div>
+                    </div>
+                </div>
+
+                <button class="btn btn-secondary btn-full" onclick="resetDateFilter()">重置日期</button>
+
+                <button id="sortBtn" class="btn btn-secondary btn-full" onclick="toggleSortOrder()">
+                    当前：最新在前
+                </button>
+            </div>
+            <div class="sidebar-group" id="sb-analysis" style="display: flex; flex-direction: column; gap: 10px;">
+                <div class="group-title" style="margin-bottom: 0;">数据分析</div>
+
+                <div class="btn-grid" style="display: flex; gap: 10px;">
+                    <button class="btn btn-secondary" onclick="openDateAnalysis()" id="dateBtn" disabled
+                        style="flex: 1;">消息统计</button>
+                    <button class="btn btn-secondary" onclick="openFlipAnalysis()" id="flipAnalysisBtn" disabled
+                        style="flex: 1;">翻牌统计</button>
+                </div>
+
+                <div class="btn-grid" style="display: flex; gap: 5px;">
+                    <button class="btn btn-secondary" onclick="openGiftAnalysis()" id="giftAnalysisBtn" disabled
+                        style="flex: 1;">礼物榜</button>
+                    <button class="btn btn-secondary" onclick="openUserAnalysis()" id="analysisBtn" disabled
+                        style="flex: 1;">互动榜</button>
+                    <button class="btn btn-secondary" onclick="openSpeechAnalysis()" id="speechAnalysisBtn" disabled
+                        style="flex: 1;">发言榜</button>
+                </div>
+
+                <button class="btn btn-secondary btn-full"
+                    onclick="openInBrowser('https://yk1z.github.io')">其它数据</button>
+            </div>
+            <div class="sidebar-group" id="sb-type">
+                <div class="group-title">类型筛选</div>
+                <div class="filter-group" id="filterGroup">
+                    <div class="filter-chip" onclick="setFilter('text')" id="filter-text">文字</div>
+                    <div class="filter-chip" onclick="setFilter('audio')" id="filter-audio">语音</div>
+                    <div class="filter-chip" onclick="setFilter('image')" id="filter-image">图片</div>
+                    <div class="filter-chip" onclick="setFilter('video')" id="filter-video">视频</div>
+                    <div class="filter-chip" onclick="setFilter('reply')" id="filter-reply">翻牌</div>
+                    <div class="filter-chip" onclick="setFilter('live-record')" id="filter-live-record">直播</div>
+                    <div class="filter-chip active" onclick="setFilter('all')" id="filter-all">全部</div>
+                </div>
+            </div>
+            <div class="sidebar-group" id="sb-download" style="display: none;">
+                <div id="downloadList" class="download-manager">
+                    <div style="text-align: center; color: var(--text-sub); font-size: 11px; padding: 10px;">暂无下载任务
+                    </div>
+                </div>
+            </div>
+            <div class="sidebar-group">
+                <div class="status-bar" id="statusMsg">软件正在初始化...</div>
+                <a href="javascript:void(0)" onclick="openInBrowser('https://space.bilibili.com/508441523')"
+                    class="credit-link">presented by yk1z</a>
+            </div>
+        </aside>
+        <main class="main-content home-mode" id="mainContentArea">
+            <div id="view-home" class="home-view"
+                style="height: 100%; overflow-y: auto; display: flex; box-sizing: border-box;">
+                <div class="home-shell">
+                    <section class="home-grid">
+                        <div class="home-panel home-panel-messages">
+                            <div class="home-panel-title">消息</div>
+                            <div class="home-panel-subtitle">房间消息抓取、检索</div>
+                            <div class="home-panel-actions home-card-grid">
+                                <button class="home-card home-card-primary" onclick="switchView('messages')">
+                                    <span class="home-card-title">检索</span>
+                                    <span class="home-card-desc">进入历史消息列表</span>
+                                </button>
+                                <button class="home-card" onclick="switchView('fetch')">
+                                    <span class="home-card-title">抓取</span>
+                                    <span class="home-card-desc">手动刷新与重扫</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="home-panel home-panel-live">
+                            <div class="home-panel-title">直播</div>
+                            <div class="home-panel-subtitle">口袋直播、回放、房间上麦</div>
+                            <div class="home-panel-actions home-card-grid">
+                                <button class="home-card home-card-primary" onclick="switchView('media', 'live')">
+                                    <span class="home-card-title">直播</span>
+                                    <span class="home-card-desc">查看当前直播列表</span>
+                                </button>
+                                <button class="home-card" onclick="switchView('room-radio')">
+                                    <span class="home-card-title">上麦</span>
+                                    <span class="home-card-desc">进入房间电台</span>
+                                </button>
+                                <button class="home-card" onclick="switchView('media', 'vod')">
+                                    <span class="home-card-title">回放</span>
+                                    <span class="home-card-desc">进入录播与弹幕页</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="home-panel home-panel-pocket">
+                            <div class="home-panel-title">口袋</div>
+                            <div class="home-panel-subtitle">关注的口袋房间、房间相册、成员参与的公演、私信列表</div>
+                            <div class="home-panel-actions home-card-grid">
+                                <button class="home-card home-card-primary" onclick="switchView('followed-rooms')">
+                                    <span class="home-card-title">房间</span>
+                                    <span class="home-card-desc">查看聚聚与房间动态</span>
+                                </button>
+                                <button class="home-card" onclick="switchView('room-album')">
+                                    <span class="home-card-title">相册</span>
+                                    <span class="home-card-desc">按房间查看图片</span>
+                                </button>
+                                <button class="home-card" onclick="switchView('openlive')">
+                                    <span class="home-card-title">公演</span>
+                                    <span class="home-card-desc">查看公演与活动记录</span>
+                                </button>
+                                <button class="home-card" onclick="switchView('private-messages')">
+                                    <span class="home-card-title">私信</span>
+                                    <span class="home-card-desc">查看口袋私信会话</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="home-panel home-panel-flip">
+                            <div class="home-panel-title">翻牌</div>
+                            <div class="home-panel-subtitle">翻牌、个人相册</div>
+                            <div class="home-panel-actions home-card-grid">
+                                <button class="home-card home-card-primary" onclick="switchView('send-flip')">
+                                    <span class="home-card-title">提问</span>
+                                    <span class="home-card-desc">进入翻牌发送入口</span>
+                                </button>
+                                <button class="home-card" onclick="switchView('flip')">
+                                    <span class="home-card-title">历史</span>
+                                    <span class="home-card-desc">浏览历史翻牌内容</span>
+                                </button>
+                                <button class="home-card" onclick="switchView('photos')">
+                                    <span class="home-card-title">个人相册</span>
+                                    <span class="home-card-desc">浏览成员照片</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="home-panel home-panel-library">
+                            <div class="home-panel-title">资源</div>
+                            <div class="home-panel-subtitle">官方视频、音乐、电台资源</div>
+                            <div class="home-panel-actions home-card-grid">
+                                <button class="home-card" onclick="switchView('video-library')">
+                                    <span class="home-card-title">视频</span>
+                                    <span class="home-card-desc">查看视频资源</span>
+                                </button>
+                                <button class="home-card" onclick="switchView('music-library')">
+                                    <span class="home-card-title">音乐</span>
+                                    <span class="home-card-desc">进入音乐列表</span>
+                                </button>
+                                <button class="home-card" onclick="switchView('audio-programs')">
+                                    <span class="home-card-title">电台</span>
+                                    <span class="home-card-desc">播放音频节目</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="home-panel home-panel-data">
+                            <div class="home-panel-title">数据</div>
+                            <div class="home-panel-subtitle">成员档案、数据库</div>
+                            <div class="home-panel-actions home-card-grid">
+                                <button class="home-card" onclick="switchView('profile')">
+                                    <span class="home-card-title">成员档案</span>
+                                    <span class="home-card-desc">成员资料与细节</span>
+                                </button>
+                                <button class="home-card" onclick="switchView('database')">
+                                    <span class="home-card-title">数据库</span>
+                                    <span class="home-card-desc">查看附属数据</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="home-panel home-panel-settings">
+                            <div class="home-panel-title">通用</div>
+                            <div class="home-panel-subtitle">口袋账号设置、下载管理、软件相关设置</div>
+                            <div class="home-panel-actions home-card-grid">
+                                <button class="home-card" onclick="switchView('login')">
+                                    <span class="home-card-title">账号登录</span>
+                                    <span class="home-card-desc">登录与账号信息</span>
+                                </button>
+                                <button class="home-card" onclick="switchView('downloads')">
+                                    <span class="home-card-title">下载管理</span>
+                                    <span class="home-card-desc">查看任务与进度</span>
+                                </button>
+                                <button class="home-card" onclick="switchView('settings')">
+                                    <span class="home-card-title">软件设置</span>
+                                    <span class="home-card-desc">调整程序行为</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="home-panel home-panel-yk1z">
+                            <div class="home-panel-title">yk1z</div>
+                            <div class="home-panel-subtitle">诶 这是什么O.o？</div>
+                            <div class="home-panel-actions home-card-grid">
+                                <button class="home-card"
+                                    onclick="openInBrowser('https://www.bilibili.com/video/BV1Ba8FzxEje')">
+                                    <span class="home-card-title">牙牙回放</span>
+                                    <span class="home-card-desc">在外部浏览器打开</span>
+                                </button>
+                                <button class="home-card"
+                                    onclick="openInBrowser('https://space.bilibili.com/508441523')">
+                                    <span class="home-card-title">哔哩哔哩</span>
+                                    <span class="home-card-desc">打开主页空间</span>
+                                </button>
+                                <button class="home-card"
+                                    onclick="openInBrowser('https://github.com/yk1z/yaya_msg')">
+                                    <span class="home-card-title">GitHub</span>
+                                    <span class="home-card-desc">打开项目仓库</span>
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+                    <div class="home-footer-credit">presented by yk1z</div>
+                </div>
+            </div>
+
+            <div id="view-followed-rooms"
+                style="height: 100%; overflow: hidden; display: none; padding: 20px 40px; box-sizing: border-box;">
+                <div
+                    style="display: flex; height: 100%; gap: 0; background: var(--card); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow: hidden;">
+
+                    <div
+                        style="width: 280px; border-right: 1px solid var(--border); display: flex; flex-direction: column; background: var(--input-bg); flex-shrink: 0;">
+                        <div
+                            style="padding: 15px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--sidebar-bg);">
+                            <h2 style="margin: 0; color: var(--primary); font-size: 16px;">聚聚</h2>
+                            <div style="display: flex; gap: 8px;">
+                                <div id="followed-sort-wrapper" style="position: relative; width: 135px;">
+                                    <input type="hidden" id="followed-sort-value" value="default">
+                                    <input type="text" id="followed-sort-display" class="input-control" value="自定义排序"
+                                        readonly onclick="toggleFollowedSortDropdown()"
+                                        style="cursor: pointer; height: 26px; font-size: 12px; padding: 0 20px 0 8px; text-align: left;">
+                                    <div
+                                        style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text-sub); font-size: 10px;">
+                                        ▼
+                                    </div>
+                                    <div id="followed-sort-dropdown" class="suggestion-box"
+                                        style="display: none; top: 30px;">
+                                        <div class="suggestion-item" onclick="selectFollowedSort('default', '自定义排序')">
+                                            自定义排序</div>
+                                        <div class="suggestion-item" onclick="selectFollowedSort('name', '按名字拼音')">按名字拼音
+                                        </div>
+                                        <div class="suggestion-item" onclick="selectFollowedSort('team', '按所属队伍')">按所属队伍
+                                        </div>
+                                    </div>
+                                </div>
+                                <button class="btn btn-secondary" onclick="loadFollowedRooms()"
+                                    style="height: 26px; padding: 0 10px; font-size: 12px;">刷新</button>
+                            </div>
+                        </div>
+                        <div style="display: flex; flex-direction: column; flex: 1; min-height: 0;">
+
+                            <div id="followed-rooms-container" style="flex: 1; overflow-y: auto; padding: 10px;">
+                                <div class="empty-state" style="margin-top: 50px;">点击上方刷新获取列表</div>
+                            </div>
+                            <div
+                                style="padding: 10px; border-top: 1px solid var(--border); background: var(--sidebar-bg); flex-shrink: 0;">
+                                <div style="display: flex; gap: 8px; position: relative;">
+                                    <div style="flex: 1; position: relative;">
+                                        <input type="text" id="quick-follow-input" class="input-control"
+                                            placeholder="搜索成员" style="height: 30px; font-size: 12px; width: 100%;"
+                                            oninput="handleQuickFollowSearch(this.value)"
+                                            onfocus="handleQuickFollowSearch(this.value)" autocomplete="off">
+
+                                        <div id="quick-follow-results" class="suggestion-box"
+                                            style="bottom: 35px; top: auto; width: 100%; max-height: 250px; display: none;">
+                                        </div>
+                                    </div>
+                                    <button id="btn-quick-action" class="btn btn-secondary"
+                                        onclick="executeQuickAction()"
+                                        style="height: 30px; padding: 0 10px; font-size: 12px; white-space: nowrap;">
+                                        关注
+                                    </button>
+                                </div>
+                                <input type="hidden" id="quick-follow-id">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div
+                        style="flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--bg); position: relative;">
+
+                        <div id="followed-chat-header"
+                            style="padding: 12px 20px; border-bottom: 1px solid var(--border); background: var(--sidebar-bg); display: flex; justify-content: space-between; align-items: center; visibility: hidden; flex-shrink: 0;">
+
+                            <div
+                                style="flex: 1; min-width: 0; margin-right: 15px; display: flex; align-items: center; gap: 12px;">
+                                <img id="followed-chat-avatar" src="./icon.png"
+                                    style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1.5px solid var(--primary); display: none;">
+
+                                <div style="flex: 1; min-width: 0;">
+                                    <div id="followed-chat-title"
+                                        style="font-weight: bold; font-size: 16px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                        成员房间</div>
+                                    <div id="followed-chat-subtitle"
+                                        style="font-size: 11px; color: var(--text-sub); margin-top: 2px;">Channel ID: --
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="display: flex; gap: 10px; align-items: center; flex-shrink: 0;">
+                                <button id="btn-toggle-room-type" class="btn btn-secondary"
+                                    onclick="toggleFollowedRoomType()"
+                                    style="height: 30px; padding: 0 10px; font-size: 12px; display: flex; justify-content: center; align-items: center; transition: all 0.2s;">
+                                    大房间
+                                </button>
+
+                                <button id="btn-toggle-followed-mode" class="btn btn-secondary"
+                                    onclick="toggleFollowedChatMode()"
+                                    style="height: 30px; width: 85px; padding: 0; font-size: 12px; display: flex; justify-content: center; align-items: center;">
+                                    成员消息
+                                </button>
+                            </div>
+                        </div>
+
+                        <button id="followed-chat-new-messages"
+                            onclick="flushFollowedPendingMessages()"
+                            style="display: none; position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 8; min-width: 148px; max-width: calc(100% - 40px); height: 34px; padding: 0 14px; border: 1px solid rgba(255,255,255,0.16); border-radius: 999px; background: rgba(28, 34, 44, 0.92); color: #fff; font-size: 12px; font-weight: 600; box-shadow: 0 10px 24px rgba(0,0,0,0.22); backdrop-filter: blur(10px); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            有新消息，点击查看
+                        </button>
+
+                        <div id="followed-chat-messages"
+                            style="flex: 1; overflow-y: auto; overflow-x: hidden; padding: 20px; position: relative;">
+
+                            <div class="empty-state"
+                                style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--text-sub); font-size: 14px;">
+                                请选择成员房间
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+            </div>
+
+            <div id="view-messages"
+                style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
+                <div class="list-container" id="outputList">
+                    <div class="placeholder-tip">
+                        <h2>正在自动读取数据...</h2>
+                        <p>请确保软件同级目录下存在"html"文件夹。</p>
+                    </div>
+                </div>
+                <div id="loadingMore"
+                    style="display: none !important; height: 0; padding: 0; overflow: hidden;"></div>
+            </div>
+
+                <div id="view-media"
+                    style="height: 100%; overflow-y: auto; scrollbar-gutter: stable; display: none; padding: 0 20px 20px 20px; box-sizing: border-box;">
+                <div class="page-header" style="margin-bottom: 15px; margin-top: 15px;">
+                    <h2 id="live-view-title" class="page-title">直播/回放</h2>
+                </div>
+
+                <div id="live-list-controls"
+                    style="display: none; gap: 12px; margin-bottom: 15px; align-items: center; flex-wrap: wrap;">
+
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="white-space: nowrap; font-weight: bold; font-size: 14px;">团体</span>
+                        <div id="live-group-wrapper" style="position: relative; width: 120px;">
+                            <input type="hidden" id="live-group-value" value="all">
+                            <input type="text" id="live-group-display" class="input-control" value="全部团体" readonly
+                                onclick="toggleLiveGroupDropdown()" style="cursor: pointer; padding-right: 20px;">
+                            <div
+                                style="position: absolute; right: 10px; top: 10px; pointer-events: none; color: var(--text-sub); font-size: 12px;">
+                                ▼</div>
+                            <div id="live-group-dropdown" class="suggestion-box">
+                                <div class="suggestion-item" onclick="selectLiveGroup('all', '全部')">全部团体</div>
+                                <div class="suggestion-item" onclick="selectLiveGroup('snh', 'SNH48')">SNH48</div>
+                                <div class="suggestion-item" onclick="selectLiveGroup('gnz', 'GNZ48')">GNZ48</div>
+                                <div class="suggestion-item" onclick="selectLiveGroup('bej', 'BEJ48')">BEJ48</div>
+                                <div class="suggestion-item" onclick="selectLiveGroup('ckg', 'CKG48')">CKG48</div>
+                                <div class="suggestion-item" onclick="selectLiveGroup('cgt', 'CGT48')">CGT48</div>
+                                <div class="suggestion-item" onclick="selectLiveGroup('idft', 'IDFT')">IDFT</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="white-space: nowrap; font-weight: bold; font-size: 14px;">类型</span>
+                        <div id="live-type-wrapper" style="position: relative; width: 100px;">
+                            <input type="hidden" id="live-type-value" value="all">
+                            <input type="text" id="live-type-display" class="input-control" value="全部" readonly
+                                onclick="toggleLiveTypeDropdown()" style="cursor: pointer; padding-right: 20px;">
+                            <div
+                                style="position: absolute; right: 10px; top: 10px; pointer-events: none; color: var(--text-sub); font-size: 12px;">
+                                ▼</div>
+                            <div id="live-type-dropdown" class="suggestion-box">
+                                <div class="suggestion-item" onclick="selectLiveType('all', '全部')">全部</div>
+                                <div class="suggestion-item" onclick="selectLiveType('video', '视频')">视频</div>
+                                <div class="suggestion-item" onclick="selectLiveType('radio', '电台')">电台</div>
+                                <div class="suggestion-item" onclick="selectLiveType('record', '录屏')">录屏</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="flex: 1; min-width: 200px;">
+                        <input type="text" id="live-search-input" class="input-control" style="width: 100%;"
+                            placeholder="成员名 / 房间标题" oninput="handleLiveFilter()">
+                    </div>
+
+                    <button class="btn btn-secondary" onclick="fetchLiveList()"
+                        style="white-space: nowrap; padding: 0 15px; height: 38px;">
+                        刷新列表
+                    </button>
+                </div>
+
+                <div id="media-list-controls" style="width: 100%;">
+                    <div
+                        style="display: flex; gap: 12px; margin-bottom: 15px; align-items: center; flex-wrap: wrap; width: 100%;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="white-space: nowrap; font-weight: bold; font-size: 14px;">团体</span>
+                            <div id="vod-group-wrapper" style="position: relative; width: 120px;">
+                                <input type="text" id="vod-group-display" class="input-control" value="全部团体" readonly
+                                    onclick="toggleVodGroupDropdown()" style="cursor: pointer;">
+                                <div
+                                    style="position: absolute; right: 10px; top: 10px; pointer-events: none; color: var(--text-sub); font-size: 12px;">
+                                    ▼</div>
+                                <div id="vod-group-dropdown" class="suggestion-box"></div>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="white-space: nowrap; font-weight: bold; font-size: 14px;">类型</span>
+                            <div id="vod-type-wrapper" style="position: relative; width: 100px;">
+                                <input type="hidden" id="vod-type-filter" value="0">
+                                <input type="text" id="vod-type-display" class="input-control" value="全部" readonly
+                                    onclick="toggleVodTypeDropdown()" style="cursor: pointer;">
+                                <div
+                                    style="position: absolute; right: 10px; top: 10px; pointer-events: none; color: var(--text-sub); font-size: 12px;">
+                                    ▼</div>
+                                <div id="vod-type-dropdown" class="suggestion-box">
+                                    <div class="suggestion-item" onclick="selectVodType('0', '全部')">全部</div>
+                                    <div class="suggestion-item" onclick="selectVodType('1', '视频')">视频</div>
+                                    <div class="suggestion-item" onclick="selectVodType('2', '电台')">电台</div>
+                                    <div class="suggestion-item" onclick="selectVodType('record', '录屏')">录屏</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="position: relative; flex: 1; min-width: 240px;">
+                            <input type="text" id="vod-member-filter" class="input-control" style="width: 100%;"
+                                placeholder="成员名 / 日期" oninput="handleMemberFilter()" autocomplete="off">
+                            <div id="member-suggestions" class="suggestion-box"></div>
+                        </div>
+
+                        <button id="load-all-btn" class="btn btn-secondary" onclick="handleLoadAllVod()"
+                            style="white-space: nowrap; padding: 0 15px; height: 38px;">加载全部</button>
+
+                        <button id="refresh-btn" class="btn btn-secondary" onclick="handleRefreshList()"
+                            style="white-space: nowrap; padding: 0 15px; height: 38px;">刷新列表</button>
+                    </div>
+                </div>
+
+                <div id="media-list-area"
+                    style="flex: 1; display: flex; flex-direction: column; justify-content: flex-start;">
+                    <div id="vod-loading"
+                        style="text-align: center; padding: 20px; color: var(--text-sub); display: none;">正在加载数据...
+                    </div>
+                    <div class="live-card-grid" id="vod-list-container" style="flex: 1;"></div>
+                </div>
+
+                <div id="live-player-view" style="display: none; height: 100%; flex-direction: column; padding: 0;">
+                    <div
+                        style="display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; margin: 0 20px 15px 20px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); transition: box-shadow 0.3s ease;">
+                        <div style="display: flex; gap: 40px;">
+                            <div style="display: flex; flex-direction: column;">
+                                <span style="font-size: 11px; color: var(--text-sub); margin-bottom: 4px;">成员</span>
+                                <span id="current-live-author"
+                                    style="font-weight: bold; color: var(--text); font-size: 14px;">未知</span>
+                            </div>
+                            <div style="display: flex; flex-direction: column;">
+                                <span style="font-size: 11px; color: var(--text-sub); margin-bottom: 4px;">标题</span>
+                                <span id="current-live-title"
+                                    style="font-weight: bold; color: var(--text); font-size: 14px;"></span>
+                            </div>
+                            <div style="display: flex; flex-direction: column;">
+                                <span style="font-size: 11px; color: var(--text-sub); margin-bottom: 4px;">日期</span>
+                                <span id="current-live-date"
+                                    style="font-weight: bold; color: var(--text); font-size: 14px;"></span>
+                            </div>
+                            <div style="display: flex; flex-direction: column;">
+                                <span style="font-size: 11px; color: var(--text-sub); margin-bottom: 4px;">时间</span>
+                                <span id="current-live-time"
+                                    style="font-weight: bold; color: var(--text); font-size: 14px;"></span>
+                            </div>
+                        </div>
+                        <button class="btn btn-secondary" onclick="backToLiveList()"
+                            style="height: 32px; font-size: 13px;">返回列表</button>
+                    </div>
+
+                    <div id="player-split-layout"
+                        style="display: flex; flex: 1; gap: 20px; min-height: 0; padding: 0 20px 20px 20px; transition: flex-direction 0.3s;">
+                        <div id="danmu-timeline-wrapper"
+                            style="flex: 1; max-width: 45%; display: flex; flex-direction: column; background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; min-height: 0; height: 100%; box-sizing: border-box;">
+                            <div
+                                style="padding: 12px; border-bottom: 1px solid var(--border); display: flex; gap: 10px; align-items: center; background: rgba(0,0,0,0.02);">
+                                <span id="tab-danmu" onclick="switchTimelineMode('danmu')"
+                                    style="cursor:pointer; font-weight:bold; color:var(--primary); font-size:14px; user-select:none;">弹幕</span>
+                                <span
+                                    style="width:1px; height:18px; background:var(--border); opacity:0.9; display:inline-block;"></span>
+                                <span id="tab-subtitle" onclick="switchTimelineMode('subtitle')"
+                                    style="cursor:pointer; color:var(--text-sub); font-size:14px; user-select:none;">字幕</span>
+                                <input type="text" id="danmu-search-input" class="input-control" placeholder="搜索内容..."
+                                    style="flex: 1; height: 28px; font-size: 12px; margin-left: 10px; border-radius: 14px; padding: 0 15px;"
+                                    oninput="handleDanmuSearch(this.value)">
+                                <button id="btn-danmu-analysis" class="btn btn-secondary" onclick="openDanmuAnalysis()"
+                                    style="height: 28px; padding: 0 12px; font-size: 12px; border-radius: 14px;">统计</button>
+                            </div>
+                            <div
+                                style="display: flex; padding: 8px 15px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text-sub); font-weight: bold;">
+                                <span style="width: 30px; text-align: center;">序号</span>
+                                <span style="min-width: 80px; text-align: center; margin-left: 10px;">起始时间</span>
+                                <span style="flex: 1; padding-left: 15px;">字幕/弹幕内容</span>
+                                <span style="width: 70px; text-align: center;">操作</span>
+                            </div>
+                            <div id="danmu-list-body" style="flex: 1; overflow-y: auto;">
+                                <div style="text-align: center; padding: 20px; color: var(--text-sub);">暂无数据</div>
+                            </div>
+                        </div>
+
+                        <div id="player-right-column"
+                            style="flex: 1.2; display: flex; flex-direction: column; gap: 15px; min-width: 0; min-height: 0; height: 100%; overflow-y: auto; padding-right: 5px; box-sizing: border-box;">
+
+                            <div id="player-combo-wrapper"
+                                style="flex: 1 0 auto; display: flex; flex-direction: column; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border: 1px solid var(--border); background: var(--card); transition: all 0.3s ease;">
+
+                                <div id="live-announcement-bar"
+                                    style="display: none; background: rgba(250, 140, 22, 0.1); color: #fa8c16; font-size: 12px; padding: 6px 12px; border-bottom: 1px solid rgba(250, 140, 22, 0.2);">
+                                    <marquee id="live-announcement-text" scrollamount="4">暂无公告</marquee>
+                                </div>
+
+                                <div id="live-player-area"
+                                    style="flex: 1; min-height: 300px; background: #000; display: flex; align-items: center; justify-content: center; position: relative;">
+                                    <div id="live-player-container" style="width: 100%; height: 100%; margin: 0;">
+                                        <video id="live-video" controls autoplay
+                                            style="width: 100%; height: 100%;"></video>
+                                    </div>
+                                </div>
+
+                                <div id="live-gift-container"
+                                    style="display: none; background: transparent; border-top: 1px solid rgba(128,128,128,0.2);">
+
+                                    <div class="gift-control-bar" onclick="toggleGiftPanel()"
+                                        style="padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; background: var(--input-bg); user-select: none;">
+                                        <div style="display: flex; align-items: center;">
+                                            <span style="font-weight: bold; margin-right: 10px;">🎁 赠送礼物</span>
+                                            <span style="font-size: 12px; color: var(--text-sub);">余额: <span
+                                                    id="live-gift-balance"
+                                                    style="color: var(--primary); font-weight: bold; margin: 0 4px;">--</span>
+                                                🍗</span>
+                                            <button class="btn btn-secondary"
+                                                onclick="event.stopPropagation(); updateLiveBalance()"
+                                                style="padding: 0 6px; height: 20px; font-size: 12px; margin-left: 8px;">↻</button>
+                                            <a href="https://live.48.cn/Recharge/" target="_blank"
+                                                onclick="event.stopPropagation();"
+                                                style="margin-left: 10px; font-size: 12px; color: #1890ff; text-decoration: none; cursor: pointer; font-weight: bold;">
+                                                充值
+                                            </a>
+                                        </div>
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <div style="display:flex; align-items:center; background:var(--bg); border:1px solid var(--border); border-radius:4px; padding:0 4px; height:28px;"
+                                                onclick="event.stopPropagation()">
+                                                <span
+                                                    style="font-size:12px; color:var(--text-sub); margin-right:4px;">数量</span>
+                                                <input type="number" id="live-gift-num" value="1" min="1" max="9999"
+                                                    style="width: 40px; border:none; background:transparent; color:var(--text); text-align:center; font-weight:bold; outline:none;">
+                                            </div>
+                                            <button id="btn-confirm-send-gift" class="btn btn-primary"
+                                                onclick="event.stopPropagation(); executeSendLiveGift()"
+                                                style="padding: 0 15px; height: 28px; font-size: 12px;"
+                                                disabled>发送</button>
+                                            <span id="gift-panel-arrow"
+                                                style="font-size: 12px; color: #999; transition: transform 0.2s;">▼</span>
+                                        </div>
+                                    </div>
+
+                                    <div id="live-gift-panel"
+                                        style="display: none; padding: 10px; border-top: 1px solid var(--border); background: var(--bg);">
+
+                                        <div
+                                            style="font-size: 11px; color: #ff4d4f; margin-bottom: 8px; display: flex; align-items: center; justify-content: flex-start; background: rgba(255, 77, 79, 0.1); padding: 4px 8px; border-radius: 4px;">
+                                            <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor"
+                                                stroke-width="2" fill="none" stroke-linecap="round"
+                                                stroke-linejoin="round" style="margin-right: 4px; flex-shrink: 0;">
+                                                <path
+                                                    d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z">
+                                                </path>
+                                                <line x1="12" y1="9" x2="12" y2="13"></line>
+                                                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                            </svg>
+                                            提示：送出后仅增加贡献值，没有礼物特效，成员可能看不见送出的礼物。
+                                        </div>
+
+                                        <div id="live-gift-grid" class="gift-grid-container"></div>
+                                    </div>
+                                </div>
+
+                                <div id="live-rank-container"
+                                    style="display: none; background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+                                    <div
+                                        style="padding: 10px 15px; background: var(--input-bg); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                                        <span style="font-weight: bold; font-size: 13px; color: var(--text);">🏆
+                                            贡献值榜</span>
+                                        <button class="btn btn-secondary" onclick="fetchLiveRank()"
+                                            style="height: 24px; padding: 0 8px; font-size: 11px;">刷新</button>
+                                    </div>
+                                    <div id="live-rank-list"
+                                        style="max-height: 250px; overflow-y: auto; padding: 10px;">
+                                        <div
+                                            style="text-align: center; color: var(--text-sub); font-size: 12px; padding: 10px;">
+                                            等待数据...</div>
+                                    </div>
+                                </div>
+
+                            </div>
+
+
+                            <div id="clip-toolbar"
+                                style="background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); backdrop-filter: blur(10px);">
+                                <div style="display: flex; gap: 15px; align-items: flex-end;">
+
+                                    <div style="flex: 1; display: flex; gap: 15px;">
+                                        <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
+                                            <span style="font-size: 11px; color: var(--text-sub);">设置切片起始时刻</span>
+                                            <div style="display: flex; gap: 5px;">
+                                                <div id="clip-start-display"
+                                                    style="flex: 1; background: var(--bg); border: 1px solid var(--border); padding: 0 12px; height: 38px; border-radius: 6px;  font-size: 14px; color: var(--primary); font-weight:bold; display:flex; align-items:center;">
+                                                </div>
+                                                <button class="btn btn-secondary" onclick="setClipStart()"
+                                                    style="padding: 0 15px; height: 38px; line-height: 38px; white-space:nowrap; box-sizing: border-box;">起点</button>
+                                            </div>
+                                        </div>
+
+                                        <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
+                                            <span style="font-size: 11px; color: var(--text-sub);">设置切片结束时刻</span>
+                                            <div style="display: flex; gap: 5px;">
+                                                <div id="clip-end-display"
+                                                    style="flex: 1; background: var(--bg); border: 1px solid var(--border); padding: 0 12px; height: 38px; border-radius: 6px; font-size: 14px; color: var(--primary); font-weight:bold; display:flex; align-items:center;">
+                                                </div>
+                                                <button class="btn btn-secondary" onclick="setClipEnd()"
+                                                    style="padding: 0 15px; height: 38px; line-height: 38px; white-space:nowrap; box-sizing: border-box;">终点</button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+                                        <div id="clip-duration-display"
+                                            style="font-size: 11px; color: var(--text); font-weight: bold; width: 100%; text-align: center;">
+                                            切片时长: 0s</div>
+                                        <button class="btn btn-primary" onclick="executeClip()" id="btn-do-clip"
+                                            disabled
+                                            style="width: 100px; height: 38px; line-height: 38px; padding: 0; font-size: 14px; background: #28a745; border-color: #28a745; box-shadow: 0 2px 6px rgba(40,167,69,0.2); box-sizing: border-box;">切片</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="vod-pagination-controls" class="pagination-container" style="padding-bottom: 20px;"></div>
+
+            </div>
+
+            <div id="view-login"
+                style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
+                <div class="list-container">
+
+                    <div class="page-header">
+                        <h2 class="page-title">账号设置</h2>
+                    </div>
+
+                    <div id="panel-login" class="Box-row">
+                        <div style="display: flex; border-bottom: 1px solid var(--border); margin-bottom: 20px;">
+                            <div id="tab-sms" onclick="switchLoginTab('sms')"
+                                style="padding: 10px 20px; cursor: pointer; color: var(--primary); border-bottom: 2px solid var(--primary); font-weight: bold; transition: all 0.2s;">
+                                验证码登录
+                            </div>
+                            <div id="tab-token" onclick="switchLoginTab('token')"
+                                style="padding: 10px 20px; cursor: pointer; color: var(--text-sub); border-bottom: 2px solid transparent; transition: all 0.2s;">
+                                Token 登录
+                            </div>
+                        </div>
+
+                        <div id="login-forms-container" style="min-height: 200px;">
+                            <div id="form-sms">
+                                <div style="margin-bottom: 15px;">
+                                    <label
+                                        style="font-size: 13px; font-weight: bold; color: var(--text); display: block; margin-bottom: 8px;">
+                                        手机号
+                                    </label>
+                                    <div style="display: flex; gap: 8px;">
+                                        <div style="position: relative; width: 70px;">
+                                            <span
+                                                style="position: absolute; left: 8px; top: 50%; transform: translateY(-55%); color: var(--text-sub); pointer-events: none; line-height: 1;">+</span>
+                                            <input type="text" id="login-area" class="input-control" value="86"
+                                                style="padding-left: 20px; text-align: center;" placeholder="86">
+                                        </div>
+                                        <input type="text" id="login-mobile" class="input-control" placeholder="请输入手机号"
+                                            style="flex: 1;">
+                                        <button id="btn-send-sms" class="btn btn-secondary" onclick="handleSendSms()"
+                                            style="width: 100px;">
+                                            获取验证码
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div id="sms-verification-area" class="Box-row"
+                                    style="display: none; background: #fffbe6; border-color: #ffe58f; margin-bottom: 15px; padding: 10px;">
+                                    <div
+                                        style="font-weight: bold; font-size: 13px; color: #faad14; margin-bottom: 8px;">
+                                        安全验证: <span id="verify-question-text" style="color: #333;"></span>
+                                    </div>
+                                    <div id="verify-options-container"
+                                        style="display: flex; flex-wrap: wrap; gap: 8px;">
+                                    </div>
+                                </div>
+
+                                <div style="margin-bottom: 20px;">
+                                    <label
+                                        style="font-size: 13px; font-weight: bold; color: var(--text); display: block; margin-bottom: 8px;">
+                                        验证码
+                                    </label>
+                                    <input type="text" id="login-code" class="input-control" placeholder="请输入短信验证码"
+                                        maxlength="6">
+                                </div>
+                                <button class="btn btn-primary btn-full" onclick="handleLoginByCode()"
+                                    style="height: 40px; font-size: 15px;">
+                                    登 录
+                                </button>
+                            </div>
+
+                            <div id="form-token" style="display: none;">
+                                <div style="margin-bottom: 15px;">
+                                    <p style="font-size: 13px; color: var(--text-sub); margin-bottom: 8px;">
+                                        如果您已通过抓包获取了 Token，可直接粘贴：
+                                    </p>
+                                    <textarea id="login-token" class="input-control"
+                                        style="height: 100px; resize: none; padding: 10px;"
+                                        placeholder="在此粘贴 Token"></textarea>
+                                </div>
+                                <button class="btn btn-primary btn-full" onclick="checkToken()"
+                                    style="height: 40px; font-size: 15px;">
+                                    保存并验证
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="login-msg"
+                            style="margin-top:15px; text-align:center; color:#ff4d4f; font-size:13px; min-height: 20px;">
+                        </div>
+                    </div>
+
+                    <div id="panel-logged-in" style="display: none;">
+                        <div class="Box-row" style="background: rgba(40, 167, 69, 0.1); border-color: #28a745;">
+                            <div
+                                style="font-weight: bold; font-size: 15px; color: #28a745; display: flex; justify-content: space-between; align-items: center;">
+                                <span style="display: flex; align-items: center;">
+                                    <span style="line-height: 1;">✅ 当前已登录 (<span id="user-nickname">用户</span>)</span>
+
+                                    <span id="user-id-display"
+                                        style="font-size: 13px; color: #333; margin-left: 10px; opacity: 0.75; padding-top: 0px;">
+                                        ID: --
+                                    </span>
+                                </span>
+                                </span>
+                                <div style="display: flex; gap: 8px;">
+                                    <button class="btn btn-secondary" id="btn-copy-token" onclick="copyToken()"
+                                        style="height: 28px; padding: 0 12px; font-size: 12px; background: white; border-color: #28a745; color: #28a745;">
+                                        复制 Token
+                                    </button>
+                                    <button class="btn btn-secondary" onclick="logout()"
+                                        style="height: 28px; padding: 0 12px; font-size: 12px;">
+                                        注销 / 更换账号
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="account-switcher-area" class="Box-row"
+                            style="margin-top: 15px; display: none; background: rgba(127, 127, 127, 0.05); border-color: var(--border);">
+                            <div
+                                style="font-weight: bold; font-size: 13px; color: var(--text); margin-bottom: 12px; display: flex; align-items: center;">
+                                <span>切换其他账号</span>
+                            </div>
+                            <div id="account-list" class="btn-grid" style="grid-template-columns: 1fr; gap: 10px;">
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 20px; text-align: center; color: var(--text-sub); font-size: 13px;">
+                            <p>您现在可以前往使用相关功能。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-downloads"
+                style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
+                <div class="list-container">
+                    <div class="page-header" style="margin-bottom:16px;">
+                        <div>
+                            <h2 class="page-title">下载管理</h2>
+                        </div>
+                    </div>
+                    <div id="downloads-panel-host"></div>
+                </div>
+            </div>
+
+            <div id="view-database"
+                style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
+                <div class="list-container database-view-shell">
+                    <div class="page-header" style="margin-bottom:16px;">
+                        <div>
+                            <h2 class="page-title">数据库</h2>
+                        </div>
+                    </div>
+                    <div class="database-frame-shell">
+                        <div id="database-root" class="database-root">
+                            <div class="database-loading">正在加载数据库...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-fetch"
+                style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
+                <div class="list-container">
+                    <div class="page-header">
+                        <h2 class="page-title">抓取消息</h2>
+                        <span id="fetch-status" class="page-status"></span>
+                    </div>
+
+                    <div class="Box-row">
+                        <div class="search-wrapper">
+                            <label
+                                style="font-size: 12px; color: var(--text-sub); display:block; margin-bottom:5px;">搜索成员</label>
+                            <input type="text" id="member-search" class="input-control" placeholder="请输入成员名"
+                                oninput="handleSearch(this.value)" onfocus="handleSearch(this.value)">
+                            <div id="search-results" class="suggestion-box"></div>
+                        </div>
+
+                        <div
+                            style="margin-bottom: 15px; padding: 10px; background: rgba(0,0,0,0.03); border-radius: 6px; border: 1px dashed var(--border);">
+                            <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 8px;">房间参数</div>
+                            <div style="display: flex; gap: 10px; align-items: flex-start;">
+                                <div style="flex: 1; display: flex; flex-direction: column;">
+                                    <label
+                                        style="font-size: 11px; line-height: 16px; min-height: 16px; color: var(--text-sub); display:block; margin-bottom: 4px;">Server
+                                        ID</label>
+                                    <input type="text" id="tool-server" class="input-control" placeholder="Server ID" ">
+                                </div>
+                                <div style="flex: 1; display: flex; flex-direction: column;">
+                                    <label id="tool-channel-label"
+                                        style="font-size: 11px; line-height: 16px; min-height: 16px; color: var(--text-sub); display:block; margin-bottom: 4px;">大房间 Channel
+                                        ID</label>
+                                    <input type="text" id="tool-channel" class="input-control" placeholder="大房间 Channel ID"
+                                        ">
+                                </div>
+                                <div style="width: 84px; flex-shrink: 0; display: flex; flex-direction: column;">
+                                    <label
+                                        style="font-size: 11px; line-height: 16px; min-height: 16px; color: transparent; display:block; margin-bottom: 4px; user-select: none;">切换</label>
+                                    <button id="btn-toggle-fetch-room-type" class="btn btn-secondary"
+                                        onclick="toggleFetchRoomType()"
+                                        style="width: 100%; height: 40px; padding: 0 10px; font-size: 11px;">
+                                        大房间
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="margin-bottom: 15px; display: flex; flex-direction: column; gap: 10px;">
+                                    <div class="btn-grid">
+                                        <button class="btn btn-primary" onclick="fetchMsgs()"
+                                            id="btn-fetch-one">抓取最新</button>
+                                        <button class="btn btn-secondary" onclick="fetchAllMsgs()"
+                                            id="btn-fetch-all">加载全部</button>
+                                    </div>
+                                    <div class="btn-grid">
+                                        <button id="btn-toggle-mode" class="btn btn-secondary"
+                                            onclick="toggleFetchMode()">模式：只看成员</button>
+                                        <button id="btn-clear-fetch-boundary" class="btn btn-secondary"
+                                            onclick="clearFetchBoundary()">清除抓取边界</button>
+                                    </div>
+                                    <button class="btn btn-secondary btn-full" onclick="exportMsgsToHtml()"
+                                        id="btn-export-html" disabled>导出至消息检索</button>
+                                </div>
+
+                                <div id="msg-result"
+                                    style="margin-top: 15px; height: 300px; overflow-y: auto; background: var(--input-bg); border-radius: 6px; padding: 10px; font-size: 13px; border: 1px solid var(--border);">
+                                    <div style="color: var(--text-sub); text-align: center; margin-top: 50px;">
+                                        暂无消息<br>
+                                        <span style="font-size:12px; opacity:0.7">(请先选择成员并点击抓取)</span>
+                                    </div>
+                                </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-private-messages"
+                style="height: 100%; overflow: hidden; display: none; padding: 20px 40px; box-sizing: border-box;">
+                <div class="private-messages-shell">
+                    <div class="private-messages-sidebar">
+                        <div class="private-messages-sidebar-header">
+                            <div class="private-messages-sidebar-title">私信</div>
+                            <div class="private-messages-toolbar-actions">
+                                <button class="btn btn-secondary" id="btn-refresh-private-messages"
+                                    onclick="refreshPrivateMessageList()">刷新</button>
+                                <button class="btn btn-secondary" id="btn-load-more-private-messages"
+                                    onclick="loadMorePrivateMessageList()" style="display:none;">更多</button>
+                            </div>
+                        </div>
+                        <div class="private-messages-sidebar-search">
+                            <input type="text" id="private-message-search" class="input-control"
+                                placeholder="搜索昵称 / 最近消息" oninput="filterPrivateMessageList(this.value)">
+                        </div>
+                        <div id="private-messages-status" class="private-messages-side-status"></div>
+                        <div id="private-message-list" class="private-message-list">
+                            <div class="empty-state">请先刷新获取私信列表</div>
+                        </div>
+                    </div>
+
+                    <div class="private-messages-panel">
+                        <div id="private-message-detail-panel-header" class="private-messages-panel-header"
+                            style="visibility:hidden;">
+                            <div style="display:flex; align-items:center; gap:12px; min-width:0;">
+                                <img id="private-message-detail-avatar" class="private-message-avatar" src="./icon.png"
+                                    style="width:40px;height:40px;">
+                                <div style="min-width:0;">
+                                    <div id="private-message-detail-title"
+                                        style="font-size:16px;font-weight:800;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                                        私信详情</div>
+                                    <div id="private-message-detail-subtitle"
+                                        style="font-size:12px;color:var(--text-sub);margin-top:2px;">--</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="private-message-detail-body" class="private-message-detail-body">
+                            <div class="empty-state">请选择一个私信会话</div>
+                        </div>
+                        <div class="private-message-detail-actions">
+                            <div style="display:flex; gap:10px; align-items:flex-end; margin-bottom:10px;">
+                                <textarea id="private-message-reply-input" class="input-control"
+                                    placeholder="输入私信内容..."
+                                    style="height:74px; resize:none; padding:10px 12px; line-height:1.6;"
+                                    onkeydown="handlePrivateMessageReplyKeydown(event)" disabled></textarea>
+                                <button class="btn btn-primary" id="btn-send-private-message"
+                                    onclick="sendPrivateMessageReply()"
+                                    style="width:96px; flex-shrink:0;" disabled>发送</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-audio-programs"
+                style="height: 100%; display: none; flex-direction: column; padding: 20px 0 0 0; box-sizing: border-box;">
+
+                        <div style="flex: 1; overflow-y: auto; min-height: 0; padding: 0 40px;">
+                            <div class="list-container">
+
+                                <div class="page-header">
+                                    <div class="page-header-left">
+                                        <h2 class="page-title">往期音频电台</h2>
+                                        <span id="audio-programs-status"
+                                            style="font-size: 15px; font-weight: bold; color: var(--primary);"></span>
+                                    </div>
+
+                                    <div style="width: 200px; position: relative;">
+                                        <input type="text" id="audio-inner-search" class="input-control"
+                                            placeholder="搜索..."
+                                            style="height: 32px; padding-left: 30px; border-radius: 16px; font-size: 12px;"
+                                            oninput="debouncedAudioSearch(this.value)"> <span
+                                            style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); opacity: 0.5; font-size: 12px;">🔍</span>
+                                    </div>
+                                </div>
+
+                                <div id="audio-programs-list"
+                                    style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; padding-bottom: 20px;">
+                                </div>
+
+                            </div>
+                        </div>
+
+                        <div id="audio-player-bar-container"
+                            style="flex-shrink: 0; padding-top: 15px; padding-bottom: 25px; display: flex; flex-direction: column; align-items: center; background: transparent;">
+                            <div id="audio-player-bar" class="premium-player-bar"
+                                style="display: none; width: 95%; padding: 12px 20px; align-items: center; gap: 18px; border-radius: 16px; box-sizing: border-box;">
+
+                                <div
+                                    style="position: relative; width: 52px; height: 52px; border-radius: 50%; background: #111; padding: 2px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); flex-shrink: 0;">
+                                    <img id="audio-player-cover" class="vinyl-spin vinyl-pause" src=""
+                                        style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; opacity: 0.9;">
+                                    <div
+                                        style="position: absolute; top: 50%; left: 50%; width: 12px; height: 12px; background: var(--input-bg); border-radius: 50%; transform: translate(-50%, -50%); border: 1px solid rgba(0,0,0,0.5); box-shadow: inset 0 1px 2px rgba(0,0,0,0.3);">
+                                    </div>
+                                </div>
+
+                                <div
+                                    style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;">
+                                    <div class="title-scroll-container">
+                                        <div id="audio-player-title" class="title-scroll-text">未播放</div>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 6px;">
+                                        <div id="audio-status-dot"
+                                            style="width: 8px; height: 8px; border-radius: 50%; background: #ccc; box-shadow: 0 0 4px #ccc; transition: all 0.3s;">
+                                        </div>
+                                        <div id="audio-player-subtitle"
+                                            style="font-size: 12px; color: var(--text-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                            准备就绪</div>
+                                    </div>
+                                </div>
+
+                                <div style="flex: 2; min-width: 250px; display: flex; align-items: center; gap: 12px;">
+                                    <button class="player-step-btn" type="button" title="上一首" aria-label="上一首"
+                                        onclick="playPreviousAudioProgram()">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="M7 6v12" />
+                                            <path d="M17 7l-7 5 7 5V7z" />
+                                        </svg>
+                                    </button>
+                                    <button id="custom-play-btn" class="player-toggle-icon is-play"
+                                        style="width: 36px; height: 36px; border-radius: 50%; border: none; background: var(--primary); color: white; display: flex; justify-content: center; align-items: center; cursor: pointer; font-size: 14px; flex-shrink: 0; box-shadow: 0 4px 10px rgba(155, 106, 156, 0.3); transition: transform 0.1s;">
+                                        <span class="audio-icon-play"></span>
+                                        <span class="audio-icon-pause"><span></span><span></span></span>
+                                    </button>
+                                    <button class="player-step-btn" type="button" title="下一首" aria-label="下一首"
+                                        onclick="playNextAudioProgram()">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="M17 6v12" />
+                                            <path d="M7 7l7 5-7 5V7z" />
+                                        </svg>
+                                    </button>
+
+                                    <span id="custom-time-current"
+                                        style="font-size: 12px; color: var(--text-sub); width: 35px; text-align: right; flex-shrink: 0;">00:00</span>
+
+                                    <input type="range" id="custom-progress-bar" min="0" max="100" value="0"
+                                        class="premium-slider" style="flex: 1; min-width: 50px;">
+
+                                    <span id="custom-time-duration"
+                                        style="font-size: 12px; color: var(--text-sub); width: 35px; flex-shrink: 0;">00:00</span>
+
+                                    <button id="audio-play-mode-btn" class="player-mini-btn player-mode-btn" type="button"
+                                        onclick="cycleAudioProgramPlayMode()" title="当前模式：顺序">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="M4 7h14" />
+                                            <path d="M15 4l3 3-3 3" />
+                                            <path d="M20 17H6" />
+                                            <path d="M9 14l-3 3 3 3" />
+                                        </svg>
+                                    </button>
+                                    <button id="audio-playlist-btn" class="player-mini-btn player-mode-btn" type="button"
+                                        onclick="toggleAudioProgramQueue()" title="播放列表" aria-label="播放列表">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                            <line x1="6" y1="7" x2="18" y2="7" />
+                                            <line x1="6" y1="12" x2="18" y2="12" />
+                                            <line x1="6" y1="17" x2="14" y2="17" />
+                                            <circle cx="18" cy="17" r="1.4" fill="currentColor" stroke="none" />
+                                        </svg>
+                                    </button>
+
+                                    <div
+                                        style="display: flex; align-items: center; gap: 6px; margin-left: 5px; border-left: 1px solid var(--border); padding-left: 12px;">
+                                        <span id="audio-volume-icon" title="静音/恢复"
+                                            style="cursor: pointer; font-size: 14px; color: var(--text-sub); user-select: none; width: 16px; text-align: center;">🔊</span>
+                                        <input type="range" id="audio-volume-bar" min="0" max="1" step="0.01" value="1"
+                                            class="premium-slider" style="width: 60px;">
+                                    </div>
+
+                                    <audio id="native-audio-player" style="display: none;"></audio>
+                                </div>
+                            </div>
+                            <div id="audio-player-queue" class="player-queue-panel" style="display: none;">
+                                <div class="player-queue-header">
+                                    <span>播放列表</span>
+                                    <span id="audio-player-queue-count">0 首</span>
+                                </div>
+                                <div id="audio-player-queue-list" class="player-queue-list"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="view-video-library" class="main-content"
+                        style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box; background: transparent;">
+                        <div class="list-container">
+
+                            <div class="page-header">
+                                <div class="page-header-left">
+                                    <h2 class="page-title">官方视频列表</h2>
+                                    <span id="video-library"
+                                        style="font-size: 15px; font-weight: bold; color: var(--primary);"></span>
+                                </div>
+
+                                <div style="width: 200px; position: relative;">
+                                    <input type="text" id="video-inner-search" class="input-control" placeholder="搜索..."
+                                        style="height: 32px; padding-left: 30px; border-radius: 16px; font-size: 12px;"
+                                        oninput="debouncedVideoSearch(this.value)">
+                                    <span
+                                        style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); opacity: 0.5; font-size: 12px;">🔍</span>
+                                </div>
+                            </div>
+
+                            <div id="video-category-bar"
+                                style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px;">
+                            </div>
+
+                            <div id="video-list-grid" style="display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); 
+            gap: 15px; 
+            padding-bottom: 40px;
+            align-content: start;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="video-player-modal"
+                        style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 2000; align-items: center; justify-content: center; flex-direction: column;">
+                        <button onclick="closeVideoPlayer()"
+                            style="position: absolute; top: 20px; right: 20px; background: none; border: none; color: white; font-size: 30px; cursor: pointer;">&times;</button>
+                        <video id="main-video-player" controls
+                            style="max-width: 90%; max-height: 80%; border-radius: 8px; box-shadow: 0 0 30px rgba(0,0,0,0.5);"></video>
+                        <div id="video-player-info" style="color: white; margin-top: 15px; text-align: center;">
+                            <h3 id="video-playing-title" style="margin: 0 0 5px 0;"></h3>
+                            <p id="video-playing-subtitle" style="margin: 0; opacity: 0.7; font-size: 14px;"></p>
+                        </div>
+                    </div>
+
+                    <div id="view-music-library" class="main-content"
+                        style="height: 100%; display: none; flex-direction: column; padding: 20px 0 0 0; box-sizing: border-box; background: transparent;">
+
+                        <div id="music-scroll-area" style="flex: 1; overflow-y: auto; min-height: 0; padding: 0 40px;">
+                            <div class="list-container">
+
+                                <div class="page-header">
+
+                                    <div class="page-header-left">
+                                        <h2 class="page-title">官方音乐列表</h2>
+                                        <span id="music-library-status"
+                                            style="font-size: 15px; font-weight: bold; color: var(--primary);"></span>
+                                    </div>
+
+                                    <div style="width: 200px; position: relative;">
+                                        <input type="text" id="music-inner-search" class="input-control"
+                                            placeholder="搜索..."
+                                            style="height: 32px; padding-left: 30px; border-radius: 16px; font-size: 12px;"
+                                            oninput="debouncedMusicSearch(this.value)">
+                                        <span
+                                            style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); opacity: 0.5; font-size: 12px;">🔍</span>
+                                    </div>
+                                </div>
+
+                                <div id="music-list-grid" style="width: 100%; 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); 
+            gap: 15px; 
+            padding-bottom: 20px; 
+            min-height: 500px; 
+            align-content: start;"> </div>
+                            </div>
+                        </div>
+
+                        <div id="music-player-bar-container"
+                            style="flex-shrink: 0; padding-top: 15px; padding-bottom: 25px; display: flex; flex-direction: column; align-items: center; background: transparent;">
+                            <div id="music-lyrics-panel" class="music-lyrics-panel" style="display: none;">
+                                <div class="music-lyrics-panel-header">
+                                    <div class="music-lyrics-panel-title-group">
+                                        <span class="music-lyrics-panel-title">歌词</span>
+                                        <span id="music-lyrics-panel-subtitle" class="music-lyrics-panel-subtitle">未载入歌词</span>
+                                    </div>
+                                </div>
+                                <div id="music-lyrics-empty" class="music-lyrics-empty">当前歌曲暂无歌词</div>
+                                <div id="music-lyrics-scroll" class="music-lyrics-scroll" style="display: none;">
+                                    <div id="music-lyrics-lines" class="music-lyrics-lines"></div>
+                                </div>
+                            </div>
+                            <div id="music-player-bar" class="premium-player-bar"
+                                style="display: none; width: 95%; padding: 12px 20px; align-items: center; gap: 18px; border-radius: 16px; box-sizing: border-box; box-shadow: 0 -4px 20px rgba(0,0,0,0.15);">
+                                <div
+                                    style="position: relative; width: 52px; height: 52px; border-radius: 50%; background: #111; padding: 2px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); flex-shrink: 0;">
+                                    <img id="music-player-cover" class="vinyl-spin vinyl-pause" src=""
+                                        style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; opacity: 0.9;">
+                                    <div
+                                        style="position: absolute; top: 50%; left: 50%; width: 12px; height: 12px; background: var(--input-bg); border-radius: 50%; transform: translate(-50%, -50%); border: 1px solid rgba(0,0,0,0.5); box-shadow: inset 0 1px 2px rgba(0,0,0,0.3);">
+                                    </div>
+                                </div>
+                                <div
+                                    style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;">
+                                    <div class="title-scroll-container">
+                                        <div id="music-player-title" class="title-scroll-text">未播放</div>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 6px;">
+                                        <div id="music-status-dot"
+                                            style="width: 8px; height: 8px; border-radius: 50%; background: #ccc; box-shadow: 0 0 4px #ccc; transition: all 0.3s;">
+                                        </div>
+                                        <div id="music-player-subtitle"
+                                            style="font-size: 12px; color: var(--text-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                            准备就绪</div>
+                                    </div>
+                                </div>
+                                <div style="flex: 2; min-width: 250px; display: flex; align-items: center; gap: 12px;">
+                                    <button class="player-step-btn" type="button" title="上一首" aria-label="上一首"
+                                        onclick="playPreviousMusic()">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="M7 6v12" />
+                                            <path d="M17 7l-7 5 7 5V7z" />
+                                        </svg>
+                                    </button>
+                                    <button id="music-play-btn" class="player-toggle-icon is-play"
+                                        style="width: 36px; height: 36px; border-radius: 50%; border: none; background: var(--primary); color: white; display: flex; justify-content: center; align-items: center; cursor: pointer; font-size: 14px; flex-shrink: 0; box-shadow: 0 4px 10px rgba(155, 106, 156, 0.3); transition: transform 0.1s;">
+                                        <span class="audio-icon-play"></span>
+                                        <span class="audio-icon-pause"><span></span><span></span></span>
+                                    </button>
+                                    <button class="player-step-btn" type="button" title="下一首" aria-label="下一首"
+                                        onclick="playNextMusic()">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="M17 6v12" />
+                                            <path d="M7 7l7 5-7 5V7z" />
+                                        </svg>
+                                    </button>
+
+                                    <span id="music-time-current"
+                                        style="font-size: 12px; color: var(--text-sub); width: 35px; text-align: right; flex-shrink: 0;">00:00</span>
+
+                                    <input type="range" id="music-progress-bar" min="0" max="100" value="0"
+                                        class="premium-slider" style="flex: 1; min-width: 50px;">
+
+                                    <span id="music-time-duration"
+                                        style="font-size: 12px; color: var(--text-sub); width: 35px; flex-shrink: 0;">00:00</span>
+
+                                    <button id="music-play-mode-btn" class="player-mini-btn player-mode-btn" type="button"
+                                        onclick="cycleMusicPlayMode()" title="当前模式：顺序">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="M4 7h14" />
+                                            <path d="M15 4l3 3-3 3" />
+                                            <path d="M20 17H6" />
+                                            <path d="M9 14l-3 3 3 3" />
+                                        </svg>
+                                    </button>
+                                    <button id="music-playlist-btn" class="player-mini-btn player-mode-btn" type="button"
+                                        onclick="toggleMusicQueue()" title="播放列表" aria-label="播放列表">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                            <line x1="6" y1="7" x2="18" y2="7" />
+                                            <line x1="6" y1="12" x2="18" y2="12" />
+                                            <line x1="6" y1="17" x2="14" y2="17" />
+                                            <circle cx="18" cy="17" r="1.4" fill="currentColor" stroke="none" />
+                                        </svg>
+                                    </button>
+
+                                    <div
+                                        style="display: flex; align-items: center; gap: 6px; margin-left: 5px; border-left: 1px solid var(--border); padding-left: 12px;">
+                                        <span id="music-volume-icon" title="静音/恢复"
+                                            style="cursor: pointer; font-size: 14px; color: var(--text-sub); user-select: none; width: 16px; text-align: center;">🔊</span>
+                                        <input type="range" id="music-volume-bar" min="0" max="1" step="0.01" value="1"
+                                            class="premium-slider" style="width: 60px;">
+                                    </div>
+                                    <button id="music-lyrics-toggle-btn" class="player-mini-btn player-mode-btn" type="button"
+                                        onclick="toggleMusicLyricsPanel()" title="展开歌词" aria-label="展开歌词">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="M8 6h10" />
+                                            <path d="M8 12h10" />
+                                            <path d="M8 18h10" />
+                                            <path d="M4 7v10" />
+                                        </svg>
+                                    </button>
+
+                                    <audio id="music-native-audio" style="display: none;"></audio>
+                                </div>
+                            </div>
+                            <div id="music-player-queue" class="player-queue-panel" style="display: none;">
+                                <div class="player-queue-header">
+                                    <span>播放列表</span>
+                                    <span id="music-player-queue-count">0 首</span>
+                                </div>
+                                <div id="music-player-queue-list" class="player-queue-list"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="view-flip"
+                        style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
+                        <div class="list-container">
+                            <div class="page-header">
+
+                                <div class="page-header-left" style="align-items: baseline; gap: 12px;">
+                                    <h2 class="page-title">翻牌记录</h2>
+                                    <span id="flip-status-text" style="font-size: 12px; color: var(--text-sub);"></span>
+                                </div>
+
+                                <div style="display: flex; gap: 10px; align-items: center;">
+
+                                    <div id="flip-type-wrapper" style="position: relative; width: 110px;">
+                                        <input type="text" id="flip-type-display" class="input-control" value="全部类型"
+                                            readonly onclick="toggleFlipTypeDropdown()"
+                                            style="cursor: pointer; text-align: left; padding-right: 25px;">
+
+                                        <div
+                                            style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text-sub); font-size: 12px;">
+                                            ▼
+                                        </div>
+
+                                        <div id="flip-type-dropdown" class="suggestion-box"
+                                            style="display: none; top: 42px;">
+                                            <div class="suggestion-item" onclick="selectFlipType('0', '全部类型')">全部类型
+                                            </div>
+                                            <div class="suggestion-item" onclick="selectFlipType('1', '文字')">文字</div>
+                                            <div class="suggestion-item" onclick="selectFlipType('2', '语音')">语音</div>
+                                            <div class="suggestion-item" onclick="selectFlipType('3', '视频')">视频</div>
+                                        </div>
+                                    </div>
+
+                                    <input type="text" id="flipSearchInput" class="input-control" style="width: 180px;"
+                                        placeholder="搜索成员或内容..." oninput="applyFlipSearch()">
+
+                                    <button class="btn btn-secondary" style="padding: 0 20px;"
+                                        onclick="updateLatestFlips()">
+                                        刷新
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div id="flip-list-container">
+                                <div class="placeholder-tip">
+                                    <h3>👋 准备就绪</h3>
+                                    <p>请确保您已在“账号设置”页面登录成功，然后点击刷新。</p>
+                                </div>
+                            </div>
+
+                            <div class="pagination-container" style="margin-top: 20px; padding-bottom: 30px;">
+                                <button class="pagination-btn" onclick="changeFlipPage(-1)">上一页</button>
+                                <span id="flip-page-info"
+                                    style="font-size: 13px; color: var(--text-sub); margin: 0 10px; line-height: 32px;">第
+                                    1
+                                    页</span>
+                                <button class="pagination-btn" onclick="changeFlipPage(1)">下一页</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="view-send-flip"
+                        style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
+                        <div class="list-container">
+                            <div class="page-header">
+                                <h2 class="page-title">翻牌提问</h2>
+                            </div>
+
+                            <div class="Box-row" style="z-index: 20;">
+                                <h3
+                                    style="margin-top: 0; font-size: 16px; margin-bottom: 15px; border-left: 4px solid var(--primary); padding-left: 10px; color: var(--text);">
+                                    选择成员</h3>
+
+                                <div id="flip-member-wrapper" style="position: relative;">
+                                    <input type="text" id="flip-send-member-input" class="input-control"
+                                        placeholder="输入成员名字或拼音首字母搜索..." oninput="handleFlipSendSearch(this.value)"
+                                        onfocus="handleFlipSendSearch(this.value)"
+                                        onclick="handleFlipSendSearch(this.value)" autocomplete="off"
+                                        style="padding-right: 10px;">
+
+                                    <input type="hidden" id="flip-send-member-id">
+
+                                    <div id="flip-send-search-results" class="suggestion-box"
+                                        style="width: 100%; max-height: 200px; overflow-y: auto;"></div>
+                                </div>
+                            </div>
+
+                            <div id="flip-price-loading"
+                                style="display:none; text-align:center; padding: 20px; color: var(--text-sub);">
+                                <div class="spinner"></div> 正在获取该成员的翻牌设置...
+                            </div>
+
+                            <div id="flip-config-area" style="display:none;">
+
+                                <div class="Box-row" style="z-index: 15;">
+                                    <h3
+                                        style="margin-top: 0; font-size: 16px; margin-bottom: 15px; border-left: 4px solid var(--primary); padding-left: 10px; color: var(--text);">
+                                        设置类型</h3>
+
+                                    <div style="display: flex; gap: 20px;">
+                                        <div style="flex: 1;">
+                                            <label
+                                                style="display:block; margin-bottom: 5px; font-weight: bold; font-size: 13px; color: var(--text-sub);">翻牌类型</label>
+
+                                            <div id="flip-answer-wrapper" style="position: relative;">
+                                                <input type="hidden" id="flip-answer-type">
+                                                <input type="text" id="flip-answer-display" class="input-control"
+                                                    value="请选择" readonly onclick="toggleFlipAnswerDropdown()"
+                                                    style="cursor: pointer; text-align: left; padding-right: 30px;">
+
+                                                <div
+                                                    style="position: absolute; right: 10px; top: 10px; pointer-events: none; color: var(--text-sub); font-size: 12px;">
+                                                    ▼</div>
+
+                                                <div id="flip-answer-dropdown" class="suggestion-box"
+                                                    style="display: none;">
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div style="flex: 1;">
+                                            <label
+                                                style="display:block; margin-bottom: 5px; font-weight: bold; font-size: 13px; color: var(--text-sub);">公开设置</label>
+
+                                            <div id="flip-privacy-wrapper" style="position: relative;">
+                                                <input type="hidden" id="flip-privacy-type" value="1">
+                                                <input type="text" id="flip-privacy-display" class="input-control"
+                                                    value="公开 (所有人可见)" readonly onclick="toggleFlipPrivacyDropdown()"
+                                                    style="cursor: pointer; text-align: left; padding-right: 30px;">
+
+                                                <div
+                                                    style="position: absolute; right: 10px; top: 10px; pointer-events: none; color: var(--text-sub); font-size: 12px;">
+                                                    ▼</div>
+
+                                                <div id="flip-privacy-dropdown" class="suggestion-box"
+                                                    style="display: none;">
+                                                    <div class="suggestion-item"
+                                                        onclick="selectFlipPrivacy('1', '公开 (所有人可见)')">
+                                                        公开 (所有人可见)
+                                                    </div>
+
+                                                    <div class="suggestion-item"
+                                                        onclick="selectFlipPrivacy('3', '匿名 (所有人可见，隐藏ID)')">
+                                                        匿名 (所有人可见，隐藏ID)
+                                                    </div>
+
+                                                    <div class="suggestion-item"
+                                                        onclick="selectFlipPrivacy('2', '私密 (仅自己和成员可见)')">
+                                                        私密 (仅自己和成员可见)
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div
+                                        style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed var(--border); padding-top: 15px;">
+                                        <div
+                                            style="display: flex; align-items: center; font-size: 14px; color: var(--text);">
+                                            <span>我的鸡腿：</span>
+                                            <span id="flip-user-balance"
+                                                style="font-size: 18px; font-weight: bold; color: var(--primary); margin: 0 2px; line-height: 1;">0</span>
+                                            <span style="font-size: 16px; line-height: 1;">🍗</span>
+
+                                            <a href="https://live.48.cn/Recharge/" target="_blank"
+                                                style="margin-left: 10px; font-size: 12px; color: #1890ff; text-decoration: none; cursor: pointer;">
+                                                充值
+                                            </a>
+                                        </div>
+
+                                        <div
+                                            style="display: flex; align-items: center; font-size: 14px; color: var(--text);">
+                                            <span>需要消耗：</span>
+                                            <input type="number" id="flip-cost-input" value="0"
+                                                onblur="checkFlipCostMin()"
+                                                style="width: 50px; font-size: 16px; font-weight: bold; color: #fa8c16; text-align: center; border: 1px solid var(--border); border-radius: 4px; background: var(--input-bg); margin: 0 4px; padding: 2px 0; outline: none;">
+                                            <span style="font-size: 16px; line-height: 1;">🍗</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="Box-row">
+                                    <h3
+                                        style="margin-top: 0; font-size: 16px; margin-bottom: 15px; border-left: 4px solid var(--primary); padding-left: 10px; color: var(--text);">
+                                        提问内容</h3>
+
+                                    <div style="position: relative;">
+                                        <textarea id="flip-content-input" class="input-control" maxlength="200"
+                                            oninput="updateFlipCharCount(this)"
+                                            style="width: 100%; height: 150px; resize: none; padding: 15px; padding-bottom: 30px; font-size: 14px; line-height: 1.5; font-family: inherit;"
+                                            placeholder="在这里写下你想对成员说的话..."></textarea>
+
+                                        <div id="flip-content-count"
+                                            style="position: absolute; bottom: 10px; right: 15px; font-size: 12px; color: #999; pointer-events: none;">
+                                            0/200</div>
+                                    </div>
+
+                                    <div id="flip-send-msg"
+                                        style="margin-top: 10px; min-height: 20px; text-align: right; font-size: 13px;">
+                                    </div>
+
+                                    <div style="margin-top: 20px;">
+                                        <button id="btn-do-send-flip" class="btn btn-primary btn-full"
+                                            style="padding: 12px; font-size: 16px;" onclick="executeSendFlip()">
+                                            提问
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="view-room-album"
+                        style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
+                        <div class="list-container">
+                            <div class="page-header">
+                                <h2 class="page-title">房间相册</h2>
+                                <span id="room-album-status" style="font-size: 13px; color: var(--text-sub);"></span>
+                            </div>
+
+                            <div class="Box-row" style="z-index: 100; position: relative;">
+                                <div style="display: flex; gap: 15px; margin-bottom: 15px;">
+
+                                    <div class="search-wrapper" style="flex: 1;">
+                                        <label
+                                            style="font-size: 12px; color: var(--text-sub); display:block; margin-bottom:5px;">搜索成员</label>
+                                        <input type="text" id="room-album-member-input" class="input-control"
+                                            placeholder="请输入成员名" oninput="handleRoomAlbumSearch(this.value)"
+                                            onfocus="handleRoomAlbumSearch(this.value)">
+                                        <div id="room-album-search-results" class="suggestion-box"></div>
+                                    </div>
+
+                                    <div style="flex: 1.25;">
+                                        <label id="room-album-channel-label"
+                                            style="font-size: 12px; color: var(--text-sub); display:block; margin-bottom:5px;">大房间
+                                            Channel ID</label>
+                                        <div style="display:flex; gap:10px; align-items:stretch;">
+                                            <input type="text" id="room-album-channel-id" class="input-control"
+                                                placeholder="大房间 Channel ID">
+                                            <button type="button" id="btn-toggle-room-album-room-type"
+                                                class="btn btn-secondary"
+                                                style="width: 104px; flex-shrink: 0;"
+                                                onclick="toggleRoomAlbumRoomType()">大房间</button>
+                                        </div>
+                                    </div>
+
+                                </div>
+
+                                <div style="display: flex; flex-direction: column; gap: 10px;">
+                                    <div style="display: flex; gap: 10px;">
+                                        <button class="btn btn-primary" style="flex: 1;"
+                                            onclick="fetchRoomAlbum(false)">查询最新</button>
+                                        <button id="btn-room-album-all" class="btn btn-secondary" style="flex: 1;"
+                                            onclick="fetchAllRoomAlbum()">加载全部</button>
+                                    </div>
+                                    <button id="btn-room-album-dl-all" class="btn btn-secondary" style="width: 100%;"
+                                        onclick="downloadAllRoomAlbum()">一键下载</button>
+                                </div>
+                            </div>
+
+                            <div id="room-album-result-container" style="margin-top: 20px;">
+                                <div class="placeholder-tip">
+                                    <h3>等待查询</h3>
+                                    <p>搜索并选择成员，提取她在口袋房间里发过的日常照片与视频。</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="view-photos"
+                        style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
+                        <div class="list-container">
+                            <div class="page-header">
+                                <h2 class="page-title">个人相册</h2>
+                                <span id="photos-status" style="font-size: 13px; color: var(--text-sub);"></span>
+                            </div>
+
+                            <div class="Box-row" style="z-index: 100; position: relative;">
+                                <div class="search-wrapper">
+                                    <label
+                                        style="font-size: 12px; color: var(--text-sub); display:block; margin-bottom:5px;">搜索成员</label>
+                                    <input type="text" id="photo-member-input" class="input-control"
+                                        placeholder="请输入成员名" oninput="handlePhotoSearch(this.value)"
+                                        onfocus="handlePhotoSearch(this.value)">
+                                    <input type="hidden" id="photo-member-id">
+                                    <div id="photo-search-results" class="suggestion-box"></div>
+                                </div>
+                                <div class="btn-grid" style="margin-top: 10px;">
+                                    <button class="btn btn-primary" onclick="fetchMemberPhotos(false)">查询最新</button>
+                                    <button id="btn-photos-all" class="btn btn-secondary"
+                                        onclick="fetchAllMemberPhotos()">加载全部</button>
+                                </div>
+                            </div>
+
+                            <div id="photos-result-container" style="margin-top: 20px;">
+                                <div class="placeholder-tip">
+                                    <h3>等待查询</h3>
+                                    <p>搜索并选择成员，查看其发布的个人相册与专属语音。</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="view-profile"
+                        style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
+                        <div class="list-container">
+                            <div class="page-header">
+                                <h2 class="page-title">详细档案</h2>
+                            </div>
+
+                            <div class="Box-row" style="z-index: 100; position: relative;">
+                                <div class="search-wrapper">
+                                    <label
+                                        style="font-size: 12px; color: var(--text-sub); display:block; margin-bottom:5px;">搜索成员</label>
+                                    <input type="text" id="profile-member-input" class="input-control"
+                                        placeholder="请输入成员名" oninput="handleProfileSearch(this.value)"
+                                        onfocus="handleProfileSearch(this.value)">
+                                    <input type="hidden" id="profile-member-id">
+                                    <div id="profile-search-results" class="suggestion-box"></div>
+                                </div>
+                                <button class="btn btn-primary" onclick="loadStarProfile()"
+                                    style="width: 100%;">获取档案</button>
+                            </div>
+
+                            <div id="profile-result-container" style="margin-top: 20px;">
+                                <div class="placeholder-tip">
+                                    <h3>等待查询</h3>
+                                    <p>搜索并选择成员，查看详细资料和公式照。</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="view-open-live"
+                        style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
+                        <div class="list-container">
+                            <div class="page-header">
+                                <h2 class="page-title">公演记录</h2>
+                                <span id="openlive-status"
+                                    style="font-size: 15px; font-weight: bold; color: var(--primary); margin-left: 10px;"></span>
+                            </div>
+
+                            <div class="Box-row" style="z-index: 100; position: relative;">
+                                <div class="search-wrapper">
+                                    <label
+                                        style="font-size: 12px; color: var(--text-sub); display:block; margin-bottom:5px;">搜索成员</label>
+                                    <input type="text" id="openlive-member-input" class="input-control"
+                                        placeholder="请输入成员名" oninput="handleOpenLiveSearch(this.value)"
+                                        onfocus="handleOpenLiveSearch(this.value)">
+                                    <input type="hidden" id="openlive-member-id">
+                                    <div id="openlive-search-results" class="suggestion-box"></div>
+                                </div>
+
+                                <div class="btn-grid" style="margin-top: 10px;">
+                                    <button class="btn btn-primary" onclick="fetchOpenLiveList(false)">查询最新</button>
+                                    <button id="btn-openlive-all" class="btn btn-secondary"
+                                        onclick="fetchAllOpenLive()">加载全部</button>
+                                </div>
+
+                                <div id="openlive-list-container" style="margin-top: 20px;">
+                                    <div class="placeholder-tip">
+                                        <h3>等待查询</h3>
+                                        <p>请选择成员并点击查询，将显示参加的公演列表。</p>
+                                    </div>
+                                </div>
+
+                                <div id="openlive-load-more" style="text-align: center; margin: 20px 0; display: none;">
+                                    <button class="btn btn-secondary" onclick="fetchOpenLiveList(true)">加载更多</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="view-room-radio"
+                        style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
+                        <div class="list-container">
+                            <div class="page-header">
+                                <h2 class="page-title">房间电台</h2>
+                                <span id="room-radio-status" style="font-size: 13px; color: var(--text-sub);"></span>
+                            </div>
+
+                            <div class="Box-row" style="z-index: 100; position: relative;">
+                                <div style="display: flex; gap: 15px; margin-bottom: 15px;">
+
+                                    <div class="search-wrapper" style="flex: 1;">
+                                        <label
+                                            style="font-size: 12px; color: var(--text-sub); display:block; margin-bottom:5px;">搜索成员</label>
+                                        <input type="text" id="room-radio-member-input" class="input-control"
+                                            placeholder="请输入成员名" oninput="handleRoomRadioSearch(this.value)"
+                                            onfocus="handleRoomRadioSearch(this.value)">
+                                        <div id="room-radio-search-results" class="suggestion-box"></div>
+                                    </div>
+
+                                    <div style="flex: 1.25;">
+                                        <label id="room-radio-channel-label"
+                                            style="font-size: 12px; color: var(--text-sub); display:block; margin-bottom:5px;">大房间
+                                            Channel ID</label>
+                                        <div style="display:flex; gap:10px; align-items:stretch;">
+                                            <input type="text" id="room-radio-channel-id" class="input-control"
+                                                placeholder="大房间 Channel ID">
+                                            <button type="button" id="btn-toggle-room-radio-room-type"
+                                                class="btn btn-secondary"
+                                                style="width: 104px; flex-shrink: 0;"
+                                                onclick="toggleRoomRadioRoomType()">大房间</button>
+                                        </div>
+                                    </div>
+
+                                    <input type="hidden" id="room-radio-server-id">
+                                </div>
+
+                                <button class="btn btn-primary" style="width: 100%;"
+                                    onclick="connectRoomRadio()">连接电台</button>
+                            </div>
+
+                            <div id="room-radio-result-container" style="margin-top: 20px;">
+                                <div class="placeholder-tip">
+                                    <h3>等待连接</h3>
+                                    <p>搜索并选择成员后，点击连接，若房间正在进行语音/连麦，将自动跳转播放。</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="view-settings"
+                        style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
+                        <div class="list-container">
+                            <div class="page-header">
+                                <h2 class="page-title">通用设置</h2>
+                            </div>
+
+                            <div class="Box-row" style="margin-bottom: 30px;">
+                                <h3 style="margin-top: 0; color: var(--text);">🎨 外观设置</h3>
+
+                                <div
+                                    style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+                                    <div>
+                                        <label
+                                            style="display:block; font-weight:bold; color:var(--text);">主题模式</label>
+                                        <span style="font-size: 12px; color: var(--text-sub);">切换浅色或深色界面外观</span>
+                                    </div>
+                                    <button class="btn btn-secondary" onclick="toggleTheme()"
+                                        data-theme-toggle-label="settings" id="themeSettingsBtn">切换到深色模式</button>
+                                </div>
+
+                                <div
+                                    style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+                                    <div>
+                                        <label
+                                            style="display:block; font-weight:bold; color:var(--text);">自定义背景图片</label>
+                                        <span style="font-size: 12px; color: var(--text-sub);">设置一张喜欢的图片作为软件背景</span>
+                                    </div>
+                                    <div style="display: flex; gap: 10px;">
+                                        <button class="btn btn-secondary" onclick="triggerBgInput()">选择图片</button>
+                                        <button class="btn btn-secondary" onclick="resetBackground()"
+                                            style="color: #ff4d4f;">恢复默认</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="Box-row">
+                                <h3 style="margin-top: 0; color: var(--text);">📂 下载路径</h3>
+
+                                <div style="margin-bottom: 20px;">
+                                    <label
+                                        style="display:block; font-weight:bold; margin-bottom:8px; color:var(--text);">录播弹幕</label>
+                                    <div style="display: flex; gap: 10px;">
+                                        <input type="text" id="path-danmu" class="input-control"
+                                            placeholder="默认路径 (未设置)" onchange="saveCustomPaths()">
+                                        <button class="btn btn-secondary"
+                                            onclick="triggerSelectPath('path-danmu')">选择文件夹</button>
+                                    </div>
+                                </div>
+
+                                <div style="margin-bottom: 20px;">
+                                    <label
+                                        style="display:block; font-weight:bold; margin-bottom:8px; color:var(--text);">录播回放</label>
+                                    <div style="display: flex; gap: 10px;">
+                                        <input type="text" id="path-video" class="input-control"
+                                            placeholder="默认路径 (未设置)" onchange="saveCustomPaths()">
+                                        <button class="btn btn-secondary"
+                                            onclick="triggerSelectPath('path-video')">选择文件夹</button>
+                                    </div>
+                                </div>
+
+                                <div style="margin-bottom: 20px;">
+                                    <label
+                                        style="display:block; font-weight:bold; margin-bottom:8px; color:var(--text);">切片</label>
+                                    <div style="display: flex; gap: 10px;">
+                                        <input type="text" id="path-clip" class="input-control" placeholder="默认路径 (未设置)"
+                                            onchange="saveCustomPaths()">
+                                        <button class="btn btn-secondary"
+                                            onclick="triggerSelectPath('path-clip')">选择文件夹</button>
+                                    </div>
+                                </div>
+
+                                <div style="margin-bottom: 20px;">
+                                    <label
+                                        style="display:block; font-weight:bold; margin-bottom:8px; color:var(--text);">相册</label>
+                                    <div style="display: flex; gap: 10px;">
+                                        <input type="text" id="path-media" class="input-control"
+                                            placeholder="默认路径 (未设置)" onchange="saveCustomPaths()">
+                                        <button class="btn btn-secondary"
+                                            onclick="triggerSelectPath('path-media')">选择文件夹</button>
+                                    </div>
+                                </div>
+
+                                <div style="margin-bottom: 20px;">
+                                    <label
+                                        style="display:block; font-weight:bold; margin-bottom:8px; color:var(--text);">翻牌</label>
+                                    <div style="display: flex; gap: 10px;">
+                                        <input type="text" id="path-flip" class="input-control" placeholder="默认路径 (未设置)"
+                                            onchange="saveCustomPaths()">
+                                        <button class="btn btn-secondary"
+                                            onclick="triggerSelectPath('path-flip')">选择文件夹</button>
+                                    </div>
+                                </div>
+
+                                <div style="margin-bottom: 20px;">
+                                    <label
+                                        style="display:block; font-weight:bold; margin-bottom:8px; color:var(--text);">上麦</label>
+                                    <div style="display: flex; gap: 10px;">
+                                        <input type="text" id="path-room-radio" class="input-control" placeholder="默认路径 (未设置)"
+                                            onchange="saveCustomPaths()">
+                                        <button class="btn btn-secondary"
+                                            onclick="triggerSelectPath('path-room-radio')">选择文件夹</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="Box-row">
+                                <div
+                                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                    <h3 style="margin: 0; color: var(--text);">🌐 IP检测</h3>
+                                    <button id="btn-check-all" class="btn btn-primary btn-sm"
+                                        onclick="checkAllNetwork()">
+                                        开始检测
+                                    </button>
+                                </div>
+
+                                <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 15px;">
+                                    分别检测国内直连、通用出口及 Google 代理通道的 IP 归属。
+                                </div>
+
+                                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+
+                                    <div class="ip-card" id="card-domestic">
+                                        <div class="card-title">国内网站</div>
+                                        <div class="card-content" id="res-domestic">等待检测</div>
+                                    </div>
+
+                                    <div class="ip-card" id="card-foreign">
+                                        <div class="card-title">海外网站</div>
+                                        <div class="card-content" id="res-foreign">等待检测</div>
+                                    </div>
+
+                                    <div class="ip-card" id="card-google">
+                                        <div class="card-title">GFW网站</div>
+                                        <div class="card-content" id="res-google">等待检测</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+        </main>
+    </div>
+    <div class="modal-overlay" id="userModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title">房间消息互动榜</span>
+                <span class="close-btn" onclick="closeUserAnalysis()">×</span>
+            </div>
+            <div class="modal-body" id="userListContainer">
+                <div class="empty-state">正在分析...</div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="dateModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title">每日消息统计</span>
+                <span class="close-btn" onclick="closeDateAnalysis()">×</span>
+            </div>
+            <div class="modal-body" id="dateListContainer">
+                <div class="empty-state">正在分析...</div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="danmuAnalysisModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title">弹幕榜</span>
+                <span class="close-btn" onclick="closeDanmuAnalysis()">×</span>
+            </div>
+            <div class="modal-body" id="danmuAnalysisList">
+                <div class="empty-state">正在分析...</div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="contextModal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <span class="modal-title">消息上下文</span>
+                <span class="close-btn" onclick="closeContextModal()">×</span>
+            </div>
+            <div class="modal-body" id="contextListContainer" style="background: var(--bg); padding: 20px;"></div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="imageModal" onclick="closeImageModal()"
+        style="background: rgba(0,0,0,0.9); z-index: 2001;">
+        <div
+            style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; padding: 20px;">
+            <img id="modalImg" src=""
+                style="max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 4px; box-shadow: 0 0 20px rgba(0,0,0,0.5);">
+        </div>
+    </div>
+    <div class="modal-overlay" id="flipAnalysisModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title">翻牌数据统计</span>
+                <span class="close-btn" onclick="closeFlipAnalysis()">×</span>
+            </div>
+            <div class="modal-body" id="flipAnalysisContainer" style="padding: 0;">
+                <div class="empty-state">正在分析...</div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="giftAnalysisModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title">房间礼物贡献榜</span>
+                <span class="close-btn" onclick="closeGiftAnalysis()">×</span>
+            </div>
+            <div class="modal-body" id="giftAnalysisList">
+                <div class="empty-state">正在计算...</div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="speechAnalysisModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title">用户发言活跃榜</span>
+                <span class="close-btn" onclick="closeSpeechAnalysis()">×</span>
+            </div>
+            <div class="modal-body" id="speechAnalysisList">
+                <div class="empty-state">正在统计...</div>
+            </div>
+        </div>
+    </div>
+    <script src="./src/renderer/bootstrap-shared.js"></script>
+    <script src="./src/renderer/database-embed.js"></script>
+    <script src="./src/renderer/app-legacy.js"></script>
+    <script type="module" src="./src/renderer/sdk-init.js"></script>
+    <script src="./src/renderer/fetch-legacy.js"></script>
+
+    <button id="backToTopBtn" class="back-to-top-btn" onclick="scrollToTop()" title="回到顶部">
+        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2.5" fill="none"
+            stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="19" x2="12" y2="5"></line>
+            <polyline points="5 12 12 5 19 12"></polyline>
+        </svg>
+    </button>
+
+    <div id="global-announcement-modal" class="announcement-modal" onclick="if(event.target===this) closeAnnouncement()">
+        <div id="announcement-box" class="announcement-box">
+            <div class="announcement-header">
+                <div class="announcement-header-copy">
+                    <div id="notice-header-text" class="announcement-header-text">
+                        说点什么
+                    </div>
+                </div>
+            </div>
+
+            <div class="announcement-body yklz-scroll">
+                <div id="notice-title" class="announcement-title">
+                    公告
+                </div>
+
+                <div id="notice-img-container" class="announcement-image-container">
+                    <img id="notice-image" src="" alt="Notice" class="announcement-image">
+                    <span id="notice-img-placeholder" class="announcement-image-placeholder"></span>
+                </div>
+
+                <div id="notice-full-text" class="announcement-text">
+                </div>
+            </div>
+
+            <div class="announcement-footer">
+                <button id="notice-detail-btn" class="yklz-btn announcement-btn-secondary" style="display: none;">
+                    查看详情
+                </button>
+                <button class="yklz-btn announcement-btn-primary" onclick="closeAnnouncement()">
+                    我知道了
+                </button>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
