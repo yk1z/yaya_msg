@@ -12,6 +12,11 @@ registerMediaIpc();
 registerPocketIpc();
 registerSystemIpc();
 
+if (process.platform === 'linux') {
+    app.commandLine.appendSwitch('no-sandbox');
+    app.commandLine.appendSwitch('disable-setuid-sandbox');
+}
+
 app.whenReady().then(() => {
     ensureStoragePaths();
     createWindow();
