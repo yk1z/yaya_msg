@@ -17,9 +17,9 @@ jobs:
           - os: windows-latest
             label: Windows
             artifact_name: yaya-msg-windows
-            build_command: npm run dist -- --win portable --publish never
+            build_command: npm run dist -- --win zip --publish never
             artifact_path: |
-              dist/*.exe
+              dist/*.zip
           - os: macos-latest
             label: macOS
             artifact_name: yaya-msg-macos
@@ -29,9 +29,9 @@ jobs:
           - os: ubuntu-latest
             label: Linux
             artifact_name: yaya-msg-linux
-            build_command: npm run dist -- --linux AppImage --publish never
+            build_command: npm run dist -- --linux tar.gz --publish never
             artifact_path: |
-              dist/*.AppImage
+              dist/*.tar.gz
 
     steps:
       - name: Checkout repository
