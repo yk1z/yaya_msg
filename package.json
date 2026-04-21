@@ -6,8 +6,8 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "pack": "electron-builder --dir",
-    "dist": "electron-builder"
+    "pack": "node scripts/run-builder.js --dir",
+    "dist": "node scripts/run-builder.js"
   },
   "author": {
     "name": "yk1z",

@@ -1,0 +1,57 @@
+name: Build Release Packages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            label: Windows
+            artifact_name: yaya-msg-windows
+            build_command: npm run dist -- --win portable
+            artifact_path: |
+              dist/*.exe
+          - os: macos-latest
+            label: macOS
+            artifact_name: yaya-msg-macos
+            build_command: npm run dist -- --mac dmg
+            artifact_path: |
+              dist/*.dmg
+          - os: ubuntu-latest
+            label: Linux
+            artifact_name: yaya-msg-linux
+            build_command: npm run dist -- --linux AppImage
+            artifact_path: |
+              dist/*.AppImage
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: ${{ matrix.build_command }}
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.artifact_path }}
+          if-no-files-found: error
