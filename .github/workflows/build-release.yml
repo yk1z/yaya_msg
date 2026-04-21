@@ -17,19 +17,19 @@ jobs:
           - os: windows-latest
             label: Windows
             artifact_name: yaya-msg-windows
-            build_command: npm run dist -- --win portable
+            build_command: npm run dist -- --win portable --publish never
             artifact_path: |
               dist/*.exe
           - os: macos-latest
             label: macOS
             artifact_name: yaya-msg-macos
-            build_command: npm run dist -- --mac dmg
+            build_command: npm run dist -- --mac dmg --publish never
             artifact_path: |
               dist/*.dmg
           - os: ubuntu-latest
             label: Linux
             artifact_name: yaya-msg-linux
-            build_command: npm run dist -- --linux AppImage
+            build_command: npm run dist -- --linux AppImage --publish never
             artifact_path: |
               dist/*.AppImage
 
