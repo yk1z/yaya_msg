@@ -476,6 +476,264 @@ async function fetchOpenLiveOne({ token, pa, liveId }) {
     }
 }
 
+async function fetchOpenLivePublicList({ token, pa, groupId = 0, next = 0, record = false, debug = false }) {
+    if (!token) {
+        return missingToken();
+    }
+
+    try {
+        const response = await axios.post(
+            'https://pocketapi.48.cn/live/api/v1/live/getOpenLiveList',
+            {
+                groupId,
+                debug: !!debug,
+                next,
+                record: !!record
+            },
+            { headers: createHeaders(token, pa) }
+        );
+
+        if (response.status === 200 && response.data && response.data.status === 200) {
+            return { success: true, content: response.data.content };
+        }
+
+        return apiError(response);
+    } catch (error) {
+        console.error('Fetch Open Live Public List Error:', error);
+        return { success: false, msg: error.message };
+    }
+}
+
+function extractLivePageInputValue(html, inputId) {
+    const pattern = new RegExp(`<input[^>]+id=["']${inputId}["'][^>]+value=["']([^"']*)["']`, 'i');
+    const match = String(html || '').match(pattern);
+    return match ? String(match[1] || '').trim() : '';
+}
+
+function extractOpenLiveParticipantNamesFromHtml(html) {
+    const names = [];
+    const matches = String(html || '').matchAll(/<p class="listname">\s*([^<\r\n]+?)\s*(?:<em|<\/p>)/gi);
+
+    for (const match of matches) {
+        const name = String(match[1] || '').replace(/\s+/g, ' ').trim();
+        if (name && !names.includes(name)) {
+            names.push(name);
+        }
+    }
+
+    return names;
+}
+
+async function fetchOpenLivePageHtml(url, headers) {
+    const response = await axios.get(url, {
+        headers,
+        responseType: 'text'
+    });
+    return String(response.data || '');
+}
+
+function normalizeOpenLiveTitleForMatch(value) {
+    return String(value || '')
+        .toLowerCase()
+        .replace(/[《》“”"'‘’·•…\s\-_:：,.，。!！?？()（）[\]【】]/g, '')
+        .trim();
+}
+
+function formatReplayDateHint(value) {
+    if (!value && value !== 0) return '';
+
+    if (typeof value === 'number' || /^\d+$/.test(String(value || ''))) {
+        const numeric = Number(value);
+        if (!Number.isNaN(numeric) && numeric > 0) {
+            const date = new Date(numeric);
+            const pad = (n) => String(n).padStart(2, '0');
+            return `${date.getFullYear()}.${pad(date.getMonth() + 1)}.${pad(date.getDate())}`;
+        }
+    }
+
+    const match = String(value).match(/(\d{4})[-/.年](\d{1,2})[-/.月](\d{1,2})/);
+    if (!match) return '';
+    return `${match[1]}.${String(match[2]).padStart(2, '0')}.${String(match[3]).padStart(2, '0')}`;
+}
+
+function extractReplayCardsFromHtml(html) {
+    return [...String(html || '').matchAll(/<li class="videos">([\s\S]*?)<\/li>/gi)].map(match => {
+        const block = match[1] || '';
+        const hrefMatch = block.match(/href="\/Index\/invideo\/club\/(\d+)\/id\/(\d+)"/i);
+        const titleMatch = block.match(/<h4>([^<]+)<\/h4>/i);
+        const dateMatch = block.match(/(\d{4}\.\d{2}\.\d{2})/);
+
+        return {
+            clubId: hrefMatch ? String(hrefMatch[1] || '') : '',
+            replayId: hrefMatch ? String(hrefMatch[2] || '') : '',
+            title: titleMatch ? String(titleMatch[1] || '').trim() : '',
+            date: dateMatch ? String(dateMatch[1] || '').trim() : ''
+        };
+    }).filter(item => item.replayId && item.title);
+}
+
+async function findReplayPageMatchByTitleDate({ title, dateHint, headers }) {
+    const normalizedTargetTitle = normalizeOpenLiveTitleForMatch(title);
+    const normalizedTargetDate = formatReplayDateHint(dateHint);
+    if (!normalizedTargetTitle || !normalizedTargetDate) {
+        return null;
+    }
+
+    const replayClubIds = [1, 2, 3, 5, 6];
+    const maxPagesPerClub = 6;
+
+    for (const clubId of replayClubIds) {
+        for (let page = 1; page <= maxPagesPerClub; page += 1) {
+            try {
+                const pageUrl = page === 1
+                    ? `https://live.48.cn/Index/main/club/${clubId}`
+                    : `https://live.48.cn/Index/main/club/${clubId}/p/${page}.html`;
+                const html = await fetchOpenLivePageHtml(pageUrl, headers);
+                const cards = extractReplayCardsFromHtml(html);
+                if (!cards.length) {
+                    break;
+                }
+
+                const matchedCard = cards.find(card => {
+                    if (card.date !== normalizedTargetDate) {
+                        return false;
+                    }
+
+                    const normalizedCardTitle = normalizeOpenLiveTitleForMatch(card.title);
+                    return normalizedTargetTitle.includes(normalizedCardTitle)
+                        || normalizedCardTitle.includes(normalizedTargetTitle);
+                });
+
+                if (matchedCard) {
+                    return matchedCard;
+                }
+            } catch (error) {
+                continue;
+            }
+        }
+    }
+
+    return null;
+}
+
+async function fetchOpenLiveParticipants({ liveId, title = '', dateHint = '' }) {
+    const normalizedLiveId = String(liveId || '').trim();
+    if (!normalizedLiveId) {
+        return { success: false, msg: '缺少 liveId' };
+    }
+
+    const pageHeaders = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36',
+        Referer: 'https://live.48.cn/'
+    };
+
+    try {
+        const livePageUrl = `https://live.48.cn/Index/inlive/id/${encodeURIComponent(normalizedLiveId)}`;
+        try {
+            const html = await fetchOpenLivePageHtml(livePageUrl, pageHeaders);
+
+            const videoId = extractLivePageInputValue(html, 'vedio_id');
+            const clubId = extractLivePageInputValue(html, 'club_id');
+            const pageToken = extractLivePageInputValue(html, 'param');
+
+            if (videoId && clubId && pageToken) {
+                try {
+                    const payload = new URLSearchParams({
+                        act: 'default',
+                        video_id: videoId,
+                        token: pageToken,
+                        club_id: clubId
+                    }).toString();
+
+                    const memberResponse = await axios.post(
+                        'https://live.48.cn/Index/ajax_getmemberhot/',
+                        payload,
+                        {
+                            headers: {
+                                ...pageHeaders,
+                                Origin: 'https://live.48.cn',
+                                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                                'X-Requested-With': 'XMLHttpRequest'
+                            },
+                            responseType: 'json'
+                        }
+                    );
+
+                    const rows = Array.isArray(memberResponse?.data?.desc) ? memberResponse.data.desc : [];
+                    const participants = rows
+                        .map(item => ({
+                            name: String(item?.memberName || '').trim(),
+                            memberId: String(item?.memberId || '').trim(),
+                            avatar: String(item?.avatar || '').trim(),
+                            hot: item?.hot ?? ''
+                        }))
+                        .filter(item => item.name);
+
+                    if (participants.length) {
+                        return { success: true, content: { participants, source: 'memberhot' } };
+                    }
+                } catch (memberError) {
+                    console.warn('[OpenLiveParticipants] memberhot fallback to html parse:', memberError.message);
+                }
+            }
+
+            const names = extractOpenLiveParticipantNamesFromHtml(html);
+            const participants = names.map(name => ({ name, memberId: '', avatar: '', hot: '' }));
+            if (participants.length) {
+                return { success: true, content: { participants, source: 'html-live' } };
+            }
+        } catch (livePageError) {
+            console.warn('[OpenLiveParticipants] inlive page unavailable:', livePageError.message);
+        }
+
+        const replayClubIds = [1, 2, 3, 5, 6];
+        for (const clubId of replayClubIds) {
+            try {
+                const replayUrl = `https://live.48.cn/Index/invideo/club/${clubId}/id/${encodeURIComponent(normalizedLiveId)}`;
+                const html = await fetchOpenLivePageHtml(replayUrl, pageHeaders);
+                const names = extractOpenLiveParticipantNamesFromHtml(html);
+                const participants = names.map(name => ({ name, memberId: '', avatar: '', hot: '' }));
+                if (participants.length) {
+                    return { success: true, content: { participants, source: `html-replay-club-${clubId}` } };
+                }
+            } catch (replayError) {
+                continue;
+            }
+        }
+
+        const matchedReplay = await findReplayPageMatchByTitleDate({
+            title,
+            dateHint,
+            headers: pageHeaders
+        });
+        if (matchedReplay?.replayId && matchedReplay?.clubId) {
+            try {
+                const replayUrl = `https://live.48.cn/Index/invideo/club/${matchedReplay.clubId}/id/${matchedReplay.replayId}`;
+                const html = await fetchOpenLivePageHtml(replayUrl, pageHeaders);
+                const names = extractOpenLiveParticipantNamesFromHtml(html);
+                const participants = names.map(name => ({ name, memberId: '', avatar: '', hot: '' }));
+                if (participants.length) {
+                    return {
+                        success: true,
+                        content: {
+                            participants,
+                            source: `replay-match-club-${matchedReplay.clubId}`,
+                            matchedReplayId: matchedReplay.replayId
+                        }
+                    };
+                }
+            } catch (matchedReplayError) {
+                console.warn('[OpenLiveParticipants] replay match fetch failed:', matchedReplayError.message);
+            }
+        }
+
+        return { success: false, msg: '未找到参与成员' };
+    } catch (error) {
+        console.error('Fetch Open Live Participants Error:', error);
+        return { success: false, msg: error.message };
+    }
+}
+
 async function fetchFlipPrices({ token, pa, memberId }) {
     if (!token) {
         return missingToken();
@@ -866,6 +1124,8 @@ module.exports = {
     fetchStarHistory,
     fetchOpenLive,
     fetchOpenLiveOne,
+    fetchOpenLivePublicList,
+    fetchOpenLiveParticipants,
     fetchFlipPrices,
     sendFlipQuestion,
     operateFlipQuestion,

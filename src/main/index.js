@@ -3,12 +3,14 @@ const { createWindow } = require('./window');
 const { ensureWasmLoaded } = require('./services/wasm-service');
 const { registerWindowIpc } = require('./ipc/window-ipc');
 const { registerMediaIpc } = require('./ipc/media-ipc');
+const { registerBilibiliIpc } = require('./ipc/bilibili-ipc');
 const { registerPocketIpc } = require('./ipc/pocket-ipc');
 const { registerSystemIpc } = require('./ipc/system-ipc');
 const { ensureStoragePaths } = require('../common/storage-paths');
 
 registerWindowIpc();
 registerMediaIpc();
+registerBilibiliIpc();
 registerPocketIpc();
 registerSystemIpc();
 

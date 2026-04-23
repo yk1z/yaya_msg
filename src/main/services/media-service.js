@@ -87,6 +87,46 @@ function sanitizeFileName(fileName) {
     return String(fileName || '').replace(/[\\/:*?"<>|]/g, '_');
 }
 
+function normalizeProxyPayload(payload) {
+    if (typeof payload === 'string') {
+        return {
+            url: payload,
+            headers: {}
+        };
+    }
+
+    if (payload && typeof payload === 'object') {
+        return {
+            url: String(payload.url || '').trim(),
+            headers: payload.headers && typeof payload.headers === 'object' ? payload.headers : {}
+        };
+    }
+
+    return {
+        url: '',
+        headers: {}
+    };
+}
+
+function buildHttpInputOptions(headers = {}) {
+    const options = [];
+    const userAgent = String(headers['User-Agent'] || headers['user-agent'] || '').trim();
+
+    if (userAgent) {
+        options.push('-user_agent', userAgent);
+    }
+
+    const headerLines = Object.entries(headers)
+        .filter(([key, value]) => !/^user-agent$/i.test(String(key || '')) && String(value || '').trim())
+        .map(([key, value]) => `${key}: ${String(value).trim()}`);
+
+    if (headerLines.length > 0) {
+        options.push('-headers', `${headerLines.join('\r\n')}\r\n`);
+    }
+
+    return options;
+}
+
 async function saveRoomRadioRecording({ arrayBuffer, fileNameBase, savePath }) {
     const safeBaseName = sanitizeFileName(fileNameBase || `房间电台录音_${Date.now()}`);
     const tempFolder = app.getPath('temp');
@@ -326,9 +366,13 @@ function clipVod(event, { url, fileName, startTime, duration, taskId, savePath }
         .run();
 }
 
-function startProxy(remoteUrl, { streamPrefix, inputOptions, outputOptions, errorPrefix }) {
+function startProxy(remotePayload, { streamPrefix, inputOptions, outputOptions, errorPrefix }) {
     stopCommand(currentProxyCommand);
     currentProxyCommand = null;
+    const { url: remoteUrl, headers } = normalizeProxyPayload(remotePayload);
+    if (!remoteUrl) {
+        return Promise.reject(new Error('缺少直播流地址'));
+    }
 
     const streamId = `${streamPrefix}_${Date.now()}`;
     const localRtmp = `rtmp://localhost:1935/live/${streamId}`;
@@ -336,7 +380,10 @@ function startProxy(remoteUrl, { streamPrefix, inputOptions, outputOptions, erro
 
     return new Promise((resolve) => {
         const command = ffmpeg(remoteUrl)
-            .inputOptions(inputOptions)
+            .inputOptions([
+                ...buildHttpInputOptions(headers),
+                ...inputOptions
+            ])
             .outputOptions(outputOptions)
             .output(localRtmp);
 

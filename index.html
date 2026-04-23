@@ -4,7 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>牙牙消息 v2.0</title>
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self' file: https: data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net https://unpkg.com https://cdn.tailwindcss.com https://esm.sh; style-src 'self' 'unsafe-inline' https:; img-src 'self' file: https: data: blob:; media-src 'self' file: https: http: data: blob:; connect-src 'self' file: https: http: ws: wss: data: blob:; font-src 'self' https: data:;">
+    <title>牙牙消息 v2.1</title>
     <link rel="icon" href="./icon.png" type="image/x-icon">
 
     <link rel="stylesheet" href="style.css">
@@ -13,7 +15,6 @@
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.4.0/dist/hls.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/artplayer/dist/artplayer.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/artplayer-plugin-danmuku/dist/artplayer-plugin-danmuku.js"></script>
-    <script src="https://wlnimsc0.netease.im/nim-1.8.0.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dplayer/dist/DPlayer.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.24.2/dist/index.js"></script>
 
@@ -42,7 +43,7 @@
                 </svg>
             </div>
             <img src="./icon.png" class="title-logo">
-                    <span>牙牙消息 v2.0</span>
+                    <span>牙牙消息 v2.1</span>
         </div>
         <div class="window-controls">
             <div class="control-btn" onclick="ipcRenderer.send('window-min')">
@@ -321,42 +322,46 @@
 
                         <div class="home-panel home-panel-live">
                             <div class="home-panel-title">直播</div>
-                            <div class="home-panel-subtitle">口袋直播、回放、房间上麦</div>
+                            <div class="home-panel-subtitle">口袋直播、回放、房间上麦、公演直播B站源</div>
                             <div class="home-panel-actions home-card-grid">
                                 <button class="home-card home-card-primary" onclick="switchView('media', 'live')">
                                     <span class="home-card-title">直播</span>
                                     <span class="home-card-desc">查看当前直播列表</span>
                                 </button>
+                                <button class="home-card" onclick="switchView('media', 'vod')">
+                                    <span class="home-card-title">回放</span>
+                                    <span class="home-card-desc">进入录播与弹幕页</span>
+                                </button>
                                 <button class="home-card" onclick="switchView('room-radio')">
                                     <span class="home-card-title">上麦</span>
                                     <span class="home-card-desc">进入房间电台</span>
                                 </button>
-                                <button class="home-card" onclick="switchView('media', 'vod')">
-                                    <span class="home-card-title">回放</span>
-                                    <span class="home-card-desc">进入录播与弹幕页</span>
+                                <button class="home-card" onclick="switchView('bilibili-live')">
+                                    <span class="home-card-title">B站</span>
+                                    <span class="home-card-desc">进入 B 站直播播放</span>
                                 </button>
                             </div>
                         </div>
 
                         <div class="home-panel home-panel-pocket">
                             <div class="home-panel-title">口袋</div>
-                            <div class="home-panel-subtitle">关注的口袋房间、房间相册、成员参与的公演、私信列表</div>
+                            <div class="home-panel-subtitle">关注的口袋房间、私信列表、房间相册、成员参与的公演记录</div>
                             <div class="home-panel-actions home-card-grid">
                                 <button class="home-card home-card-primary" onclick="switchView('followed-rooms')">
                                     <span class="home-card-title">房间</span>
                                     <span class="home-card-desc">查看聚聚与房间动态</span>
+                                </button>
+                                <button class="home-card" onclick="switchView('private-messages')">
+                                    <span class="home-card-title">私信</span>
+                                    <span class="home-card-desc">查看口袋私信会话</span>
                                 </button>
                                 <button class="home-card" onclick="switchView('room-album')">
                                     <span class="home-card-title">相册</span>
                                     <span class="home-card-desc">按房间查看图片</span>
                                 </button>
                                 <button class="home-card" onclick="switchView('openlive')">
-                                    <span class="home-card-title">公演</span>
+                                    <span class="home-card-title">公演记录</span>
                                     <span class="home-card-desc">查看公演与活动记录</span>
-                                </button>
-                                <button class="home-card" onclick="switchView('private-messages')">
-                                    <span class="home-card-title">私信</span>
-                                    <span class="home-card-desc">查看口袋私信会话</span>
                                 </button>
                             </div>
                         </div>
@@ -434,25 +439,9 @@
                         </div>
 
                         <div class="home-panel home-panel-yk1z">
-                            <div class="home-panel-title">yk1z</div>
-                            <div class="home-panel-subtitle">诶 这是什么O.o？</div>
-                            <div class="home-panel-actions home-card-grid">
-                                <button class="home-card"
-                                    onclick="openInBrowser('https://www.bilibili.com/video/BV1Ba8FzxEje')">
-                                    <span class="home-card-title">牙牙回放</span>
-                                    <span class="home-card-desc">在外部浏览器打开</span>
-                                </button>
-                                <button class="home-card"
-                                    onclick="openInBrowser('https://space.bilibili.com/508441523')">
-                                    <span class="home-card-title">哔哩哔哩</span>
-                                    <span class="home-card-desc">打开主页空间</span>
-                                </button>
-                                <button class="home-card"
-                                    onclick="openInBrowser('https://github.com/yk1z/yaya_msg')">
-                                    <span class="home-card-title">GitHub</span>
-                                    <span class="home-card-desc">打开项目仓库</span>
-                                </button>
-                            </div>
+                            <div id="home-yk1z-title" class="home-panel-title">yk1z</div>
+                            <div id="home-yk1z-subtitle" class="home-panel-subtitle">诶 这是什么O.o？</div>
+                            <div id="home-yk1z-actions" class="home-panel-actions home-card-grid"></div>
                         </div>
                     </section>
                     <div class="home-footer-credit">presented by yk1z</div>
@@ -707,31 +696,40 @@
 
                 <div id="live-player-view" style="display: none; height: 100%; flex-direction: column; padding: 0;">
                     <div
-                        style="display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; margin: 0 20px 15px 20px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); transition: box-shadow 0.3s ease;">
-                        <div style="display: flex; gap: 40px;">
-                            <div style="display: flex; flex-direction: column;">
-                                <span style="font-size: 11px; color: var(--text-sub); margin-bottom: 4px;">成员</span>
-                                <span id="current-live-author"
-                                    style="font-weight: bold; color: var(--text); font-size: 14px;">未知</span>
+                        style="padding: 15px 20px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; margin: 0 20px 15px 20px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); transition: box-shadow 0.3s ease;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px;">
+                            <div style="display: flex; gap: 40px; flex-wrap: wrap;">
+                                <div style="display: flex; flex-direction: column;">
+                                    <span style="font-size: 11px; color: var(--text-sub); margin-bottom: 4px;">成员</span>
+                                    <span id="current-live-author"
+                                        style="font-weight: bold; color: var(--text); font-size: 14px;">未知</span>
+                                </div>
+                                <div style="display: flex; flex-direction: column;">
+                                    <span style="font-size: 11px; color: var(--text-sub); margin-bottom: 4px;">标题</span>
+                                    <span id="current-live-title"
+                                        style="font-weight: bold; color: var(--text); font-size: 14px;"></span>
+                                </div>
+                                <div style="display: flex; flex-direction: column;">
+                                    <span style="font-size: 11px; color: var(--text-sub); margin-bottom: 4px;">日期</span>
+                                    <span id="current-live-date"
+                                        style="font-weight: bold; color: var(--text); font-size: 14px;"></span>
+                                </div>
+                                <div style="display: flex; flex-direction: column;">
+                                    <span style="font-size: 11px; color: var(--text-sub); margin-bottom: 4px;">时间</span>
+                                    <span id="current-live-time"
+                                        style="font-weight: bold; color: var(--text); font-size: 14px;"></span>
+                                </div>
                             </div>
-                            <div style="display: flex; flex-direction: column;">
-                                <span style="font-size: 11px; color: var(--text-sub); margin-bottom: 4px;">标题</span>
-                                <span id="current-live-title"
-                                    style="font-weight: bold; color: var(--text); font-size: 14px;"></span>
-                            </div>
-                            <div style="display: flex; flex-direction: column;">
-                                <span style="font-size: 11px; color: var(--text-sub); margin-bottom: 4px;">日期</span>
-                                <span id="current-live-date"
-                                    style="font-weight: bold; color: var(--text); font-size: 14px;"></span>
-                            </div>
-                            <div style="display: flex; flex-direction: column;">
-                                <span style="font-size: 11px; color: var(--text-sub); margin-bottom: 4px;">时间</span>
-                                <span id="current-live-time"
-                                    style="font-weight: bold; color: var(--text); font-size: 14px;"></span>
-                            </div>
+                            <button class="btn btn-secondary" onclick="backToLiveList()"
+                                style="height: 32px; font-size: 13px; flex-shrink: 0;">返回列表</button>
                         </div>
-                        <button class="btn btn-secondary" onclick="backToLiveList()"
-                            style="height: 32px; font-size: 13px;">返回列表</button>
+
+                        <div id="current-openlive-members-wrap"
+                            style="display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border);">
+                            <div style="font-size: 11px; color: var(--text-sub); margin-bottom: 6px;">参与成员</div>
+                            <div id="current-openlive-members"
+                                style="font-size: 13px; line-height: 1.7; color: var(--text); word-break: break-word;"></div>
+                        </div>
                     </div>
 
                     <div id="player-split-layout"
@@ -1145,17 +1143,18 @@
                 <div class="private-messages-shell">
                     <div class="private-messages-sidebar">
                         <div class="private-messages-sidebar-header">
+                        <div style="display:flex; align-items:center; gap:12px; flex:1; min-width:0;">
                             <div class="private-messages-sidebar-title">私信</div>
+                            <input type="text" id="private-message-search" class="input-control"
+                                placeholder="搜索昵称 / 最近消息" oninput="filterPrivateMessageList(this.value)"
+                                style="flex:1; min-width:0; height:30px; font-size:12px;">
+                        </div>
                             <div class="private-messages-toolbar-actions">
                                 <button class="btn btn-secondary" id="btn-refresh-private-messages"
                                     onclick="refreshPrivateMessageList()">刷新</button>
                                 <button class="btn btn-secondary" id="btn-load-more-private-messages"
                                     onclick="loadMorePrivateMessageList()" style="display:none;">更多</button>
                             </div>
-                        </div>
-                        <div class="private-messages-sidebar-search">
-                            <input type="text" id="private-message-search" class="input-control"
-                                placeholder="搜索昵称 / 最近消息" oninput="filterPrivateMessageList(this.value)">
                         </div>
                         <div id="private-messages-status" class="private-messages-side-status"></div>
                         <div id="private-message-list" class="private-message-list">
@@ -1192,6 +1191,39 @@
                                     style="width:96px; flex-shrink:0;" disabled>发送</button>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-bilibili-live"
+                style="height: 100%; overflow-y: auto; overflow-x: hidden; display: none; padding: 20px 40px; box-sizing: border-box;">
+                <div class="bilibili-live-view">
+                    <div class="page-header">
+                        <h2 class="page-title">B站直播</h2>
+                    </div>
+
+                    <input type="hidden" id="bilibili-live-room-id" value="">
+
+                    <div class="bilibili-live-room-strip" id="bilibili-live-room-strip"></div>
+
+                    <div id="bilibili-live-summary" class="bilibili-live-summary" style="display:none;"></div>
+
+                    <div id="bilibili-live-meta" class="bilibili-live-now-playing" style="display:none;">
+                        <div class="bilibili-live-now-text">
+                            <div id="bilibili-live-title" class="bilibili-live-now-title"></div>
+                            <div id="bilibili-live-up" class="bilibili-live-now-subtitle"></div>
+                        </div>
+                        <div id="bilibili-live-room-meta" class="bilibili-live-now-meta"></div>
+                    </div>
+
+                    <div id="bilibili-live-player-shell" class="bilibili-live-player-shell">
+                        <div id="bilibili-live-player-placeholder"
+                            style="min-height:420px; height:100%; display:flex; flex-direction:column; justify-content:center;">
+                            <h3 id="bilibili-live-placeholder-title">等待连接</h3>
+                            <p id="bilibili-live-placeholder-desc">点选上方直播间按钮后，将自动在软件内开始播放。</p>
+                        </div>
+                        <div id="bilibili-live-player"
+                            style="display:none; width:100%; min-height:420px; height:100%;"></div>
                     </div>
                 </div>
             </div>
@@ -2166,6 +2198,34 @@
     </div>
     <script src="./src/renderer/bootstrap-shared.js"></script>
     <script src="./src/renderer/database-embed.js"></script>
+    <script src="./src/renderer/theme-feature.js"></script>
+    <script src="./src/renderer/yk1z-home-feature.js"></script>
+    <script src="./src/renderer/bilibili-live-feature.js"></script>
+    <script src="./src/renderer/music-lyrics-feature.js"></script>
+    <script src="./src/renderer/official-media-feature.js"></script>
+    <script src="./src/renderer/openlive-feature.js"></script>
+    <script src="./src/renderer/media-utils-feature.js"></script>
+    <script src="./src/renderer/member-lookup-feature.js"></script>
+    <script src="./src/renderer/member-photos-feature.js"></script>
+    <script src="./src/renderer/profile-feature.js"></script>
+    <script src="./src/renderer/room-album-feature.js"></script>
+    <script src="./src/renderer/room-radio-feature.js"></script>
+    <script src="./src/renderer/nim-chatroom-feature.js"></script>
+    <script src="./src/renderer/danmu-timeline-feature.js"></script>
+    <script src="./src/renderer/analysis-feature.js"></script>
+    <script src="./src/renderer/flip-analysis-feature.js"></script>
+    <script src="./src/renderer/flip-feature.js"></script>
+    <script src="./src/renderer/live-gift-feature.js"></script>
+    <script src="./src/renderer/live-tools-feature.js"></script>
+    <script src="./src/renderer/replay-download-feature.js"></script>
+    <script src="./src/renderer/player-core-feature.js"></script>
+    <script src="./src/renderer/custom-media-player-feature.js"></script>
+    <script src="./src/renderer/followed-rooms-feature.js"></script>
+    <script src="./src/renderer/followed-chat-feature.js"></script>
+    <script src="./src/renderer/announcement-feature.js"></script>
+    <script src="./src/renderer/avatar-cache-feature.js"></script>
+    <script src="./src/renderer/private-message-formatters-feature.js"></script>
+    <script src="./src/renderer/private-messages-feature.js"></script>
     <script src="./src/renderer/app-legacy.js"></script>
     <script type="module" src="./src/renderer/sdk-init.js"></script>
     <script src="./src/renderer/fetch-legacy.js"></script>
@@ -2215,3 +2275,4 @@
 </body>
 
 </html>
+
