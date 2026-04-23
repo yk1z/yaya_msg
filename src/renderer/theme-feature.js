@@ -2,15 +2,29 @@
     window.YayaRendererFeatures = window.YayaRendererFeatures || {};
 
     window.YayaRendererFeatures.createThemeFeature = function createThemeFeature() {
+        function applyCustomBackground(bgData) {
+            if (typeof window.__applyYayaCustomBackground === 'function') {
+                window.__applyYayaCustomBackground(bgData || '');
+            }
+
+            if (!bgData) {
+                document.body.style.backgroundImage = '';
+                return;
+            }
+
+            document.body.style.backgroundImage = `url('${bgData}')`;
+        }
+
         function initTheme() {
             const savedTheme = localStorage.getItem('theme') || 'light';
             document.documentElement.setAttribute('data-theme', savedTheme);
+            if (typeof window.__applyYayaThemeBootStyle === 'function') {
+                window.__applyYayaThemeBootStyle(savedTheme);
+            }
             updateThemeBtn(savedTheme);
 
             const savedBg = localStorage.getItem('custom_bg_data');
-            if (savedBg) {
-                document.body.style.backgroundImage = `url('${savedBg}')`;
-            }
+            applyCustomBackground(savedBg || '');
         }
 
         function toggleTheme() {
@@ -18,6 +32,9 @@
             const next = current === 'dark' ? 'light' : 'dark';
             document.documentElement.setAttribute('data-theme', next);
             localStorage.setItem('theme', next);
+            if (typeof window.__applyYayaThemeBootStyle === 'function') {
+                window.__applyYayaThemeBootStyle(next);
+            }
             updateThemeBtn(next);
         }
 
@@ -31,6 +48,7 @@
         }
 
         return {
+            applyCustomBackground,
             initTheme,
             toggleTheme,
             updateThemeBtn

@@ -106,6 +106,7 @@
         let stopRoomRadio;
         let toggleRoomRadioRecord;
         let initYk1zHomePanel;
+        let applyCustomBackground;
         let initTheme;
         let toggleTheme;
         let updateThemeBtn;
@@ -2062,6 +2063,7 @@
         window.toggleRoomRadioRecord = toggleRoomRadioRecord;
 
         ({
+            applyCustomBackground,
             initTheme,
             toggleTheme,
             updateThemeBtn
@@ -3397,7 +3399,11 @@
             if (file) {
                 const reader = new FileReader();
                 reader.onload = (ev) => {
-                    document.body.style.backgroundImage = `url('${ev.target.result}')`;
+                    if (typeof applyCustomBackground === 'function') {
+                        applyCustomBackground(ev.target.result);
+                    } else {
+                        document.body.style.backgroundImage = `url('${ev.target.result}')`;
+                    }
                     try {
                         localStorage.setItem('custom_bg_data', ev.target.result);
                     } catch (e) { }
@@ -4505,7 +4511,11 @@
 
         function resetBackground() {
             localStorage.removeItem('custom_bg_data');
-            document.body.style.backgroundImage = '';
+            if (typeof applyCustomBackground === 'function') {
+                applyCustomBackground('');
+            } else {
+                document.body.style.backgroundImage = '';
+            }
         }
 
         function loadCustomPaths() {

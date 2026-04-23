@@ -1,20 +1,43 @@
         (function () {
             const savedTheme = localStorage.getItem('theme') || 'light';
-            document.documentElement.setAttribute('data-theme', savedTheme);
             const savedBg = localStorage.getItem('custom_bg_data');
+            const THEME_STYLE_ID = 'yaya-theme-init-style';
+            const BG_STYLE_ID = 'yaya-custom-bg-style';
 
-            if (savedTheme === 'dark') {
-                const style = document.createElement('style');
-                style.innerHTML = 'html, body { background-color: #1e1e1e !important; }';
-                document.head.appendChild(style);
+            function ensureStyleNode(id) {
+                let styleEl = document.getElementById(id);
+                if (!styleEl) {
+                    styleEl = document.createElement('style');
+                    styleEl.id = id;
+                    document.head.appendChild(styleEl);
+                }
+                return styleEl;
             }
 
-            if (savedBg) {
-                const bgStyle = document.createElement('style');
-                const escapedBg = String(savedBg)
+            function applyThemeBootStyle(theme) {
+                const styleEl = ensureStyleNode(THEME_STYLE_ID);
+                styleEl.textContent = theme === 'dark'
+                    ? 'html, body { background-color: #1e1e1e !important; }'
+                    : '';
+            }
+
+            function applyCustomBackground(bgData) {
+                const styleEl = ensureStyleNode(BG_STYLE_ID);
+                if (!bgData) {
+                    styleEl.textContent = '';
+                    return;
+                }
+
+                const escapedBg = String(bgData)
                     .replace(/\\/g, '\\\\')
                     .replace(/"/g, '\\"');
-                bgStyle.textContent = `html, body { background-image: url("${escapedBg}") !important; background-size: cover !important; background-position: center !important; background-repeat: no-repeat !important; }`;
-                document.head.appendChild(bgStyle);
+                styleEl.textContent = `html, body { background-image: url("${escapedBg}") !important; background-size: cover !important; background-position: center !important; background-repeat: no-repeat !important; }`;
             }
+
+            window.__applyYayaThemeBootStyle = applyThemeBootStyle;
+            window.__applyYayaCustomBackground = applyCustomBackground;
+
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            applyThemeBootStyle(savedTheme);
+            applyCustomBackground(savedBg);
         })();
