@@ -13,7 +13,7 @@
     "name": "yk1z",
     "email": "yk1z@users.noreply.github.com"
   },
-  "license": "ISC",
+  "license": "GPL-3.0-only",
   "dependencies": {
     "axios": "^1.13.2",
     "ffmpeg-static": "^5.2.0",
