@@ -166,22 +166,27 @@
                 .replace(/[－—]/g, '-')
                 .replace(/\s+/g, ' ')
                 .trim();
+            const matchesTeamToken = (token) => {
+                if (!token) return false;
+                const escaped = String(token).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                return upper === token || new RegExp(`(?:^|\\s)${escaped}(?=\\s|$|[^A-Z])`).test(upper);
+            };
 
             if (upper.includes('荣誉毕业')) return '荣誉毕业生';
             if (upper.includes('预备')) return '预备生';
-            if (upper.includes('TEAM NIII') || upper === 'NIII') return 'TEAM NIII';
-            if (upper.includes('TEAM SII') || upper === 'SII') return 'TEAM SII';
-            if (upper.includes('TEAM NII') || upper === 'NII') return 'TEAM NII';
-            if (upper.includes('TEAM HII') || upper === 'HII') return 'TEAM HII';
-            if (upper.includes('TEAM X') || upper === 'X') return 'TEAM X';
-            if (upper.includes('TEAM GII') || upper === 'GII') return 'TEAM GII';
-            if (upper.includes('TEAM CII') || upper === 'CII') return 'TEAM CII';
-            if (upper.includes('TEAM G') || upper === 'G') return 'TEAM G';
-            if (upper.includes('TEAM Z') || upper === 'Z') return 'TEAM Z';
-            if (upper.includes('TEAM B') || upper === 'B') return 'TEAM B';
-            if (upper.includes('TEAM E') || upper === 'E') return 'TEAM E';
-            if (upper.includes('TEAM K') || upper === 'K') return 'TEAM K';
-            if (upper.includes('TEAM C') || upper === 'C') return 'TEAM C';
+            if (matchesTeamToken('TEAM NIII') || matchesTeamToken('NIII')) return 'TEAM NIII';
+            if (matchesTeamToken('TEAM SII') || matchesTeamToken('SII')) return 'TEAM SII';
+            if (matchesTeamToken('TEAM NII') || matchesTeamToken('NII')) return 'TEAM NII';
+            if (matchesTeamToken('TEAM HII') || matchesTeamToken('HII')) return 'TEAM HII';
+            if (matchesTeamToken('TEAM X') || matchesTeamToken('X')) return 'TEAM X';
+            if (matchesTeamToken('TEAM GII') || matchesTeamToken('GII')) return 'TEAM GII';
+            if (matchesTeamToken('TEAM CII') || matchesTeamToken('CII')) return 'TEAM CII';
+            if (matchesTeamToken('TEAM G') || matchesTeamToken('G')) return 'TEAM G';
+            if (matchesTeamToken('TEAM Z') || matchesTeamToken('Z')) return 'TEAM Z';
+            if (matchesTeamToken('TEAM B') || matchesTeamToken('B')) return 'TEAM B';
+            if (matchesTeamToken('TEAM E') || matchesTeamToken('E')) return 'TEAM E';
+            if (matchesTeamToken('TEAM K') || matchesTeamToken('K')) return 'TEAM K';
+            if (matchesTeamToken('TEAM C') || matchesTeamToken('C')) return 'TEAM C';
 
             if (['SNH48', 'GNZ48', 'BEJ48', 'CKG48', 'CGT48', 'IDFT'].includes(upper)) {
                 return upper;
