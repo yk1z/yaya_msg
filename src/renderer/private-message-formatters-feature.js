@@ -97,6 +97,87 @@
                 .replace(/\s+$/, '');
         }
 
+        function normalizePrivateMediaUrl(rawUrl = '', preferredHost = 'mp4') {
+            const value = String(rawUrl || '').trim();
+            if (!value) return '';
+            if (value.startsWith('//')) return `https:${value}`;
+            if (/^https?:\/\//i.test(value)) return value.replace(/^http:\/\//i, 'https://');
+            if (value.startsWith('/mediasource/') || value.startsWith('/imagesource/')) {
+                return `https://source.48.cn${value}`;
+            }
+            const base = preferredHost === 'source' ? 'https://source.48.cn' : 'https://mp4.48.cn';
+            return `${base}${value.startsWith('/') ? '' : '/'}${value}`;
+        }
+
+        function getPrivateMediaPathname(url = '') {
+            try {
+                return new URL(url).pathname.toLowerCase();
+            } catch (error) {
+                return String(url || '').split('?')[0].split('#')[0].toLowerCase();
+            }
+        }
+
+        function looksLikeAudioUrl(url = '') {
+            const pathname = getPrivateMediaPathname(url);
+            return pathname.endsWith('.aac')
+                || pathname.endsWith('.mp3')
+                || pathname.endsWith('.m4a')
+                || pathname.endsWith('.wav')
+                || pathname.endsWith('.amr')
+                || pathname.endsWith('.ogg');
+        }
+
+        function looksLikeVideoUrl(url = '') {
+            const pathname = getPrivateMediaPathname(url);
+            return pathname.endsWith('.mp4')
+                || pathname.endsWith('.mov')
+                || pathname.endsWith('.m4v')
+                || pathname.endsWith('.webm');
+        }
+
+        function getPrivateMessageMediaAnswerType(item = {}, content = {}) {
+            const candidates = [
+                item.answerType,
+                item.mediaAnswerType,
+                content.answerType,
+                content.mediaAnswerType
+            ];
+
+            for (const candidate of candidates) {
+                const numeric = Number(candidate);
+                if (Number.isFinite(numeric) && numeric > 0) {
+                    return numeric;
+                }
+            }
+
+            return 0;
+        }
+
+        function collectPrivateMessageMediaCandidates(message = {}) {
+            const content = message.content || {};
+            const parsedTextContent = parsePrivateFlipcardPayload(
+                content.text || content.messageText || message.text || message.messageText || ''
+            );
+            const arrayCandidates = [];
+
+            [content.bodys, message.bodys].forEach(entry => {
+                if (Array.isArray(entry)) {
+                    arrayCandidates.push(...entry);
+                }
+            });
+
+            return [
+                parsedTextContent,
+                content.voiceInfo,
+                content.audioInfo,
+                content.videoInfo,
+                content.replyInfo,
+                ...arrayCandidates,
+                content,
+                message
+            ].filter(Boolean);
+        }
+
         function normalizePrivateMessageName(value) {
             const text = String(value || '').trim();
             if (!text) return '';
@@ -321,54 +402,21 @@
         }
 
         function getPrivateMessageAudioInfo(message = {}) {
-            function normalizePrivateMediaUrl(rawUrl = '', preferredHost = 'mp4') {
-                const value = String(rawUrl || '').trim();
-                if (!value) return '';
-                if (value.startsWith('//')) return `https:${value}`;
-                if (/^https?:\/\//i.test(value)) return value.replace(/^http:\/\//i, 'https://');
-                if (value.startsWith('/mediasource/') || value.startsWith('/imagesource/')) {
-                    return `https://source.48.cn${value}`;
-                }
-                const base = preferredHost === 'source' ? 'https://source.48.cn' : 'https://mp4.48.cn';
-                return `${base}${value.startsWith('/') ? '' : '/'}${value}`;
-            }
-
-            function getLowerPathname(url = '') {
-                try {
-                    return new URL(url).pathname.toLowerCase();
-                } catch (error) {
-                    return String(url || '').split('?')[0].split('#')[0].toLowerCase();
-                }
-            }
-
-            function looksLikeAudioUrl(url = '') {
-                const pathname = getLowerPathname(url);
-                return pathname.endsWith('.aac')
-                    || pathname.endsWith('.mp3')
-                    || pathname.endsWith('.m4a')
-                    || pathname.endsWith('.wav')
-                    || pathname.endsWith('.amr')
-                    || pathname.endsWith('.ogg');
-            }
-
             const content = message.content || {};
-            const parsedTextContent = parsePrivateFlipcardPayload(
-                content.text || content.messageText || message.text || message.messageText || ''
-            );
-            const candidates = [
-                parsedTextContent,
-                content.voiceInfo,
-                content.audioInfo,
-                content.replyInfo,
-                content
-            ].filter(Boolean);
+            const candidates = collectPrivateMessageMediaCandidates(message);
 
             for (const item of candidates) {
-                const url = normalizePrivateMediaUrl(item.url || item.voiceUrl || '');
+                const url = normalizePrivateMediaUrl(item.url || item.voiceUrl || item.audioUrl || '');
                 if (!url) continue;
-                const hasDuration = Number(item.duration || content.duration || 0) > 0;
                 const audioType = String(item.type || item.contentType || content.type || message.messageType || '').toUpperCase();
-                if (looksLikeAudioUrl(url) || hasDuration || audioType.includes('AUDIO') || audioType.includes('VOICE')) {
+                const answerType = getPrivateMessageMediaAnswerType(item, content);
+                const hasAudioSpecificField = Boolean(item.voiceUrl || item.audioUrl || item.voicePath || item.audioPath);
+                if (
+                    looksLikeAudioUrl(url)
+                    || ((audioType.includes('AUDIO') || audioType.includes('VOICE')) && !looksLikeVideoUrl(url))
+                    || (answerType === 2 && !looksLikeVideoUrl(url))
+                    || (hasAudioSpecificField && !looksLikeVideoUrl(url))
+                ) {
                     return {
                         url,
                         duration: Number(item.duration || content.duration || 0)
@@ -381,31 +429,36 @@
 
         function getPrivateMessageVideoInfo(message = {}) {
             const content = message.content || {};
-            const parsedTextContent = parsePrivateFlipcardPayload(
-                content.text || content.messageText || message.text || message.messageText || ''
-            );
-            const candidates = [
-                parsedTextContent,
-                content.videoInfo,
-                content.replyInfo,
-                content
-            ].filter(Boolean);
+            const candidates = collectPrivateMessageMediaCandidates(message);
 
             for (const item of candidates) {
-                const url = String(
+                const url = normalizePrivateMediaUrl(String(
                     item.url
                     || item.videoUrl
                     || item.mp4Url
                     || item.playUrl
                     || item.path
                     || ''
-                ).trim();
+                ).trim());
                 if (!url) continue;
-                const lower = url.toLowerCase();
-                if (lower.endsWith('.mp4') || lower.endsWith('.mov') || lower.endsWith('.m4v') || lower.endsWith('.webm')) {
+                const videoType = String(item.type || item.contentType || content.type || message.messageType || '').toUpperCase();
+                const answerType = getPrivateMessageMediaAnswerType(item, content);
+                const hasPreviewImage = Boolean(item.previewImg || item.cover || item.coverUrl || item.poster);
+                if (
+                    looksLikeVideoUrl(url)
+                    || ((videoType.includes('VIDEO') || videoType.includes('MOVIE')) && !looksLikeAudioUrl(url))
+                    || answerType === 3
+                    || (hasPreviewImage && !looksLikeAudioUrl(url))
+                ) {
                     return {
                         url,
-                        cover: String(item.cover || item.coverUrl || item.poster || '').trim()
+                        cover: normalizePrivateMediaUrl(String(
+                            item.previewImg
+                            || item.cover
+                            || item.coverUrl
+                            || item.poster
+                            || ''
+                        ).trim(), 'source')
                     };
                 }
             }

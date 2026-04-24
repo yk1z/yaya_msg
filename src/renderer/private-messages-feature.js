@@ -15,6 +15,7 @@
             formatPrivateMessageTime,
             getAdaptivePollDelay,
             getAppToken,
+            getCurrentPlayingAudio,
             getCurrentSearchKeyword,
             getPrivateMessageAvatar,
             getPrivateMessageConversationKey,
@@ -26,6 +27,7 @@
             loadMemberData,
             normalizePrivateMessageName,
             renderPrivateMessageContentHtml,
+            setCurrentPlayingAudio,
             setLoginView,
             showToast,
             switchView
@@ -34,9 +36,52 @@
         let privateMessageAutoRefreshTimer = null;
         let privateMessageAutoRefreshRunning = false;
         let privateMessageAutoRefreshEnabled = false;
+        let privateMessagePendingItems = [];
+        let privateMessagePendingKeys = new Set();
 
         function setPrivateMessageDetailLoading(isLoading) {
             privateMessageDetailState.loading = isLoading;
+        }
+
+        function getPrivateMessageNewMessageNotice() {
+            return document.getElementById('private-message-new-messages');
+        }
+
+        function updatePrivateMessagePendingNotice() {
+            const btn = getPrivateMessageNewMessageNotice();
+            if (!btn) return;
+
+            const count = privateMessagePendingItems.length;
+            if (count > 0) {
+                btn.style.display = 'inline-flex';
+                btn.style.alignItems = 'center';
+                btn.style.justifyContent = 'center';
+                btn.innerText = `有 ${count} 条新消息`;
+                return;
+            }
+
+            btn.style.display = 'none';
+            btn.innerText = '有 0 条新消息';
+        }
+
+        function resetPrivateMessagePendingMessages() {
+            privateMessagePendingItems = [];
+            privateMessagePendingKeys.clear();
+            updatePrivateMessagePendingNotice();
+        }
+
+        function queuePrivateMessagePendingItems(items = []) {
+            if (!Array.isArray(items) || items.length === 0) return;
+
+            items.forEach(item => {
+                const key = getPrivateMessageItemKey(item, privateMessageDetailState.targetUserId);
+                if (!key || privateMessagePendingKeys.has(key)) return;
+                privateMessagePendingKeys.add(key);
+                privateMessagePendingItems.push(item);
+            });
+
+            privateMessagePendingItems.sort((a, b) => Number(a.timestamp || 0) - Number(b.timestamp || 0));
+            updatePrivateMessagePendingNotice();
         }
 
         function setPrivateMessageSending(isSending) {
@@ -71,6 +116,7 @@
             if (inputEl) inputEl.value = '';
             if (bodyEl) bodyEl.innerHTML = '<div class="empty-state">请选择一个私信会话</div>';
 
+            resetPrivateMessagePendingMessages();
             setPrivateMessageSending(false);
             setPrivateMessageDetailLoading(false);
         }
@@ -81,48 +127,240 @@
             return (container.scrollHeight - container.scrollTop - container.clientHeight) <= threshold;
         }
 
+        function createPrivateMessageDetailElement(item) {
+            const incoming = String(item.user?.userId || '') === String(privateMessageDetailState.targetUserId);
+            const wrapper = document.createElement('div');
+            wrapper.className = `private-message-item ${incoming ? 'incoming' : 'outgoing'}`;
+            wrapper.innerHTML = `
+                <div class="private-message-bubble-meta">${escapePrivateMessageHtml(formatPrivateMessageDateTime(item.timestamp))}</div>
+                <div class="private-message-bubble ${incoming ? 'incoming' : 'outgoing'}">
+                    ${renderPrivateMessageContentHtml(item)}
+                </div>
+            `;
+
+            wrapper.querySelectorAll('.private-message-audio-slot').forEach(slot => {
+                const src = slot.getAttribute('data-audio-src');
+                const duration = Number(slot.getAttribute('data-audio-duration') || 0);
+                if (!src) return;
+                slot.replaceChildren(createCustomAudioPlayer(src, duration));
+            });
+
+            wrapper.querySelectorAll('.private-message-video-slot').forEach(slot => {
+                const src = slot.getAttribute('data-video-src');
+                if (!src) return;
+                slot.replaceChildren(createCustomVideoPlayer(src));
+            });
+
+            return wrapper;
+        }
+
+        function capturePrivateMessageAudioState(container) {
+            if (!container || typeof getCurrentPlayingAudio !== 'function') return null;
+            const currentAudio = getCurrentPlayingAudio();
+            if (!currentAudio || !container.contains(currentAudio)) return null;
+
+            const src = String(currentAudio.currentSrc || currentAudio.src || '').trim();
+            if (!src) return null;
+
+            return {
+                src,
+                currentTime: Number(currentAudio.currentTime || 0),
+                wasPlaying: !currentAudio.paused
+            };
+        }
+
+        function restorePrivateMessageAudioState(container, playbackState) {
+            if (!container || !playbackState || !playbackState.src) {
+                if (typeof setCurrentPlayingAudio === 'function') {
+                    setCurrentPlayingAudio(null);
+                }
+                return;
+            }
+
+            const restoredAudio = Array.from(container.querySelectorAll('.audio-wrapper audio')).find(audio => {
+                const src = String(audio.currentSrc || audio.src || '').trim();
+                return src === playbackState.src;
+            });
+
+            if (!restoredAudio) {
+                if (typeof setCurrentPlayingAudio === 'function') {
+                    setCurrentPlayingAudio(null);
+                }
+                return;
+            }
+
+            const targetTime = Number.isFinite(playbackState.currentTime)
+                ? Math.max(0, playbackState.currentTime)
+                : 0;
+
+            const resumePlayback = async () => {
+                if (typeof setCurrentPlayingAudio === 'function') {
+                    setCurrentPlayingAudio(restoredAudio);
+                }
+
+                if (!playbackState.wasPlaying) {
+                    return;
+                }
+
+                try {
+                    await restoredAudio.play();
+                } catch (error) {
+                    console.warn('恢复私信语音播放失败:', error);
+                }
+            };
+
+            const applyPlaybackState = () => {
+                if (targetTime <= 0.05) {
+                    resumePlayback();
+                    return;
+                }
+
+                let settled = false;
+                const finishRestore = () => {
+                    if (settled) return;
+                    settled = true;
+                    restoredAudio.removeEventListener('seeked', handleSeeked);
+                    restoredAudio.removeEventListener('canplay', handleCanPlayFallback);
+                    resumePlayback();
+                };
+
+                const handleSeeked = () => {
+                    finishRestore();
+                };
+
+                const handleCanPlayFallback = () => {
+                    const delta = Math.abs(Number(restoredAudio.currentTime || 0) - targetTime);
+                    if (delta <= 0.35) {
+                        finishRestore();
+                    }
+                };
+
+                restoredAudio.addEventListener('seeked', handleSeeked);
+                restoredAudio.addEventListener('canplay', handleCanPlayFallback);
+
+                try {
+                    restoredAudio.pause();
+                    restoredAudio.currentTime = targetTime;
+                } catch (error) {
+                    console.warn('恢复私信语音进度失败:', error);
+                    finishRestore();
+                    return;
+                }
+
+                setTimeout(() => {
+                    const delta = Math.abs(Number(restoredAudio.currentTime || 0) - targetTime);
+                    if (delta <= 0.35) {
+                        finishRestore();
+                        return;
+                    }
+                    try {
+                        restoredAudio.currentTime = targetTime;
+                    } catch (error) {
+                        console.warn('二次恢复私信语音进度失败:', error);
+                    }
+                    setTimeout(finishRestore, 180);
+                }, 120);
+            };
+
+            if (restoredAudio.readyState >= 1) {
+                applyPlaybackState();
+                return;
+            }
+
+            const handleReady = () => {
+                restoredAudio.removeEventListener('loadedmetadata', handleReady);
+                restoredAudio.removeEventListener('canplay', handleReady);
+                applyPlaybackState();
+            };
+
+            restoredAudio.addEventListener('loadedmetadata', handleReady, { once: true });
+            restoredAudio.addEventListener('canplay', handleReady, { once: true });
+            try {
+                restoredAudio.load();
+            } catch (error) {
+                console.warn('重新加载私信语音失败:', error);
+            }
+        }
+
         function renderPrivateMessageDetail(options = {}) {
             const bodyEl = document.getElementById('private-message-detail-body');
             if (!bodyEl) return;
             const { keepScrollOffset = false, stickToBottom = false } = options;
             const previousScrollHeight = bodyEl.scrollHeight;
             const previousScrollTop = bodyEl.scrollTop;
+            const audioPlaybackState = capturePrivateMessageAudioState(bodyEl);
 
             if (!privateMessageDetailState.items.length) {
                 bodyEl.innerHTML = '<div class="empty-state">暂无私信内容</div>';
+                if (typeof setCurrentPlayingAudio === 'function') {
+                    setCurrentPlayingAudio(null);
+                }
                 return;
             }
 
             const sorted = privateMessageDetailState.items.slice().sort((a, b) => Number(a.timestamp || 0) - Number(b.timestamp || 0));
-            bodyEl.innerHTML = sorted.map(item => {
-                const incoming = String(item.user?.userId || '') === String(privateMessageDetailState.targetUserId);
-                return `
-                    <div class="private-message-item ${incoming ? 'incoming' : 'outgoing'}">
-                        <div class="private-message-bubble-meta">${escapePrivateMessageHtml(formatPrivateMessageDateTime(item.timestamp))}</div>
-                        <div class="private-message-bubble ${incoming ? 'incoming' : 'outgoing'}">
-                            ${renderPrivateMessageContentHtml(item)}
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            bodyEl.querySelectorAll('.private-message-audio-slot').forEach(slot => {
-                const src = slot.getAttribute('data-audio-src');
-                const duration = Number(slot.getAttribute('data-audio-duration') || 0);
-                if (!src) return;
-                slot.replaceChildren(createCustomAudioPlayer(src, duration));
+            bodyEl.innerHTML = '';
+            const fragment = document.createDocumentFragment();
+            sorted.forEach(item => {
+                fragment.appendChild(createPrivateMessageDetailElement(item));
             });
-            bodyEl.querySelectorAll('.private-message-video-slot').forEach(slot => {
-                const src = slot.getAttribute('data-video-src');
-                if (!src) return;
-                slot.replaceChildren(createCustomVideoPlayer(src));
-            });
+            bodyEl.appendChild(fragment);
 
             if (keepScrollOffset) {
                 bodyEl.scrollTop = bodyEl.scrollHeight - previousScrollHeight + previousScrollTop;
             } else if (stickToBottom) {
                 bodyEl.scrollTop = bodyEl.scrollHeight;
             }
+
+            resetPrivateMessagePendingMessages();
+            restorePrivateMessageAudioState(bodyEl, audioPlaybackState);
+        }
+
+        function renderPrivateMessageDetailIncremental(items = [], options = {}) {
+            const bodyEl = document.getElementById('private-message-detail-body');
+            if (!bodyEl || !Array.isArray(items) || items.length === 0) return;
+
+            const { prepend = false, keepScrollOffset = false, stickToBottom = false } = options;
+            const previousScrollHeight = bodyEl.scrollHeight;
+            const previousScrollTop = bodyEl.scrollTop;
+
+            if (bodyEl.querySelector('.empty-state')) {
+                bodyEl.innerHTML = '';
+            }
+
+            const fragment = document.createDocumentFragment();
+            items
+                .slice()
+                .sort((a, b) => Number(a.timestamp || 0) - Number(b.timestamp || 0))
+                .forEach(item => {
+                    fragment.appendChild(createPrivateMessageDetailElement(item));
+                });
+
+            if (prepend && bodyEl.firstChild) {
+                bodyEl.insertBefore(fragment, bodyEl.firstChild);
+            } else {
+                bodyEl.appendChild(fragment);
+            }
+
+            if (keepScrollOffset) {
+                bodyEl.scrollTop = bodyEl.scrollHeight - previousScrollHeight + previousScrollTop;
+            } else if (stickToBottom) {
+                bodyEl.scrollTop = bodyEl.scrollHeight;
+            }
+        }
+
+        function flushPrivateMessagePendingMessages() {
+            if (!privateMessagePendingItems.length) {
+                resetPrivateMessagePendingMessages();
+                return;
+            }
+
+            const pendingItems = privateMessagePendingItems.slice();
+            resetPrivateMessagePendingMessages();
+            renderPrivateMessageDetailIncremental(pendingItems, {
+                prepend: false,
+                stickToBottom: true
+            });
         }
 
         function closePrivateMessageDetail(event) {
@@ -187,14 +425,25 @@
                 }
 
                 const incoming = Array.isArray(res.content.data) ? res.content.data : [];
+                const previousItems = privateMessageDetailState.items.slice();
+                const previousMinTimestamp = previousItems.length
+                    ? Math.min(...previousItems.map(item => Number(item.timestamp || 0)))
+                    : 0;
+                const previousMaxTimestamp = previousItems.length
+                    ? Math.max(...previousItems.map(item => Number(item.timestamp || 0)))
+                    : 0;
                 const seen = new Set(
                     privateMessageDetailState.items.map(item => getPrivateMessageItemKey(item, privateMessageDetailState.targetUserId))
                 );
+                let addedCount = 0;
+                const addedItems = [];
                 incoming.forEach(item => {
                     const key = getPrivateMessageItemKey(item, privateMessageDetailState.targetUserId);
                     if (!seen.has(key)) {
                         seen.add(key);
                         privateMessageDetailState.items.push(item);
+                        addedCount += 1;
+                        addedItems.push(item);
                     }
                 });
 
@@ -204,10 +453,43 @@
                 privateMessageDetailState.hasMore = incoming.length > 0 && Number(res.content.lastTime || 0) > 0;
                 clearActivePrivateMessageUnread(privateMessageDetailState.targetUserId);
                 filterPrivateMessageList(getCurrentSearchKeyword(), { preserveScroll: true });
-                renderPrivateMessageDetail({
-                    keepScrollOffset: shouldKeepScrollOffset,
-                    stickToBottom: reset || shouldStickToBottom
-                });
+                if (reset || addedCount > 0 || !isAutoRefresh) {
+                    const addedMinTimestamp = addedItems.length
+                        ? Math.min(...addedItems.map(item => Number(item.timestamp || 0)))
+                        : 0;
+                    const addedMaxTimestamp = addedItems.length
+                        ? Math.max(...addedItems.map(item => Number(item.timestamp || 0)))
+                        : 0;
+                    const canPrependIncrementally = !reset
+                        && addedItems.length > 0
+                        && previousItems.length > 0
+                        && addedMaxTimestamp <= previousMinTimestamp;
+                    const canAppendIncrementally = !reset
+                        && addedItems.length > 0
+                        && previousItems.length > 0
+                        && addedMinTimestamp >= previousMaxTimestamp;
+
+                    if (canPrependIncrementally) {
+                        renderPrivateMessageDetailIncremental(addedItems, {
+                            prepend: true,
+                            keepScrollOffset: true
+                        });
+                    } else if (canAppendIncrementally) {
+                        if (isAutoRefresh && !shouldStickToBottom) {
+                            queuePrivateMessagePendingItems(addedItems);
+                        } else {
+                            renderPrivateMessageDetailIncremental(addedItems, {
+                                prepend: false,
+                                stickToBottom: shouldStickToBottom
+                            });
+                        }
+                    } else {
+                        renderPrivateMessageDetail({
+                            keepScrollOffset: shouldKeepScrollOffset,
+                            stickToBottom: reset || shouldStickToBottom
+                        });
+                    }
+                }
             } catch (error) {
                 console.error('加载私信详情失败:', error);
                 if (!isAutoRefresh) {
@@ -565,6 +847,7 @@
         return {
             closePrivateMessageDetail,
             filterPrivateMessageList,
+            flushPrivateMessagePendingMessages,
             handlePrivateMessageReplyKeydown,
             loadMorePrivateMessageDetail,
             loadMorePrivateMessageList,

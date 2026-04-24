@@ -1739,6 +1739,7 @@
         ({
             closePrivateMessageDetail,
             filterPrivateMessageList,
+            flushPrivateMessagePendingMessages,
             handlePrivateMessageReplyKeydown,
             loadMorePrivateMessageDetail,
             loadMorePrivateMessageList,
@@ -1763,6 +1764,7 @@
             formatPrivateMessageTime,
             getAdaptivePollDelay: () => getAdaptivePollDelay(),
             getAppToken: () => (typeof appToken !== 'undefined' && appToken ? appToken : localStorage.getItem('yaya_p48_token')),
+            getCurrentPlayingAudio: () => currentPlayingAudio,
             getCurrentSearchKeyword: () => (document.getElementById('private-message-search')?.value || ''),
             getPrivateMessageAvatar,
             getPrivateMessageConversationKey,
@@ -1774,11 +1776,13 @@
             loadMemberData,
             normalizePrivateMessageName,
             renderPrivateMessageContentHtml,
+            setCurrentPlayingAudio: value => { currentPlayingAudio = value; },
             showToast: (...args) => showToast(...args),
             switchView
         }));
         window.closePrivateMessageDetail = closePrivateMessageDetail;
         window.filterPrivateMessageList = filterPrivateMessageList;
+        window.flushPrivateMessagePendingMessages = flushPrivateMessagePendingMessages;
         window.handlePrivateMessageReplyKeydown = handlePrivateMessageReplyKeydown;
         window.loadMorePrivateMessageDetail = loadMorePrivateMessageDetail;
         window.loadMorePrivateMessageList = loadMorePrivateMessageList;
