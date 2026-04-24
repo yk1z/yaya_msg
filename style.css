@@ -1104,6 +1104,7 @@ html[data-theme="light"] .home-view {
     flex-direction: column;
     gap: 10px;
     overflow-x: hidden;
+    position: relative;
 }
 
 .bilibili-live-room-strip {
@@ -1218,6 +1219,16 @@ html[data-theme="light"] .home-view {
     min-height: 0;
     display: none;
     margin: 0;
+    position: absolute;
+    top: 2px;
+    right: 0;
+    z-index: 3;
+    max-width: min(46vw, 620px);
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
 }
 
 .bilibili-live-now-playing {
@@ -1331,6 +1342,12 @@ html[data-theme="light"] .home-view {
 }
 
 @media (max-width: 900px) {
+    .bilibili-live-summary {
+        position: static;
+        max-width: 100%;
+        text-align: left;
+    }
+
     .bilibili-live-now-playing {
         position: relative;
     }

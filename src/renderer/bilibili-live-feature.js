@@ -21,6 +21,11 @@
         let bilibiliCurrentOpenLiveInfo = null;
         let bilibiliCurrentOpenLiveGroupKey = '';
         let bilibiliLiveAutoConnectPending = false;
+        let bilibiliLiveInfo = null;
+        let bilibiliLiveCandidates = [];
+        let bilibiliLiveCandidateIndex = -1;
+        let bilibiliLiveAttemptId = 0;
+        let bilibiliLiveFallbackTimer = null;
         let bilibiliLiveRooms = DEFAULT_BILIBILI_LIVE_CONFIG.rooms.slice();
         const BILIBILI_LAST_ROOM_KEY = 'bilibili_live_last_room_id';
 
@@ -538,7 +543,24 @@
             if (roomMetaEl) roomMetaEl.textContent = roomMetaParts.join(' · ');
         }
 
-        async function destroyBilibiliLivePlayer(resetMeta = true) {
+        function clearBilibiliLiveFallbackTimer() {
+            if (bilibiliLiveFallbackTimer) {
+                clearTimeout(bilibiliLiveFallbackTimer);
+                bilibiliLiveFallbackTimer = null;
+            }
+        }
+
+        function getBilibiliLiveCandidateLabel(candidate = {}, index = 0, total = 0) {
+            const parts = [`线路 ${index + 1}/${Math.max(total, 1)}`];
+            if (candidate.formatName) parts.push(String(candidate.formatName).toUpperCase());
+            if (candidate.codecName) parts.push(String(candidate.codecName).toUpperCase());
+            return parts.join(' · ');
+        }
+
+        async function destroyBilibiliLivePlayer(resetMeta = true, resetStreamState = true) {
+            bilibiliLiveAttemptId += 1;
+            clearBilibiliLiveFallbackTimer();
+
             try {
                 if (bilibiliFlvPlayer) {
                     bilibiliFlvPlayer.pause();
@@ -571,9 +593,14 @@
             }
             if (placeholderEl) syncBilibiliLivePlaceholderForSelection();
             if (resetMeta) resetBilibiliLiveMeta();
+            if (resetStreamState) {
+                bilibiliLiveInfo = null;
+                bilibiliLiveCandidates = [];
+                bilibiliLiveCandidateIndex = -1;
+            }
         }
 
-        function buildBilibiliCustomType(localUrl) {
+        function buildBilibiliCustomType(localUrl, callbacks = {}) {
             return function customFlv(video) {
                 if (!(window.mpegts && typeof window.mpegts.isSupported === 'function' && window.mpegts.isSupported())) {
                     video.src = localUrl;
@@ -598,9 +625,119 @@
                     enableStashBuffer: false,
                     stashInitialSize: 128
                 });
+                if (typeof bilibiliFlvPlayer.on === 'function' && window.mpegts?.Events?.ERROR) {
+                    bilibiliFlvPlayer.on(window.mpegts.Events.ERROR, (errorType, errorDetail) => {
+                        if (typeof callbacks.onError === 'function') {
+                            const detail = [errorType, errorDetail].filter(Boolean).join(': ');
+                            callbacks.onError(detail || 'mpegts 播放失败');
+                        }
+                    });
+                }
                 bilibiliFlvPlayer.attachMediaElement(video);
                 bilibiliFlvPlayer.load();
             };
+        }
+
+        async function fallbackToNextBilibiliStream(reason = '当前线路连接失败') {
+            const nextIndex = bilibiliLiveCandidateIndex + 1;
+            if (!bilibiliLiveInfo || nextIndex >= bilibiliLiveCandidates.length) {
+                throw new Error(reason || '所有候选直播流均连接失败');
+            }
+            return startBilibiliLiveCandidate(nextIndex, reason);
+        }
+
+        async function startBilibiliLiveCandidate(index = 0, reason = '') {
+            const info = bilibiliLiveInfo;
+            const candidate = bilibiliLiveCandidates[index];
+            if (!info || !candidate?.url) {
+                throw new Error('未找到可用的直播播放地址');
+            }
+
+            bilibiliLiveCandidateIndex = index;
+            await destroyBilibiliLivePlayer(false, false);
+            bilibiliCurrentRoomId = String(document.getElementById('bilibili-live-room-id')?.value || info.requestedRoomId || '').trim();
+            renderBilibiliLiveRoomButtons();
+
+            const localUrl = await ipcRenderer.invoke('start-live-proxy', {
+                url: candidate.url,
+                headers: info.proxyHeaders || {}
+            });
+            const playerEl = document.getElementById('bilibili-live-player');
+            const placeholderEl = document.getElementById('bilibili-live-player-placeholder');
+
+            if (!playerEl) {
+                throw new Error('播放器容器不存在');
+            }
+
+            const candidateLabel = getBilibiliLiveCandidateLabel(candidate, index, bilibiliLiveCandidates.length);
+            const switchHint = reason ? ` · 正在切换：${reason}` : '';
+            setBilibiliLiveStatus(`正在连接 · ${info.uname || info.title || 'B站直播'} · ${candidateLabel}${switchHint}`);
+
+            playerEl.innerHTML = '<div id="bilibili-dplayer-container" style="width:100%; height:100%;"></div>';
+            playerEl.style.display = 'block';
+            if (placeholderEl) placeholderEl.style.display = 'none';
+
+            const attemptId = bilibiliLiveAttemptId;
+            let hasPlaybackStarted = false;
+
+            const markPlaybackStarted = () => {
+                if (attemptId !== bilibiliLiveAttemptId || hasPlaybackStarted) return;
+                hasPlaybackStarted = true;
+                clearBilibiliLiveFallbackTimer();
+                setBilibiliLiveStatus('');
+                loadBilibiliLiveStatuses();
+            };
+
+            const handleStreamFailure = async (failureReason = '当前线路连接失败') => {
+                if (attemptId !== bilibiliLiveAttemptId || hasPlaybackStarted) return;
+                clearBilibiliLiveFallbackTimer();
+                try {
+                    await fallbackToNextBilibiliStream(failureReason);
+                } catch (error) {
+                    await destroyBilibiliLivePlayer(false, false);
+                    const friendlyMessage = formatBilibiliLiveError(error, failureReason || '连接直播失败，请稍后重试');
+                    setBilibiliLiveStatus(friendlyMessage, true);
+                }
+            };
+
+            bilibiliDp = new DPlayer({
+                container: document.getElementById('bilibili-dplayer-container'),
+                live: true,
+                autoplay: true,
+                screenshot: false,
+                hotkey: false,
+                theme: '#FF8EBF',
+                video: {
+                    url: localUrl,
+                    type: 'customFlv',
+                    customType: {
+                        customFlv: buildBilibiliCustomType(localUrl, {
+                            onError: detail => handleStreamFailure(detail || '直播流解码失败')
+                        })
+                    }
+                }
+            });
+
+            const videoEl = bilibiliDp?.video;
+            if (videoEl) {
+                ['loadeddata', 'canplay', 'playing'].forEach(eventName => {
+                    videoEl.addEventListener(eventName, markPlaybackStarted);
+                });
+                videoEl.addEventListener('error', () => handleStreamFailure('视频标签播放失败'));
+                videoEl.addEventListener('stalled', () => handleStreamFailure('视频流已停滞'));
+            }
+
+            clearBilibiliLiveFallbackTimer();
+            bilibiliLiveFallbackTimer = setTimeout(() => {
+                handleStreamFailure('连接超时，自动切换线路');
+            }, 8000);
+
+            setTimeout(() => {
+                if (attemptId !== bilibiliLiveAttemptId) return;
+                if (bilibiliDp && typeof bilibiliDp.play === 'function') {
+                    bilibiliDp.play().catch(() => { });
+                }
+            }, 300);
         }
 
         async function connectBilibiliLive() {
@@ -622,50 +759,18 @@
                 setBilibiliLiveSummary('');
                 renderBilibiliLiveRoomButtons();
 
-                await destroyBilibiliLivePlayer(false);
-                bilibiliCurrentRoomId = roomId;
-                renderBilibiliLiveRoomButtons();
+                const allCandidates = Array.isArray(info.streamCandidates) && info.streamCandidates.length
+                    ? info.streamCandidates
+                    : [{ url: info.streamUrl, formatName: 'flv', codecName: 'avc' }];
+                const flvCandidates = allCandidates.filter(item => String(item?.formatName || '').toLowerCase() === 'flv');
 
-                const localUrl = await ipcRenderer.invoke('start-live-proxy', {
-                    url: info.streamUrl,
-                    headers: info.proxyHeaders || {}
-                });
-                const playerEl = document.getElementById('bilibili-live-player');
-                const placeholderEl = document.getElementById('bilibili-live-player-placeholder');
+                bilibiliLiveInfo = info;
+                bilibiliLiveCandidates = flvCandidates.length > 0 ? flvCandidates : allCandidates;
+                bilibiliLiveCandidateIndex = -1;
 
-                if (!playerEl) {
-                    throw new Error('播放器容器不存在');
-                }
-
-                playerEl.innerHTML = '<div id="bilibili-dplayer-container" style="width:100%; height:100%;"></div>';
-                playerEl.style.display = 'block';
-                if (placeholderEl) placeholderEl.style.display = 'none';
-
-                bilibiliDp = new DPlayer({
-                    container: document.getElementById('bilibili-dplayer-container'),
-                    live: true,
-                    autoplay: true,
-                    screenshot: false,
-                    hotkey: false,
-                    theme: '#FF8EBF',
-                    video: {
-                        url: localUrl,
-                        type: 'customFlv',
-                        customType: {
-                            customFlv: buildBilibiliCustomType(localUrl)
-                        }
-                    }
-                });
-
-                setBilibiliLiveStatus('');
-                loadBilibiliLiveStatuses();
-                setTimeout(() => {
-                    if (bilibiliDp && typeof bilibiliDp.play === 'function') {
-                        bilibiliDp.play().catch(() => { });
-                    }
-                }, 300);
+                await startBilibiliLiveCandidate(0);
             } catch (error) {
-                await destroyBilibiliLivePlayer(false);
+                await destroyBilibiliLivePlayer(false, true);
                 const friendlyMessage = formatBilibiliLiveError(error, '连接直播失败，请稍后重试');
                 setBilibiliLiveStatus(friendlyMessage, true);
                 if (friendlyMessage === '该直播间当前未开播' || friendlyMessage === '未找到对应直播间') {
@@ -679,8 +784,8 @@
         }
 
         async function stopBilibiliLive() {
-            await destroyBilibiliLivePlayer(false);
-            setBilibiliLiveStatus('已停止播放');
+            await destroyBilibiliLivePlayer(false, true);
+            setBilibiliLiveStatus('');
         }
 
         return {

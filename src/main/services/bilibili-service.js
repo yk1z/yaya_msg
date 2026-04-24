@@ -23,7 +23,7 @@ async function requestBilibili(url, params) {
     return response.data;
 }
 
-function buildCandidateUrl(codec = {}) {
+function buildCandidateUrl(stream = {}, format = {}, codec = {}) {
     const baseUrl = String(codec.base_url || '').trim();
     if (!baseUrl) return [];
 
@@ -34,7 +34,9 @@ function buildCandidateUrl(codec = {}) {
             if (!host) return null;
             return {
                 url: `${host}${baseUrl}${extra}`,
-                formatName: codec.__formatName || '',
+                host,
+                protocolName: String(stream.protocol_name || '').trim(),
+                formatName: String(format.format_name || '').trim(),
                 codecName: codec.codec_name || '',
                 currentQn: Number(codec.current_qn || 0),
                 acceptQn: Array.isArray(codec.accept_qn) ? codec.accept_qn.map(item => Number(item || 0)) : []
@@ -43,38 +45,45 @@ function buildCandidateUrl(codec = {}) {
         .filter(Boolean);
 }
 
-function pickBestLiveUrl(playurl = {}) {
+function scoreCandidate(candidate) {
+    let score = 0;
+    if (candidate.formatName === 'flv') score += 1000;
+    else if (candidate.formatName === 'fmp4') score += 600;
+    else if (candidate.formatName === 'ts') score += 400;
+
+    if (candidate.protocolName === 'http_stream') score += 80;
+    else if (candidate.protocolName === 'http_hls') score += 40;
+
+    if (candidate.codecName === 'avc') score += 100;
+    else if (candidate.codecName === 'hevc') score += 60;
+
+    score += candidate.currentQn || 0;
+    if (candidate.acceptQn.includes(10000)) score += 20;
+    if (/gotcha/i.test(candidate.host || '')) score += 5;
+    return score;
+}
+
+function pickLiveCandidates(playurl = {}) {
     const candidates = [];
 
     (playurl.stream || []).forEach(stream => {
         (stream.format || []).forEach(format => {
             (format.codec || []).forEach(codec => {
-                const codecWithFormat = {
-                    ...codec,
-                    __formatName: format.format_name || ''
-                };
-                candidates.push(...buildCandidateUrl(codecWithFormat));
+                candidates.push(...buildCandidateUrl(stream, format, codec));
             });
         });
     });
 
-    if (!candidates.length) return null;
-
-    const scoreCandidate = candidate => {
-        let score = 0;
-        if (candidate.formatName === 'flv') score += 1000;
-        else if (candidate.formatName === 'fmp4') score += 600;
-
-        if (candidate.codecName === 'avc') score += 100;
-        else if (candidate.codecName === 'hevc') score += 60;
-
-        score += candidate.currentQn || 0;
-        if (candidate.acceptQn.includes(10000)) score += 20;
-        return score;
-    };
+    if (!candidates.length) return [];
 
     candidates.sort((a, b) => scoreCandidate(b) - scoreCandidate(a));
-    return candidates[0].url;
+
+    const seen = new Set();
+    return candidates.filter(candidate => {
+        if (!candidate?.url || seen.has(candidate.url)) return false;
+        seen.add(candidate.url);
+        return true;
+    });
 }
 
 async function getBilibiliLiveStatus(roomIdInput) {
@@ -165,8 +174,8 @@ async function resolveBilibiliLive(roomIdInput) {
         throw new Error(playInfo?.message || '获取 B 站直播流失败');
     }
 
-    const streamUrl = pickBestLiveUrl(playInfo.data.playurl_info?.playurl);
-    if (!streamUrl) {
+    const streamCandidates = pickLiveCandidates(playInfo.data.playurl_info?.playurl);
+    if (!streamCandidates.length) {
         throw new Error('未找到可用的直播播放地址');
     }
 
@@ -181,7 +190,15 @@ async function resolveBilibiliLive(roomIdInput) {
         face: String(anchorInfo.face || '').trim(),
         areaName: String(roomInfo.area_name || '').trim(),
         parentAreaName: String(roomInfo.parent_area_name || '').trim(),
-        streamUrl,
+        streamUrl: streamCandidates[0].url,
+        streamCandidates: streamCandidates.map(item => ({
+            url: item.url,
+            host: item.host,
+            protocolName: item.protocolName,
+            formatName: item.formatName,
+            codecName: item.codecName,
+            currentQn: item.currentQn
+        })),
         proxyHeaders: {
             'User-Agent': BILIBILI_HEADERS['User-Agent'],
             Referer: `https://live.bilibili.com/${realRoomId}`,

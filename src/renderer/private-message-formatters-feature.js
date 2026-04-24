@@ -169,11 +169,11 @@
 
             if (upper.includes('荣誉毕业')) return '荣誉毕业生';
             if (upper.includes('预备')) return '预备生';
+            if (upper.includes('TEAM NIII') || upper === 'NIII') return 'TEAM NIII';
             if (upper.includes('TEAM SII') || upper === 'SII') return 'TEAM SII';
             if (upper.includes('TEAM NII') || upper === 'NII') return 'TEAM NII';
             if (upper.includes('TEAM HII') || upper === 'HII') return 'TEAM HII';
             if (upper.includes('TEAM X') || upper === 'X') return 'TEAM X';
-            if (upper.includes('TEAM NIII') || upper === 'NIII') return 'TEAM NIII';
             if (upper.includes('TEAM GII') || upper === 'GII') return 'TEAM GII';
             if (upper.includes('TEAM CII') || upper === 'CII') return 'TEAM CII';
             if (upper.includes('TEAM G') || upper === 'G') return 'TEAM G';
