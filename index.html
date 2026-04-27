@@ -876,7 +876,7 @@
                                         <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
                                             <span style="font-size: 11px; color: var(--text-sub);">设置切片起始时刻</span>
                                             <div style="display: flex; gap: 5px;">
-                                                <div id="clip-start-display"
+                                                <div id="clip-start-display" data-clip-role="start-display"
                                                     style="flex: 1; background: var(--bg); border: 1px solid var(--border); padding: 0 12px; height: 38px; border-radius: 6px;  font-size: 14px; color: var(--primary); font-weight:bold; display:flex; align-items:center;">
                                                 </div>
                                                 <button class="btn btn-secondary" onclick="setClipStart()"
@@ -887,7 +887,7 @@
                                         <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
                                             <span style="font-size: 11px; color: var(--text-sub);">设置切片结束时刻</span>
                                             <div style="display: flex; gap: 5px;">
-                                                <div id="clip-end-display"
+                                                <div id="clip-end-display" data-clip-role="end-display"
                                                     style="flex: 1; background: var(--bg); border: 1px solid var(--border); padding: 0 12px; height: 38px; border-radius: 6px; font-size: 14px; color: var(--primary); font-weight:bold; display:flex; align-items:center;">
                                                 </div>
                                                 <button class="btn btn-secondary" onclick="setClipEnd()"
@@ -897,10 +897,10 @@
                                     </div>
 
                                     <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
-                                        <div id="clip-duration-display"
+                                        <div id="clip-duration-display" data-clip-role="duration-display"
                                             style="font-size: 11px; color: var(--text); font-weight: bold; width: 100%; text-align: center;">
                                             切片时长: 0s</div>
-                                        <button class="btn btn-primary" onclick="executeClip()" id="btn-do-clip"
+                                        <button class="btn btn-primary" onclick="executeClip()" id="btn-do-clip" data-clip-role="do-clip"
                                             disabled
                                             style="width: 100px; height: 38px; line-height: 38px; padding: 0; font-size: 14px; background: #28a745; border-color: #28a745; box-shadow: 0 2px 6px rgba(40,167,69,0.2); box-sizing: border-box;">切片</button>
                                     </div>
@@ -1282,6 +1282,31 @@
                         </div>
                         <div id="bilibili-live-player"
                             style="display:none; width:100%; min-height:420px; height:100%;"></div>
+                    </div>
+
+                    <div class="bilibili-live-clip-toolbar" data-clip-toolbar="bilibili-live">
+                        <div class="bilibili-live-clip-grid">
+                            <div class="bilibili-live-clip-field">
+                                <span class="bilibili-live-clip-label">设置切片起始时刻</span>
+                                <div class="bilibili-live-clip-row">
+                                    <div class="bilibili-live-clip-display" data-clip-role="start-display"></div>
+                                    <button class="btn btn-secondary" onclick="setClipStart()">起点</button>
+                                </div>
+                            </div>
+
+                            <div class="bilibili-live-clip-field">
+                                <span class="bilibili-live-clip-label">设置切片结束时刻</span>
+                                <div class="bilibili-live-clip-row">
+                                    <div class="bilibili-live-clip-display" data-clip-role="end-display"></div>
+                                    <button class="btn btn-secondary" onclick="setClipEnd()">终点</button>
+                                </div>
+                            </div>
+
+                            <div class="bilibili-live-clip-action">
+                                <div class="bilibili-live-clip-duration" data-clip-role="duration-display">切片时长: 0s</div>
+                                <button class="btn btn-primary" onclick="executeClip()" data-clip-role="do-clip" disabled>切片</button>
+                            </div>
+                        </div>
                     </div>
 
                     <div id="bilibili-live-summary" class="bilibili-live-summary" style="display:none;"></div>

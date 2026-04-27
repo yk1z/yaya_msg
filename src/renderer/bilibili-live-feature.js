@@ -9,7 +9,10 @@
             escapePrivateMessageHtml,
             getAppToken,
             getCurrentViewName,
-            ipcRenderer
+            ipcRenderer,
+            setArt,
+            setCurrentPlayingItem,
+            setDp
         } = deps;
 
         let bilibiliLiveConfigPromise = null;
@@ -613,6 +616,9 @@
                 }
             } catch (error) { }
             bilibiliDp = null;
+            if (typeof setDp === 'function') setDp(null);
+            if (typeof setArt === 'function') setArt(null);
+            if (typeof setCurrentPlayingItem === 'function') setCurrentPlayingItem(null);
 
             try {
                 await ipcRenderer.invoke('stop-live-proxy');
@@ -753,6 +759,49 @@
                     }
                 }
             });
+            if (typeof setDp === 'function') {
+                setDp(bilibiliDp);
+            }
+            if (typeof setArt === 'function') {
+                setArt({
+                    get currentTime() {
+                        return Number(bilibiliDp?.video?.currentTime || 0);
+                    },
+                    get notice() {
+                        return {
+                            show: (msg) => {
+                                if (bilibiliDp && typeof bilibiliDp.notice === 'function') {
+                                    bilibiliDp.notice(msg);
+                                }
+                            }
+                        };
+                    },
+                    option: {
+                        url: localUrl
+                    }
+                });
+            }
+            if (typeof setCurrentPlayingItem === 'function') {
+                const roomConfig = getBilibiliLiveRoomConfig(bilibiliCurrentRoomId);
+                const groupInfo = getBilibiliOpenLiveGroupInfo(bilibiliCurrentRoomId);
+                const currentOpenLive = groupInfo && bilibiliCurrentOpenLiveGroupKey === groupInfo.groupKey
+                    ? bilibiliCurrentOpenLiveInfo
+                    : null;
+                const startTime = Number(currentOpenLive?.stime || currentOpenLive?.startTime || Date.now());
+                const displayName = roomConfig?.title || info.uname || info.title || 'B站直播';
+                setCurrentPlayingItem({
+                    liveId: `bilibili_${bilibiliCurrentRoomId || info.realRoomId || info.requestedRoomId || Date.now()}`,
+                    title: currentOpenLive?.title || info.title || displayName,
+                    nickname: displayName,
+                    startTime,
+                    ctime: startTime,
+                    bilibiliRoomId: bilibiliCurrentRoomId || info.realRoomId || info.requestedRoomId || '',
+                    platform: 'bilibili'
+                });
+            }
+            if (typeof window.resetClipTool === 'function') {
+                window.resetClipTool();
+            }
 
             const videoEl = bilibiliDp?.video;
             if (videoEl) {

@@ -7,6 +7,7 @@
             getAppToken,
             getArt,
             getCurrentMode,
+            getCurrentViewName,
             getCurrentPlayingItem,
             getLiveAnnouncementDismissed,
             setLiveAnnouncementDismissed,
@@ -17,7 +18,7 @@
         let clipStartTime = null;
         let clipEndTime = null;
         let currentRecordTaskId = null;
-        let liveRecordCount = 0;
+        let currentRecordStartedAt = null;
 
         function readStringSetting(key, fallbackValue = '') {
             if (typeof window.readStoredStringSetting === 'function') {
@@ -42,6 +43,36 @@
 
         function getCurrentDp() {
             return typeof getDp === 'function' ? getDp() : null;
+        }
+
+        function getSafeCurrentViewName() {
+            return typeof getCurrentViewName === 'function' ? String(getCurrentViewName() || '') : '';
+        }
+
+        function getActiveClipScope() {
+            const currentViewName = getSafeCurrentViewName();
+            const preferredScope = currentViewName === 'bilibili-live'
+                ? document.getElementById('view-bilibili-live')
+                : document.getElementById('view-media');
+            if (preferredScope) return preferredScope;
+            return document;
+        }
+
+        function getClipElement(role, legacyId = '') {
+            const selector = `[data-clip-role="${role}"]`;
+            const activeScope = getActiveClipScope();
+            const scopedEl = activeScope?.querySelector ? activeScope.querySelector(selector) : null;
+            if (scopedEl) return scopedEl;
+            if (legacyId) {
+                const legacyEl = document.getElementById(legacyId);
+                if (legacyEl) return legacyEl;
+            }
+            return document.querySelector(selector);
+        }
+
+        function getClipMode() {
+            if (getSafeCurrentViewName() === 'bilibili-live') return 'live';
+            return typeof getCurrentMode === 'function' ? getCurrentMode() : 'live';
         }
 
         async function refreshLiveAnnouncement(btnElement) {
@@ -179,10 +210,10 @@
         }
 
         function updateClipUI() {
-            const startDisplay = document.getElementById('clip-start-display');
-            const endDisplay = document.getElementById('clip-end-display');
-            const durationDisplay = document.getElementById('clip-duration-display');
-            const clipBtn = document.getElementById('btn-do-clip');
+            const startDisplay = getClipElement('start-display', 'clip-start-display');
+            const endDisplay = getClipElement('end-display', 'clip-end-display');
+            const durationDisplay = getClipElement('duration-display', 'clip-duration-display');
+            const clipBtn = getClipElement('do-clip', 'btn-do-clip');
 
             const formatTimeMS = (seconds) => {
                 if (seconds === null || seconds === undefined) return '';
@@ -225,7 +256,7 @@
             clipStartTime = null;
             clipEndTime = null;
             currentRecordTaskId = null;
-            liveRecordCount = 0;
+            currentRecordStartedAt = null;
             updateClipUI();
         }
 
@@ -257,7 +288,7 @@
         function setClipStart() {
             const art = getCurrentArt();
             const dp = getCurrentDp();
-            const currentMode = typeof getCurrentMode === 'function' ? getCurrentMode() : 'live';
+            const currentMode = getClipMode();
             const currentPlayingItem = typeof getCurrentPlayingItem === 'function' ? getCurrentPlayingItem() : null;
 
             if (!art && !dp) return;
@@ -269,6 +300,7 @@
                 }
 
                 currentRecordTaskId = `rec_${Date.now()}`;
+                currentRecordStartedAt = new Date();
                 const customSavePath = readStringSetting('yaya_path_clip', '');
 
                 ipcRenderer.send('start-record', {
@@ -277,7 +309,7 @@
                     savePath: customSavePath
                 });
 
-                const startDisplay = document.getElementById('clip-start-display');
+                const startDisplay = getClipElement('start-display', 'clip-start-display');
                 if (startDisplay) startDisplay.textContent = '🔴 状态: 正在录制...';
                 if (dp) dp.notice('🔴 后台录制已开启');
                 return;
@@ -292,7 +324,7 @@
         function setClipEnd() {
             const art = getCurrentArt();
             const dp = getCurrentDp();
-            const currentMode = typeof getCurrentMode === 'function' ? getCurrentMode() : 'live';
+            const currentMode = getClipMode();
             const currentPlayingItem = typeof getCurrentPlayingItem === 'function' ? getCurrentPlayingItem() : null;
 
             if (!art && !dp) return;
@@ -303,18 +335,19 @@
                     return;
                 }
 
-                liveRecordCount += 1;
                 const nickname = currentPlayingItem?.userInfo?.nickname || currentPlayingItem?.nickname || '未知成员';
+                const pad = (n) => String(n).padStart(2, '0');
                 let timeStr = '00000000_00.00.00';
                 const rawTime = currentPlayingItem?.startTime || currentPlayingItem?.ctime;
 
                 if (rawTime) {
                     const d = new Date(Number(rawTime));
-                    const pad = (n) => String(n).padStart(2, '0');
                     timeStr = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}.${pad(d.getMinutes())}.${pad(d.getSeconds())}`;
                 }
 
-                const fileName = `直播切片_【${nickname}】${timeStr}_${liveRecordCount}`;
+                const startedAt = currentRecordStartedAt instanceof Date ? currentRecordStartedAt : new Date();
+                const startClickTimeStr = `${pad(startedAt.getHours())}.${pad(startedAt.getMinutes())}.${pad(startedAt.getSeconds())}`;
+                const fileName = `直播切片_【${nickname}】${timeStr}_${startClickTimeStr}`;
                 ipcRenderer.send('stop-record', {
                     taskId: currentRecordTaskId,
                     fileName
@@ -337,9 +370,8 @@
                 `);
                 }
 
-                const startDisplay = document.getElementById('clip-start-display');
-                const endDisplay = document.getElementById('clip-end-display');
                 currentRecordTaskId = null;
+                currentRecordStartedAt = null;
                 clipStartTime = null;
                 clipEndTime = null;
                 updateClipUI();

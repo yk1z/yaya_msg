@@ -1859,7 +1859,10 @@
             escapePrivateMessageHtml,
             getAppToken: () => getCurrentAppToken(),
             getCurrentViewName: () => currentViewName,
-            ipcRenderer
+            ipcRenderer,
+            setArt: value => { art = value; },
+            setCurrentPlayingItem: value => { currentPlayingItem = value; },
+            setDp: value => { dp = value; }
         }));
 
         ({
@@ -2157,6 +2160,7 @@
             getAppToken: () => getCurrentAppToken(),
             getArt: () => art,
             getCurrentMode: () => currentMode,
+            getCurrentViewName: () => currentViewName,
             getCurrentPlayingItem: () => currentPlayingItem,
             getLiveAnnouncementDismissed: () => liveAnnouncementDismissed,
             setLiveAnnouncementDismissed: value => { liveAnnouncementDismissed = !!value; },
@@ -2167,6 +2171,7 @@
         window.executeClip = executeClip;
         window.fetchLiveRank = fetchLiveRank;
         window.refreshLiveAnnouncement = refreshLiveAnnouncement;
+        window.resetClipTool = resetClipTool;
         window.setClipEnd = setClipEnd;
         window.setClipEndFromTimeline = setClipEndFromTimeline;
         window.setClipStart = setClipStart;

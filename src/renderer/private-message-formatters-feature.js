@@ -135,6 +135,16 @@
                 || pathname.endsWith('.webm');
         }
 
+        function looksLikeImageUrl(url = '') {
+            const pathname = getPrivateMediaPathname(url);
+            return pathname.endsWith('.jpg')
+                || pathname.endsWith('.jpeg')
+                || pathname.endsWith('.png')
+                || pathname.endsWith('.webp')
+                || pathname.endsWith('.gif')
+                || pathname.endsWith('.bmp');
+        }
+
         function getPrivateMessageMediaAnswerType(item = {}, content = {}) {
             const candidates = [
                 item.answerType,
@@ -171,6 +181,9 @@
                 content.voiceInfo,
                 content.audioInfo,
                 content.videoInfo,
+                content.imageInfo,
+                content.imgInfo,
+                content.pictureInfo,
                 content.replyInfo,
                 ...arrayCandidates,
                 content,
@@ -427,6 +440,41 @@
             return null;
         }
 
+        function getPrivateMessageImageInfo(message = {}) {
+            const content = message.content || {};
+            const candidates = collectPrivateMessageMediaCandidates(message);
+
+            for (const item of candidates) {
+                const url = normalizePrivateMediaUrl(String(
+                    item.imgUrl
+                    || item.imageUrl
+                    || item.pictureUrl
+                    || item.picUrl
+                    || item.photoUrl
+                    || item.cover
+                    || item.coverUrl
+                    || item.url
+                    || item.path
+                    || ''
+                ).trim(), 'source');
+                if (!url) continue;
+
+                const imageType = String(item.type || item.contentType || content.type || message.messageType || '').toUpperCase();
+                if (
+                    looksLikeImageUrl(url)
+                    || (imageType.includes('IMAGE') && !looksLikeAudioUrl(url) && !looksLikeVideoUrl(url))
+                ) {
+                    return {
+                        url,
+                        width: Number(item.imgWidth || item.width || content.imgWidth || content.width || 0),
+                        height: Number(item.imgHeight || item.height || content.imgHeight || content.height || 0)
+                    };
+                }
+            }
+
+            return null;
+        }
+
         function getPrivateMessageVideoInfo(message = {}) {
             const content = message.content || {};
             const candidates = collectPrivateMessageMediaCandidates(message);
@@ -538,10 +586,12 @@
             const isNumericOnly = /^\d+$/.test(text);
             const audioInfo = getPrivateMessageAudioInfo(message);
             const videoInfo = getPrivateMessageVideoInfo(message);
+            const imageInfo = getPrivateMessageImageInfo(message);
 
             if (type === 'TEXT') {
                 if (audioInfo) return '[语音消息]';
                 if (videoInfo) return '[视频消息]';
+                if (imageInfo) return '[图片消息]';
                 return text || '空文本消息';
             }
             if (type === 'IMAGE') return '[图片消息]';
@@ -562,6 +612,17 @@
             const videoInfo = getPrivateMessageVideoInfo(message);
             if (videoInfo) {
                 return `<div class="private-message-video-slot" data-video-src="${escapePrivateMessageHtml(videoInfo.url)}"></div>`;
+            }
+            const imageInfo = getPrivateMessageImageInfo(message);
+            if (imageInfo) {
+                const width = Number(imageInfo.width || 0);
+                const height = Number(imageInfo.height || 0);
+                const sizeAttrs = [
+                    width > 0 ? `width="${Math.round(width)}"` : '',
+                    height > 0 ? `height="${Math.round(height)}"` : ''
+                ].filter(Boolean).join(' ');
+                const safeUrl = escapePrivateMessageHtml(imageInfo.url);
+                return `<button type="button" class="private-message-image-button" onclick="openImageModal('${safeUrl}')"><img class="private-message-image" src="${safeUrl}" ${sizeAttrs} alt="图片消息" loading="lazy"></button>`;
             }
             return escapePrivateMessageHtml(formatPrivateMessageContent(message));
         }
