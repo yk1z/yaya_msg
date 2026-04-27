@@ -26,15 +26,15 @@ jobs:
           - os: macos-latest
             label: macOS
             artifact_name: yaya-msg-macos
-            build_command: npm run dist -- --mac zip --publish never && for f in dist/*.zip; do mv "$f" "${f%.zip}-macos.zip"; done
+            build_command: npm run dist -- --mac zip --publish never && for f in dist/*.zip; do mv "$f" "${f%.zip}-mac.zip"; done
             artifact_path: |
-              dist/*-macos.zip
+              dist/*-mac.zip
           - os: ubuntu-latest
             label: Linux
             artifact_name: yaya-msg-linux
-            build_command: npm run dist -- --linux tar.gz --publish never
+            build_command: npm run dist -- --linux tar.gz --publish never && for f in dist/*.tar.gz; do mv "$f" "${f%.tar.gz}-linux.tar.gz"; done
             artifact_path: |
-              dist/*.tar.gz
+              dist/*-linux.tar.gz
 
     steps:
       - name: Checkout repository

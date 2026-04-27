@@ -16,7 +16,7 @@ const cliPath = require.resolve('electron-builder/out/cli/cli.js');
 const projectRoot = path.resolve(__dirname, '..');
 const distDir = path.join(projectRoot, 'dist');
 const windowsArtifactBaseName = `yaya_msg-${versionLabel}`;
-const windowsArtifactFileName = `${windowsArtifactBaseName}.zip`;
+const windowsArtifactFileName = `yaya_msg-${versionLabel}-win.zip`;
 const userArgs = process.argv.slice(2);
 const artifactArg = `-c.artifactName=yaya_msg-${versionLabel}.${'${ext}'}`;
 const DEFAULT_ELECTRON_MIRROR = 'https://npmmirror.com/mirrors/electron/';
