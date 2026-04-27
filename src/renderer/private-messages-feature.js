@@ -396,7 +396,7 @@
                 const inputEl = document.getElementById('private-message-reply-input');
                 if (headerEl) headerEl.style.visibility = 'visible';
                 if (titleEl) titleEl.textContent = privateMessageDetailState.title;
-                if (subtitleEl) subtitleEl.textContent = `User ID: ${privateMessageDetailState.targetUserId}`;
+                if (subtitleEl) subtitleEl.textContent = `ID: ${privateMessageDetailState.targetUserId}`;
                 if (avatarEl) avatarEl.src = privateMessageDetailState.avatar;
                 if (inputEl) inputEl.value = '';
                 clearActivePrivateMessageUnread(privateMessageDetailState.targetUserId);

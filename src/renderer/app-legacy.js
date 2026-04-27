@@ -1741,6 +1741,8 @@
         let currentPlayingVideo = null;
         let isRenderingBatch = false;
         let batchRenderScheduled = false;
+        let isMessageDataScanRunning = false;
+        let pendingMessageDataScanMode = null;
         let currentSortOrder = readStoredStringSetting('msg_sort_order', 'desc');
         function filterGroupOptions(keyword) {
             const select = document.getElementById('groupSelect');
@@ -2565,16 +2567,33 @@
 
         function saveCacheOptimized(data) {
             return new Promise((resolve, reject) => {
+                const tempCacheFile = `${CACHE_FILE}.tmp`;
+                let settled = false;
+
+                const rejectOnce = (error) => {
+                    if (settled) return;
+                    settled = true;
+                    try { if (fs.existsSync(tempCacheFile)) fs.unlinkSync(tempCacheFile); } catch (cleanupError) { }
+                    reject(error);
+                };
+
                 try {
-                    const stream = fs.createWriteStream(CACHE_FILE, {
+                    const stream = fs.createWriteStream(tempCacheFile, {
                         flags: 'w',
                         encoding: 'utf-8'
                     });
                     stream.on('error', (err) => {
-                        reject(err);
+                        rejectOnce(err);
                     });
-                    stream.on('finish', () => {
-                        resolve();
+                    stream.on('finish', async () => {
+                        if (settled) return;
+                        try {
+                            await fs.promises.rename(tempCacheFile, CACHE_FILE);
+                            settled = true;
+                            resolve();
+                        } catch (error) {
+                            rejectOnce(error);
+                        }
                     });
                     stream.write('[\n');
                     data.forEach((post, index) => {
@@ -2585,7 +2604,7 @@
                     stream.write(']');
                     stream.end();
                 } catch (e) {
-                    reject(e);
+                    rejectOnce(e);
                 }
             });
         }
@@ -2593,10 +2612,18 @@
         function loadCacheOptimized() {
             return new Promise((resolve, reject) => {
                 const tempPosts = [];
+                let sawOpenBracket = false;
+                let sawCloseBracket = false;
+                let settled = false;
+                const rejectOnce = (error) => {
+                    if (settled) return;
+                    settled = true;
+                    reject(error);
+                };
                 try {
                     const fileStream = fs.createReadStream(CACHE_FILE);
                     fileStream.on('error', (err) => {
-                        reject(err);
+                        rejectOnce(err);
                     });
                     const rl = readline.createInterface({
                         input: fileStream,
@@ -2604,20 +2631,47 @@
                     });
                     rl.on('line', (line) => {
                         line = line.trim();
-                        if (line === '[' || line === ']') return;
+                        if (!line) return;
+                        if (line === '[') {
+                            if (sawOpenBracket) {
+                                rl.close();
+                                rejectOnce(new Error('缓存文件格式异常'));
+                            }
+                            sawOpenBracket = true;
+                            return;
+                        }
+                        if (line === ']') {
+                            sawCloseBracket = true;
+                            return;
+                        }
+                        if (!sawOpenBracket || sawCloseBracket) {
+                            rl.close();
+                            rejectOnce(new Error('缓存文件格式异常'));
+                            return;
+                        }
                         if (line.endsWith(',')) line = line.slice(0, -1);
                         if (line) {
                             try {
                                 const post = JSON.parse(line);
                                 tempPosts.push(post);
-                            } catch (e) { }
+                            } catch (e) {
+                                rl.close();
+                                rejectOnce(new Error('缓存文件解析失败'));
+                            }
                         }
                     });
                     rl.on('close', () => {
+                        if (settled) return;
+                        if (!sawOpenBracket || !sawCloseBracket) {
+                            rejectOnce(new Error('缓存文件不完整'));
+                            return;
+                        }
+
+                        settled = true;
                         resolve(tempPosts);
                     });
                 } catch (e) {
-                    reject(e);
+                    rejectOnce(e);
                 }
             });
         }
@@ -2784,6 +2838,17 @@
             setTimeout(() => scanFiles(true), 100);
         }
 
+        window.openMessageDataFolder = async function () {
+            try {
+                const result = await ipcRenderer.invoke('open-message-data-folder');
+                if (!result || !result.success) {
+                    throw new Error(result?.msg || '无法打开数据文件夹');
+                }
+            } catch (error) {
+                showToast(error.message || '无法打开数据文件夹');
+            }
+        }
+
         const MANIFEST_FILE = storagePaths.manifestFile;
         let fileManifest = {};
 
@@ -2802,6 +2867,26 @@
         }
 
         async function scanFiles(isIncremental = false) {
+            if (isMessageDataScanRunning) {
+                pendingMessageDataScanMode = pendingMessageDataScanMode === false ? false : !!isIncremental;
+                statusMsg.textContent = "已有更新任务在进行，稍后继续处理...";
+                return;
+            }
+
+            isMessageDataScanRunning = true;
+            try {
+                await scanFilesInternal(isIncremental);
+            } finally {
+                isMessageDataScanRunning = false;
+                if (pendingMessageDataScanMode !== null) {
+                    const nextScanMode = pendingMessageDataScanMode;
+                    pendingMessageDataScanMode = null;
+                    setTimeout(() => scanFiles(nextScanMode), 0);
+                }
+            }
+        }
+
+        async function scanFilesInternal(isIncremental = false) {
             if (!fs.existsSync(FIXED_PATH)) {
                 setMessageIndexLoadingState(false);
                 statusMsg.textContent = "❌ 路径不存在";
@@ -2810,6 +2895,11 @@
             }
 
             loadManifest();
+
+            if (isIncremental && allPosts.some(post => !post || !post.sourcePath)) {
+                isIncremental = false;
+                statusMsg.textContent = "检测到旧版缓存，正在重建索引...";
+            }
 
             if (isIncremental) {
                 setMessageIndexLoadingState(true, '正在更新数据', '分析新文件');
@@ -2857,6 +2947,7 @@
             let newParsedCount = 0;
             let skippedCount = 0;
             let newPosts = [];
+            const changedFilePaths = new Set();
 
             const fileQueue = [];
             async function gatherFilesAsync(dirPath, groupName) {
@@ -2889,8 +2980,13 @@
                             skippedCount++;
                         } else {
                             const text = await fs.promises.readFile(fileObj.fullPath, 'utf-8');
-                            const parsed = parseHtmlContent(text, fileObj.fileName, fileObj.group);
+                            const parsed = parseHtmlContent(text, fileObj.fileName, fileObj.group).map(post => ({
+                                ...post,
+                                sourcePath: fileObj.fullPath,
+                                sourceFile: fileObj.fileName
+                            }));
                             newPosts = newPosts.concat(parsed);
+                            changedFilePaths.add(fileKey);
 
                             fileManifest[fileKey] = stats.mtimeMs;
                             newParsedCount++;
@@ -2909,6 +3005,9 @@
                 }
 
                 if (isIncremental) {
+                    if (changedFilePaths.size > 0) {
+                        allPosts = allPosts.filter(post => !changedFilePaths.has(post.sourcePath));
+                    }
                     allPosts = allPosts.concat(newPosts);
                 } else {
                     allPosts = newPosts;
@@ -2929,7 +3028,9 @@
                 const uniquePosts = [];
                 for (let i = allPosts.length - 1; i >= 0; i--) {
                     const post = allPosts[i];
-                    const uniqueKey = `${post.timeStr}_${post.nameStr}_${(post.text || '').substring(0, 50)}`;
+                    const uniqueKey = post.exportKey
+                        ? `${post.sourcePath || post.groupName || ''}_${post.exportKey}`
+                        : `${post.sourcePath || ''}_${post.timeStr}_${post.nameStr}_${(post.text || '').substring(0, 80)}`;
                     if (!uniqueMap.has(uniqueKey)) {
                         uniqueMap.set(uniqueKey, true);
                         uniquePosts.push(post);
@@ -3795,6 +3896,7 @@
             const rowElements = doc.querySelectorAll('.Box-row');
             const extracted = [];
             rowElements.forEach(row => {
+                const exportKey = row.getAttribute('data-export-key') || '';
                 const timeEl = row.querySelector('time');
                 const timeStr = timeEl ? timeEl.innerText.trim() : '';
                 const cleanRow = row.cloneNode(true);
@@ -3943,6 +4045,7 @@
                     month,
                     day,
                     dateFull,
+                    exportKey,
                     hasImg: !!row.querySelector('img.template-media'),
                     hasVideo: row.innerText.includes('视频') && (row.innerText.includes('http') || !!cleanRow.querySelector('video')),
                     hasAudio: !!audioUrl || row.innerText.includes('音频'),

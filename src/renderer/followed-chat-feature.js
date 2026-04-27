@@ -36,6 +36,98 @@
         let followedPendingHtml = '';
         let followedPendingCount = 0;
         let followedPendingMessageIds = new Set();
+        let followedGiftCacheSaveTimer = null;
+
+        function escapeFollowedHtml(value) {
+            return String(value == null ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function normalizeFollowedPocketMediaUrl(mediaPath) {
+            const rawPath = String(mediaPath || '').trim();
+            if (!rawPath) return '';
+            if (/^https?:\/\//i.test(rawPath)) return rawPath;
+            if (rawPath.includes('48.cn')) {
+                return `https://${rawPath.replace(/^\/+/, '')}`;
+            }
+
+            return rawPath.startsWith('/')
+                ? `https://source3.48.cn${rawPath}`
+                : `https://source3.48.cn/${rawPath}`;
+        }
+
+        function scheduleFollowedGiftCacheSave() {
+            if (followedGiftCacheSaveTimer) {
+                clearTimeout(followedGiftCacheSaveTimer);
+            }
+
+            followedGiftCacheSaveTimer = setTimeout(() => {
+                followedGiftCacheSaveTimer = null;
+                const cacheApi = window.desktop && window.desktop.appCache ? window.desktop.appCache : null;
+                if (cacheApi && typeof cacheApi.setCacheValueSync === 'function') {
+                    cacheApi.setCacheValueSync('POCKET_GIFT_DATA_CACHE', POCKET_GIFT_DATA);
+                } else {
+                    localStorage.setItem('POCKET_GIFT_DATA_CACHE', JSON.stringify(POCKET_GIFT_DATA));
+                }
+            }, 500);
+        }
+
+        function upsertFollowedPocketGiftData(giftInfo = {}, unitCost = 0) {
+            if (typeof POCKET_GIFT_DATA === 'undefined') return false;
+
+            const id = String(giftInfo.giftId || giftInfo.id || '').trim();
+            const name = String(giftInfo.giftName || giftInfo.name || '').trim();
+            const cost = Number(unitCost || giftInfo.money || giftInfo.cost || 0);
+            if ((!id && !name) || !cost) return false;
+
+            const existing = POCKET_GIFT_DATA.find(item => (id && String(item.id) === id) || (name && item.name === name));
+            if (existing) {
+                const changed = Number(existing.cost || 0) !== cost
+                    || (id && String(existing.id || '') !== id)
+                    || (name && existing.name !== name);
+                if (!changed) return false;
+
+                existing.id = id || existing.id;
+                existing.name = name || existing.name;
+                existing.cost = cost;
+            } else {
+                POCKET_GIFT_DATA.push({ id, name: name || id, cost });
+            }
+
+            scheduleFollowedGiftCacheSave();
+            return true;
+        }
+
+        function renderFollowedPocketGiftCard(giftInfo = {}) {
+            const giftName = escapeFollowedHtml(giftInfo.giftName || giftInfo.name || '未知礼物');
+            const giftNum = Number(giftInfo.giftNum || giftInfo.num || giftInfo.count || 1) || 1;
+            const giftImg = normalizeFollowedPocketMediaUrl(giftInfo.picPath || giftInfo.giftPic || giftInfo.image || '');
+            let unitCost = Number(giftInfo.money || giftInfo.cost || 0);
+
+            if (!unitCost && typeof POCKET_GIFT_DATA !== 'undefined') {
+                const gift = POCKET_GIFT_DATA.find(item => item.id == (giftInfo.giftId || giftInfo.id) || item.name === (giftInfo.giftName || giftInfo.name));
+                if (gift) unitCost = Number(gift.cost || 0);
+            }
+
+            upsertFollowedPocketGiftData(giftInfo, unitCost);
+
+            const costDisplay = unitCost
+                ? `<span style="margin-left:5px; color:#fa8c16; font-weight:bold;">(${unitCost * giftNum}🍗)</span>`
+                : '';
+
+            return `
+                <div class="mb-2" style="display:flex; align-items:center; background:#fff0f6; padding:6px 8px; border-radius:6px; border:1px solid #ffadd2; max-width: 300px;">
+                    ${giftImg ? `<img src="${escapeFollowedHtml(giftImg)}" style="width: 25px !important; height: 25px !important; max-width: 32px !important; max-height: 32px !important; object-fit: contain !important; margin: 0 8px 0 0 !important; border-radius: 4px; box-shadow: none !important;">` : '<span style="font-size:24px; margin-right:8px;">🎁</span>'}
+                    <div style="flex: 1; overflow: hidden;">
+                        <div style="color:#eb2f96; font-weight:bold; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">送出礼物：${giftName}</div>
+                        <div style="font-size:11px; color:#888;">数量: x${giftNum} ${costDisplay}</div>
+                    </div>
+                </div>`;
+        }
 
         function resetFollowedPendingBottomTimer() {
             if (followedPendingBottomTimer) {
@@ -562,13 +654,7 @@
                                     txt = `<div class="mb-2 preview-media-placeholder" data-type="video" data-src="${mediaUrl}"></div>`;
                                 } else if (jsonType === 'GIFT_TEXT' || msgType === 'GIFT_TEXT') {
                                     const info = json.giftInfo || json;
-                                    let unitCost = info.money || info.cost;
-                                    if (!unitCost && typeof POCKET_GIFT_DATA !== 'undefined') {
-                                        const g = POCKET_GIFT_DATA.find(x => x.id == (info.giftId || info.id) || x.name === info.giftName);
-                                        if (g) unitCost = g.cost;
-                                    }
-                                    const totalCostStr = unitCost ? ` (约 ${unitCost * info.giftNum} 🍗)` : '';
-                                    txt = `<p class="mb-2" style="color:#eb2f96; font-weight:bold;">🎁 送出了 [${safeStr(info.giftName)}] x${info.giftNum}${totalCostStr}</p>`;
+                                    txt = renderFollowedPocketGiftCard(info);
                                 } else if (msgType.includes('FLIPCARD') || jsonType.includes('FLIPCARD')) {
                                     const possibleKeys = ['flipCardInfo', 'filpCardInfo', 'flipCardAudioInfo', 'filpCardAudioInfo', 'flipCardVideoInfo', 'filpCardVideoInfo'];
                                     let flipInfo = null;

@@ -152,10 +152,19 @@
                 if (cachedData) {
                     const parsed = typeof cachedData === 'string' ? JSON.parse(cachedData) : cachedData;
                     if (Array.isArray(parsed) && parsed.length > 0) {
-                        const existingNames = new Set(POCKET_GIFT_DATA.map(g => g.name));
                         parsed.forEach(g => {
-                            if (!existingNames.has(g.name)) {
-                                POCKET_GIFT_DATA.push(g);
+                            const id = String(g.id || g.giftId || '').trim();
+                            const name = String(g.name || g.giftName || '').trim();
+                            const cost = Number(g.cost || g.money || 0);
+                            if ((!id && !name) || !cost) return;
+
+                            const existing = POCKET_GIFT_DATA.find(item => (id && String(item.id) === id) || (name && item.name === name));
+                            if (existing) {
+                                existing.id = id || existing.id;
+                                existing.name = name || existing.name;
+                                existing.cost = cost;
+                            } else {
+                                POCKET_GIFT_DATA.push({ id, name: name || id, cost });
                             }
                         });
                     }

@@ -197,6 +197,20 @@ async function openDirectoryDialog(mainWindow) {
     return filePaths[0];
 }
 
+async function openMessageDataFolder() {
+    try {
+        const { htmlDir } = ensureStoragePaths();
+        const result = await shell.openPath(htmlDir);
+        if (result) {
+            return { success: false, msg: result };
+        }
+
+        return { success: true, path: htmlDir };
+    } catch (error) {
+        return { success: false, msg: error.message };
+    }
+}
+
 async function checkIpInfo() {
     try {
         const response = await axios.get('http://ip-api.com/json/?lang=zh-CN', { timeout: 5000 });
@@ -409,6 +423,7 @@ async function openExternalPlayer({ url }) {
 module.exports = {
     saveExportHtml,
     openDirectoryDialog,
+    openMessageDataFolder,
     checkIpInfo,
     checkIpDomestic,
     checkIpForeign,

@@ -13,6 +13,8 @@
             switchView
         } = deps;
 
+        let liveGiftCacheSaveTimer = null;
+
         function getSafeToken() {
             if (typeof getAppToken === 'function') return getAppToken();
             return typeof window.getAppToken === 'function' ? window.getAppToken() : '';
@@ -39,6 +41,56 @@
                 money: gift.cost,
                 picPath: `/mediasource/live/gift/gift_png_${gift.id}.png`
             }));
+        }
+
+        function scheduleLiveGiftCacheSave(pocketGiftData) {
+            if (liveGiftCacheSaveTimer) {
+                clearTimeout(liveGiftCacheSaveTimer);
+            }
+
+            liveGiftCacheSaveTimer = setTimeout(() => {
+                liveGiftCacheSaveTimer = null;
+                const cacheApi = window.desktop && window.desktop.appCache ? window.desktop.appCache : null;
+                if (cacheApi && typeof cacheApi.setCacheValueSync === 'function') {
+                    cacheApi.setCacheValueSync('POCKET_GIFT_DATA_CACHE', pocketGiftData);
+                } else {
+                    localStorage.setItem('POCKET_GIFT_DATA_CACHE', JSON.stringify(pocketGiftData));
+                }
+            }, 500);
+        }
+
+        function persistGiftListToCache(giftList = []) {
+            const pocketGiftData = typeof getPocketGiftData === 'function' ? getPocketGiftData() : [];
+            let changed = false;
+
+            giftList.forEach((gift) => {
+                const id = String(gift.giftId || gift.id || '').trim();
+                const name = String(gift.giftName || gift.name || '').trim();
+                const cost = Number(gift.money || gift.cost || 0);
+                if ((!id && !name) || !cost) return;
+
+                const normalizedGift = { id, name: name || id, cost };
+
+                const existing = pocketGiftData.find(item => (id && String(item.id) === id) || (name && item.name === name));
+                if (existing) {
+                    const itemChanged = Number(existing.cost || 0) !== cost
+                        || (id && String(existing.id || '') !== id)
+                        || (name && existing.name !== name);
+                    if (!itemChanged) return;
+
+                    existing.id = id || existing.id;
+                    existing.name = name || existing.name;
+                    existing.cost = cost;
+                    changed = true;
+                } else {
+                    pocketGiftData.push(normalizedGift);
+                    changed = true;
+                }
+            });
+
+            if (!changed) return;
+
+            scheduleLiveGiftCacheSave(pocketGiftData);
         }
 
         function toggleGiftPanel() {
@@ -119,6 +171,8 @@
 
             if (useFallback || giftList.length === 0) {
                 giftList = getGiftFallbackList();
+            } else {
+                persistGiftListToCache(giftList);
             }
 
             if (giftList.length === 0) {

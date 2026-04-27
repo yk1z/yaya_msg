@@ -4,12 +4,44 @@ const path = require('path');
 
 const INTERNAL_FILES = ['data_cache.json', 'scan_manifest.json'];
 
+function expandHomePath(value, homeDir) {
+    if (!value || typeof value !== 'string') {
+        return '';
+    }
+
+    return value
+        .replace(/^\$HOME(?=\/|\\|$)/, homeDir)
+        .replace(/^~(?=\/|\\|$)/, homeDir);
+}
+
+function resolveLinuxDocumentsDir(homeDir) {
+    const userDirsFile = path.join(homeDir, '.config', 'user-dirs.dirs');
+
+    try {
+        const text = fs.readFileSync(userDirsFile, 'utf8');
+        const match = text.match(/^XDG_DOCUMENTS_DIR=(["']?)(.+?)\1$/m);
+        if (match) {
+            const resolved = expandHomePath(match[2], homeDir);
+            if (resolved) {
+                return resolved;
+            }
+        }
+    } catch (error) {
+    }
+
+    return '';
+}
+
 function resolveDocumentsDir() {
     const homeDir = os.homedir();
+    const platformDocumentDir = process.platform === 'linux'
+        ? resolveLinuxDocumentsDir(homeDir)
+        : '';
     const candidates = [
+        platformDocumentDir,
         path.join(homeDir, 'Documents'),
         path.join(homeDir, 'documents')
-    ];
+    ].filter(Boolean);
 
     const existing = candidates.find((candidate) => fs.existsSync(candidate));
     return existing || candidates[0];

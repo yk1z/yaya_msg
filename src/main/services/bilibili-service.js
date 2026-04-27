@@ -1,7 +1,6 @@
-const fs = require('fs');
 const axios = require('axios');
 const QRCode = require('qrcode');
-const { ensureStoragePaths } = require('../../common/storage-paths');
+const settingsService = require('./settings-service');
 
 const BILIBILI_COOKIE_SETTING_KEY = 'bilibiliCookie';
 const BILIBILI_USER_SETTING_KEY = 'bilibiliUserInfo';
@@ -62,37 +61,12 @@ function assertBilibiliResponseAllowed(data) {
     }
 }
 
-function readJsonFileSafe(filePath, fallbackValue) {
-    try {
-        if (!fs.existsSync(filePath)) {
-            return fallbackValue;
-        }
-
-        return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-    } catch (error) {
-        return fallbackValue;
-    }
-}
-
-function writeJsonFileSafe(filePath, value) {
-    const tempFilePath = `${filePath}.tmp`;
-    fs.writeFileSync(tempFilePath, JSON.stringify(value, null, 2), 'utf8');
-    if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-    }
-    fs.renameSync(tempFilePath, filePath);
-}
-
 function readSettingsSafe() {
-    return readJsonFileSafe(ensureStoragePaths().settingsFile, {});
+    return settingsService.readSettings();
 }
 
 function updateSettingsSafe(updater) {
-    const storagePaths = ensureStoragePaths();
-    const current = readJsonFileSafe(storagePaths.settingsFile, {});
-    const next = typeof updater === 'function' ? updater({ ...current }) || current : current;
-    writeJsonFileSafe(storagePaths.settingsFile, next);
-    return next;
+    return settingsService.updateSettings(updater);
 }
 
 function getStoredBilibiliCookie() {

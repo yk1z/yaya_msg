@@ -3,6 +3,10 @@
         let isAutoFetching = false;
         let currentFetchStopKey = '';
         let currentFetchStoppedAtPrevious = false;
+        let currentFetchedServerId = '';
+        let currentFetchedChannelId = '';
+        let currentFetchedFetchAllMode = false;
+        let pocketGiftCacheSaveTimer = null;
         const AUTO_CHECKIN_ENABLED_KEY = 'yaya_auto_checkin_enabled';
         const AUTO_CHECKIN_LAST_DATE_KEY = 'yaya_auto_checkin_last_date';
         const AUTO_CHECKIN_LAST_USER_KEY = 'yaya_auto_checkin_last_user';
@@ -221,6 +225,97 @@
             }
         }
 
+        function escapeFetchHtml(value) {
+            return String(value == null ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function normalizePocketMediaUrl(mediaPath) {
+            const rawPath = String(mediaPath || '').trim();
+            if (!rawPath) return '';
+            if (/^https?:\/\//i.test(rawPath)) return rawPath;
+            if (rawPath.includes('48.cn')) {
+                return `https://${rawPath.replace(/^\/+/, '')}`;
+            }
+
+            return rawPath.startsWith('/')
+                ? `https://source3.48.cn${rawPath}`
+                : `https://source3.48.cn/${rawPath}`;
+        }
+
+        function schedulePocketGiftCacheSave() {
+            if (pocketGiftCacheSaveTimer) {
+                clearTimeout(pocketGiftCacheSaveTimer);
+            }
+
+            pocketGiftCacheSaveTimer = setTimeout(() => {
+                pocketGiftCacheSaveTimer = null;
+                const cacheApi = window.desktop && window.desktop.appCache ? window.desktop.appCache : null;
+                if (cacheApi && typeof cacheApi.setCacheValueSync === 'function') {
+                    cacheApi.setCacheValueSync('POCKET_GIFT_DATA_CACHE', POCKET_GIFT_DATA);
+                } else {
+                    localStorage.setItem('POCKET_GIFT_DATA_CACHE', JSON.stringify(POCKET_GIFT_DATA));
+                }
+            }, 500);
+        }
+
+        function upsertPocketGiftData(giftInfo = {}, unitCost = 0) {
+            if (typeof POCKET_GIFT_DATA === 'undefined') return false;
+
+            const id = String(giftInfo.giftId || giftInfo.id || '').trim();
+            const name = String(giftInfo.giftName || giftInfo.name || '').trim();
+            const cost = Number(unitCost || giftInfo.money || giftInfo.cost || 0);
+            if ((!id && !name) || !cost) return false;
+
+            const existing = POCKET_GIFT_DATA.find(item => (id && String(item.id) === id) || (name && item.name === name));
+            if (existing) {
+                const changed = Number(existing.cost || 0) !== cost
+                    || (id && String(existing.id || '') !== id)
+                    || (name && existing.name !== name);
+                if (!changed) return false;
+
+                existing.cost = cost;
+                if (id) existing.id = id;
+                if (name) existing.name = name;
+            } else {
+                POCKET_GIFT_DATA.push({ id, name: name || id, cost });
+            }
+
+            schedulePocketGiftCacheSave();
+            return true;
+        }
+
+        function renderPocketGiftCard(giftInfo = {}) {
+            const giftName = escapeFetchHtml(giftInfo.giftName || giftInfo.name || '未知礼物');
+            const giftNum = Number(giftInfo.giftNum || giftInfo.num || giftInfo.count || 1) || 1;
+            const giftImg = normalizePocketMediaUrl(giftInfo.picPath || giftInfo.giftPic || giftInfo.image || '');
+            let unitCost = Number(giftInfo.money || giftInfo.cost || 0);
+
+            if (!unitCost && typeof POCKET_GIFT_DATA !== 'undefined') {
+                const gift = POCKET_GIFT_DATA.find(item => item.id == (giftInfo.giftId || giftInfo.id) || item.name === (giftInfo.giftName || giftInfo.name));
+                if (gift) unitCost = Number(gift.cost || 0);
+            }
+
+            upsertPocketGiftData(giftInfo, unitCost);
+
+            const costDisplay = unitCost
+                ? `<span style="margin-left:5px; color:#fa8c16; font-weight:bold;">(${unitCost * giftNum}🍗)</span>`
+                : '';
+
+            return `
+        <div class="mb-2" style="display:flex; align-items:center; background:#fff0f6; padding:6px 8px; border-radius:6px; border:1px solid #ffadd2; max-width: 300px;">
+            ${giftImg ? `<img src="${escapeFetchHtml(giftImg)}" style="width: 25px !important; height: 25px !important; max-width: 32px !important; max-height: 32px !important; object-fit: contain !important; margin: 0 8px 0 0 !important; border-radius: 4px; box-shadow: none !important;">` : '<span style="font-size:24px; margin-right:8px;">🎁</span>'}
+            <div style="flex: 1; overflow: hidden;">
+                <div style="color:#eb2f96; font-weight:bold; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">送出礼物：${giftName}</div>
+                <div style="font-size:11px; color:#888;">数量: x${giftNum} ${costDisplay}</div>
+            </div>
+        </div>`;
+        }
+
         function clearFetchBoundary() {
             const serverId = document.getElementById('tool-server').value.trim();
             const channelId = document.getElementById('tool-channel').value.trim();
@@ -240,10 +335,10 @@
             currentFetchStoppedAtPrevious = false;
 
             if (statusEl) {
-                statusEl.innerHTML = '已清除当前房间抓取边界';
+                statusEl.innerHTML = '已清除当前房间上次抓取位置';
             }
 
-            showToast('已清除当前房间抓取边界');
+            showToast('已清除当前房间上次抓取位置');
         }
 
         function sleep(ms) {
@@ -948,6 +1043,9 @@
                 allFetchedMsgs = [];
                 currentFetchStopKey = loadFetchBoundary(serverId, channelId, isFetchAllMode);
                 currentFetchStoppedAtPrevious = false;
+                currentFetchedServerId = serverId;
+                currentFetchedChannelId = channelId;
+                currentFetchedFetchAllMode = isFetchAllMode;
                 const statusEl = document.getElementById('fetch-status');
                 if (statusEl) statusEl.innerHTML = '';
                 if (exportBtn) exportBtn.disabled = true;
@@ -976,7 +1074,12 @@
                 }
 
                 if (res.success && res.data.content) {
-                    if (res.usedServerId) document.getElementById('tool-server').value = res.usedServerId;
+                    if (res.usedServerId) {
+                        document.getElementById('tool-server').value = res.usedServerId;
+                        if (!isLoadMore) {
+                            currentFetchedServerId = res.usedServerId;
+                        }
+                    }
                     const content = res.data.content;
 
                     let list = content.messageList || content.message || [];
@@ -1017,9 +1120,6 @@
                     }
 
                     allFetchedMsgs = allFetchedMsgs.concat(list);
-                    if (allFetchedMsgs.length > 0) {
-                        saveFetchBoundary(serverId, channelId, isFetchAllMode, allFetchedMsgs[0]);
-                    }
                     const statusEl = document.getElementById('fetch-status');
                     if (statusEl) {
                         let timeText = '';
@@ -1079,15 +1179,8 @@
 
                                 else if (json.messageType === 'GIFT_TEXT' || m.msgType === 'GIFT_TEXT') {
                                     const info = json.giftInfo || json;
-
-                                    let unitCost = info.money || info.cost;
-                                if (!unitCost && typeof POCKET_GIFT_DATA !== 'undefined') {
-                                    const g = POCKET_GIFT_DATA.find(x => x.id == (info.giftId || info.id) || x.name === info.giftName);
-                                    if (g) unitCost = g.cost;
-                                }
-                                const totalCostStr = unitCost ? ` (约 ${unitCost * info.giftNum} 🍗)` : '';
-
-                                txt = `🎁 送出了 [${info.giftName}] x${info.giftNum}${totalCostStr}`;
+                                    txt = '';
+                                    extraHtml = renderPocketGiftCard(info);
                             }
                             else if ((json.messageType || '').toUpperCase().startsWith('RED_PACKET')) {
                                 const esc = (value) => String(value || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -1295,23 +1388,7 @@
                                             </div>`;
                             } else if (json.messageType === 'GIFT_TEXT' || m.msgType === 'GIFT_TEXT') {
                                 const info = json.giftInfo || json;
-                                const giftImg = info.picPath ? fix48Url(info.picPath) : '';
-
-                                let unitCost = info.money || info.cost;
-                                if (!unitCost && typeof POCKET_GIFT_DATA !== 'undefined') {
-                                    const g = POCKET_GIFT_DATA.find(x => x.id == (info.giftId || info.id) || x.name === info.giftName);
-                                    if (g) unitCost = g.cost;
-                                }
-                                const costDisplay = unitCost ? `<span style="margin-left:5px; color:#fa8c16; font-weight:bold;">(${unitCost * info.giftNum}🍗)</span>` : '';
-
-                                contentHtml = `
-        <div class="mb-2" style="display:flex; align-items:center; background:#fff0f6; padding:6px 8px; border-radius:6px; border:1px solid #ffadd2; max-width: 300px;">
-            ${giftImg ? `<img src="${giftImg}" style="width: 25px !important; height: 25px !important; max-width: 32px !important; max-height: 32px !important; object-fit: contain !important; margin: 0 8px 0 0 !important; border-radius: 4px; box-shadow: none !important;">` : '<span style="font-size:24px; margin-right:8px;">🎁</span>'}
-            <div style="flex: 1; overflow: hidden;">
-                <div style="color:#eb2f96; font-weight:bold; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">送出礼物：${info.giftName}</div>
-                <div style="font-size:11px; color:#888;">数量: x${info.giftNum} ${costDisplay}</div>
-            </div>
-        </div>`;
+                                contentHtml = renderPocketGiftCard(info);
                             } else if ((json.messageType || '').toUpperCase().startsWith('RED_PACKET')) {
                                 const blessMessage = String(json.blessMessage || '送来了红包祝福').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                                 const creatorName = String(json.creatorName || nickName || '未知用户').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -1529,6 +1606,15 @@
 
                 if (!res || !res.success) {
                     throw new Error((res && res.msg) || '导出失败');
+                }
+
+                if (allFetchedMsgs.length > 0) {
+                    saveFetchBoundary(
+                        currentFetchedServerId || document.getElementById('tool-server').value.trim(),
+                        currentFetchedChannelId || document.getElementById('tool-channel').value.trim(),
+                        currentFetchedFetchAllMode,
+                        allFetchedMsgs[0]
+                    );
                 }
 
                 const fileName = res.path ? window.desktop.path.basename(res.path) : 'yaya_export.html';

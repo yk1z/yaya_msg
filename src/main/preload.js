@@ -35,48 +35,17 @@ function writeJsonFileSafe(filePath, value) {
     fs.renameSync(tempFilePath, filePath);
 }
 
-function normalizeSettings(rawSettings) {
-    const safeSettings = rawSettings && typeof rawSettings === 'object' && !Array.isArray(rawSettings)
-        ? { ...rawSettings }
-        : {};
-
-    if (typeof safeSettings.p48Token !== 'string') {
-        delete safeSettings.p48Token;
-    } else {
-        safeSettings.p48Token = safeSettings.p48Token.trim();
-        if (!safeSettings.p48Token) {
-            delete safeSettings.p48Token;
-        }
+function invokeSettingsSync(action, payload = {}) {
+    const result = ipcRenderer.sendSync('settings-sync', { action, payload });
+    if (!result || !result.success) {
+        throw new Error(result?.msg || '设置读写失败');
     }
 
-    if (typeof safeSettings.customBackgroundFile !== 'string') {
-        delete safeSettings.customBackgroundFile;
-    } else {
-        safeSettings.customBackgroundFile = safeSettings.customBackgroundFile.trim();
-        if (!safeSettings.customBackgroundFile) {
-            delete safeSettings.customBackgroundFile;
-        }
-    }
-
-    return safeSettings;
+    return result.data;
 }
 
 function readSettingsSync() {
-    return normalizeSettings(readJsonFileSafe(storagePaths.settingsFile, {}));
-}
-
-function writeSettingsSync(nextSettings) {
-    const normalized = normalizeSettings(nextSettings);
-    writeJsonFileSafe(storagePaths.settingsFile, normalized);
-    return normalized;
-}
-
-function updateSettingsSync(updater) {
-    const current = readSettingsSync();
-    const next = typeof updater === 'function'
-        ? updater({ ...current }) || current
-        : { ...current, ...(updater || {}) };
-    return writeSettingsSync(next);
+    return invokeSettingsSync('read');
 }
 
 function sanitizeBackgroundExt(extName) {
@@ -118,10 +87,7 @@ function persistBackgroundFileSync(bufferLike, extName) {
     fs.mkdirSync(storagePaths.internalDataDir, { recursive: true });
     fs.writeFileSync(targetFilePath, bufferLike);
     removeManagedBackgroundFiles(targetFileName);
-    updateSettingsSync((current) => ({
-        ...current,
-        customBackgroundFile: targetFileName
-    }));
+    invokeSettingsSync('set', { key: 'customBackgroundFile', value: targetFileName });
 
     return pathToFileURL(targetFilePath).href;
 }
@@ -154,10 +120,7 @@ function getBackgroundUrlSync() {
 
     const filePath = getBackgroundFilePath(fileName);
     if (!fs.existsSync(filePath)) {
-        updateSettingsSync((current) => {
-            delete current.customBackgroundFile;
-            return current;
-        });
+        invokeSettingsSync('remove', { key: 'customBackgroundFile' });
         return '';
     }
 
@@ -176,10 +139,7 @@ function saveBackgroundFromFileSync(sourcePath) {
     fs.mkdirSync(storagePaths.internalDataDir, { recursive: true });
     fs.copyFileSync(sourcePath, targetFilePath);
     removeManagedBackgroundFiles(targetFileName);
-    updateSettingsSync((current) => ({
-        ...current,
-        customBackgroundFile: targetFileName
-    }));
+    invokeSettingsSync('set', { key: 'customBackgroundFile', value: targetFileName });
 
     return pathToFileURL(targetFilePath).href;
 }
@@ -202,59 +162,37 @@ function clearBackgroundSync() {
         removeFileIfExists(getBackgroundFilePath(settings.customBackgroundFile));
     }
     removeManagedBackgroundFiles();
-    updateSettingsSync((current) => {
-        delete current.customBackgroundFile;
-        return current;
-    });
+    invokeSettingsSync('remove', { key: 'customBackgroundFile' });
     return '';
 }
 
 function getTokenSync() {
-    return readSettingsSync().p48Token || '';
+    return invokeSettingsSync('get-token') || '';
 }
 
 function setTokenSync(token) {
-    const normalizedToken = String(token || '').trim();
-    updateSettingsSync((current) => {
-        if (normalizedToken) {
-            current.p48Token = normalizedToken;
-        } else {
-            delete current.p48Token;
-        }
-        return current;
-    });
-    return normalizedToken;
+    return invokeSettingsSync('set-token', { token });
 }
 
 function clearTokenSync() {
-    updateSettingsSync((current) => {
-        delete current.p48Token;
-        return current;
-    });
-    return '';
+    return invokeSettingsSync('clear-token') || '';
 }
 
 function getSettingValueSync(key, fallbackValue) {
-    const settings = readSettingsSync();
-    if (Object.prototype.hasOwnProperty.call(settings, key)) {
-        return settings[key];
+    const result = invokeSettingsSync('get', { key });
+    if (result && result.found) {
+        return result.value;
     }
+
     return arguments.length >= 2 ? fallbackValue : '';
 }
 
 function setSettingValueSync(key, value) {
-    updateSettingsSync((current) => {
-        current[key] = value;
-        return current;
-    });
-    return value;
+    return invokeSettingsSync('set', { key, value });
 }
 
 function removeSettingValueSync(key) {
-    updateSettingsSync((current) => {
-        delete current[key];
-        return current;
-    });
+    invokeSettingsSync('remove', { key });
 }
 
 function readRuntimeCacheSync() {
