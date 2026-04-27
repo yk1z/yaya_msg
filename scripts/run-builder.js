@@ -20,7 +20,7 @@ const windowsArtifactFileName = `${windowsArtifactBaseName}.zip`;
 const userArgs = process.argv.slice(2);
 const artifactArg = `-c.artifactName=yaya_msg-${versionLabel}.${'${ext}'}`;
 const DEFAULT_ELECTRON_MIRROR = 'https://npmmirror.com/mirrors/electron/';
-const DEFAULT_ELECTRON_BUILDER_BINARIES_MIRROR = 'https://npmmirror.com/mirrors/electron-builder-binaries/';
+const DEFAULT_ELECTRON_BUILDER_BINARIES_MIRROR = 'https://github.com/electron-userland/electron-builder-binaries/releases/download/';
 
 function shouldWrapWindowsZip(args) {
     if (process.platform !== 'win32') {
@@ -68,7 +68,9 @@ const builderArgs = wrapWindowsZip
 const builderEnv = {
     ...process.env,
     ELECTRON_MIRROR: process.env.ELECTRON_MIRROR || DEFAULT_ELECTRON_MIRROR,
-    ELECTRON_BUILDER_BINARIES_MIRROR: process.env.ELECTRON_BUILDER_BINARIES_MIRROR || DEFAULT_ELECTRON_BUILDER_BINARIES_MIRROR
+    ELECTRON_BUILDER_BINARIES_MIRROR: process.env.ELECTRON_BUILDER_BINARIES_MIRROR || DEFAULT_ELECTRON_BUILDER_BINARIES_MIRROR,
+    NPM_CONFIG_ELECTRON_BUILDER_BINARIES_MIRROR: process.env.NPM_CONFIG_ELECTRON_BUILDER_BINARIES_MIRROR || DEFAULT_ELECTRON_BUILDER_BINARIES_MIRROR,
+    npm_config_electron_builder_binaries_mirror: process.env.npm_config_electron_builder_binaries_mirror || DEFAULT_ELECTRON_BUILDER_BINARIES_MIRROR
 };
 
 const result = spawnSync(
