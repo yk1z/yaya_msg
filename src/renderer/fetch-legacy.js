@@ -3,6 +3,180 @@
         let isAutoFetching = false;
         let currentFetchStopKey = '';
         let currentFetchStoppedAtPrevious = false;
+        const AUTO_CHECKIN_ENABLED_KEY = 'yaya_auto_checkin_enabled';
+        const AUTO_CHECKIN_LAST_DATE_KEY = 'yaya_auto_checkin_last_date';
+        const AUTO_CHECKIN_LAST_USER_KEY = 'yaya_auto_checkin_last_user';
+        let currentPocketUserId = '';
+        let autoCheckinInFlight = false;
+        let autoCheckinSettingsMigrated = false;
+
+        function getAppSettingsApi() {
+            return window.desktop && window.desktop.appSettings ? window.desktop.appSettings : null;
+        }
+
+        function getAppCacheApi() {
+            return window.desktop && window.desktop.appCache ? window.desktop.appCache : null;
+        }
+
+        function readStoredToken() {
+            const settingsApi = getAppSettingsApi();
+            if (settingsApi && typeof settingsApi.getTokenSync === 'function') {
+                const storedToken = String(settingsApi.getTokenSync() || '').trim();
+                if (storedToken) {
+                    return storedToken;
+                }
+            }
+
+            return String(localStorage.getItem('yaya_p48_token') || '').trim();
+        }
+
+        function writeStoredToken(token) {
+            const normalizedToken = String(token || '').trim();
+            const settingsApi = getAppSettingsApi();
+
+            if (settingsApi && typeof settingsApi.setTokenSync === 'function') {
+                settingsApi.setTokenSync(normalizedToken);
+                localStorage.removeItem('yaya_p48_token');
+                return normalizedToken;
+            }
+
+            if (normalizedToken) {
+                localStorage.setItem('yaya_p48_token', normalizedToken);
+            } else {
+                localStorage.removeItem('yaya_p48_token');
+            }
+
+            return normalizedToken;
+        }
+
+        function clearStoredToken() {
+            const settingsApi = getAppSettingsApi();
+            if (settingsApi && typeof settingsApi.clearTokenSync === 'function') {
+                settingsApi.clearTokenSync();
+            }
+            localStorage.removeItem('yaya_p48_token');
+        }
+
+        function readStoredSettingStringFallback(key, fallbackValue = '') {
+            if (typeof window.readStoredStringSetting === 'function') {
+                return window.readStoredStringSetting(key, fallbackValue);
+            }
+            const legacyValue = localStorage.getItem(key);
+            return legacyValue === null ? fallbackValue : String(legacyValue);
+        }
+
+        function readRuntimeCacheString(key, fallbackValue = '') {
+            const cacheApi = getAppCacheApi();
+            const missingMarker = readRuntimeCacheString._missingMarker || (readRuntimeCacheString._missingMarker = {});
+
+            if (cacheApi && typeof cacheApi.getCacheValueSync === 'function') {
+                const storedValue = cacheApi.getCacheValueSync(key, missingMarker);
+                if (storedValue !== missingMarker) {
+                    return typeof storedValue === 'string' ? storedValue : String(storedValue ?? '');
+                }
+            }
+
+            const legacyValue = localStorage.getItem(key);
+            if (legacyValue !== null) {
+                if (cacheApi && typeof cacheApi.setCacheValueSync === 'function') {
+                    cacheApi.setCacheValueSync(key, legacyValue);
+                    localStorage.removeItem(key);
+                }
+                return String(legacyValue);
+            }
+
+            return fallbackValue;
+        }
+
+        function writeRuntimeCacheString(key, value) {
+            const normalizedValue = String(value ?? '');
+            const cacheApi = getAppCacheApi();
+            if (cacheApi && typeof cacheApi.setCacheValueSync === 'function') {
+                cacheApi.setCacheValueSync(key, normalizedValue);
+                localStorage.removeItem(key);
+                return normalizedValue;
+            }
+
+            localStorage.setItem(key, normalizedValue);
+            return normalizedValue;
+        }
+
+        function removeRuntimeCacheValue(key) {
+            const cacheApi = getAppCacheApi();
+            if (cacheApi && typeof cacheApi.removeCacheValueSync === 'function') {
+                cacheApi.removeCacheValueSync(key);
+            }
+            localStorage.removeItem(key);
+        }
+
+        function ensureAutoCheckinSettingsMigrated() {
+            if (autoCheckinSettingsMigrated) {
+                return;
+            }
+
+            autoCheckinSettingsMigrated = true;
+            const settingsApi = getAppSettingsApi();
+            if (!settingsApi
+                || typeof settingsApi.getSettingValueSync !== 'function'
+                || typeof settingsApi.setSettingValueSync !== 'function') {
+                return;
+            }
+
+            try {
+                const hasEnabled = typeof settingsApi.getSettingValueSync(AUTO_CHECKIN_ENABLED_KEY, undefined) !== 'undefined';
+                const legacyEnabled = localStorage.getItem(AUTO_CHECKIN_ENABLED_KEY);
+                if (!hasEnabled && legacyEnabled !== null) {
+                    settingsApi.setSettingValueSync(AUTO_CHECKIN_ENABLED_KEY, legacyEnabled);
+                }
+                if (legacyEnabled !== null) {
+                    localStorage.removeItem(AUTO_CHECKIN_ENABLED_KEY);
+                }
+
+                const hasLastDate = typeof settingsApi.getSettingValueSync(AUTO_CHECKIN_LAST_DATE_KEY, undefined) !== 'undefined';
+                const legacyLastDate = localStorage.getItem(AUTO_CHECKIN_LAST_DATE_KEY);
+                if (!hasLastDate && legacyLastDate !== null) {
+                    settingsApi.setSettingValueSync(AUTO_CHECKIN_LAST_DATE_KEY, legacyLastDate);
+                }
+                if (legacyLastDate !== null) {
+                    localStorage.removeItem(AUTO_CHECKIN_LAST_DATE_KEY);
+                }
+
+                const hasLastUser = typeof settingsApi.getSettingValueSync(AUTO_CHECKIN_LAST_USER_KEY, undefined) !== 'undefined';
+                const legacyLastUser = localStorage.getItem(AUTO_CHECKIN_LAST_USER_KEY);
+                if (!hasLastUser && legacyLastUser !== null) {
+                    settingsApi.setSettingValueSync(AUTO_CHECKIN_LAST_USER_KEY, legacyLastUser);
+                }
+                if (legacyLastUser !== null) {
+                    localStorage.removeItem(AUTO_CHECKIN_LAST_USER_KEY);
+                }
+            } catch (error) {
+                console.warn('迁移自动签到设置失败:', error);
+            }
+        }
+
+        function readAutoCheckinSetting(key, fallbackValue = '') {
+            ensureAutoCheckinSettingsMigrated();
+            const settingsApi = getAppSettingsApi();
+            if (settingsApi && typeof settingsApi.getSettingValueSync === 'function') {
+                return settingsApi.getSettingValueSync(key, fallbackValue);
+            }
+
+            const legacyValue = localStorage.getItem(key);
+            return legacyValue === null ? fallbackValue : legacyValue;
+        }
+
+        function writeAutoCheckinSetting(key, value) {
+            ensureAutoCheckinSettingsMigrated();
+            const settingsApi = getAppSettingsApi();
+            if (settingsApi && typeof settingsApi.setSettingValueSync === 'function') {
+                settingsApi.setSettingValueSync(key, value);
+                localStorage.removeItem(key);
+                return value;
+            }
+
+            localStorage.setItem(key, value);
+            return value;
+        }
 
         function getFetchBoundaryStorageKey(serverId, channelId, fetchAllMode) {
             return `yaya_fetch_boundary::${serverId || ''}::${channelId || ''}::${fetchAllMode ? 'all' : 'member'}`;
@@ -31,7 +205,7 @@
 
         function loadFetchBoundary(serverId, channelId, fetchAllMode) {
             try {
-                return localStorage.getItem(getFetchBoundaryStorageKey(serverId, channelId, fetchAllMode)) || '';
+                return readRuntimeCacheString(getFetchBoundaryStorageKey(serverId, channelId, fetchAllMode), '');
             } catch (error) {
                 return '';
             }
@@ -42,7 +216,7 @@
             if (!boundaryKey) return;
 
             try {
-                localStorage.setItem(getFetchBoundaryStorageKey(serverId, channelId, fetchAllMode), boundaryKey);
+                writeRuntimeCacheString(getFetchBoundaryStorageKey(serverId, channelId, fetchAllMode), boundaryKey);
             } catch (error) {
             }
         }
@@ -58,7 +232,7 @@
             }
 
             try {
-                localStorage.removeItem(getFetchBoundaryStorageKey(serverId, channelId, isFetchAllMode));
+                removeRuntimeCacheValue(getFetchBoundaryStorageKey(serverId, channelId, isFetchAllMode));
             } catch (error) {
             }
 
@@ -74,6 +248,168 @@
 
         function sleep(ms) {
             return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        function getTodayCheckinKey() {
+            const now = new Date();
+            const pad = (value) => String(value).padStart(2, '0');
+            return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+        }
+
+        function getAutoCheckinEnabled() {
+            return String(readAutoCheckinSetting(AUTO_CHECKIN_ENABLED_KEY, '1')) !== '0';
+        }
+
+        function setAutoCheckinEnabled(enabled) {
+            writeAutoCheckinSetting(AUTO_CHECKIN_ENABLED_KEY, enabled ? '1' : '0');
+            syncAutoCheckinUi();
+        }
+
+        function markCheckinComplete(userId) {
+            writeAutoCheckinSetting(AUTO_CHECKIN_LAST_DATE_KEY, getTodayCheckinKey());
+            writeAutoCheckinSetting(AUTO_CHECKIN_LAST_USER_KEY, String(userId || currentPocketUserId || ''));
+        }
+
+        function isCheckinRecordedToday(userId) {
+            const targetUserId = String(userId || currentPocketUserId || '');
+            return String(readAutoCheckinSetting(AUTO_CHECKIN_LAST_DATE_KEY, '')) === getTodayCheckinKey()
+                && String(readAutoCheckinSetting(AUTO_CHECKIN_LAST_USER_KEY, '')) === targetUserId;
+        }
+
+        function updateAutoCheckinStatus(message, color = 'var(--text-sub)') {
+            const statusEl = document.getElementById('auto-checkin-status');
+            if (!statusEl) return;
+            statusEl.innerText = message;
+            statusEl.style.color = color;
+        }
+
+        function syncAutoCheckinUi() {
+            const toggle = document.getElementById('auto-checkin-toggle');
+            if (toggle) {
+                toggle.checked = getAutoCheckinEnabled();
+            }
+
+            if (currentPocketUserId && isCheckinRecordedToday(currentPocketUserId)) {
+                updateAutoCheckinStatus('今日签到已完成，重复打开软件不会再次提交', '#28a745');
+                return;
+            }
+
+            if (getAutoCheckinEnabled()) {
+                updateAutoCheckinStatus('已开启自动签到，登录成功后会在打开软件时自动尝试签到');
+            } else {
+                updateAutoCheckinStatus('已关闭自动签到，需要时可以点击“立即签到”');
+            }
+        }
+
+        function formatCheckinSuccessMessage(content) {
+            if (!content || typeof content !== 'object') {
+                return '签到成功';
+            }
+
+            const days = Number(content.days) || 0;
+            const addExp = Number(content.addExp) || 0;
+            const addSupport = Number(content.addSupport) || 0;
+            const parts = [];
+
+            if (days > 0) parts.push(`第 ${days} 天`);
+            if (addExp > 0) parts.push(`成长值 +${addExp}`);
+            if (addSupport > 0) parts.push(`鸡翅 +${addSupport}`);
+
+            return parts.length ? `签到成功，${parts.join('，')}` : '签到成功';
+        }
+
+        function setCheckinButtonBusy(isBusy) {
+            const btn = document.getElementById('btn-manual-checkin');
+            if (!btn) return;
+            btn.disabled = isBusy;
+            btn.innerText = isBusy ? '签到中...' : '立即签到';
+        }
+
+        async function performPocketCheckin(options = {}) {
+            const { force = false, silentWhenSkipped = true } = options;
+
+            if (!appToken) {
+                updateAutoCheckinStatus('请先登录账号后再签到', '#ff4d4f');
+                if (!silentWhenSkipped) showToast('请先登录账号');
+                return { success: false, skipped: true, reason: 'missing-token' };
+            }
+
+            if (!currentPocketUserId) {
+                updateAutoCheckinStatus('当前账号信息未就绪，请稍后重试', '#ff4d4f');
+                return { success: false, skipped: true, reason: 'missing-user' };
+            }
+
+            if (!force && !getAutoCheckinEnabled()) {
+                syncAutoCheckinUi();
+                return { success: false, skipped: true, reason: 'disabled' };
+            }
+
+            if (!force && isCheckinRecordedToday(currentPocketUserId)) {
+                syncAutoCheckinUi();
+                return { success: true, skipped: true, reason: 'already-recorded' };
+            }
+
+            if (autoCheckinInFlight) {
+                return { success: false, skipped: true, reason: 'busy' };
+            }
+
+            autoCheckinInFlight = true;
+            setCheckinButtonBusy(true);
+            updateAutoCheckinStatus('正在签到，请稍候...', 'var(--primary)');
+
+            try {
+                const pa = window.getPA ? window.getPA() : null;
+                const res = await ipcRenderer.invoke('pocket-checkin', {
+                    token: appToken,
+                    pa
+                });
+
+                if (res && res.success) {
+                    markCheckinComplete(currentPocketUserId);
+                    const successMsg = formatCheckinSuccessMessage(res.content);
+                    updateAutoCheckinStatus(`${successMsg}，今日无需重复签到`, '#28a745');
+                    showToast(successMsg);
+                    return { success: true, content: res.content };
+                }
+
+                const errorMessage = res?.msg || '签到失败';
+                if (/已签到|重复签到|已经签到/.test(errorMessage)) {
+                    markCheckinComplete(currentPocketUserId);
+                    updateAutoCheckinStatus('今日签到已完成，重复打开软件不会再次提交', '#28a745');
+                    if (force || !silentWhenSkipped) {
+                        showToast('今天已经签到过了');
+                    }
+                    return { success: true, skipped: true, reason: 'already-signed' };
+                }
+
+                updateAutoCheckinStatus(`签到失败：${errorMessage}`, '#ff4d4f');
+                showToast(`签到失败：${errorMessage}`);
+                return { success: false, msg: errorMessage };
+            } catch (error) {
+                const errorMessage = error?.message || '签到请求异常';
+                updateAutoCheckinStatus(`签到失败：${errorMessage}`, '#ff4d4f');
+                showToast(`签到失败：${errorMessage}`);
+                return { success: false, msg: errorMessage };
+            } finally {
+                autoCheckinInFlight = false;
+                setCheckinButtonBusy(false);
+            }
+        }
+
+        async function handleManualCheckIn() {
+            await performPocketCheckin({
+                force: true,
+                silentWhenSkipped: false
+            });
+        }
+
+        function toggleAutoCheckin(enabled) {
+            setAutoCheckinEnabled(enabled);
+            if (enabled) {
+                updateAutoCheckinStatus('已开启自动签到，软件启动并验证登录后会自动尝试签到');
+            } else {
+                updateAutoCheckinStatus('已关闭自动签到，需要时可以点击“立即签到”');
+            }
         }
 
         async function fetchAllMsgs() {
@@ -345,7 +681,7 @@
                     const token = res.content.token;
                     const userInfo = res.content.userInfo;
 
-                    localStorage.setItem('yaya_p48_token', token);
+                    writeStoredToken(token);
                     const tokenInput = document.getElementById('login-token');
                     if (tokenInput) tokenInput.value = token;
 
@@ -364,7 +700,10 @@
             }
         }
         async function checkToken() {
-            const tokenInput = document.getElementById('login-token').value.trim();
+            const tokenField = document.getElementById('login-token');
+            const tokenInput = (tokenField && tokenField.value ? tokenField.value.trim() : '')
+                || (typeof appToken !== 'undefined' && appToken ? String(appToken).trim() : '')
+                || readStoredToken();
             const msgBox = document.getElementById('login-msg');
             const panelInput = document.getElementById('panel-login');
             const panelSuccess = document.getElementById('panel-logged-in');
@@ -378,7 +717,10 @@
             }
 
             appToken = tokenInput;
-            localStorage.setItem('yaya_p48_token', appToken);
+            writeStoredToken(appToken);
+            if (tokenField && tokenField.value !== tokenInput) {
+                tokenField.value = tokenInput;
+            }
 
             if (msgBox) {
                 msgBox.innerText = '正在验证身份...';
@@ -401,10 +743,18 @@
                     const userInfo = res.userInfo;
                     const safeName = userInfo?.baseUserInfo?.nickname || userInfo?.nickname || '口袋用户';
                     const userId = userInfo?.baseUserInfo?.userId || userInfo?.userId || userInfo?.id || 'Unknown';
+                    const currentAvatarRaw = userInfo?.baseUserInfo?.avatar || userInfo?.avatar || userInfo?.baseUserInfo?.faceImage || '';
+                    const currentAvatarUrl = currentAvatarRaw
+                        ? (String(currentAvatarRaw).startsWith('http') ? String(currentAvatarRaw) : `https://source.48.cn${currentAvatarRaw}`)
+                        : './icon.png';
+                    currentPocketUserId = String(userId);
                     document.getElementById('user-nickname').innerText = safeName;
                     const idDisplay = document.getElementById('user-id-display');
                     if (idDisplay) idDisplay.innerText = `ID: ${userId}`;
+                    const currentAvatarEl = document.getElementById('current-user-avatar');
+                    if (currentAvatarEl) currentAvatarEl.src = currentAvatarUrl;
                     if (msgBox) msgBox.innerText = '';
+                    syncAutoCheckinUi();
 
                     if (accountArea && accountList) {
                         accountList.innerHTML = '';
@@ -456,9 +806,16 @@
                         accountArea.style.display = hasOtherAccounts ? 'block' : 'none';
                     }
 
+                    await performPocketCheckin({
+                        force: false,
+                        silentWhenSkipped: true
+                    });
+
                 } else {
+                    currentPocketUserId = '';
                     if (panelInput) panelInput.style.display = 'block';
                     if (panelSuccess) panelSuccess.style.display = 'none';
+                    syncAutoCheckinUi();
                     if (msgBox) {
                         msgBox.style.color = '#ff4d4f';
                         msgBox.innerText = res.msg || 'Token 无效';
@@ -466,8 +823,10 @@
                 }
             } catch (e) {
                 console.error(e);
+                currentPocketUserId = '';
                 if (panelInput) panelInput.style.display = 'block';
                 if (panelSuccess) panelSuccess.style.display = 'none';
+                syncAutoCheckinUi();
                 if (msgBox) {
                     msgBox.style.color = '#ff4d4f';
                     msgBox.innerText = '验证出错: ' + e.message;
@@ -494,7 +853,7 @@
                     const newToken = res.content.token;
                     if (newToken) {
                         appToken = newToken;
-                        localStorage.setItem('yaya_p48_token', newToken);
+                        writeStoredToken(newToken);
                         document.getElementById('login-token').value = newToken;
 
                         await checkToken();
@@ -512,13 +871,13 @@
         }
 
         function copyToken() {
-            const token = appToken || localStorage.getItem('yaya_p48_token');
+            const token = appToken || readStoredToken();
             const btn = document.getElementById('btn-copy-token');
 
             if (token) {
                 navigator.clipboard.writeText(token).then(() => {
                     const originalText = btn.innerText;
-                    btn.innerText = "✅ 已复制";
+                    btn.innerText = "已复制";
                     btn.style.backgroundColor = "#28a745";
                     btn.style.color = "white";
 
@@ -536,8 +895,9 @@
         }
 
         function logout() {
-            localStorage.removeItem('yaya_p48_token');
+            clearStoredToken();
             appToken = '';
+            currentPocketUserId = '';
 
             const panelInput = document.getElementById('panel-login');
             const panelSuccess = document.getElementById('panel-logged-in');
@@ -551,6 +911,7 @@
                 msgBox.innerText = '记录已清除';
                 msgBox.style.color = '#28a745';
             }
+            syncAutoCheckinUi();
 
             const memberSearch = document.getElementById('member-search');
             if (memberSearch) {
@@ -1238,7 +1599,7 @@
                 const response = await fetch(url);
                 if (!response.ok) throw new Error('网络请求失败');
 
-                const customPath = localStorage.getItem(`yaya_path_${dlType}`);
+                const customPath = readStoredSettingStringFallback(`yaya_path_${dlType}`, '');
 
                 if (customPath && typeof fs !== 'undefined' && typeof path !== 'undefined') {
                     let finalDir = customPath;

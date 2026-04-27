@@ -14,7 +14,8 @@
         } = deps;
 
         function getSafeToken() {
-            return typeof getAppToken === 'function' ? getAppToken() : localStorage.getItem('yaya_p48_token');
+            if (typeof getAppToken === 'function') return getAppToken();
+            return typeof window.getAppToken === 'function' ? window.getAppToken() : '';
         }
 
         function getSafePa() {

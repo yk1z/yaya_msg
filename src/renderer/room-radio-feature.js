@@ -24,6 +24,14 @@
         let roomRadioChunks = [];
         let isRoomRadioRecording = false;
 
+        function readStringSetting(key, fallbackValue = '') {
+            if (typeof window.readStoredStringSetting === 'function') {
+                return window.readStoredStringSetting(key, fallbackValue);
+            }
+            const legacyValue = localStorage.getItem(key);
+            return legacyValue === null ? fallbackValue : String(legacyValue);
+        }
+
         function getRoomRadioSearchResultBox() {
             return document.getElementById('room-radio-search-results');
         }
@@ -155,7 +163,7 @@
             const channelId = String(document.getElementById('room-radio-channel-id')?.value || '').trim();
             const serverId = String(document.getElementById('room-radio-server-id')?.value || '').trim() || 0;
             const memberName = String(document.getElementById('room-radio-member-input')?.value || '').trim() || '该房间';
-            const token = getAppToken ? getAppToken() : (localStorage.getItem('yaya_p48_token') || '');
+            const token = getAppToken ? getAppToken() : (typeof window.getAppToken === 'function' ? window.getAppToken() : '');
 
             if (!token) {
                 showToast('⚠️ 请先在“账号设置”中登录');
@@ -365,7 +373,7 @@
                             const result = await ipcRenderer.invoke('save-room-radio-recording', {
                                 arrayBuffer,
                                 fileNameBase,
-                                savePath: localStorage.getItem('yaya_path_room_radio') || ''
+                                savePath: readStringSetting('yaya_path_room_radio', '')
                             });
 
                             if (result?.success) {

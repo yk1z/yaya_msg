@@ -150,7 +150,11 @@
         let handleFlipSendSearch;
         let handleDownloadDanmu;
         let handleDownloadVOD;
+        let applyFlipTimeRangeFilter;
+        let clearActiveFlipDateField;
         let loadFlipList;
+        let pickTodayForFlipDate;
+        let openFlipDatePicker;
         let renderLiveGiftGrid;
         let refreshLiveAnnouncement;
         let refreshFlipUserBalance;
@@ -159,17 +163,25 @@
         let selectFlipPrivacy;
         let selectFlipSendMember;
         let selectFlipType;
+        let selectFlipCalendarDate;
         let selectLiveGift;
+        let setActiveFlipDateField;
         let setClipEnd;
         let setClipEndFromTimeline;
         let setClipStart;
         let setClipStartFromTimeline;
+        let shiftFlipDateCalendarYear;
+        let shiftFlipDateCalendarMonth;
         let closeLiveAnnouncement;
         let toggleRankPanel;
         let toggleGiftPanel;
         let toggleFlipAnswerDropdown;
+        let toggleFlipDateDropdown;
         let toggleFlipPrivacyDropdown;
         let toggleFlipTypeDropdown;
+        let toggleFlipVisibilityDropdown;
+        let toggleFlipSortDropdown;
+        let resetFlipTimeRangeFilter;
         let updateClipUI;
         let updateFlipCharCount;
         let updateLiveBalance;
@@ -573,6 +585,7 @@
 
             currentViewName = 'home';
             currentViewMode = null;
+            updateTopbarPageTitle('home');
 
             try {
                 hideAllPrimaryViews();
@@ -606,11 +619,287 @@
             }
         }
 
+        const LOGIN_REQUIRED_VIEWS = new Set([
+            'fetch',
+            'flip',
+            'send-flip',
+            'profile',
+            'openlive',
+            'photos',
+            'room-album',
+            'room-radio',
+            'private-messages',
+            'followed-rooms'
+        ]);
+
+        function getAppSettingsApi() {
+            return window.desktop && window.desktop.appSettings ? window.desktop.appSettings : null;
+        }
+
+        function readStoredStringSetting(key, fallbackValue = '', legacyKey = key) {
+            const settingsApi = getAppSettingsApi();
+            const missingMarker = readStoredStringSetting._missingMarker || (readStoredStringSetting._missingMarker = {});
+
+            if (settingsApi && typeof settingsApi.getSettingValueSync === 'function') {
+                const storedValue = settingsApi.getSettingValueSync(key, missingMarker);
+                if (storedValue !== missingMarker) {
+                    return typeof storedValue === 'string' ? storedValue : String(storedValue ?? '');
+                }
+            }
+
+            const legacyValue = localStorage.getItem(legacyKey);
+            if (legacyValue !== null) {
+                if (settingsApi && typeof settingsApi.setSettingValueSync === 'function') {
+                    settingsApi.setSettingValueSync(key, legacyValue);
+                    localStorage.removeItem(legacyKey);
+                }
+                return String(legacyValue);
+            }
+
+            return fallbackValue;
+        }
+
+        function writeStoredStringSetting(key, value, legacyKey = key) {
+            const normalizedValue = String(value ?? '');
+            const settingsApi = getAppSettingsApi();
+            if (settingsApi && typeof settingsApi.setSettingValueSync === 'function') {
+                settingsApi.setSettingValueSync(key, normalizedValue);
+                localStorage.removeItem(legacyKey);
+                return normalizedValue;
+            }
+
+            localStorage.setItem(legacyKey, normalizedValue);
+            return normalizedValue;
+        }
+
+        function readStoredJsonSetting(key, fallbackValue, legacyKey = key) {
+            const settingsApi = getAppSettingsApi();
+            const missingMarker = readStoredJsonSetting._missingMarker || (readStoredJsonSetting._missingMarker = {});
+
+            if (settingsApi && typeof settingsApi.getSettingValueSync === 'function') {
+                const storedValue = settingsApi.getSettingValueSync(key, missingMarker);
+                if (storedValue !== missingMarker) {
+                    return storedValue;
+                }
+            }
+
+            const legacyValue = localStorage.getItem(legacyKey);
+            if (legacyValue !== null) {
+                try {
+                    const parsedValue = JSON.parse(legacyValue);
+                    if (settingsApi && typeof settingsApi.setSettingValueSync === 'function') {
+                        settingsApi.setSettingValueSync(key, parsedValue);
+                        localStorage.removeItem(legacyKey);
+                    }
+                    return parsedValue;
+                } catch (error) {
+                    console.warn(`解析旧设置失败: ${legacyKey}`, error);
+                }
+            }
+
+            return fallbackValue;
+        }
+
+        function writeStoredJsonSetting(key, value, legacyKey = key) {
+            const settingsApi = getAppSettingsApi();
+            if (settingsApi && typeof settingsApi.setSettingValueSync === 'function') {
+                settingsApi.setSettingValueSync(key, value);
+                localStorage.removeItem(legacyKey);
+                return value;
+            }
+
+            localStorage.setItem(legacyKey, JSON.stringify(value));
+            return value;
+        }
+
+        function removeStoredSetting(key, legacyKey = key) {
+            const settingsApi = getAppSettingsApi();
+            if (settingsApi && typeof settingsApi.removeSettingValueSync === 'function') {
+                settingsApi.removeSettingValueSync(key);
+            }
+            localStorage.removeItem(legacyKey);
+        }
+
+        window.readStoredStringSetting = readStoredStringSetting;
+        window.writeStoredStringSetting = writeStoredStringSetting;
+        window.readStoredJsonSetting = readStoredJsonSetting;
+        window.writeStoredJsonSetting = writeStoredJsonSetting;
+        window.removeStoredSetting = removeStoredSetting;
+
+        function getStoredAppToken() {
+            const settingsApi = getAppSettingsApi();
+            if (settingsApi && typeof settingsApi.getTokenSync === 'function') {
+                const storedToken = String(settingsApi.getTokenSync() || '').trim();
+                if (storedToken) {
+                    return storedToken;
+                }
+            }
+
+            return String(localStorage.getItem('yaya_p48_token') || '').trim();
+        }
+
+        function migrateLegacyPersistentState() {
+            const settingsApi = getAppSettingsApi();
+            if (!settingsApi) {
+                return;
+            }
+
+            try {
+                const legacyToken = String(localStorage.getItem('yaya_p48_token') || '').trim();
+                if (legacyToken && !settingsApi.getTokenSync()) {
+                    settingsApi.setTokenSync(legacyToken);
+                }
+                if (legacyToken) {
+                    localStorage.removeItem('yaya_p48_token');
+                }
+            } catch (error) {
+                console.warn('迁移旧 Token 失败:', error);
+            }
+
+            try {
+                const legacyBg = String(localStorage.getItem('custom_bg_data') || '');
+                const currentBg = typeof settingsApi.getBackgroundUrlSync === 'function'
+                    ? settingsApi.getBackgroundUrlSync()
+                    : '';
+                if (legacyBg && !currentBg && typeof settingsApi.saveBackgroundFromDataUrlSync === 'function') {
+                    settingsApi.saveBackgroundFromDataUrlSync(legacyBg);
+                }
+                if (legacyBg) {
+                    localStorage.removeItem('custom_bg_data');
+                }
+            } catch (error) {
+                console.warn('迁移旧背景图失败:', error);
+            }
+
+            try {
+                const stringSettingKeys = [
+                    'theme',
+                    'msg_sort_order',
+                    'yaya_path_danmu',
+                    'yaya_path_video',
+                    'yaya_path_clip',
+                    'yaya_path_media',
+                    'yaya_path_flip',
+                    'yaya_path_room_radio',
+                    'yaya_audio_program_play_mode',
+                    'yaya_music_play_mode',
+                    'yaya_music_volume',
+                    'bilibili_live_last_room_id'
+                ];
+
+                stringSettingKeys.forEach((key) => {
+                    const legacyValue = localStorage.getItem(key);
+                    if (legacyValue === null) return;
+                    if (typeof settingsApi.getSettingValueSync === 'function'
+                        && typeof settingsApi.setSettingValueSync === 'function') {
+                        const missingMarker = {};
+                        const currentValue = settingsApi.getSettingValueSync(key, missingMarker);
+                        if (currentValue === missingMarker) {
+                            settingsApi.setSettingValueSync(key, legacyValue);
+                        }
+                    }
+                    localStorage.removeItem(key);
+                });
+
+                const jsonSettingKeys = [
+                    'yaya_followed_custom_order',
+                    BILIBILI_LIVE_CONFIG_CACHE_KEY
+                ];
+
+                jsonSettingKeys.forEach((key) => {
+                    const legacyValue = localStorage.getItem(key);
+                    if (legacyValue === null) return;
+                    try {
+                        const parsedValue = JSON.parse(legacyValue);
+                        if (typeof settingsApi.getSettingValueSync === 'function'
+                            && typeof settingsApi.setSettingValueSync === 'function') {
+                            const missingMarker = {};
+                            const currentValue = settingsApi.getSettingValueSync(key, missingMarker);
+                            if (currentValue === missingMarker) {
+                                settingsApi.setSettingValueSync(key, parsedValue);
+                            }
+                        }
+                        localStorage.removeItem(key);
+                    } catch (error) {
+                        console.warn(`迁移旧 JSON 设置失败: ${key}`, error);
+                    }
+                });
+            } catch (error) {
+                console.warn('迁移旧设置失败:', error);
+            }
+        }
+
+        function getCurrentAppToken() {
+            return (typeof appToken !== 'undefined' && appToken)
+                ? appToken
+                : getStoredAppToken();
+        }
+
+        window.getAppToken = getCurrentAppToken;
+
+        function ensureLoginBeforeSwitchView(viewName) {
+            if (!LOGIN_REQUIRED_VIEWS.has(viewName)) return true;
+            if (getCurrentAppToken()) return true;
+
+            if (typeof showToast === 'function') {
+                showToast('请先登录账号');
+            }
+            switchView('login');
+            return false;
+        }
+
+        const APP_TOPBAR_TITLE_MAP = {
+            messages: '消息检索',
+            downloads: '下载管理',
+            database: '数据库',
+            login: '账号设置',
+            fetch: '抓取消息',
+            'private-messages': '私信列表',
+            'bilibili-live': 'B站直播',
+            flip: '翻牌记录',
+            profile: '成员档案',
+            openlive: '公演记录',
+            'send-flip': '翻牌提问',
+            settings: '软件设置',
+            photos: '个人相册',
+            'room-album': '房间相册',
+            'room-radio': '房间上麦',
+            'audio-programs': '电台',
+            'video-library': '视频',
+            'music-library': '音乐',
+            'followed-rooms': '口袋房间'
+        };
+
+        function getAppTopbarTitle(viewName, mode = null) {
+            if (viewName === 'home') return '';
+            if (viewName === 'media') {
+                if (mode === 'live') return '正在直播';
+                if (mode === 'vod') return '直播回放';
+                return '直播/回放';
+            }
+            return APP_TOPBAR_TITLE_MAP[viewName] || '';
+        }
+
+        function updateTopbarPageTitle(viewName, mode = null) {
+            const titleEl = document.getElementById('topbar-page-title');
+            if (!titleEl) return;
+
+            const titleText = getAppTopbarTitle(viewName, mode);
+            titleEl.textContent = titleText;
+            titleEl.classList.toggle('is-visible', !!titleText);
+            titleEl.title = titleText;
+        }
+
         function switchView(viewName, mode = null) {
             try {
+                if (viewName !== 'login' && !ensureLoginBeforeSwitchView(viewName)) {
+                    return;
+                }
+
                 mediaPlaybackViewToken += 1;
                 currentViewName = viewName;
                 currentViewMode = mode;
+                updateTopbarPageTitle(viewName, mode);
                 document.getElementById('backToTopBtn').classList.remove('show');
                 const backBtn = document.getElementById('backToTopBtn');
                 if (backBtn) backBtn.classList.remove('show');
@@ -754,7 +1043,7 @@
                     toggleSidebarMode('login');
                     if (loginView) loginView.style.display = 'block';
 
-                    const savedToken = localStorage.getItem('yaya_p48_token');
+                    const savedToken = getStoredAppToken();
                     const tokenInput = document.getElementById('login-token');
                     if (savedToken && tokenInput) tokenInput.value = savedToken;
 
@@ -768,6 +1057,8 @@
                         if (panelInput) panelInput.style.display = 'block';
                         if (panelSuccess) panelSuccess.style.display = 'none';
                     }
+
+                    refreshBilibiliLoginStatus(true);
 
                 } else if (viewName === 'fetch') {
                     setGlobalSidebarVisible(false);
@@ -787,7 +1078,7 @@
                     setSidebarHomeMode(false);
                     toggleSidebarMode('login');
 
-                    const token = typeof appToken !== 'undefined' ? appToken : localStorage.getItem('yaya_p48_token');
+                    const token = getCurrentAppToken();
                     if (!token) {
                         showToast('请先登录账号');
                         return switchView('login');
@@ -964,6 +1255,8 @@
             }
         }
 
+        updateTopbarPageTitle(currentViewName, currentViewMode);
+
         function cancelDownloadTask(taskId) {
             ipcRenderer.send('cancel-download', {
                 taskId
@@ -1027,55 +1320,44 @@
             }
         };
 
+        function buildMemberCollectionsFromList(list) {
+            memberNameMap.set('clear_all', true);
+            memberNameMap.clear();
+            memberIdSet.clear();
+            memberTeamMap.clear();
+
+            (Array.isArray(list) ? list : []).forEach(member => {
+                const name = String(member?.ownerName || '').trim();
+                const id = String(member?.id || '').trim();
+                const team = String(member?.team || '').trim();
+
+                if (!name || !id) return;
+
+                memberNameMap.set(name, id);
+                memberIdSet.add(id);
+                if (team) memberTeamMap.set(name, team);
+
+                if (name.includes('-')) {
+                    const simpleName = name.split('-')[1]?.trim();
+                    if (simpleName && !memberNameMap.has(simpleName)) {
+                        memberNameMap.set(simpleName, id);
+                        if (team) memberTeamMap.set(simpleName, team);
+                    }
+                }
+            });
+
+            initBestNames();
+        }
+
         async function loadMemberIdMap() {
-            const csvPath = storagePaths.membersFile;
-
-            const isUpdatedThisSession = sessionStorage.getItem('member_updated_this_session');
-
-            if (!fs.existsSync(csvPath) || !isUpdatedThisSession) {
-                console.log("启动软件：正在获取最新的成员列表...");
-                sessionStorage.setItem('member_updated_this_session', 'true');
-                await autoUpdateMemberData();
+            if (memberNameMap.size > 0 && sessionStorage.getItem('member_updated_this_session')) {
                 return;
             }
 
             try {
-                if (!fs.existsSync(csvPath)) {
-                    statusMsg.textContent = "❌ 无法获取成员数据";
-                    return;
-                }
-
-                const data = fs.readFileSync(csvPath, 'utf-8');
-                const lines = data.split('\n');
-
-                memberNameMap.set('clear_all', true);
-                memberNameMap.clear();
-                memberIdSet.clear();
-                memberTeamMap.clear();
-
-                lines.forEach(line => {
-                    const trimmed = line.trim();
-                    if (!trimmed || trimmed.startsWith('[source') || trimmed.startsWith('ownerName')) return;
-                    const parts = trimmed.split(',');
-                    if (parts.length >= 2) {
-                        const name = parts[0].trim();
-                        const id = parts[1].trim();
-                        const team = parts[2] ? parts[2].trim() : '';
-                        memberNameMap.set(name, id);
-                        if (id) memberIdSet.add(id);
-                        if (team) memberTeamMap.set(name, team);
-
-                        if (name.includes('-')) {
-                            const simpleName = name.split('-')[1];
-                            if (!memberNameMap.has(simpleName)) {
-                                memberNameMap.set(simpleName, id);
-                                if (team) memberTeamMap.set(simpleName, team);
-                            }
-                        }
-                    }
-                });
-
-                initBestNames();
+                console.log("启动软件：正在获取最新的成员列表...");
+                sessionStorage.setItem('member_updated_this_session', 'true');
+                await autoUpdateMemberData();
                 statusMsg.textContent = "✅ 成员映射表加载完成";
             } catch (e) {
                 console.error("加载映射表失败:", e);
@@ -1155,7 +1437,6 @@
 
         async function autoUpdateMemberData() {
             const url = `${DATA_BASE_URL}/members.json?t=${Date.now()}`;
-            const csvPath = storagePaths.membersFile;
 
             if (statusMsg) statusMsg.textContent = "正在更新完整成员列表...";
 
@@ -1168,34 +1449,10 @@
                     throw new Error("JSON 数据格式不正确");
                 }
 
-                let csvContent = '\uFEFFownerName,id,team,roomId,serverId,channelId,groupName,periodName,teamId,pinyin,account,liveRoomId\n';
-
                 let allMembers = [];
                 if (Array.isArray(data.roomId)) allMembers = allMembers.concat(data.roomId);
                 if (Array.isArray(data.members)) allMembers = allMembers.concat(data.members);
                 if (Array.isArray(data.retired)) allMembers = allMembers.concat(data.retired);
-
-                allMembers.forEach(member => {
-                    const name = member.ownerName || '';
-                    const id = member.id || '';
-                    const team = member.team || '';
-                    const roomId = member.roomId || '';
-
-                    const serverId = member.serverId || '';
-                    const channelId = member.channelId || '';
-                    const groupName = member.groupName || '';
-                    const periodName = member.periodName || '';
-                    const teamId = member.teamId || '';
-                    const pinyin = member.pinyin || '';
-                    const account = member.account || '';
-                    const liveRoomId = member.liveRoomId || '';
-
-                    if (id) {
-                        csvContent += `${name},${id},${team},${roomId},${serverId},${channelId},${groupName},${periodName},${teamId},${pinyin},${account},${liveRoomId}\n`;
-                    }
-                });
-
-                fs.writeFileSync(csvPath, csvContent, 'utf8');
 
                 if (allMembers && allMembers.length > 0) {
                     memberData = allMembers;
@@ -1204,7 +1461,7 @@
                     window.isMemberDataLoaded = true;
                 }
 
-                loadMemberIdMap();
+                buildMemberCollectionsFromList(allMembers);
 
                 if (privateMessageListState && Array.isArray(privateMessageListState.items) && privateMessageListState.items.length > 0) {
                     filterPrivateMessageList(document.getElementById('private-message-search')?.value || '', {
@@ -1220,8 +1477,13 @@
 
             } catch (err) {
                 console.error("自动更新成员 ID 失败:", err);
-                if (statusMsg) statusMsg.textContent = "成员列表更新失败，使用本地缓存";
-                loadMemberIdMap();
+                if (Array.isArray(memberData) && memberData.length > 0) {
+                    buildMemberCollectionsFromList(memberData);
+                    if (statusMsg) statusMsg.textContent = "成员列表更新失败，已使用当前内存数据";
+                } else {
+                    if (statusMsg) statusMsg.textContent = "成员列表更新失败";
+                    throw err;
+                }
             }
         }
 
@@ -1290,12 +1552,12 @@
                     name: 'SNH48'
                 },
                 {
-                    apiId: 11,
-                    name: 'BEJ48'
-                },
-                {
                     apiId: 12,
                     name: 'GNZ48'
+                },
+                {
+                    apiId: 11,
+                    name: 'BEJ48'
                 },
                 {
                     apiId: 14,
@@ -1479,7 +1741,7 @@
         let currentPlayingVideo = null;
         let isRenderingBatch = false;
         let batchRenderScheduled = false;
-        let currentSortOrder = localStorage.getItem('msg_sort_order') || 'desc';
+        let currentSortOrder = readStoredStringSetting('msg_sort_order', 'desc');
         function filterGroupOptions(keyword) {
             const select = document.getElementById('groupSelect');
             const currentVal = select.value;
@@ -1521,7 +1783,7 @@
                 btn.innerText = '当前：最新在前';
             }
 
-            localStorage.setItem('msg_sort_order', currentSortOrder);
+            writeStoredStringSetting('msg_sort_order', currentSortOrder);
 
             applyFilters();
         }
@@ -1593,7 +1855,7 @@
             BILIBILI_LIVE_CONFIG_URL,
             BILIBILI_LIVE_CONFIG_CACHE_KEY,
             escapePrivateMessageHtml,
-            getAppToken: () => (typeof appToken !== 'undefined' && appToken ? appToken : localStorage.getItem('yaya_p48_token')),
+            getAppToken: () => getCurrentAppToken(),
             getCurrentViewName: () => currentViewName,
             ipcRenderer
         }));
@@ -1641,7 +1903,7 @@
             createCustomVideoPlayer,
             fetchPocketAPI,
             getAdaptivePollDelay: () => getAdaptivePollDelay(),
-            getAppToken: () => (typeof appToken !== 'undefined' && appToken ? appToken : localStorage.getItem('yaya_p48_token')),
+            getAppToken: () => getCurrentAppToken(),
             getMemberData: () => memberData || [],
             ipcRenderer,
             playArchiveFromMessage: (...args) => typeof playArchiveFromMessage === 'function'
@@ -1683,7 +1945,7 @@
             toggleFollowedSortDropdown
         } = window.YayaRendererFeatures.createFollowedRoomsFeature({
             getActiveFollowedChannel: () => getActiveFollowedChannel(),
-            getAppToken: () => (typeof appToken !== 'undefined' && appToken ? appToken : localStorage.getItem('yaya_p48_token')),
+            getAppToken: () => getCurrentAppToken(),
             getMemberData: () => memberData || [],
             getMemberDataLoaded: () => !!window.isMemberDataLoaded,
             getPinyinInitials,
@@ -1710,7 +1972,7 @@
             loadMemberAvatar,
             updateSessionAvatar
         } = window.YayaRendererFeatures.createAvatarCacheFeature({
-            getAppToken: () => (typeof appToken !== 'undefined' && appToken ? appToken : localStorage.getItem('yaya_p48_token')),
+            getAppToken: () => getCurrentAppToken(),
             ipcRenderer
         }));
         window.loadMemberAvatar = loadMemberAvatar;
@@ -1763,7 +2025,7 @@
             formatPrivateMessagePreview,
             formatPrivateMessageTime,
             getAdaptivePollDelay: () => getAdaptivePollDelay(),
-            getAppToken: () => (typeof appToken !== 'undefined' && appToken ? appToken : localStorage.getItem('yaya_p48_token')),
+            getAppToken: () => getCurrentAppToken(),
             getCurrentPlayingAudio: () => currentPlayingAudio,
             getCurrentSearchKeyword: () => (document.getElementById('private-message-search')?.value || ''),
             getPrivateMessageAvatar,
@@ -1890,7 +2152,7 @@
             updateClipUI
         } = window.YayaRendererFeatures.createLiveToolsFeature({
             fetchPocketAPI,
-            getAppToken: () => (typeof appToken !== 'undefined' && appToken ? appToken : localStorage.getItem('yaya_p48_token')),
+            getAppToken: () => getCurrentAppToken(),
             getArt: () => art,
             getCurrentMode: () => currentMode,
             getCurrentPlayingItem: () => currentPlayingItem,
@@ -1916,7 +2178,7 @@
             fetchAllOpenLive,
             openOpenLiveInPotPlayer
         } = window.YayaRendererFeatures.createOpenLiveFeature({
-            getAppToken: () => (typeof appToken !== 'undefined' && appToken ? appToken : localStorage.getItem('yaya_p48_token')),
+            getAppToken: () => getCurrentAppToken(),
             getMemberData: () => window.memberData || [],
             getMemberDataLoaded: () => !!window.isMemberDataLoaded,
             loadMemberData,
@@ -1952,7 +2214,7 @@
             selectProfileMember,
             loadStarProfile
         } = window.YayaRendererFeatures.createProfileFeature({
-            getAppToken: () => (typeof appToken !== 'undefined' && appToken ? appToken : localStorage.getItem('yaya_p48_token')),
+            getAppToken: () => getCurrentAppToken(),
             getMemberData: () => window.memberData || [],
             getMemberDataLoaded: () => !!window.isMemberDataLoaded,
             loadMemberData,
@@ -1975,7 +2237,7 @@
             selectPhotoMember,
             fetchMemberPhotos
         } = window.YayaRendererFeatures.createMemberPhotosFeature({
-            getAppToken: () => (typeof appToken !== 'undefined' && appToken ? appToken : localStorage.getItem('yaya_p48_token')),
+            getAppToken: () => getCurrentAppToken(),
             getMemberData: () => window.memberData || [],
             getMemberDataLoaded: () => !!window.isMemberDataLoaded,
             loadMemberData,
@@ -2008,7 +2270,7 @@
             selectRoomAlbumMember,
             fetchRoomAlbum
         } = window.YayaRendererFeatures.createRoomAlbumFeature({
-            getAppToken: () => (typeof appToken !== 'undefined' && appToken ? appToken : localStorage.getItem('yaya_p48_token')),
+            getAppToken: () => getCurrentAppToken(),
             getMemberData: () => window.memberData || [],
             getMemberDataLoaded: () => !!window.isMemberDataLoaded,
             loadMemberData,
@@ -2044,7 +2306,7 @@
             stopRoomRadio,
             toggleRoomRadioRecord
         } = window.YayaRendererFeatures.createRoomRadioFeature({
-            getAppToken: () => (typeof appToken !== 'undefined' && appToken ? appToken : localStorage.getItem('yaya_p48_token')),
+            getAppToken: () => getCurrentAppToken(),
             getMemberData: () => window.memberData || [],
             getMemberDataLoaded: () => !!window.isMemberDataLoaded,
             loadMemberData,
@@ -2182,9 +2444,23 @@
             selectFlipPrivacy,
             selectFlipSendMember,
             selectFlipType,
+            selectFlipVisibilityFilter,
+            selectFlipSort,
+            applyFlipTimeRangeFilter,
+            clearActiveFlipDateField,
+            openFlipDatePicker,
+            pickTodayForFlipDate,
+            selectFlipCalendarDate,
+            setActiveFlipDateField,
+            shiftFlipDateCalendarYear,
+            shiftFlipDateCalendarMonth,
             toggleFlipAnswerDropdown,
+            toggleFlipDateDropdown,
             toggleFlipPrivacyDropdown,
             toggleFlipTypeDropdown,
+            toggleFlipVisibilityDropdown,
+            toggleFlipSortDropdown,
+            resetFlipTimeRangeFilter,
             updateFlipCharCount,
             updateLatestFlips
         } = window.YayaRendererFeatures.createFlipFeature({
@@ -2193,12 +2469,19 @@
             downloadMediaFileIconMode: (...args) => downloadMediaFileIconMode(...args),
             getAllFlipData: () => allFlipData || [],
             setAllFlipData: value => { allFlipData = value; },
-            getAppToken: () => (typeof appToken !== 'undefined' && appToken ? appToken : localStorage.getItem('yaya_p48_token')),
+            getAppToken: () => getCurrentAppToken(),
             getCurrentFlipFilterType: () => currentFlipFilterType,
             setCurrentFlipFilterType: value => { currentFlipFilterType = value; },
+            getCurrentFlipPrivacyFilter: () => currentFlipPrivacyFilter,
+            setCurrentFlipPrivacyFilter: value => { currentFlipPrivacyFilter = value; },
             getCurrentFlipPage: () => flipCurrentPage,
             setCurrentFlipPage: value => { flipCurrentPage = value; },
-            getCurrentFlipSort: () => (typeof currentFlipSort !== 'undefined' ? currentFlipSort : null),
+            getCurrentFlipSort: () => currentFlipSort,
+            setCurrentFlipSort: value => { currentFlipSort = value; },
+            getCurrentFlipTimeFrom: () => currentFlipTimeFrom,
+            setCurrentFlipTimeFrom: value => { currentFlipTimeFrom = value; },
+            getCurrentFlipTimeTo: () => currentFlipTimeTo,
+            setCurrentFlipTimeTo: value => { currentFlipTimeTo = value; },
             getCurrentSearchKeyword: () => currentSearchKeyword,
             setCurrentSearchKeyword: value => { currentSearchKeyword = value; },
             getIsFetchingFlips: () => isFetchingFlips,
@@ -2230,9 +2513,23 @@
         window.selectFlipPrivacy = selectFlipPrivacy;
         window.selectFlipSendMember = selectFlipSendMember;
         window.selectFlipType = selectFlipType;
+        window.selectFlipVisibilityFilter = selectFlipVisibilityFilter;
+        window.selectFlipSort = selectFlipSort;
+        window.applyFlipTimeRangeFilter = applyFlipTimeRangeFilter;
+        window.clearActiveFlipDateField = clearActiveFlipDateField;
+        window.openFlipDatePicker = openFlipDatePicker;
+        window.pickTodayForFlipDate = pickTodayForFlipDate;
+        window.selectFlipCalendarDate = selectFlipCalendarDate;
+        window.setActiveFlipDateField = setActiveFlipDateField;
+        window.shiftFlipDateCalendarYear = shiftFlipDateCalendarYear;
+        window.shiftFlipDateCalendarMonth = shiftFlipDateCalendarMonth;
         window.toggleFlipAnswerDropdown = toggleFlipAnswerDropdown;
+        window.toggleFlipDateDropdown = toggleFlipDateDropdown;
         window.toggleFlipPrivacyDropdown = toggleFlipPrivacyDropdown;
         window.toggleFlipTypeDropdown = toggleFlipTypeDropdown;
+        window.toggleFlipVisibilityDropdown = toggleFlipVisibilityDropdown;
+        window.toggleFlipSortDropdown = toggleFlipSortDropdown;
+        window.resetFlipTimeRangeFilter = resetFlipTimeRangeFilter;
         window.updateFlipCharCount = updateFlipCharCount;
         window.updateLatestFlips = updateLatestFlips;
 
@@ -2243,7 +2540,7 @@
             toggleGiftPanel,
             updateLiveBalance
         } = window.YayaRendererFeatures.createLiveGiftFeature({
-            getAppToken: () => (typeof appToken !== 'undefined' && appToken ? appToken : localStorage.getItem('yaya_p48_token')),
+            getAppToken: () => getCurrentAppToken(),
             getCurrentPlayingItem: () => currentPlayingItem,
             getDp: () => dp,
             getPocketGiftData: () => typeof POCKET_GIFT_DATA !== 'undefined' ? POCKET_GIFT_DATA : [],
@@ -2336,13 +2633,16 @@
                 });
 
                 mountSidebarPanelsToViews();
+                migrateLegacyPersistentState();
                 initTheme();
 
                 Promise.resolve(checkGitHubNotice()).catch((error) => {
                     console.warn('公告检查失败:', error);
                 });
 
-                await loadMemberIdMap();
+                Promise.resolve(loadMemberIdMap()).catch((error) => {
+                    console.warn('成员列表预加载失败:', error);
+                });
 
                 if (fs.existsSync(CACHE_FILE)) {
                     setMessageIndexLoadingState(true, '正在读取缓存', '解析本地历史数据');
@@ -2369,7 +2669,10 @@
                 if (window.vodState) {
                     renderVodGroupOptions();
                 }
-                const savedToken = localStorage.getItem('yaya_p48_token');
+                if (typeof syncAutoCheckinUi === 'function') {
+                    syncAutoCheckinUi();
+                }
+                const savedToken = getStoredAppToken();
                 if (savedToken) {
                     appToken = savedToken;
                     console.log("启动自动登录...");
@@ -2741,7 +3044,7 @@
             if (!window.vodState) return;
             vodState.currentGroup = parseInt(apiId);
             vodState.resetPagination(vodState.currentGroup);
-            ensurePageData(2).then(() => {
+            ensurePageData(2, { silent: true }).then(() => {
                 window.renderVODListUI();
             });
         }
@@ -2802,7 +3105,7 @@
             filterTimeout = setTimeout(() => {
                 if (window.vodState) {
                     vodState.currentPage = 1;
-                    ensurePageData(2).then(() => renderVODListUI());
+                    ensurePageData(2, { silent: true }).then(() => renderVODListUI());
                 }
             }, 500);
         }
@@ -2850,7 +3153,7 @@
         function handleVodTypeChange() {
             if (window.vodState) {
                 vodState.currentPage = 1;
-                ensurePageData(2).then(() => renderVODListUI());
+                ensurePageData(2, { silent: true }).then(() => renderVODListUI());
             }
         }
 
@@ -3073,12 +3376,13 @@
             } catch (e) { }
             return 0;
         }
-        async function ensurePageData(page) {
+        async function ensurePageData(page, options = {}) {
             if (vodState.isLoading) return;
+            const silent = !!options.silent;
             const targetCount = page * vodState.pageSize;
             if (getFilteredVODList().length >= targetCount || !vodState.hasMore) return;
             vodState.isLoading = true;
-            if (vodState.list.length === 0) document.getElementById('vod-loading').style.display = 'block';
+            if (!silent && vodState.list.length === 0) document.getElementById('vod-loading').style.display = 'block';
             togglePagination(false);
             let loopSafety = 0;
             const MAX_LOOPS = 50;
@@ -3401,16 +3705,46 @@
         bgInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
+                const settingsApi = getAppSettingsApi();
+                if (settingsApi && typeof settingsApi.saveBackgroundFromFileSync === 'function' && file.path) {
+                    try {
+                        const backgroundUrl = settingsApi.saveBackgroundFromFileSync(file.path);
+                        if (typeof applyCustomBackground === 'function') {
+                            applyCustomBackground(backgroundUrl);
+                        } else {
+                            document.body.style.backgroundImage = `url('${backgroundUrl}')`;
+                        }
+                        localStorage.removeItem('custom_bg_data');
+                        bgInput.value = '';
+                        return;
+                    } catch (error) {
+                        console.warn('保存背景图片文件失败，回退为内存读取:', error);
+                    }
+                }
+
                 const reader = new FileReader();
                 reader.onload = (ev) => {
-                    if (typeof applyCustomBackground === 'function') {
-                        applyCustomBackground(ev.target.result);
-                    } else {
-                        document.body.style.backgroundImage = `url('${ev.target.result}')`;
+                    let nextBackground = ev.target.result;
+                    if (settingsApi && typeof settingsApi.saveBackgroundFromDataUrlSync === 'function') {
+                        try {
+                            nextBackground = settingsApi.saveBackgroundFromDataUrlSync(ev.target.result) || ev.target.result;
+                            localStorage.removeItem('custom_bg_data');
+                        } catch (error) {
+                            console.warn('保存背景图片数据失败，回退到旧存储:', error);
+                        }
                     }
-                    try {
-                        localStorage.setItem('custom_bg_data', ev.target.result);
-                    } catch (e) { }
+
+                    if (typeof applyCustomBackground === 'function') {
+                        applyCustomBackground(nextBackground);
+                    } else {
+                        document.body.style.backgroundImage = `url('${nextBackground}')`;
+                    }
+                    if (!(settingsApi && typeof settingsApi.saveBackgroundFromDataUrlSync === 'function')) {
+                        try {
+                            localStorage.setItem('custom_bg_data', ev.target.result);
+                        } catch (e) { }
+                    }
+                    bgInput.value = '';
                 };
                 reader.readAsDataURL(file);
             }
@@ -4341,6 +4675,10 @@
         let allFlipData = [];
         let isFetchingFlips = false;
         let currentFlipFilterType = "0";
+        let currentFlipPrivacyFilter = "0";
+        let currentFlipSort = "latest_desc";
+        let currentFlipTimeFrom = "";
+        let currentFlipTimeTo = "";
         let currentSearchKeyword = "";
 
         function getPinyinInitials(pinyinStr) {
@@ -4471,7 +4809,10 @@
                 { wrapperId: 'year-wrapper', dropdownId: 'year-dropdown' },
                 { wrapperId: 'month-wrapper', dropdownId: 'month-dropdown' },
                 { wrapperId: 'day-wrapper', dropdownId: 'day-dropdown' },
+                { wrapperId: 'flip-date-wrapper', dropdownId: 'flip-date-dropdown' },
                 { wrapperId: 'flip-type-wrapper', dropdownId: 'flip-type-dropdown' },
+                { wrapperId: 'flip-visibility-wrapper', dropdownId: 'flip-visibility-dropdown' },
+                { wrapperId: 'flip-sort-wrapper', dropdownId: 'flip-sort-dropdown' },
                 { wrapperId: 'live-group-wrapper', dropdownId: 'live-group-dropdown' },
                 { wrapperId: 'live-type-wrapper', dropdownId: 'live-type-dropdown' },
                 { wrapperId: 'search-type-wrapper', dropdownId: 'search-type-dropdown' },
@@ -4514,6 +4855,10 @@
         let selectedLiveGiftId = null;
 
         function resetBackground() {
+            const settingsApi = getAppSettingsApi();
+            if (settingsApi && typeof settingsApi.clearBackgroundSync === 'function') {
+                settingsApi.clearBackgroundSync();
+            }
             localStorage.removeItem('custom_bg_data');
             if (typeof applyCustomBackground === 'function') {
                 applyCustomBackground('');
@@ -4522,22 +4867,166 @@
             }
         }
 
+        let bilibiliLoginPollTimer = null;
+        let currentBilibiliLoginUrl = '';
+
+        function setBilibiliLoginPanelVisible(isVisible) {
+            const panel = document.getElementById('bilibili-login-panel');
+            if (panel) {
+                panel.style.display = isVisible ? 'flex' : 'none';
+            }
+        }
+
+        function setBilibiliLoginStatus(message, color = '') {
+            const statusEl = document.getElementById('bilibili-login-status');
+            if (statusEl) {
+                statusEl.textContent = message || '';
+                statusEl.style.color = color || 'var(--text-sub)';
+            }
+        }
+
+        function setBilibiliLoginQrMessage(message, color = '') {
+            const msgEl = document.getElementById('bilibili-login-qr-msg');
+            if (msgEl) {
+                msgEl.textContent = message || '';
+                msgEl.style.color = color || 'var(--text-sub)';
+            }
+        }
+
+        function stopBilibiliLoginPolling() {
+            if (bilibiliLoginPollTimer) {
+                clearInterval(bilibiliLoginPollTimer);
+                bilibiliLoginPollTimer = null;
+            }
+        }
+
+        function renderBilibiliLoginState(result) {
+            const loginBtn = document.getElementById('btn-bilibili-login');
+            const logoutBtn = document.getElementById('btn-bilibili-logout');
+            const userInfo = result && result.userInfo ? result.userInfo : null;
+
+            if (result && result.loggedIn && userInfo) {
+                const name = userInfo.uname || 'B站用户';
+                const uid = userInfo.mid ? `UID: ${userInfo.mid}` : 'UID: --';
+                setBilibiliLoginStatus(`已登录：${name} (${uid})`, '#28a745');
+                if (loginBtn) loginBtn.textContent = '切换账号';
+                if (logoutBtn) logoutBtn.style.display = 'inline-flex';
+                setBilibiliLoginPanelVisible(false);
+                stopBilibiliLoginPolling();
+                return;
+            }
+
+            setBilibiliLoginStatus((result && result.msg) || '未登录B站，登录后可降低直播接口被拦截的概率');
+            if (loginBtn) loginBtn.textContent = '登录账号';
+            if (logoutBtn) logoutBtn.style.display = 'none';
+        }
+
+        async function refreshBilibiliLoginStatus(silent = false) {
+            try {
+                if (!silent) {
+                    setBilibiliLoginStatus('正在检查 B站登录状态...');
+                }
+                const result = await ipcRenderer.invoke('bilibili-login-status');
+                renderBilibiliLoginState(result);
+                return result;
+            } catch (error) {
+                setBilibiliLoginStatus('B站登录状态读取失败', '#ff4d4f');
+                return { success: false, loggedIn: false, msg: error.message };
+            }
+        }
+
+        async function startBilibiliLogin() {
+            stopBilibiliLoginPolling();
+            currentBilibiliLoginUrl = '';
+            setBilibiliLoginStatus('正在生成 B站登录二维码...');
+            setBilibiliLoginQrMessage('正在生成二维码...');
+            setBilibiliLoginPanelVisible(true);
+
+            const loginBtn = document.getElementById('btn-bilibili-login');
+            if (loginBtn) loginBtn.disabled = true;
+
+            try {
+                const result = await ipcRenderer.invoke('bilibili-login-create-qrcode');
+                if (!result || !result.success) {
+                    throw new Error(result?.msg || 'B站二维码生成失败');
+                }
+
+                currentBilibiliLoginUrl = result.url;
+                const qrImg = document.getElementById('bilibili-login-qr');
+                if (qrImg) {
+                    qrImg.src = result.qrDataUrl || '';
+                }
+
+                setBilibiliLoginStatus('请使用 B站 App 扫码登录');
+                setBilibiliLoginQrMessage('等待扫码...');
+
+                bilibiliLoginPollTimer = setInterval(async () => {
+                    try {
+                        const pollResult = await ipcRenderer.invoke('bilibili-login-poll', {
+                            qrcodeKey: result.qrcodeKey
+                        });
+
+                        if (!pollResult || !pollResult.success) {
+                            throw new Error(pollResult?.msg || 'B站登录状态检查失败');
+                        }
+
+                        if (pollResult.loggedIn) {
+                            setBilibiliLoginQrMessage('登录成功，正在更新状态...', '#28a745');
+                            await refreshBilibiliLoginStatus(true);
+                            showToast('B站登录成功');
+                            return;
+                        }
+
+                        setBilibiliLoginQrMessage(pollResult.msg || '等待扫码...');
+                        if (pollResult.expired) {
+                            stopBilibiliLoginPolling();
+                            setBilibiliLoginStatus('二维码已过期，请重新登录', '#faad14');
+                        }
+                    } catch (error) {
+                        stopBilibiliLoginPolling();
+                        setBilibiliLoginQrMessage(error.message || 'B站登录失败', '#ff4d4f');
+                        setBilibiliLoginStatus(error.message || 'B站登录失败', '#ff4d4f');
+                    }
+                }, 2000);
+            } catch (error) {
+                setBilibiliLoginQrMessage(error.message || 'B站二维码生成失败', '#ff4d4f');
+                setBilibiliLoginStatus(error.message || 'B站二维码生成失败', '#ff4d4f');
+            } finally {
+                if (loginBtn) loginBtn.disabled = false;
+            }
+        }
+
+        async function logoutBilibili() {
+            stopBilibiliLoginPolling();
+            try {
+                await ipcRenderer.invoke('bilibili-logout');
+                currentBilibiliLoginUrl = '';
+                const qrImg = document.getElementById('bilibili-login-qr');
+                if (qrImg) qrImg.src = '';
+                setBilibiliLoginPanelVisible(false);
+                renderBilibiliLoginState({ loggedIn: false, msg: '已退出B站账号' });
+                showToast('已退出B站账号');
+            } catch (error) {
+                setBilibiliLoginStatus(error.message || '退出B站登录失败', '#ff4d4f');
+            }
+        }
+
         function loadCustomPaths() {
-            document.getElementById('path-danmu').value = localStorage.getItem('yaya_path_danmu') || '';
-            document.getElementById('path-video').value = localStorage.getItem('yaya_path_video') || '';
-            document.getElementById('path-clip').value = localStorage.getItem('yaya_path_clip') || '';
-            document.getElementById('path-media').value = localStorage.getItem('yaya_path_media') || '';
-            document.getElementById('path-flip').value = localStorage.getItem('yaya_path_flip') || '';
-            document.getElementById('path-room-radio').value = localStorage.getItem('yaya_path_room_radio') || '';
+            document.getElementById('path-danmu').value = readStoredStringSetting('yaya_path_danmu', '');
+            document.getElementById('path-video').value = readStoredStringSetting('yaya_path_video', '');
+            document.getElementById('path-clip').value = readStoredStringSetting('yaya_path_clip', '');
+            document.getElementById('path-media').value = readStoredStringSetting('yaya_path_media', '');
+            document.getElementById('path-flip').value = readStoredStringSetting('yaya_path_flip', '');
+            document.getElementById('path-room-radio').value = readStoredStringSetting('yaya_path_room_radio', '');
         }
 
         function saveCustomPaths() {
-            localStorage.setItem('yaya_path_danmu', document.getElementById('path-danmu').value.trim());
-            localStorage.setItem('yaya_path_video', document.getElementById('path-video').value.trim());
-            localStorage.setItem('yaya_path_clip', document.getElementById('path-clip').value.trim());
-            localStorage.setItem('yaya_path_media', document.getElementById('path-media').value.trim());
-            localStorage.setItem('yaya_path_flip', document.getElementById('path-flip').value.trim());
-            localStorage.setItem('yaya_path_room_radio', document.getElementById('path-room-radio').value.trim());
+            writeStoredStringSetting('yaya_path_danmu', document.getElementById('path-danmu').value.trim());
+            writeStoredStringSetting('yaya_path_video', document.getElementById('path-video').value.trim());
+            writeStoredStringSetting('yaya_path_clip', document.getElementById('path-clip').value.trim());
+            writeStoredStringSetting('yaya_path_media', document.getElementById('path-media').value.trim());
+            writeStoredStringSetting('yaya_path_flip', document.getElementById('path-flip').value.trim());
+            writeStoredStringSetting('yaya_path_room_radio', document.getElementById('path-room-radio').value.trim());
         }
 
         async function triggerSelectPath(inputId) {

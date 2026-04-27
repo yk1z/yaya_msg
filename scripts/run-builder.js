@@ -19,6 +19,8 @@ const windowsArtifactBaseName = `yaya_msg-${versionLabel}`;
 const windowsArtifactFileName = `${windowsArtifactBaseName}.zip`;
 const userArgs = process.argv.slice(2);
 const artifactArg = `-c.artifactName=yaya_msg-${versionLabel}.${'${ext}'}`;
+const DEFAULT_ELECTRON_MIRROR = 'https://npmmirror.com/mirrors/electron/';
+const DEFAULT_ELECTRON_BUILDER_BINARIES_MIRROR = 'https://npmmirror.com/mirrors/electron-builder-binaries/';
 
 function shouldWrapWindowsZip(args) {
     if (process.platform !== 'win32') {
@@ -63,6 +65,11 @@ const wrapWindowsZip = shouldWrapWindowsZip(userArgs);
 const builderArgs = wrapWindowsZip
     ? userArgs.map((arg) => (String(arg).toLowerCase() === 'zip' ? 'dir' : arg))
     : userArgs;
+const builderEnv = {
+    ...process.env,
+    ELECTRON_MIRROR: process.env.ELECTRON_MIRROR || DEFAULT_ELECTRON_MIRROR,
+    ELECTRON_BUILDER_BINARIES_MIRROR: process.env.ELECTRON_BUILDER_BINARIES_MIRROR || DEFAULT_ELECTRON_BUILDER_BINARIES_MIRROR
+};
 
 const result = spawnSync(
     process.execPath,
@@ -70,7 +77,7 @@ const result = spawnSync(
     {
         cwd: projectRoot,
         stdio: 'inherit',
-        env: process.env
+        env: builderEnv
     }
 );
 

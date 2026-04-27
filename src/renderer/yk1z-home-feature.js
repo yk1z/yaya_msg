@@ -38,6 +38,41 @@
 
         let yk1zHomeConfigPromise = null;
 
+        function readCacheValue(key, fallbackValue = null) {
+            const cacheApi = window.desktop && window.desktop.appCache ? window.desktop.appCache : null;
+            if (cacheApi && typeof cacheApi.getCacheValueSync === 'function') {
+                const storedValue = cacheApi.getCacheValueSync(key, fallbackValue);
+                if (storedValue !== fallbackValue) {
+                    return storedValue;
+                }
+            }
+
+            try {
+                const raw = localStorage.getItem(key);
+                if (!raw) return fallbackValue;
+                const parsed = JSON.parse(raw);
+                if (cacheApi && typeof cacheApi.setCacheValueSync === 'function') {
+                    cacheApi.setCacheValueSync(key, parsed);
+                    localStorage.removeItem(key);
+                }
+                return parsed;
+            } catch (error) {
+                return fallbackValue;
+            }
+        }
+
+        function writeCacheValue(key, value) {
+            const cacheApi = window.desktop && window.desktop.appCache ? window.desktop.appCache : null;
+            if (cacheApi && typeof cacheApi.setCacheValueSync === 'function') {
+                cacheApi.setCacheValueSync(key, value);
+                localStorage.removeItem(key);
+                return value;
+            }
+
+            localStorage.setItem(key, JSON.stringify(value));
+            return value;
+        }
+
         function normalizeYk1zButtonConfig(item) {
             if (!item || typeof item !== 'object') return null;
 
@@ -113,9 +148,9 @@
 
         function readYk1zHomeConfigCache() {
             try {
-                const raw = localStorage.getItem(YK1Z_HOME_CACHE_KEY);
+                const raw = readCacheValue(YK1Z_HOME_CACHE_KEY, null);
                 if (!raw) return null;
-                return normalizeYk1zHomeConfig(JSON.parse(raw));
+                return normalizeYk1zHomeConfig(raw);
             } catch (error) {
                 console.warn('读取 yk1z 缓存失败:', error);
                 return null;
@@ -124,7 +159,7 @@
 
         function writeYk1zHomeConfigCache(config) {
             try {
-                localStorage.setItem(YK1Z_HOME_CACHE_KEY, JSON.stringify(config));
+                writeCacheValue(YK1Z_HOME_CACHE_KEY, config);
             } catch (error) {
                 console.warn('写入 yk1z 缓存失败:', error);
             }

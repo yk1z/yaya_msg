@@ -78,7 +78,7 @@
         async function loadStarProfile() {
             const container = document.getElementById('profile-result-container');
             const memberId = String(document.getElementById('profile-member-id')?.value || '').trim();
-            const token = getAppToken ? getAppToken() : (localStorage.getItem('yaya_p48_token') || '');
+            const token = getAppToken ? getAppToken() : (typeof window.getAppToken === 'function' ? window.getAppToken() : '');
 
             if (!container) return;
 

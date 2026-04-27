@@ -72,6 +72,12 @@ function createModernHeaders(token, pa) {
     return headers;
 }
 
+function createCheckinHeaders(token, pa) {
+    const headers = createModernHeaders(token, pa);
+    headers['P-Sign-Type'] = 'V0';
+    return headers;
+}
+
 async function createLoginHeaders() {
     await ensureWasmLoaded();
 
@@ -201,6 +207,43 @@ async function loginCheckToken({ token, pa }) {
         return { success: false, msg: response.data.message || 'Token 无效' };
     } catch (error) {
         return { success: false, msg: `验证失败: ${error.message}` };
+    }
+}
+
+async function checkIn({ token, pa }) {
+    if (!token) {
+        return missingToken();
+    }
+
+    try {
+        const response = await axios.post(
+            'https://pocketapi.48.cn/user/api/v1/checkin',
+            {},
+            { headers: createCheckinHeaders(token, pa) }
+        );
+
+        if (response.status === 200 && response.data && (response.data.success || response.data.status === 200)) {
+            return {
+                success: true,
+                msg: response.data.message || '签到成功',
+                content: response.data.content || null
+            };
+        }
+
+        return {
+            success: false,
+            msg: response?.data?.message || '签到失败',
+            status: response?.data?.status
+        };
+    } catch (error) {
+        const responseMessage = error?.response?.data?.message;
+        const responseStatus = error?.response?.data?.status;
+
+        return {
+            success: false,
+            msg: responseMessage || error.message,
+            status: responseStatus
+        };
     }
 }
 
@@ -1114,6 +1157,7 @@ module.exports = {
     loginSendSms,
     loginByCode,
     loginCheckToken,
+    checkIn,
     switchBigSmall,
     fetchRoomMessages,
     fetchPrivateMessageList,

@@ -29,6 +29,42 @@
         let bilibiliLiveRooms = DEFAULT_BILIBILI_LIVE_CONFIG.rooms.slice();
         const BILIBILI_LAST_ROOM_KEY = 'bilibili_live_last_room_id';
 
+        function readStringSetting(key, fallbackValue = '') {
+            if (typeof window.readStoredStringSetting === 'function') {
+                return window.readStoredStringSetting(key, fallbackValue);
+            }
+            const legacyValue = localStorage.getItem(key);
+            return legacyValue === null ? fallbackValue : String(legacyValue);
+        }
+
+        function writeStringSetting(key, value) {
+            if (typeof window.writeStoredStringSetting === 'function') {
+                return window.writeStoredStringSetting(key, value);
+            }
+            localStorage.setItem(key, value);
+            return value;
+        }
+
+        function readJsonSetting(key, fallbackValue = null) {
+            if (typeof window.readStoredJsonSetting === 'function') {
+                return window.readStoredJsonSetting(key, fallbackValue);
+            }
+            try {
+                const raw = localStorage.getItem(key);
+                return raw ? JSON.parse(raw) : fallbackValue;
+            } catch (error) {
+                return fallbackValue;
+            }
+        }
+
+        function writeJsonSetting(key, value) {
+            if (typeof window.writeStoredJsonSetting === 'function') {
+                return window.writeStoredJsonSetting(key, value);
+            }
+            localStorage.setItem(key, JSON.stringify(value));
+            return value;
+        }
+
         function getBilibiliLiveRoomIds() {
             return bilibiliLiveRooms.map(item => String(item.roomId || '').trim()).filter(Boolean);
         }
@@ -46,7 +82,7 @@
 
         function readLastBilibiliLiveRoomId() {
             try {
-                return String(localStorage.getItem(BILIBILI_LAST_ROOM_KEY) || '').trim();
+                return String(readStringSetting(BILIBILI_LAST_ROOM_KEY, '') || '').trim();
             } catch (error) {
                 return '';
             }
@@ -56,7 +92,7 @@
             try {
                 const normalizedRoomId = String(roomId || '').trim();
                 if (!normalizedRoomId) return;
-                localStorage.setItem(BILIBILI_LAST_ROOM_KEY, normalizedRoomId);
+                writeStringSetting(BILIBILI_LAST_ROOM_KEY, normalizedRoomId);
             } catch (error) {
             }
         }
@@ -120,9 +156,9 @@
 
         function readBilibiliLiveConfigCache() {
             try {
-                const raw = localStorage.getItem(BILIBILI_LIVE_CONFIG_CACHE_KEY);
+                const raw = readJsonSetting(BILIBILI_LIVE_CONFIG_CACHE_KEY, null);
                 if (!raw) return null;
-                return normalizeBilibiliLiveConfig(JSON.parse(raw));
+                return normalizeBilibiliLiveConfig(raw);
             } catch (error) {
                 console.warn('读取 B站直播配置缓存失败:', error);
                 return null;
@@ -131,7 +167,7 @@
 
         function writeBilibiliLiveConfigCache(config) {
             try {
-                localStorage.setItem(BILIBILI_LIVE_CONFIG_CACHE_KEY, JSON.stringify(config));
+                writeJsonSetting(BILIBILI_LIVE_CONFIG_CACHE_KEY, config);
             } catch (error) {
                 console.warn('写入 B站直播配置缓存失败:', error);
             }
@@ -287,7 +323,7 @@
         }
 
         async function refreshBilibiliCurrentOpenLiveInfo(roomId = '') {
-            const token = getAppToken ? getAppToken() : (localStorage.getItem('yaya_p48_token') || '');
+            const token = getAppToken ? getAppToken() : (typeof window.getAppToken === 'function' ? window.getAppToken() : '');
             const pa = window.getPA ? window.getPA() : null;
             const groupInfo = getBilibiliOpenLiveGroupInfo(roomId || document.getElementById('bilibili-live-room-id')?.value || bilibiliCurrentRoomId);
             if (!token) {
@@ -531,7 +567,7 @@
                 if (currentOpenLive?.subTitle) {
                     upEl.textContent = currentOpenLive.subTitle;
                 } else {
-                    upEl.textContent = info.uname ? `UP 主：${info.uname}` : 'UP 主信息暂不可用';
+                    upEl.textContent = info.uname ? `UP 主：${info.uname}` : '信息暂不可用';
                 }
             }
 
@@ -753,7 +789,11 @@
 
             try {
                 await refreshBilibiliCurrentOpenLiveInfo(roomId);
-                const info = await ipcRenderer.invoke('resolve-bilibili-live', roomId);
+                const resolvedInfo = await ipcRenderer.invoke('resolve-bilibili-live', roomId);
+                if (resolvedInfo && resolvedInfo.success === false) {
+                    throw new Error(resolvedInfo.msg || 'B站直播解析失败');
+                }
+                const info = resolvedInfo;
                 bilibiliCurrentRoomId = roomId;
                 renderBilibiliLiveMeta(info, roomId);
                 setBilibiliLiveSummary('');

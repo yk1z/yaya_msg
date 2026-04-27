@@ -1,6 +1,7 @@
 const { app } = require('electron');
 const { createWindow } = require('./window');
 const { ensureWasmLoaded } = require('./services/wasm-service');
+const { cleanupMediaTasks } = require('./services/media-service');
 const { registerWindowIpc } = require('./ipc/window-ipc');
 const { registerMediaIpc } = require('./ipc/media-ipc');
 const { registerBilibiliIpc } = require('./ipc/bilibili-ipc');
@@ -29,4 +30,8 @@ app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {
         app.quit();
     }
+});
+
+app.on('before-quit', () => {
+    cleanupMediaTasks();
 });

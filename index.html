@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy"
         content="default-src 'self' file: https: data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net https://unpkg.com https://cdn.tailwindcss.com https://esm.sh; style-src 'self' 'unsafe-inline' https:; img-src 'self' file: https: data: blob:; media-src 'self' file: https: http: data: blob:; connect-src 'self' file: https: http: ws: wss: data: blob:; font-src 'self' https: data:;">
-    <title>牙牙消息 v2.1</title>
+    <title>牙牙消息 v2.2</title>
     <link rel="icon" href="./icon.png" type="image/x-icon">
 
     <link rel="stylesheet" href="style.css">
@@ -22,7 +22,7 @@
 
 </head>
 
-<body>
+<body class="topbar-page-title-enabled">
     <script>
         document.documentElement.dataset.platform = (window.desktop && window.desktop.platform) || '';
     </script>
@@ -43,22 +43,26 @@
                 </svg>
             </div>
             <img src="./icon.png" class="title-logo">
-                    <span>牙牙消息 v2.1</span>
+            <span>牙牙消息 v2.2</span>
         </div>
+        <div id="topbar-page-title" class="title-bar-center-title" aria-live="polite"></div>
         <div class="window-controls">
             <div class="control-btn" onclick="ipcRenderer.send('window-min')">
-                <svg width="10" height="1" viewBox="0 0 10 1">
-                    <rect width="10" height="1" fill="currentColor" />
+                <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" style="position: relative; top: -1px;">
+                    <path d="M2.5 7.35H9.5" fill="none" stroke="currentColor" stroke-width="1.15"
+                        stroke-linecap="round" />
                 </svg>
             </div>
             <div class="control-btn" onclick="ipcRenderer.send('window-max')">
-                <svg width="10" height="10" viewBox="0 0 10 10">
-                    <path d="M1,1 L9,1 L9,9 L1,9 Z" fill="none" stroke="currentColor" stroke-width="1" />
+                <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" style="position: relative; top: -0.5px;">
+                    <rect x="2.6" y="2.6" width="6.8" height="6.8" rx="0.35" fill="none" stroke="currentColor"
+                        stroke-width="1.05" />
                 </svg>
             </div>
             <div class="control-btn close-btn" onclick="ipcRenderer.send('window-close')">
-                <svg width="10" height="10" viewBox="0 0 10 10">
-                    <path d="M1,1 L9,9 M9,1 L1,9" fill="none" stroke="currentColor" stroke-width="1.2" />
+                <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" style="position: relative; top: -0.5px;">
+                    <path d="M2.4 2.4L9.6 9.6M9.6 2.4L2.4 9.6" fill="none" stroke="currentColor"
+                        stroke-width="1.35" stroke-linecap="round" />
                 </svg>
             </div>
         </div>
@@ -421,7 +425,7 @@
 
                         <div class="home-panel home-panel-settings">
                             <div class="home-panel-title">通用</div>
-                            <div class="home-panel-subtitle">口袋账号设置、下载管理、软件相关设置</div>
+                            <div class="home-panel-subtitle">口袋账号、B站账号、下载管理、软件相关设置</div>
                             <div class="home-panel-actions home-card-grid">
                                 <button class="home-card" onclick="switchView('login')">
                                     <span class="home-card-title">账号登录</span>
@@ -686,12 +690,12 @@
                     </div>
                 </div>
 
-                <div id="media-list-area"
-                    style="flex: 1; display: flex; flex-direction: column; justify-content: flex-start;">
+                    <div id="media-list-area"
+                        style="display: flex; flex-direction: column; justify-content: flex-start;">
                     <div id="vod-loading"
                         style="text-align: center; padding: 20px; color: var(--text-sub); display: none;">正在加载数据...
                     </div>
-                    <div class="live-card-grid" id="vod-list-container" style="flex: 1;"></div>
+                        <div class="live-card-grid" id="vod-list-container"></div>
                 </div>
 
                 <div id="live-player-view" style="display: none; height: 100%; flex-direction: column; padding: 0;">
@@ -906,13 +910,13 @@
 
             <div id="view-login"
                 style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
-                <div class="list-container">
+                <div class="list-container account-settings-shell">
 
                     <div class="page-header">
                         <h2 class="page-title">账号设置</h2>
                     </div>
 
-                    <div id="panel-login" class="Box-row">
+                    <div id="panel-login" class="Box-row account-login-panel">
                         <div style="display: flex; border-bottom: 1px solid var(--border); margin-bottom: 20px;">
                             <div id="tab-sms" onclick="switchLoginTab('sms')"
                                 style="padding: 10px 20px; cursor: pointer; color: var(--primary); border-bottom: 2px solid var(--primary); font-weight: bold; transition: all 0.2s;">
@@ -993,44 +997,90 @@
                         </div>
                     </div>
 
-                    <div id="panel-logged-in" style="display: none;">
-                        <div class="Box-row" style="background: rgba(40, 167, 69, 0.1); border-color: #28a745;">
-                            <div
-                                style="font-weight: bold; font-size: 15px; color: #28a745; display: flex; justify-content: space-between; align-items: center;">
-                                <span style="display: flex; align-items: center;">
-                                    <span style="line-height: 1;">✅ 当前已登录 (<span id="user-nickname">用户</span>)</span>
-
-                                    <span id="user-id-display"
-                                        style="font-size: 13px; color: #333; margin-left: 10px; opacity: 0.75; padding-top: 0px;">
-                                        ID: --
-                                    </span>
-                                </span>
-                                </span>
-                                <div style="display: flex; gap: 8px;">
+                    <div id="panel-logged-in" class="account-settings-stack" style="display: none;">
+                        <div class="Box-row account-state-card">
+                            <div class="account-state-profile">
+                                <img id="current-user-avatar" class="account-state-avatar" src="./icon.png"
+                                    alt="当前账号头像" onerror="this.src='./icon.png'">
+                                <div class="account-state-main">
+                                    <div class="account-state-name-row">
+                                        <span class="account-state-name" id="user-nickname">用户</span>
+                                        <span class="account-state-badge">已登录</span>
+                                    </div>
+                                    <div id="user-id-display" class="account-state-id">ID: --</div>
+                                </div>
+                            </div>
+                            <div class="account-state-actions">
                                     <button class="btn btn-secondary" id="btn-copy-token" onclick="copyToken()"
-                                        style="height: 28px; padding: 0 12px; font-size: 12px; background: white; border-color: #28a745; color: #28a745;">
+                                        style="background: white; border-color: #28a745; color: #28a745;">
                                         复制 Token
                                     </button>
                                     <button class="btn btn-secondary" onclick="logout()"
-                                        style="height: 28px; padding: 0 12px; font-size: 12px;">
+                                        style="height: 36px; padding: 0 16px; font-size: 13px;">
                                         注销 / 更换账号
                                     </button>
-                                </div>
                             </div>
                         </div>
 
-                        <div id="account-switcher-area" class="Box-row"
-                            style="margin-top: 15px; display: none; background: rgba(127, 127, 127, 0.05); border-color: var(--border);">
-                            <div
-                                style="font-weight: bold; font-size: 13px; color: var(--text); margin-bottom: 12px; display: flex; align-items: center;">
-                                <span>切换其他账号</span>
+                        <div id="account-switcher-area" class="Box-row account-section-card account-switcher-panel"
+                            style="display: none;">
+                            <div class="account-section-head">
+                                <div class="account-section-title">切换小号</div>
+                                <div class="account-section-subtitle">一键切换主号与小号</div>
                             </div>
                             <div id="account-list" class="btn-grid" style="grid-template-columns: 1fr; gap: 10px;">
                             </div>
                         </div>
 
-                        <div style="margin-top: 20px; text-align: center; color: var(--text-sub); font-size: 13px;">
-                            <p>您现在可以前往使用相关功能。</p>
+                        <div class="Box-row account-section-card account-checkin-panel">
+                            <div class="account-checkin-head">
+                                <div>
+                                    <div class="account-section-title">自动签到</div>
+                                    <div class="account-section-subtitle">打开软件自动签到</div>
+                                </div>
+                                <button class="btn btn-secondary" id="btn-manual-checkin" onclick="handleManualCheckIn()"
+                                    style="height: 36px; padding: 0 16px; font-size: 13px;">
+                                    立即签到
+                                </button>
+                            </div>
+                            <label class="account-checkin-toggle">
+                                    <input type="checkbox" id="auto-checkin-toggle" onchange="toggleAutoCheckin(this.checked)">
+                                    <span>开启自动签到</span>
+                                </label>
+                            <div id="auto-checkin-status" class="account-checkin-status">
+                                登录成功后会在打开软件时自动尝试签到
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <div class="Box-row account-section-card">
+                        <div
+                            style="display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 15px;">
+                            <div style="min-width: 0;">
+                                <label style="display:block; font-weight:bold; color:var(--text);">B站登录</label>
+                                <span id="bilibili-login-status"
+                                    style="font-size: 12px; color: var(--text-sub);">正在读取登录状态...</span>
+                            </div>
+                            <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end;">
+                                <button class="btn btn-secondary" id="btn-bilibili-login"
+                                    onclick="startBilibiliLogin()">登录账号</button>
+                                <button class="btn btn-secondary" id="btn-bilibili-refresh"
+                                    onclick="refreshBilibiliLoginStatus()">刷新状态</button>
+                                <button class="btn btn-secondary" id="btn-bilibili-logout"
+                                    onclick="logoutBilibili()" style="color: #ff4d4f; display: none;">退出登录</button>
+                            </div>
+                        </div>
+                        <div id="bilibili-login-panel"
+                            style="display: none; align-items: center; gap: 18px; padding: 16px; border: 1px dashed var(--border); border-radius: 12px; background: rgba(127, 127, 127, 0.05);">
+                            <img id="bilibili-login-qr" src="" alt="B站登录二维码"
+                                style="width: 180px; height: 180px; border-radius: 10px; background: #fff; padding: 8px; object-fit: contain;">
+                            <div style="min-width: 0;">
+                                <div id="bilibili-login-qr-title"
+                                    style="font-weight: bold; color: var(--text); margin-bottom: 8px;">请使用 B站 App 扫码登录</div>
+                                <div id="bilibili-login-qr-msg"
+                                    style="font-size: 13px; line-height: 1.6; color: var(--text-sub);">等待扫码...</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1057,9 +1107,7 @@
                         </div>
                     </div>
                     <div class="database-frame-shell">
-                        <div id="database-root" class="database-root">
-                            <div class="database-loading">正在加载数据库...</div>
-                        </div>
+                        <div id="database-root" class="database-root"></div>
                     </div>
                 </div>
             </div>
@@ -1211,8 +1259,6 @@
 
                     <div class="bilibili-live-room-strip" id="bilibili-live-room-strip"></div>
 
-                    <div id="bilibili-live-summary" class="bilibili-live-summary" style="display:none;"></div>
-
                     <div id="bilibili-live-meta" class="bilibili-live-now-playing" style="display:none;">
                         <div class="bilibili-live-now-text">
                             <div id="bilibili-live-title" class="bilibili-live-now-title"></div>
@@ -1230,28 +1276,34 @@
                         <div id="bilibili-live-player"
                             style="display:none; width:100%; min-height:420px; height:100%;"></div>
                     </div>
+
+                    <div id="bilibili-live-summary" class="bilibili-live-summary" style="display:none;"></div>
                 </div>
             </div>
 
             <div id="view-audio-programs"
                 style="height: 100%; display: none; flex-direction: column; padding: 20px 0 0 0; box-sizing: border-box;">
 
-                        <div style="flex: 1; overflow-y: auto; min-height: 0; padding: 0 40px;">
+                        <div id="audio-scroll-area" style="flex: 1; overflow-y: auto; min-height: 0; padding: 0 40px;">
                             <div class="list-container">
 
-                                <div class="page-header">
+                                <div class="page-header media-library-header">
                                     <div class="page-header-left">
                                         <h2 class="page-title">往期音频电台</h2>
                                         <span id="audio-programs-status"
                                             style="font-size: 15px; font-weight: bold; color: var(--primary);"></span>
                                     </div>
 
-                                    <div style="width: 200px; position: relative;">
-                                        <input type="text" id="audio-inner-search" class="input-control"
-                                            placeholder="搜索..."
-                                            style="height: 32px; padding-left: 30px; border-radius: 16px; font-size: 12px;"
-                                            oninput="debouncedAudioSearch(this.value)"> <span
-                                            style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); opacity: 0.5; font-size: 12px;">🔍</span>
+                                    <div class="media-search-shell">
+                                        <span class="media-search-icon" aria-hidden="true">
+                                            <svg viewBox="0 0 24 24" fill="none">
+                                                <circle cx="11" cy="11" r="6.5"></circle>
+                                                <path d="M16 16L21 21"></path>
+                                            </svg>
+                                        </span>
+                                        <input type="text" id="audio-inner-search" class="input-control media-search-input"
+                                            placeholder="搜索电台标题 / 嘉宾 / 关键词"
+                                            oninput="debouncedAudioSearch(this.value)">
                                     </div>
                                 </div>
 
@@ -1365,19 +1417,23 @@
                         style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box; background: transparent;">
                         <div class="list-container">
 
-                            <div class="page-header">
+                            <div class="page-header media-library-header">
                                 <div class="page-header-left">
                                     <h2 class="page-title">官方视频列表</h2>
                                     <span id="video-library"
                                         style="font-size: 15px; font-weight: bold; color: var(--primary);"></span>
                                 </div>
 
-                                <div style="width: 200px; position: relative;">
-                                    <input type="text" id="video-inner-search" class="input-control" placeholder="搜索..."
-                                        style="height: 32px; padding-left: 30px; border-radius: 16px; font-size: 12px;"
+                                <div class="media-search-shell">
+                                    <span class="media-search-icon" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24" fill="none">
+                                            <circle cx="11" cy="11" r="6.5"></circle>
+                                            <path d="M16 16L21 21"></path>
+                                        </svg>
+                                    </span>
+                                    <input type="text" id="video-inner-search" class="input-control media-search-input"
+                                        placeholder="搜索视频标题 / 分类 / 关键词"
                                         oninput="debouncedVideoSearch(this.value)">
-                                    <span
-                                        style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); opacity: 0.5; font-size: 12px;">🔍</span>
                                 </div>
                             </div>
 
@@ -1397,7 +1453,7 @@
                     <div id="video-player-modal"
                         style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 2000; align-items: center; justify-content: center; flex-direction: column;">
                         <button onclick="closeVideoPlayer()"
-                            style="position: absolute; top: 20px; right: 20px; background: none; border: none; color: white; font-size: 30px; cursor: pointer;">&times;</button>
+                            style="position: absolute; top: 64px; right: 20px; z-index: 2001; padding: 0; background: none; border: none; color: white; font-size: 34px; line-height: 1; cursor: pointer;">&times;</button>
                         <video id="main-video-player" controls
                             style="max-width: 90%; max-height: 80%; border-radius: 8px; box-shadow: 0 0 30px rgba(0,0,0,0.5);"></video>
                         <div id="video-player-info" style="color: white; margin-top: 15px; text-align: center;">
@@ -1412,7 +1468,7 @@
                         <div id="music-scroll-area" style="flex: 1; overflow-y: auto; min-height: 0; padding: 0 40px;">
                             <div class="list-container">
 
-                                <div class="page-header">
+                                <div class="page-header media-library-header">
 
                                     <div class="page-header-left">
                                         <h2 class="page-title">官方音乐列表</h2>
@@ -1420,13 +1476,16 @@
                                             style="font-size: 15px; font-weight: bold; color: var(--primary);"></span>
                                     </div>
 
-                                    <div style="width: 200px; position: relative;">
-                                        <input type="text" id="music-inner-search" class="input-control"
-                                            placeholder="搜索..."
-                                            style="height: 32px; padding-left: 30px; border-radius: 16px; font-size: 12px;"
+                                    <div class="media-search-shell">
+                                        <span class="media-search-icon" aria-hidden="true">
+                                            <svg viewBox="0 0 24 24" fill="none">
+                                                <circle cx="11" cy="11" r="6.5"></circle>
+                                                <path d="M16 16L21 21"></path>
+                                            </svg>
+                                        </span>
+                                        <input type="text" id="music-inner-search" class="input-control media-search-input"
+                                            placeholder="搜索歌曲名 / 成员 / 关键词"
                                             oninput="debouncedMusicSearch(this.value)">
-                                        <span
-                                            style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); opacity: 0.5; font-size: 12px;">🔍</span>
                                     </div>
                                 </div>
 
@@ -1560,17 +1619,80 @@
                     <div id="view-flip"
                         style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
                         <div class="list-container">
-                            <div class="page-header">
+                            <div class="page-header flip-toolbar-header">
 
                                 <div class="page-header-left" style="align-items: baseline; gap: 12px;">
                                     <h2 class="page-title">翻牌记录</h2>
                                     <span id="flip-status-text" style="font-size: 12px; color: var(--text-sub);"></span>
                                 </div>
 
-                                <div style="display: flex; gap: 10px; align-items: center;">
+                                <div class="flip-toolbar-controls">
+
+                                    <div id="flip-date-wrapper" style="position: relative;">
+                                        <button class="btn btn-secondary flip-date-trigger" type="button"
+                                            onclick="toggleFlipDateDropdown()" title="按日期筛选翻牌记录" aria-label="按日期筛选翻牌记录">
+                                            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                                <line x1="16" y1="2" x2="16" y2="6"></line>
+                                                <line x1="8" y1="2" x2="8" y2="6"></line>
+                                                <line x1="3" y1="10" x2="21" y2="10"></line>
+                                            </svg>
+                                        </button>
+                                        <div id="flip-date-dropdown" class="suggestion-box flip-date-dropdown">
+                                            <div class="flip-date-panel">
+                                                <div class="flip-date-field-row">
+                                                    <button type="button" id="flip-time-from-display" class="flip-date-field-card"
+                                                        onclick="setActiveFlipDateField('from')">
+                                                        <span class="flip-date-field-card-label">起始日期</span>
+                                                        <span class="flip-date-field-card-value">请选择</span>
+                                                    </button>
+                                                    <button type="button" id="flip-time-to-display" class="flip-date-field-card"
+                                                        onclick="setActiveFlipDateField('to')">
+                                                        <span class="flip-date-field-card-label">结束日期</span>
+                                                        <span class="flip-date-field-card-value">请选择</span>
+                                                    </button>
+                                                    <input type="hidden" id="flip-time-from">
+                                                    <input type="hidden" id="flip-time-to">
+                                                </div>
+                                                <div class="flip-calendar-shell">
+                                                    <div class="flip-calendar-header">
+                                                        <div class="flip-calendar-nav-group">
+                                                            <button type="button" class="flip-calendar-nav flip-calendar-nav-year"
+                                                                onclick="shiftFlipDateCalendarYear(-1)" aria-label="上一年">«</button>
+                                                            <button type="button" class="flip-calendar-nav"
+                                                                onclick="shiftFlipDateCalendarMonth(-1)" aria-label="上个月">‹</button>
+                                                        </div>
+                                                        <div id="flip-date-calendar-label" class="flip-calendar-title"></div>
+                                                        <div class="flip-calendar-nav-group">
+                                                            <button type="button" class="flip-calendar-nav"
+                                                                onclick="shiftFlipDateCalendarMonth(1)" aria-label="下个月">›</button>
+                                                            <button type="button" class="flip-calendar-nav flip-calendar-nav-year"
+                                                                onclick="shiftFlipDateCalendarYear(1)" aria-label="下一年">»</button>
+                                                        </div>
+                                                    </div>
+                                                    <div class="flip-calendar-weekdays">
+                                                        <span>一</span>
+                                                        <span>二</span>
+                                                        <span>三</span>
+                                                        <span>四</span>
+                                                        <span>五</span>
+                                                        <span>六</span>
+                                                        <span>日</span>
+                                                    </div>
+                                                    <div id="flip-date-calendar-grid" class="flip-calendar-grid"></div>
+                                                    <div class="flip-calendar-footer">
+                                                        <button type="button" class="btn btn-secondary flip-date-clear"
+                                                            onclick="clearActiveFlipDateField()">清除</button>
+                                                        <button type="button" class="btn btn-secondary flip-date-today"
+                                                            onclick="pickTodayForFlipDate()">今天</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
 
                                     <div id="flip-type-wrapper" style="position: relative; width: 110px;">
-                                        <input type="text" id="flip-type-display" class="input-control" value="全部类型"
+                                        <input type="text" id="flip-type-display" class="input-control" value="翻牌形式"
                                             readonly onclick="toggleFlipTypeDropdown()"
                                             style="cursor: pointer; text-align: left; padding-right: 25px;">
 
@@ -1581,11 +1703,49 @@
 
                                         <div id="flip-type-dropdown" class="suggestion-box"
                                             style="display: none; top: 42px;">
-                                            <div class="suggestion-item" onclick="selectFlipType('0', '全部类型')">全部类型
+                                            <div class="suggestion-item" onclick="selectFlipType('0', '翻牌形式')">全部
                                             </div>
                                             <div class="suggestion-item" onclick="selectFlipType('1', '文字')">文字</div>
                                             <div class="suggestion-item" onclick="selectFlipType('2', '语音')">语音</div>
                                             <div class="suggestion-item" onclick="selectFlipType('3', '视频')">视频</div>
+                                        </div>
+                                    </div>
+
+                                    <div id="flip-visibility-wrapper" style="position: relative; width: 110px;">
+                                        <input type="text" id="flip-visibility-display" class="input-control" value="公开设置"
+                                            readonly onclick="toggleFlipVisibilityDropdown()"
+                                            style="cursor: pointer; text-align: left; padding-right: 25px;">
+
+                                        <div
+                                            style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text-sub); font-size: 12px;">
+                                            ▼
+                                        </div>
+
+                                        <div id="flip-visibility-dropdown" class="suggestion-box"
+                                            style="display: none; top: 42px;">
+                                            <div class="suggestion-item" onclick="selectFlipVisibilityFilter('0', '公开设置')">全部</div>
+                                            <div class="suggestion-item" onclick="selectFlipVisibilityFilter('1', '公开')">公开</div>
+                                            <div class="suggestion-item" onclick="selectFlipVisibilityFilter('2', '私密')">私密</div>
+                                            <div class="suggestion-item" onclick="selectFlipVisibilityFilter('3', '匿名')">匿名</div>
+                                        </div>
+                                    </div>
+
+                                    <div id="flip-sort-wrapper" style="position: relative; width: 118px;">
+                                        <input type="text" id="flip-sort-display" class="input-control" value="最新在前"
+                                            readonly onclick="toggleFlipSortDropdown()"
+                                            style="cursor: pointer; text-align: left; padding-right: 25px;">
+
+                                        <div
+                                            style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text-sub); font-size: 12px;">
+                                            ▼
+                                        </div>
+
+                                        <div id="flip-sort-dropdown" class="suggestion-box"
+                                            style="display: none; top: 42px;">
+                                            <div class="suggestion-item" onclick="selectFlipSort('latest_desc', '最新在前')">最新在前</div>
+                                            <div class="suggestion-item" onclick="selectFlipSort('latest_asc', '最早在前')">最早在前</div>
+                                            <div class="suggestion-item" onclick="selectFlipSort('cost_desc', '鸡腿从高到低')">鸡腿从高到低</div>
+                                            <div class="suggestion-item" onclick="selectFlipSort('cost_asc', '鸡腿从低到高')">鸡腿从低到高</div>
                                         </div>
                                     </div>
 
@@ -1620,7 +1780,7 @@
                     <div id="view-send-flip"
                         style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
                         <div class="list-container">
-                            <div class="page-header">
+                                <div class="page-header media-library-header">
                                 <h2 class="page-title">翻牌提问</h2>
                             </div>
 
@@ -1773,7 +1933,7 @@
                         <div class="list-container">
                             <div class="page-header">
                                 <h2 class="page-title">房间相册</h2>
-                                <span id="room-album-status" style="font-size: 13px; color: var(--text-sub);"></span>
+                                <span id="room-album-status" style="display: none;"></span>
                             </div>
 
                             <div class="Box-row" style="z-index: 100; position: relative;">
@@ -1816,12 +1976,7 @@
                                 </div>
                             </div>
 
-                            <div id="room-album-result-container" style="margin-top: 20px;">
-                                <div class="placeholder-tip">
-                                    <h3>等待查询</h3>
-                                    <p>搜索并选择成员，提取她在口袋房间里发过的日常照片与视频。</p>
-                                </div>
-                            </div>
+                            <div id="room-album-result-container" style="margin-top: 20px;"></div>
                         </div>
                     </div>
 
@@ -1830,7 +1985,7 @@
                         <div class="list-container">
                             <div class="page-header">
                                 <h2 class="page-title">个人相册</h2>
-                                <span id="photos-status" style="font-size: 13px; color: var(--text-sub);"></span>
+                                <span id="photos-status" style="display: none;"></span>
                             </div>
 
                             <div class="Box-row" style="z-index: 100; position: relative;">
@@ -1843,19 +1998,13 @@
                                     <input type="hidden" id="photo-member-id">
                                     <div id="photo-search-results" class="suggestion-box"></div>
                                 </div>
-                                <div class="btn-grid" style="margin-top: 10px;">
-                                    <button class="btn btn-primary" onclick="fetchMemberPhotos(false)">查询最新</button>
-                                    <button id="btn-photos-all" class="btn btn-secondary"
-                                        onclick="fetchAllMemberPhotos()">加载全部</button>
+                                <div class="btn-grid" style="margin-top: 10px; grid-template-columns: 1fr;">
+                                    <button id="btn-photos-query" class="btn btn-primary"
+                                        onclick="fetchAllMemberPhotos()">查询</button>
                                 </div>
                             </div>
 
-                            <div id="photos-result-container" style="margin-top: 20px;">
-                                <div class="placeholder-tip">
-                                    <h3>等待查询</h3>
-                                    <p>搜索并选择成员，查看其发布的个人相册与专属语音。</p>
-                                </div>
-                            </div>
+                            <div id="photos-result-container" style="margin-top: 20px;"></div>
                         </div>
                     </div>
 
@@ -1880,12 +2029,7 @@
                                     style="width: 100%;">获取档案</button>
                             </div>
 
-                            <div id="profile-result-container" style="margin-top: 20px;">
-                                <div class="placeholder-tip">
-                                    <h3>等待查询</h3>
-                                    <p>搜索并选择成员，查看详细资料和公式照。</p>
-                                </div>
-                            </div>
+                            <div id="profile-result-container" style="margin-top: 20px;"></div>
                         </div>
                     </div>
                     <div id="view-open-live"
@@ -1893,8 +2037,6 @@
                         <div class="list-container">
                             <div class="page-header">
                                 <h2 class="page-title">公演记录</h2>
-                                <span id="openlive-status"
-                                    style="font-size: 15px; font-weight: bold; color: var(--primary); margin-left: 10px;"></span>
                             </div>
 
                             <div class="Box-row" style="z-index: 100; position: relative;">
@@ -1908,21 +2050,16 @@
                                     <div id="openlive-search-results" class="suggestion-box"></div>
                                 </div>
 
-                                <div class="btn-grid" style="margin-top: 10px;">
-                                    <button class="btn btn-primary" onclick="fetchOpenLiveList(false)">查询最新</button>
-                                    <button id="btn-openlive-all" class="btn btn-secondary"
-                                        onclick="fetchAllOpenLive()">加载全部</button>
+                                <div class="btn-grid" style="margin-top: 10px; grid-template-columns: 1fr;">
+                                    <button id="btn-openlive-query" class="btn btn-primary"
+                                        onclick="fetchAllOpenLive()">查询</button>
                                 </div>
 
-                                <div id="openlive-list-container" style="margin-top: 20px;">
-                                    <div class="placeholder-tip">
-                                        <h3>等待查询</h3>
-                                        <p>请选择成员并点击查询，将显示参加的公演列表。</p>
-                                    </div>
-                                </div>
+                                <div id="openlive-list-container" style="margin-top: 20px;"></div>
 
-                                <div id="openlive-load-more" style="text-align: center; margin: 20px 0; display: none;">
-                                    <button class="btn btn-secondary" onclick="fetchOpenLiveList(true)">加载更多</button>
+                                <div id="openlive-status-wrap" style="text-align: center; margin: 20px 0 0;">
+                                    <span id="openlive-status"
+                                        style="font-size: 15px; font-weight: bold; color: var(--primary);"></span>
                                 </div>
                             </div>
                         </div>
@@ -1969,12 +2106,7 @@
                                     onclick="connectRoomRadio()">连接电台</button>
                             </div>
 
-                            <div id="room-radio-result-container" style="margin-top: 20px;">
-                                <div class="placeholder-tip">
-                                    <h3>等待连接</h3>
-                                    <p>搜索并选择成员后，点击连接，若房间正在进行语音/连麦，将自动跳转播放。</p>
-                                </div>
-                            </div>
+                            <div id="room-radio-result-container" style="margin-top: 20px;"></div>
                         </div>
                     </div>
 

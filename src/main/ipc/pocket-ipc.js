@@ -5,6 +5,7 @@ function registerPocketIpc() {
     ipcMain.handle('login-send-sms', (event, payload) => pocketService.loginSendSms(payload));
     ipcMain.handle('login-by-code', (event, payload) => pocketService.loginByCode(payload));
     ipcMain.handle('login-check-token', (event, payload) => pocketService.loginCheckToken(payload));
+    ipcMain.handle('pocket-checkin', (event, payload) => pocketService.checkIn(payload));
     ipcMain.handle('switch-big-small', (event, payload) => pocketService.switchBigSmall(payload));
     ipcMain.handle('fetch-room-messages', (event, payload) => pocketService.fetchRoomMessages(payload));
     ipcMain.handle('fetch-private-message-list', (event, payload) => pocketService.fetchPrivateMessageList(payload));

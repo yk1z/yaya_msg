@@ -1,6 +1,11 @@
         (function () {
-            const savedTheme = localStorage.getItem('theme') || 'light';
-            const savedBg = localStorage.getItem('custom_bg_data');
+            const settingsApi = window.desktop && window.desktop.appSettings ? window.desktop.appSettings : null;
+            const savedTheme = settingsApi && typeof settingsApi.getSettingValueSync === 'function'
+                ? String(settingsApi.getSettingValueSync('theme', 'light') || 'light')
+                : (localStorage.getItem('theme') || 'light');
+            const savedBg = settingsApi && typeof settingsApi.getBackgroundUrlSync === 'function'
+                ? settingsApi.getBackgroundUrlSync()
+                : localStorage.getItem('custom_bg_data');
             const THEME_STYLE_ID = 'yaya-theme-init-style';
             const BG_STYLE_ID = 'yaya-custom-bg-style';
 

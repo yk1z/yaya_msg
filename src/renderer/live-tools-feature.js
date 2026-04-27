@@ -19,8 +19,17 @@
         let currentRecordTaskId = null;
         let liveRecordCount = 0;
 
+        function readStringSetting(key, fallbackValue = '') {
+            if (typeof window.readStoredStringSetting === 'function') {
+                return window.readStoredStringSetting(key, fallbackValue);
+            }
+            const legacyValue = localStorage.getItem(key);
+            return legacyValue === null ? fallbackValue : String(legacyValue);
+        }
+
         function getSafeToken() {
-            return typeof getAppToken === 'function' ? getAppToken() : localStorage.getItem('yaya_p48_token');
+            if (typeof getAppToken === 'function') return getAppToken();
+            return typeof window.getAppToken === 'function' ? window.getAppToken() : '';
         }
 
         function getSafePa() {
@@ -260,7 +269,7 @@
                 }
 
                 currentRecordTaskId = `rec_${Date.now()}`;
-                const customSavePath = localStorage.getItem('yaya_path_clip') || '';
+                const customSavePath = readStringSetting('yaya_path_clip', '');
 
                 ipcRenderer.send('start-record', {
                     url: art.option.url,
@@ -364,7 +373,7 @@
                 return;
             }
 
-            const customSavePath = localStorage.getItem('yaya_path_clip') || '';
+            const customSavePath = readStringSetting('yaya_path_clip', '');
             const nickname = currentPlayingItem?.userInfo?.nickname || currentPlayingItem?.nickname || '未知成员';
             const baseTimeNum = Number(currentPlayingItem?.startTime || currentPlayingItem?.ctime || Date.now());
             const d = new Date(baseTimeNum);

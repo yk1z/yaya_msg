@@ -78,7 +78,13 @@
             padding: 0 !important;
         }
 
-        .db-header {
+        .db-page-shell {
+            width: 100%;
+            max-width: 1680px !important;
+            box-sizing: border-box;
+        }
+
+        .db-app .db-header {
             position: static !important;
             top: auto !important;
             z-index: auto !important;
@@ -92,6 +98,7 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            width: 100%;
             padding: 12px 16px 0;
             border-radius: 16px;
             background: var(--db-card);
@@ -236,8 +243,9 @@
     <script type="text/babel" data-type="module">
         import React, { useState, useMemo, useRef, useEffect } from 'react';
         import { createRoot } from 'react-dom/client';
-        import { Search, Users, Filter, Upload, BarChart3, Heart, MapPin, Calendar, Hash, X, ChevronRight, Layers, Flag, CheckCircle2, ChevronDown, Check, Cake, Trophy, FileText, Clock, ArrowUpCircle, LogOut, GraduationCap, Copy, Moon, Sun, List, UserSquare2, Sparkles, TrendingUp, TrendingDown, Minus, Music, Disc, AlertCircle, Mic2, Loader2, ExternalLink, ClipboardCopy, Star, Ruler, Droplet, UserCircle, CalendarDays, Activity } from 'lucide-react';
+        import { Search, Users, Filter, Upload, Heart, MapPin, Calendar, Hash, X, ChevronRight, Layers, Flag, CheckCircle2, ChevronDown, Check, Cake, Trophy, FileText, Clock, ArrowUpCircle, LogOut, GraduationCap, Copy, Moon, Sun, List, UserSquare2, Sparkles, TrendingUp, TrendingDown, Minus, Music, Disc, AlertCircle, Mic2, Loader2, ExternalLink, ClipboardCopy, Star, Ruler, Droplet, UserCircle, CalendarDays, Activity } from 'lucide-react';
         const DEMO_DATA = [];
+        const DATABASE_UI_STATE_KEY = 'yaya_database_ui_state_v1';
 
         const COS_BASE = 'https://yaya-data.pages.dev';
         const LYRICS_REPO_URL = 'https://github.com/yk1z/yaya_data/tree/main/lyrics';
@@ -253,6 +261,41 @@
 
         const LYRICS_INDEX_URL = `${COS_BASE}/lyrics-index.json`;
         let lyricsIndexPromise = null;
+
+        const getDesktopCacheApi = () => {
+            if (typeof window === 'undefined') return null;
+            return window.desktop && window.desktop.appCache ? window.desktop.appCache : null;
+        };
+
+        const getDesktopSettingsApi = () => {
+            if (typeof window === 'undefined') return null;
+            return window.desktop && window.desktop.appSettings ? window.desktop.appSettings : null;
+        };
+
+        const getInitialDatabaseUiState = () => {
+            if (typeof window === 'undefined') return {};
+            try {
+                const cacheApi = getDesktopCacheApi();
+                if (cacheApi && typeof cacheApi.getCacheValueSync === 'function') {
+                    const stored = cacheApi.getCacheValueSync(DATABASE_UI_STATE_KEY, null);
+                    if (stored && typeof stored === 'object') {
+                        return stored;
+                    }
+                }
+
+                const raw = localStorage.getItem(DATABASE_UI_STATE_KEY);
+                if (!raw) return {};
+                const parsed = JSON.parse(raw);
+                if (cacheApi && typeof cacheApi.setCacheValueSync === 'function') {
+                    cacheApi.setCacheValueSync(DATABASE_UI_STATE_KEY, parsed);
+                    localStorage.removeItem(DATABASE_UI_STATE_KEY);
+                }
+                return parsed;
+            } catch (error) {
+                console.error('Failed to parse database UI state:', error);
+                return {};
+            }
+        };
 
         const fetchLyricsIndex = () => {
             if (!lyricsIndexPromise) {
@@ -929,6 +972,16 @@
             </div>
         );
 
+        const DatabaseSectionPlaceholder = ({ icon: Icon, title, detail }) => (
+            <div className="rounded-2xl border border-dashed border-gray-200 bg-white/70 px-6 py-16 text-center shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
+                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                    <Icon className="h-7 w-7" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
+                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{detail}</p>
+            </div>
+        );
+
         const MemberDetailModal = ({ member, onClose }) => {
             if (!member) return null;
             const isActive = checkIsActive(member);
@@ -1051,32 +1104,39 @@
         };
 
         function App() {
+            const persistedUiState = useMemo(() => getInitialDatabaseUiState(), []);
             const [members, setMembers] = useState(DEMO_DATA);
             const [zxData, setZxData] = useState([]);
             const [stagesData, setStagesData] = useState([]);
             const [fxzpData, setFxzpData] = useState([]);
-            const [searchTerm, setSearchTerm] = useState('');
-            const [selectedGroup, setSelectedGroup] = useState('ALL');
+            const [searchTerm, setSearchTerm] = useState(() => persistedUiState.searchTerm || '');
+            const [selectedGroup, setSelectedGroup] = useState(() => persistedUiState.selectedGroup || 'ALL');
 
-            const [sortBy, setSortBy] = useState('team');
-            const [statusFilter, setStatusFilter] = useState('ACTIVE');
+            const [sortBy, setSortBy] = useState(() => persistedUiState.sortBy || 'team');
+            const [statusFilter, setStatusFilter] = useState(() => persistedUiState.statusFilter || 'ACTIVE');
 
             const [isDataLoaded, setIsDataLoaded] = useState(false);
             const [selectedMember, setSelectedMember] = useState(null);
 
-            const [activeTab, setActiveTab] = useState('members');
-            const [selectedEdition, setSelectedEdition] = useState('12');
-            const [electionSearch, setElectionSearch] = useState('');
+            const [activeTab, setActiveTab] = useState(() => persistedUiState.activeTab || 'members');
+            const [selectedEdition, setSelectedEdition] = useState(() => persistedUiState.selectedEdition || '12');
+            const [electionSearch, setElectionSearch] = useState(() => persistedUiState.electionSearch || '');
 
-            const [stageSearch, setStageSearch] = useState('');
-            const [stageGroupFilter, setStageGroupFilter] = useState('ALL');
-            const [stageTeamFilter, setStageTeamFilter] = useState('ALL');
+            const [stageSearch, setStageSearch] = useState(() => persistedUiState.stageSearch || '');
+            const [stageGroupFilter, setStageGroupFilter] = useState(() => persistedUiState.stageGroupFilter || 'ALL');
+            const [stageTeamFilter, setStageTeamFilter] = useState(() => persistedUiState.stageTeamFilter || 'ALL');
 
-            const [albumSearch, setAlbumSearch] = useState('');
-            const [albumGroupFilter, setAlbumGroupFilter] = useState('ALL');
-            const [albumTypeFilter, setAlbumTypeFilter] = useState('ALL');
+            const [albumSearch, setAlbumSearch] = useState(() => persistedUiState.albumSearch || '');
+            const [albumGroupFilter, setAlbumGroupFilter] = useState(() => persistedUiState.albumGroupFilter || 'ALL');
+            const [albumTypeFilter, setAlbumTypeFilter] = useState(() => persistedUiState.albumTypeFilter || 'ALL');
             const [fxzpError, setFxzpError] = useState(null);
             const [currentLyricSong, setCurrentLyricSong] = useState(null);
+            const [datasetStatus, setDatasetStatus] = useState({
+                members: { status: 'loading', count: 0, error: '' },
+                elections: { status: 'loading', count: 0, error: '' },
+                stages: { status: 'loading', count: 0, error: '' },
+                albums: { status: 'loading', count: 0, error: '' }
+            });
 
             const [isDarkMode, setIsDarkMode] = useState(() => {
                 if (typeof window !== 'undefined') {
@@ -1084,8 +1144,12 @@
                     if (docTheme) {
                         return docTheme === 'dark';
                     }
-                    return localStorage.getItem('theme') === 'dark' ||
-                        (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                    const settingsApi = getDesktopSettingsApi();
+                    const storedTheme = settingsApi && typeof settingsApi.getSettingValueSync === 'function'
+                        ? settingsApi.getSettingValueSync('theme', '')
+                        : localStorage.getItem('theme');
+                    return storedTheme === 'dark' ||
+                        (!storedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches);
                 }
                 return false;
             });
@@ -1111,61 +1175,153 @@
             }, []);
 
             useEffect(() => {
-                fetch(DATA_URLS.members)
-                    .then(res => res.json())
-                    .then(data => {
+                const nextState = {
+                    activeTab,
+                    searchTerm,
+                    selectedGroup,
+                    sortBy,
+                    statusFilter,
+                    selectedEdition,
+                    electionSearch,
+                    stageSearch,
+                    stageGroupFilter,
+                    stageTeamFilter,
+                    albumSearch,
+                    albumGroupFilter,
+                    albumTypeFilter
+                };
+                const cacheApi = getDesktopCacheApi();
+                if (cacheApi && typeof cacheApi.setCacheValueSync === 'function') {
+                    cacheApi.setCacheValueSync(DATABASE_UI_STATE_KEY, nextState);
+                    localStorage.removeItem(DATABASE_UI_STATE_KEY);
+                } else {
+                    localStorage.setItem(DATABASE_UI_STATE_KEY, JSON.stringify(nextState));
+                }
+            }, [
+                activeTab,
+                searchTerm,
+                selectedGroup,
+                sortBy,
+                statusFilter,
+                selectedEdition,
+                electionSearch,
+                stageSearch,
+                stageGroupFilter,
+                stageTeamFilter,
+                albumSearch,
+                albumGroupFilter,
+                albumTypeFilter
+            ]);
+
+            useEffect(() => {
+                let cancelled = false;
+
+                const setStatus = (key, patch) => {
+                    if (cancelled) return;
+                    setDatasetStatus((prev) => ({
+                        ...prev,
+                        [key]: {
+                            ...prev[key],
+                            ...patch
+                        }
+                    }));
+                };
+
+                const fetchJson = async (url) => {
+                    const res = await fetch(url);
+                    if (!res.ok) {
+                        throw new Error(`HTTP ${res.status}`);
+                    }
+                    return res.json();
+                };
+
+                const loadMembers = async () => {
+                    try {
+                        setStatus('members', { status: 'loading', error: '' });
+                        const data = await fetchJson(DATA_URLS.members);
                         const membersData = Array.isArray(data) ? data : (data.roomId || []);
-                        if (Array.isArray(membersData)) {
-                            setMembers(membersData);
-                            setIsDataLoaded(true);
+                        if (!Array.isArray(membersData)) {
+                            throw new Error('成员数据格式不正确');
                         }
-                    })
-                    .catch(err => console.error("Failed to fetch members data:", err));
-            }, []);
+                        if (cancelled) return;
+                        setMembers(membersData);
+                        setIsDataLoaded(true);
+                        setStatus('members', { status: 'success', count: membersData.length, error: '' });
+                    } catch (err) {
+                        console.error("Failed to fetch members data:", err);
+                        if (cancelled) return;
+                        setIsDataLoaded(true);
+                        setStatus('members', { status: 'error', error: err.message || '加载失败', count: 0 });
+                    }
+                };
 
-            useEffect(() => {
-                fetch(DATA_URLS.zx)
-                    .then(res => res.json())
-                    .then(data => {
-                        if (Array.isArray(data)) {
-                            setZxData(data);
-                            const uniqueEditions = [...new Set(data.map(item => item.届数))];
-                            if (uniqueEditions.length > 0) {
-                                uniqueEditions.sort((a, b) => parseInt(b) - parseInt(a));
-                                setSelectedEdition(uniqueEditions[0]);
-                            }
+                const loadElections = async () => {
+                    try {
+                        setStatus('elections', { status: 'loading', error: '' });
+                        const data = await fetchJson(DATA_URLS.zx);
+                        if (!Array.isArray(data)) {
+                            throw new Error('总选数据格式不正确');
                         }
-                    })
-                    .catch(err => console.error("Failed to fetch election data:", err));
-            }, []);
+                        if (cancelled) return;
+                        setZxData(data);
+                        const uniqueEditions = [...new Set(data.map(item => item.届数).filter(Boolean))];
+                        if (!persistedUiState.selectedEdition && uniqueEditions.length > 0) {
+                            uniqueEditions.sort((a, b) => parseInt(b) - parseInt(a));
+                            setSelectedEdition(uniqueEditions[0]);
+                        }
+                        setStatus('elections', { status: 'success', count: data.length, error: '' });
+                    } catch (err) {
+                        console.error("Failed to fetch election data:", err);
+                        if (cancelled) return;
+                        setStatus('elections', { status: 'error', error: err.message || '加载失败', count: 0 });
+                    }
+                };
 
-            useEffect(() => {
-                fetch(DATA_URLS.stages)
-                    .then(res => res.json())
-                    .then(data => {
-                        if (Array.isArray(data)) {
-                            setStagesData(data);
+                const loadStages = async () => {
+                    try {
+                        setStatus('stages', { status: 'loading', error: '' });
+                        const data = await fetchJson(DATA_URLS.stages);
+                        if (!Array.isArray(data)) {
+                            throw new Error('公演数据格式不正确');
                         }
-                    })
-                    .catch(err => console.error("Failed to fetch stages data:", err));
-            }, []);
+                        if (cancelled) return;
+                        setStagesData(data);
+                        setStatus('stages', { status: 'success', count: data.length, error: '' });
+                    } catch (err) {
+                        console.error("Failed to fetch stages data:", err);
+                        if (cancelled) return;
+                        setStatus('stages', { status: 'error', error: err.message || '加载失败', count: 0 });
+                    }
+                };
 
-            useEffect(() => {
-                fetch(DATA_URLS.fxzp)
-                    .then(res => res.json())
-                    .then(data => {
-                        if (Array.isArray(data)) {
-                            setFxzpData(data);
-                            setFxzpError(null);
-                        } else {
-                            throw new Error("Data is not an array");
+                const loadAlbums = async () => {
+                    try {
+                        setStatus('albums', { status: 'loading', error: '' });
+                        const data = await fetchJson(DATA_URLS.fxzp);
+                        if (!Array.isArray(data)) {
+                            throw new Error('发行作品数据格式不正确');
                         }
-                    })
-                    .catch(err => {
+                        if (cancelled) return;
+                        setFxzpData(data);
+                        setFxzpError(null);
+                        setStatus('albums', { status: 'success', count: data.length, error: '' });
+                    } catch (err) {
                         console.error("Failed to fetch albums data:", err);
+                        if (cancelled) return;
                         setFxzpError(err.message);
-                    });
-            }, []);
+                        setStatus('albums', { status: 'error', error: err.message || '加载失败', count: 0 });
+                    }
+                };
+
+                loadMembers();
+                loadElections();
+                loadStages();
+                loadAlbums();
+
+                return () => {
+                    cancelled = true;
+                };
+            }, [persistedUiState.selectedEdition]);
 
             const parseStageDate = (dateStr) => {
                 if (!dateStr) return 0;
@@ -1435,98 +1591,118 @@
 
             return (
                 <div className="db-app min-h-screen bg-gray-50 font-sans text-gray-900 transition-colors duration-300 dark:bg-gray-950 dark:text-gray-100 flex flex-col">
-                    <header className="db-header bg-white border-b border-gray-200 sticky top-0 z-20 shadow-sm transition-colors duration-300 dark:bg-gray-900 dark:border-gray-800">
-                        <div className="db-tabs-shell max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                            <div className="flex space-x-6 -mb-px overflow-x-auto no-scrollbar">
+                    <header className="db-header transition-colors duration-300">
+                        <div className="db-page-shell mx-auto px-4 sm:px-6 lg:px-8">
+                            <div className="db-tabs-shell">
+                            <div className="grid w-full grid-cols-4 gap-3 -mb-px">
                                 <button
                                     onClick={() => setActiveTab('members')}
-                                    className={`pb-3 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${activeTab === 'members'
+                                    className={`w-full pb-3 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${activeTab === 'members'
                                         ? 'border-pink-500 text-pink-600 dark:text-pink-400'
                                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
                                         }`}
                                 >
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center justify-center gap-2">
                                         <UserSquare2 className="w-4 h-4" />
                                         成员图鉴
+                                        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-500 dark:bg-gray-800 dark:text-gray-400">{members.length || '--'}</span>
                                     </div>
                                 </button>
                                 <button
                                     onClick={() => setActiveTab('elections')}
-                                    className={`pb-3 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${activeTab === 'elections'
+                                    className={`w-full pb-3 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${activeTab === 'elections'
                                         ? 'border-pink-500 text-pink-600 dark:text-pink-400'
                                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
                                         }`}
                                 >
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center justify-center gap-2">
                                         <Trophy className="w-4 h-4" />
                                         总选记录
+                                        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-500 dark:bg-gray-800 dark:text-gray-400">{zxData.length || '--'}</span>
                                     </div>
                                 </button>
                                 <button
                                     onClick={() => setActiveTab('stages')}
-                                    className={`pb-3 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${activeTab === 'stages'
+                                    className={`w-full pb-3 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${activeTab === 'stages'
                                         ? 'border-pink-500 text-pink-600 dark:text-pink-400'
                                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
                                         }`}
                                 >
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center justify-center gap-2">
                                         <Music className="w-4 h-4" />
                                         公演数据
+                                        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-500 dark:bg-gray-800 dark:text-gray-400">{stagesData.length || '--'}</span>
                                     </div>
                                 </button>
                                 <button
                                     onClick={() => setActiveTab('albums')}
-                                    className={`pb-3 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${activeTab === 'albums'
+                                    className={`w-full pb-3 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${activeTab === 'albums'
                                         ? 'border-pink-500 text-pink-600 dark:text-pink-400'
                                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
                                         }`}
                                 >
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center justify-center gap-2">
                                         <Disc className="w-4 h-4" />
                                         发行作品
+                                        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-500 dark:bg-gray-800 dark:text-gray-400">{fxzpData.length || '--'}</span>
                                     </div>
                                 </button>
+                            </div>
                             </div>
                         </div>
                     </header>
 
-                    <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-
+                    <main className="db-page-shell flex-1 mx-auto px-4 sm:px-6 lg:px-8 py-4 w-full">
                         {activeTab === 'members' && (
                             <div className="animate-fadeIn">
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                                    <StatsCard title="成员总数" value={stats.total} icon={Users} colorClass="text-blue-500 bg-blue-500" />
-                                    <StatsCard title="在团人数" value={stats.activeCount} icon={CheckCircle2} colorClass="text-green-500 bg-green-500" />
-                                    <StatsCard title="当前显示" value={displayedCount} icon={Filter} colorClass="text-pink-500 bg-pink-500" />
-                                </div>
-
-                                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6 space-y-4 transition-colors duration-300 dark:bg-gray-900 dark:border-gray-800">
-                                    <div className="flex flex-col lg:flex-row gap-4">
-                                        <div className="flex-1 relative group">
-                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
-                                                <Search className="h-5 w-5 text-gray-400 group-focus-within:text-pink-500 transition-colors duration-300 dark:text-gray-500" />
-                                            </div>
-                                            <input
-                                                type="text"
-                                                placeholder="搜索成员姓名、拼音、首字母或期数..."
-                                                className="w-full pl-10 pr-4 py-3 bg-gray-100 border-transparent text-gray-900 rounded-full focus:bg-white focus:ring-2 focus:ring-pink-300 focus:border-transparent focus:shadow-md outline-none transition-all duration-300 ease-in-out placeholder-gray-500 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 dark:focus:bg-gray-750 dark:focus:ring-pink-500"
-                                                value={searchTerm}
-                                                onChange={(e) => setSearchTerm(e.target.value)}
-                                            />
+                                {datasetStatus.members.status === 'loading' && members.length === 0 && (
+                                    <DatabaseSectionPlaceholder
+                                        icon={Users}
+                                        title="成员数据加载中"
+                                        detail="成员图鉴、在团状态和队伍信息正在同步。"
+                                    />
+                                )}
+                                {datasetStatus.members.status === 'error' && members.length === 0 && (
+                                    <DatabaseSectionPlaceholder
+                                        icon={AlertCircle}
+                                        title="成员数据加载失败"
+                                        detail={datasetStatus.members.error || '请稍后重试'}
+                                    />
+                                )}
+                                {datasetStatus.members.status !== 'loading' && datasetStatus.members.status !== 'error' && (
+                                    <>
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                                            <StatsCard title="成员总数" value={stats.total} icon={Users} colorClass="text-blue-500 bg-blue-500" />
+                                            <StatsCard title="在团人数" value={stats.activeCount} icon={CheckCircle2} colorClass="text-green-500 bg-green-500" />
+                                            <StatsCard title="当前显示" value={displayedCount} icon={Filter} colorClass="text-pink-500 bg-pink-500" />
                                         </div>
-                                        <div className="flex flex-col sm:flex-row gap-2">
-                                            <CustomSelect options={groupOptions} value={selectedGroup} onChange={setSelectedGroup} />
-                                            <div className="bg-gray-100 p-1 rounded-full flex sm:w-auto w-full dark:bg-gray-800">
-                                                <button onClick={() => setSortBy('period')} className={`flex-1 sm:flex-none px-4 py-2 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 ${sortBy === 'period' ? 'bg-white shadow text-pink-600 dark:bg-gray-700 dark:text-pink-400' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'}`}>按期数</button>
-                                                <button onClick={() => setSortBy('team')} className={`flex-1 sm:flex-none px-4 py-2 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 ${sortBy === 'team' ? 'bg-white shadow text-pink-600 dark:bg-gray-700 dark:text-pink-400' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'}`}>按队伍</button>
-                                            </div>
-                                            <div className="bg-gray-100 p-1 rounded-full flex sm:w-auto w-full dark:bg-gray-800">
-                                                <button onClick={() => setStatusFilter('ALL')} className={`flex-1 sm:flex-none px-4 py-2 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 ${statusFilter === 'ALL' ? 'bg-white shadow text-pink-600 dark:bg-gray-700 dark:text-pink-400' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'}`}>全部</button>
-                                                <button onClick={() => setStatusFilter('ACTIVE')} className={`flex-1 sm:flex-none px-4 py-2 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 ${statusFilter === 'ACTIVE' ? 'bg-white shadow text-green-600 dark:bg-gray-700 dark:text-green-400' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'}`}>只看在团</button>
+                                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6 space-y-4 transition-colors duration-300 dark:bg-gray-900 dark:border-gray-800">
+                                            <div className="flex flex-col lg:flex-row gap-4">
+                                                <div className="flex-1 relative group">
+                                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
+                                                        <Search className="h-5 w-5 text-gray-400 group-focus-within:text-pink-500 transition-colors duration-300 dark:text-gray-500" />
+                                                    </div>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="搜索成员姓名、拼音、首字母或期数..."
+                                                        className="w-full pl-10 pr-4 py-3 bg-gray-100 border-transparent text-gray-900 rounded-full focus:bg-white focus:ring-2 focus:ring-pink-300 focus:border-transparent focus:shadow-md outline-none transition-all duration-300 ease-in-out placeholder-gray-500 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 dark:focus:bg-gray-750 dark:focus:ring-pink-500"
+                                                        value={searchTerm}
+                                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                                    />
+                                                </div>
+                                                <div className="flex flex-col sm:flex-row gap-2">
+                                                    <CustomSelect options={groupOptions} value={selectedGroup} onChange={setSelectedGroup} />
+                                                    <div className="bg-gray-100 p-1 rounded-full flex sm:w-auto w-full dark:bg-gray-800">
+                                                        <button onClick={() => setSortBy('period')} className={`flex-1 sm:flex-none px-4 py-2 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 ${sortBy === 'period' ? 'bg-white shadow text-pink-600 dark:bg-gray-700 dark:text-pink-400' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'}`}>按期数</button>
+                                                        <button onClick={() => setSortBy('team')} className={`flex-1 sm:flex-none px-4 py-2 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 ${sortBy === 'team' ? 'bg-white shadow text-pink-600 dark:bg-gray-700 dark:text-pink-400' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'}`}>按队伍</button>
+                                                    </div>
+                                                    <div className="bg-gray-100 p-1 rounded-full flex sm:w-auto w-full dark:bg-gray-800">
+                                                        <button onClick={() => setStatusFilter('ALL')} className={`flex-1 sm:flex-none px-4 py-2 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 ${statusFilter === 'ALL' ? 'bg-white shadow text-pink-600 dark:bg-gray-700 dark:text-pink-400' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'}`}>全部</button>
+                                                        <button onClick={() => setStatusFilter('ACTIVE')} className={`flex-1 sm:flex-none px-4 py-2 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 ${statusFilter === 'ACTIVE' ? 'bg-white shadow text-green-600 dark:bg-gray-700 dark:text-green-400' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'}`}>只看在团</button>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                </div>
 
                                 {categorizedMembers.length > 0 ? (
                                     <div className="space-y-12">
@@ -1546,7 +1722,7 @@
                                                                 {sortBy === 'period' ? <Calendar className="w-4 h-4 mr-2 text-gray-400 dark:text-gray-500" /> : <Flag className="w-4 h-4 mr-2" />}
                                                                 {subGroupData.name}
                                                             </h3>
-                                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-3">
                                                                 {subGroupData.members.map(member => (
                                                                     <MemberCard key={member.id || Math.random()} member={member} onClick={setSelectedMember} />
                                                                 ))}
@@ -1564,11 +1740,27 @@
                                         <p className="text-gray-500 mt-1 dark:text-gray-400">尝试调整搜索词或筛选条件</p>
                                     </div>
                                 )}
+                                    </>
+                                )}
                             </div>
                         )}
 
                         {activeTab === 'elections' && (
                             <div className="animate-fadeIn">
+                                {datasetStatus.elections.status === 'loading' && zxData.length === 0 ? (
+                                    <DatabaseSectionPlaceholder
+                                        icon={Trophy}
+                                        title="总选数据加载中"
+                                        detail="历届总选和新人榜正在整理。"
+                                    />
+                                ) : datasetStatus.elections.status === 'error' && zxData.length === 0 ? (
+                                    <DatabaseSectionPlaceholder
+                                        icon={AlertCircle}
+                                        title="总选数据加载失败"
+                                        detail={datasetStatus.elections.error || '请稍后重试'}
+                                    />
+                                ) : (
+                                    <>
                                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6 space-y-4 transition-colors duration-300 dark:bg-gray-900 dark:border-gray-800">
                                     <div className="flex flex-col sm:flex-row gap-4">
                                         <div className="flex-1 relative group">
@@ -1636,11 +1828,27 @@
                                         </div>
                                     )}
                                 </div>
+                                    </>
+                                )}
                             </div>
                         )}
 
                         {activeTab === 'stages' && (
                             <div className="animate-fadeIn">
+                                {datasetStatus.stages.status === 'loading' && stagesData.length === 0 ? (
+                                    <DatabaseSectionPlaceholder
+                                        icon={Music}
+                                        title="公演数据加载中"
+                                        detail="公演时间线和队伍场次正在同步。"
+                                    />
+                                ) : datasetStatus.stages.status === 'error' && stagesData.length === 0 ? (
+                                    <DatabaseSectionPlaceholder
+                                        icon={AlertCircle}
+                                        title="公演数据加载失败"
+                                        detail={datasetStatus.stages.error || '请稍后重试'}
+                                    />
+                                ) : (
+                                    <>
                                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6 space-y-4 transition-colors duration-300 dark:bg-gray-900 dark:border-gray-800">
                                     <div className="flex flex-col lg:flex-row gap-4">
                                         <div className="flex-1 relative group">
@@ -1694,11 +1902,21 @@
                                         </div>
                                     )}
                                 </div>
+                                    </>
+                                )}
                             </div>
                         )}
 
                         {activeTab === 'albums' && (
                             <div className="animate-fadeIn">
+                                {datasetStatus.albums.status === 'loading' && fxzpData.length === 0 ? (
+                                    <DatabaseSectionPlaceholder
+                                        icon={Disc}
+                                        title="发行作品加载中"
+                                        detail="专辑、单曲和歌词索引正在同步。"
+                                    />
+                                ) : (
+                                    <>
                                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6 space-y-4 transition-colors duration-300 dark:bg-gray-900 dark:border-gray-800">
                                     <div className="flex flex-col lg:flex-row gap-4">
                                         <div className="flex-1 relative group">
@@ -1778,16 +1996,12 @@
                                         </div>
                                     )}
                                 </div>
+                                    </>
+                                )}
                             </div>
                         )}
 
                     </main>
-
-                    <footer className="bg-white border-t border-gray-200 py-6 mt-12 dark:bg-gray-900 dark:border-gray-800">
-                        <div className="max-w-7xl mx-auto px-4 text-center text-gray-500 text-sm dark:text-gray-400">
-                            <p>presented by yk1z</p>
-                        </div>
-                    </footer>
 
                     <MemberDetailModal
                         member={selectedMember}

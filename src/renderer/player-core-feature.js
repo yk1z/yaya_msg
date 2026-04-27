@@ -43,12 +43,11 @@
                 announcementBar.innerHTML = `
                     <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
                         <div style="display:flex; align-items:flex-start; gap:8px; flex:1;">
-                            <span style="font-size:16px; line-height:1.4; filter: drop-shadow(0 2px 4px rgba(250, 140, 22, 0.3));">📢</span>
                             <div id="live-announcement-text" style="white-space: pre-wrap; line-height: 1.6; letter-spacing: 0.5px; flex:1; font-weight: 500; max-height: calc(1.6em * 3); overflow-y: auto; overflow-x: hidden; padding-right: 4px;"></div>
                         </div>
                         <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
-                            <button class="btn btn-secondary" onclick="event.stopPropagation(); refreshLiveAnnouncement(this);" style="height: 22px; padding: 0 8px; font-size: 11px; background: transparent; border: 1px solid rgba(250,140,22,0.3); color: #fa8c16; border-radius: 4px; flex-shrink: 0; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(250,140,22,0.1)'" onmouseout="this.style.background='transparent'">↻</button>
-                            <button class="btn btn-secondary" onclick="event.stopPropagation(); closeLiveAnnouncement();" style="height: 22px; min-width: 22px; padding: 0 6px; font-size: 13px; line-height: 1; background: transparent; border: 1px solid rgba(250,140,22,0.3); color: #fa8c16; border-radius: 4px; flex-shrink: 0; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(250,140,22,0.1)'" onmouseout="this.style.background='transparent'">×</button>
+                            <button class="btn btn-secondary" onclick="event.stopPropagation(); refreshLiveAnnouncement(this);" style="width: 24px; height: 24px; padding: 0; font-size: 12px; line-height: 1; background: transparent; border: 1px solid rgba(250,140,22,0.3); color: #fa8c16; border-radius: 4px; flex-shrink: 0; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(250,140,22,0.1)'" onmouseout="this.style.background='transparent'">↻</button>
+                            <button class="btn btn-secondary" onclick="event.stopPropagation(); closeLiveAnnouncement();" style="width: 24px; height: 24px; padding: 0; font-size: 16px; font-weight: 600; line-height: 1; background: transparent; border: 1px solid rgba(250,140,22,0.3); color: #fa8c16; border-radius: 4px; flex-shrink: 0; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(250,140,22,0.1)'" onmouseout="this.style.background='transparent'">×</button>
                         </div>
                     </div>
                 `;

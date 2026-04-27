@@ -182,7 +182,7 @@
         async function fetchOpenLiveList(isLoadMore) {
             const container = document.getElementById('openlive-list-container');
             const memberId = String(document.getElementById('openlive-member-id')?.value || '').trim();
-            const token = getAppToken ? getAppToken() : (localStorage.getItem('yaya_p48_token') || '');
+            const token = getAppToken ? getAppToken() : (typeof window.getAppToken === 'function' ? window.getAppToken() : '');
 
             if (!token) {
                 setOpenLiveStatusHtml('<span style="color:red">⚠️ 请先登录账号</span>');
@@ -250,13 +250,13 @@
         }
 
         async function fetchAllOpenLive() {
-            const buttonEl = document.getElementById('btn-openlive-all');
+            const buttonEl = document.getElementById('btn-openlive-query');
             const memberId = String(document.getElementById('openlive-member-id')?.value || '').trim();
 
             if (isOpenLiveAutoLoading) {
                 isOpenLiveAutoLoading = false;
                 if (buttonEl) {
-                    buttonEl.innerText = '加载全部';
+                    buttonEl.innerText = '查询';
                     buttonEl.style.background = '';
                     buttonEl.style.color = '';
                 }
@@ -270,14 +270,12 @@
 
             isOpenLiveAutoLoading = true;
             if (buttonEl) {
-                buttonEl.innerText = '停止加载';
+                buttonEl.innerText = '停止查询';
                 buttonEl.style.background = '#ff4d4f';
                 buttonEl.style.color = 'white';
             }
 
-            if (openLiveNextTime === 0) {
-                await fetchOpenLiveList(false);
-            }
+            await fetchOpenLiveList(false);
 
             while (isOpenLiveAutoLoading) {
                 if (!openLiveNextTime || openLiveNextTime === 0 || openLiveNextTime === '0') {
@@ -296,16 +294,9 @@
 
             isOpenLiveAutoLoading = false;
             if (buttonEl) {
-                buttonEl.innerText = '加载全部';
+                buttonEl.innerText = '查询';
                 buttonEl.style.background = '';
                 buttonEl.style.color = '';
-            }
-
-            if (!openLiveNextTime || openLiveNextTime === 0 || openLiveNextTime === '0') {
-                const statusEl = document.getElementById('openlive-status');
-                if (statusEl) {
-                    statusEl.innerHTML += ' <span style="font-size:12px; color:#28a745">(已加载全部)</span>';
-                }
             }
         }
 
@@ -372,7 +363,7 @@
         }
 
         async function fetchOpenLiveStreamUrl(liveId) {
-            const token = getAppToken ? getAppToken() : (localStorage.getItem('yaya_p48_token') || '');
+            const token = getAppToken ? getAppToken() : (typeof window.getAppToken === 'function' ? window.getAppToken() : '');
             const pa = window.getPA ? window.getPA() : null;
             const result = await ipcRenderer.invoke('fetch-open-live-one', { token, pa, liveId });
 

@@ -133,8 +133,6 @@
 
         mountPromise = (async () => {
             try {
-                setDatabaseState('正在加载数据库...', 'database-loading');
-
                 const template = readDatabaseTemplate();
                 const doc = new DOMParser().parseFromString(template, 'text/html');
                 const appScript = doc.querySelector('script[type="text/babel"]');

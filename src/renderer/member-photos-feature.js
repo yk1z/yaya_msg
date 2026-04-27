@@ -30,7 +30,7 @@
         }
 
         async function fetchAllMemberPhotos() {
-            const buttonEl = document.getElementById('btn-photos-all');
+            const buttonEl = document.getElementById('btn-photos-query');
             const memberId = String(document.getElementById('photo-member-id')?.value || '').trim();
             const statusEl = document.getElementById('photos-status');
 
@@ -42,7 +42,7 @@
             if (isPhotosAutoLoading) {
                 isPhotosAutoLoading = false;
                 if (buttonEl) {
-                    buttonEl.innerText = '加载全部';
+                    buttonEl.innerText = '查询';
                     buttonEl.style.background = '';
                     buttonEl.style.color = '';
                 }
@@ -51,14 +51,12 @@
 
             isPhotosAutoLoading = true;
             if (buttonEl) {
-                buttonEl.innerText = '停止加载';
+                buttonEl.innerText = '停止查询';
                 buttonEl.style.background = '#ff4d4f';
                 buttonEl.style.color = 'white';
             }
 
-            if (!currentPhotoPage || currentPhotoPage === 0) {
-                await fetchMemberPhotos(false);
-            }
+            await fetchMemberPhotos(false);
 
             while (isPhotosAutoLoading) {
                 const previousPage = currentPhotoPage;
@@ -73,7 +71,7 @@
 
             isPhotosAutoLoading = false;
             if (buttonEl) {
-                buttonEl.innerText = '加载全部';
+                buttonEl.innerText = '查询';
                 buttonEl.style.background = '';
                 buttonEl.style.color = '';
             }
@@ -144,7 +142,7 @@
         async function fetchMemberPhotos(isLoadMore) {
             const container = document.getElementById('photos-result-container');
             const memberId = String(document.getElementById('photo-member-id')?.value || '').trim();
-            const token = getAppToken ? getAppToken() : (localStorage.getItem('yaya_p48_token') || '');
+            const token = getAppToken ? getAppToken() : (typeof window.getAppToken === 'function' ? window.getAppToken() : '');
             const statusEl = document.getElementById('photos-status');
 
             if (!token) {

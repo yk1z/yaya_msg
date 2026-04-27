@@ -1,9 +1,28 @@
+const fs = require('fs');
 const axios = require('axios');
+const QRCode = require('qrcode');
+const { ensureStoragePaths } = require('../../common/storage-paths');
+
+const BILIBILI_COOKIE_SETTING_KEY = 'bilibiliCookie';
+const BILIBILI_USER_SETTING_KEY = 'bilibiliUserInfo';
+const BILIBILI_LOGIN_POLL_MESSAGES = {
+    0: '登录成功',
+    86038: '二维码已过期',
+    86090: '已扫码，请在手机上确认登录',
+    86101: '等待扫码'
+};
 
 const BILIBILI_HEADERS = {
+    Accept: 'application/json, text/plain, */*',
+    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+    'Cache-Control': 'no-cache',
+    Pragma: 'no-cache',
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36',
     Referer: 'https://live.bilibili.com/',
-    Origin: 'https://live.bilibili.com'
+    Origin: 'https://live.bilibili.com',
+    'Sec-Fetch-Dest': 'empty',
+    'Sec-Fetch-Mode': 'cors',
+    'Sec-Fetch-Site': 'same-site'
 };
 
 function normalizeRoomId(input) {
@@ -14,13 +33,301 @@ function normalizeRoomId(input) {
     return digits;
 }
 
-async function requestBilibili(url, params) {
-    const response = await axios.get(url, {
-        params,
-        headers: BILIBILI_HEADERS,
-        timeout: 15000
+function normalizeBilibiliRequestError(error) {
+    const status = Number(error?.response?.status || 0);
+    const apiCode = Number(error?.response?.data?.code);
+    const apiMessage = String(error?.response?.data?.message || '').trim();
+
+    if (status === 412 || apiCode === -412 || /request was banned/i.test(apiMessage)) {
+        return new Error('B站接口请求被拦截，请稍后再试或检查代理/IP环境');
+    }
+
+    if (error?.code === 'ECONNABORTED' || /timeout/i.test(String(error?.message || ''))) {
+        return new Error('B站接口请求超时，请稍后重试');
+    }
+
+    if (status) {
+        return new Error(apiMessage || `B站接口请求失败，状态码 ${status}`);
+    }
+
+    return new Error(error?.message || 'B站接口请求失败');
+}
+
+function assertBilibiliResponseAllowed(data) {
+    const apiCode = Number(data?.code);
+    const apiMessage = String(data?.message || '').trim();
+
+    if (apiCode === -412 || /request was banned/i.test(apiMessage)) {
+        throw new Error('B站接口请求被拦截，请稍后再试或检查代理/IP环境');
+    }
+}
+
+function readJsonFileSafe(filePath, fallbackValue) {
+    try {
+        if (!fs.existsSync(filePath)) {
+            return fallbackValue;
+        }
+
+        return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    } catch (error) {
+        return fallbackValue;
+    }
+}
+
+function writeJsonFileSafe(filePath, value) {
+    const tempFilePath = `${filePath}.tmp`;
+    fs.writeFileSync(tempFilePath, JSON.stringify(value, null, 2), 'utf8');
+    if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+    }
+    fs.renameSync(tempFilePath, filePath);
+}
+
+function readSettingsSafe() {
+    return readJsonFileSafe(ensureStoragePaths().settingsFile, {});
+}
+
+function updateSettingsSafe(updater) {
+    const storagePaths = ensureStoragePaths();
+    const current = readJsonFileSafe(storagePaths.settingsFile, {});
+    const next = typeof updater === 'function' ? updater({ ...current }) || current : current;
+    writeJsonFileSafe(storagePaths.settingsFile, next);
+    return next;
+}
+
+function getStoredBilibiliCookie() {
+    const settings = readSettingsSafe();
+    return typeof settings[BILIBILI_COOKIE_SETTING_KEY] === 'string'
+        ? settings[BILIBILI_COOKIE_SETTING_KEY].trim()
+        : '';
+}
+
+function buildBilibiliHeaders(referer = BILIBILI_HEADERS.Referer, includeCookie = true) {
+    const headers = {
+        ...BILIBILI_HEADERS,
+        Referer: referer
+    };
+    const cookie = includeCookie ? getStoredBilibiliCookie() : '';
+    if (cookie) {
+        headers.Cookie = cookie;
+    }
+    return headers;
+}
+
+function buildCookieMapFromSetCookie(setCookieHeader = []) {
+    const cookieMap = {};
+    const cookieRows = Array.isArray(setCookieHeader) ? setCookieHeader : [setCookieHeader];
+    cookieRows.forEach((row) => {
+        const [pair] = String(row || '').split(';');
+        const separatorIndex = pair.indexOf('=');
+        if (separatorIndex <= 0) return;
+        const name = pair.slice(0, separatorIndex).trim();
+        const value = pair.slice(separatorIndex + 1).trim();
+        if (name && value) {
+            cookieMap[name] = value;
+        }
     });
-    return response.data;
+    return cookieMap;
+}
+
+function buildCookieMapFromLoginUrl(rawUrl = '') {
+    const cookieMap = {};
+    try {
+        const url = new URL(rawUrl);
+        ['SESSDATA', 'bili_jct', 'DedeUserID', 'DedeUserID__ckMd5', 'sid'].forEach((key) => {
+            const value = url.searchParams.get(key);
+            if (value) {
+                cookieMap[key] = encodeURIComponent(value);
+            }
+        });
+    } catch (error) {
+    }
+    return cookieMap;
+}
+
+function cookieMapToString(cookieMap = {}) {
+    const preferredOrder = ['SESSDATA', 'bili_jct', 'DedeUserID', 'DedeUserID__ckMd5', 'sid', 'buvid3', 'buvid4', 'b_nut'];
+    const keys = [
+        ...preferredOrder.filter(key => cookieMap[key]),
+        ...Object.keys(cookieMap).filter(key => !preferredOrder.includes(key))
+    ];
+    return keys.map(key => `${key}=${cookieMap[key]}`).join('; ');
+}
+
+function saveBilibiliLogin(cookie, userInfo = null) {
+    const normalizedCookie = String(cookie || '').trim();
+    if (!normalizedCookie) {
+        throw new Error('B站登录 Cookie 为空');
+    }
+
+    updateSettingsSafe((settings) => {
+        settings[BILIBILI_COOKIE_SETTING_KEY] = normalizedCookie;
+        if (userInfo) {
+            settings[BILIBILI_USER_SETTING_KEY] = userInfo;
+        }
+        return settings;
+    });
+}
+
+function clearBilibiliLogin() {
+    updateSettingsSafe((settings) => {
+        delete settings[BILIBILI_COOKIE_SETTING_KEY];
+        delete settings[BILIBILI_USER_SETTING_KEY];
+        return settings;
+    });
+}
+
+function normalizeBilibiliUser(navData = {}) {
+    const data = navData?.data || {};
+    return {
+        mid: String(data.mid || ''),
+        uname: String(data.uname || '').trim(),
+        face: String(data.face || '').trim(),
+        vipStatus: Number(data.vipStatus || 0),
+        vipType: Number(data.vipType || 0)
+    };
+}
+
+async function fetchBilibiliNav(cookie = getStoredBilibiliCookie()) {
+    if (!cookie) {
+        return { success: false, msg: '未登录B站' };
+    }
+
+    try {
+        const response = await axios.get('https://api.bilibili.com/x/web-interface/nav', {
+            headers: {
+                ...buildBilibiliHeaders('https://www.bilibili.com/', false),
+                Cookie: cookie
+            },
+            timeout: 15000
+        });
+
+        if (response.data?.code === 0 && response.data?.data?.isLogin) {
+            const userInfo = normalizeBilibiliUser(response.data);
+            saveBilibiliLogin(cookie, userInfo);
+            return { success: true, userInfo };
+        }
+
+        return { success: false, msg: response.data?.message || 'B站登录状态已失效' };
+    } catch (error) {
+        return { success: false, msg: normalizeBilibiliRequestError(error).message };
+    }
+}
+
+async function createBilibiliLoginQrcode() {
+    try {
+        const response = await axios.get('https://passport.bilibili.com/x/passport-login/web/qrcode/generate', {
+            headers: buildBilibiliHeaders('https://passport.bilibili.com/', false),
+            timeout: 15000
+        });
+        const data = response.data?.data || {};
+        if (response.data?.code === 0 && data.url && data.qrcode_key) {
+            const qrDataUrl = await QRCode.toDataURL(data.url, {
+                errorCorrectionLevel: 'M',
+                margin: 2,
+                width: 180
+            });
+            return {
+                success: true,
+                url: data.url,
+                qrcodeKey: data.qrcode_key,
+                qrDataUrl
+            };
+        }
+
+        return { success: false, msg: response.data?.message || 'B站二维码生成失败' };
+    } catch (error) {
+        return { success: false, msg: normalizeBilibiliRequestError(error).message };
+    }
+}
+
+async function pollBilibiliLoginQrcode(qrcodeKey) {
+    const normalizedKey = String(qrcodeKey || '').trim();
+    if (!normalizedKey) {
+        return { success: false, msg: '缺少二维码登录凭证' };
+    }
+
+    try {
+        const response = await axios.get('https://passport.bilibili.com/x/passport-login/web/qrcode/poll', {
+            params: { qrcode_key: normalizedKey },
+            headers: buildBilibiliHeaders('https://passport.bilibili.com/', false),
+            timeout: 15000
+        });
+        const data = response.data?.data || {};
+        const code = Number(data.code);
+        const message = BILIBILI_LOGIN_POLL_MESSAGES[code] || data.message || response.data?.message || '登录状态未知';
+
+        if (code !== 0) {
+            return {
+                success: true,
+                loggedIn: false,
+                code,
+                expired: code === 86038,
+                confirmed: code === 86090,
+                msg: message
+            };
+        }
+
+        const cookieMap = {
+            ...buildCookieMapFromLoginUrl(data.url),
+            ...buildCookieMapFromSetCookie(response.headers['set-cookie'])
+        };
+        const cookie = cookieMapToString(cookieMap);
+        if (!cookie || !cookie.includes('SESSDATA')) {
+            return { success: false, msg: 'B站登录成功但未获取到有效 Cookie' };
+        }
+
+        const navResult = await fetchBilibiliNav(cookie);
+        if (!navResult.success) {
+            saveBilibiliLogin(cookie);
+        }
+
+        return {
+            success: true,
+            loggedIn: true,
+            code,
+            msg: '登录成功',
+            userInfo: navResult.userInfo || null
+        };
+    } catch (error) {
+        return { success: false, msg: normalizeBilibiliRequestError(error).message };
+    }
+}
+
+async function getBilibiliLoginStatus() {
+    const cookie = getStoredBilibiliCookie();
+    if (!cookie) {
+        return { success: true, loggedIn: false, msg: '未登录B站' };
+    }
+
+    const navResult = await fetchBilibiliNav(cookie);
+    if (navResult.success) {
+        return { success: true, loggedIn: true, userInfo: navResult.userInfo };
+    }
+
+    return { success: true, loggedIn: false, msg: navResult.msg || 'B站登录状态已失效' };
+}
+
+function logoutBilibili() {
+    clearBilibiliLogin();
+    return { success: true };
+}
+
+async function requestBilibili(url, params, referer = BILIBILI_HEADERS.Referer) {
+    try {
+        const response = await axios.get(url, {
+            params,
+            headers: buildBilibiliHeaders(referer, true),
+            timeout: 15000
+        });
+        assertBilibiliResponseAllowed(response.data);
+        return response.data;
+    } catch (error) {
+        if (error && !error.isAxiosError) {
+            throw error;
+        }
+        throw normalizeBilibiliRequestError(error);
+    }
 }
 
 function buildCandidateUrl(stream = {}, format = {}, codec = {}) {
@@ -146,7 +453,7 @@ async function resolveBilibiliLive(roomIdInput) {
 
     const initData = await requestBilibili('https://api.live.bilibili.com/room/v1/Room/room_init', {
         id: roomId
-    });
+    }, `https://live.bilibili.com/${roomId}`);
 
     if (initData?.code !== 0 || !initData?.data?.room_id) {
         throw new Error(initData?.message || '未找到对应的 B 站直播间');
@@ -167,7 +474,8 @@ async function resolveBilibiliLive(roomIdInput) {
             qn: 10000,
             platform: 'web',
             ptype: 8
-        }
+        },
+        `https://live.bilibili.com/${realRoomId}`
     );
 
     if (playInfo?.code !== 0 || !playInfo?.data) {
@@ -202,12 +510,17 @@ async function resolveBilibiliLive(roomIdInput) {
         proxyHeaders: {
             'User-Agent': BILIBILI_HEADERS['User-Agent'],
             Referer: `https://live.bilibili.com/${realRoomId}`,
-            Origin: BILIBILI_HEADERS.Origin
+            Origin: BILIBILI_HEADERS.Origin,
+            ...(getStoredBilibiliCookie() ? { Cookie: getStoredBilibiliCookie() } : {})
         }
     };
 }
 
 module.exports = {
     resolveBilibiliLive,
-    getBilibiliLiveStatuses
+    getBilibiliLiveStatuses,
+    createBilibiliLoginQrcode,
+    pollBilibiliLoginQrcode,
+    getBilibiliLoginStatus,
+    logoutBilibili
 };

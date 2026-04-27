@@ -2,7 +2,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const INTERNAL_FILES = ['data_cache.json', 'scan_manifest.json', 'members_id.csv'];
+const INTERNAL_FILES = ['data_cache.json', 'scan_manifest.json'];
 
 function resolveDocumentsDir() {
     const homeDir = os.homedir();
@@ -63,7 +63,8 @@ function getStoragePaths() {
         htmlDir: path.join(exportRootDir, 'html'),
         cacheFile: path.join(internalDataDir, 'data_cache.json'),
         manifestFile: path.join(internalDataDir, 'scan_manifest.json'),
-        membersFile: path.join(internalDataDir, 'members_id.csv')
+        settingsFile: path.join(internalDataDir, 'settings.json'),
+        runtimeCacheFile: path.join(internalDataDir, 'runtime-cache.json')
     };
 }
 

@@ -23,15 +23,31 @@
             'shuffle': '随机'
         };
 
+        function readStringSetting(key, fallbackValue = '') {
+            if (typeof window.readStoredStringSetting === 'function') {
+                return window.readStoredStringSetting(key, fallbackValue);
+            }
+            const legacyValue = localStorage.getItem(key);
+            return legacyValue === null ? fallbackValue : String(legacyValue);
+        }
+
+        function writeStringSetting(key, value) {
+            if (typeof window.writeStoredStringSetting === 'function') {
+                return window.writeStoredStringSetting(key, value);
+            }
+            localStorage.setItem(key, value);
+            return value;
+        }
+
         let currentAudioCtime = 0;
         let isAudioLoading = false;
         let audioProgramPlaylist = [];
         let currentAudioProgramTalkId = null;
-        let currentAudioProgramPlayMode = localStorage.getItem('yaya_audio_program_play_mode') || 'sequence';
+        let currentAudioProgramPlayMode = readStringSetting('yaya_audio_program_play_mode', 'sequence');
         let currentAudioPlayRequestId = 0;
 
         let musicPlaylist = [];
-        let currentMusicPlayMode = localStorage.getItem('yaya_music_play_mode') || 'sequence';
+        let currentMusicPlayMode = readStringSetting('yaya_music_play_mode', 'sequence');
         let currentVideoPlayRequestId = 0;
 
         function capturePlaybackViewContext() {
@@ -91,6 +107,69 @@
             return PLAYER_MODE_ORDER[(index + 1) % PLAYER_MODE_ORDER.length];
         }
 
+        function getSearchPinyinPayload(value) {
+            const raw = String(value || '').trim().toLowerCase();
+            const payload = {
+                raw,
+                full: raw,
+                initials: raw
+            };
+
+            if (!window.pinyinPro || !raw) {
+                return payload;
+            }
+
+            const pinyinArray = pinyinPro.pinyin(raw, {
+                toneType: 'none',
+                type: 'array'
+            }).map(item => String(item || '').toLowerCase());
+
+            payload.full = pinyinArray.join('');
+            payload.initials = pinyinArray.map(item => item.charAt(0)).join('');
+            return payload;
+        }
+
+        function ensureCardSearchCache(card, text) {
+            if (!card) return { text: '', full: '', initials: '' };
+
+            if (card._searchCache) {
+                return card._searchCache;
+            }
+
+            const normalizedText = String(text || '').toLowerCase();
+            const cache = {
+                text: normalizedText,
+                full: normalizedText,
+                initials: normalizedText
+            };
+
+            if (window.pinyinPro && normalizedText) {
+                const pinyinArray = pinyinPro.pinyin(normalizedText, {
+                    toneType: 'none',
+                    type: 'array'
+                }).map(item => String(item || '').toLowerCase());
+
+                cache.full = pinyinArray.join('');
+                cache.initials = pinyinArray.map(item => item.charAt(0)).join('');
+            }
+
+            card._searchCache = cache;
+            return cache;
+        }
+
+        function matchesSearchKeyword(card, keyword) {
+            const term = getSearchPinyinPayload(keyword);
+            if (!term.raw) return true;
+
+            const cache = ensureCardSearchCache(card, card?.textContent || '');
+            if (cache.text.includes(term.raw)) return true;
+            if (!window.pinyinPro) return false;
+            if (!/^[a-z]+$/.test(term.raw)) return false;
+            if (cache.full.includes(term.full)) return true;
+            if (cache.initials.includes(term.raw) || cache.initials.includes(term.initials)) return true;
+            return false;
+        }
+
         function updateAudioProgramPlayModeButton() {
             const btn = document.getElementById('audio-play-mode-btn');
             if (!btn) return;
@@ -109,14 +188,14 @@
 
         function cycleAudioProgramPlayMode() {
             currentAudioProgramPlayMode = getNextPlayMode(currentAudioProgramPlayMode);
-            localStorage.setItem('yaya_audio_program_play_mode', currentAudioProgramPlayMode);
+            writeStringSetting('yaya_audio_program_play_mode', currentAudioProgramPlayMode);
             updateAudioProgramPlayModeButton();
             showToast(`电台播放模式：${getPlayerModeLabel(currentAudioProgramPlayMode)}`);
         }
 
         function cycleMusicPlayMode() {
             currentMusicPlayMode = getNextPlayMode(currentMusicPlayMode);
-            localStorage.setItem('yaya_music_play_mode', currentMusicPlayMode);
+            writeStringSetting('yaya_music_play_mode', currentMusicPlayMode);
             updateMusicPlayModeButton();
             showToast(`音乐播放模式：${getPlayerModeLabel(currentMusicPlayMode)}`);
         }
@@ -342,11 +421,6 @@
                             hasMore = false;
                             if (totalCount === 0) {
                                 container.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;">暂无节目</div>';
-                            } else {
-                                const endTip = document.createElement('div');
-                                endTip.style.cssText = 'grid-column: 1 / -1; text-align: center; color: var(--text-sub); font-size: 12px; margin-top: 20px; padding: 10px;';
-                                endTip.innerText = `— 已加载全部 ${totalCount} 期电台节目 —`;
-                                container.appendChild(endTip);
                             }
                             break;
                         }
@@ -648,7 +722,7 @@
                 progressBar.style.background = `linear-gradient(to right, var(--primary) ${percent}%, rgba(0,0,0,0.08) ${percent}%)`;
             });
 
-            const savedVolume = localStorage.getItem('yaya_music_volume');
+            const savedVolume = readStringSetting('yaya_music_volume', '');
             if (savedVolume !== null) {
                 const vol = parseFloat(savedVolume);
                 audioEl.volume = vol;
@@ -675,7 +749,7 @@
                     const vol = parseFloat(e.target.value);
                     audioEl.volume = vol;
                     audioEl.muted = false;
-                    localStorage.setItem('yaya_music_volume', vol);
+                    writeStringSetting('yaya_music_volume', String(vol));
                     updateVolumeUI(vol);
                 });
                 volumeBar.addEventListener('wheel', (e) => {
@@ -685,7 +759,7 @@
                     audioEl.volume = nextVol;
                     audioEl.muted = false;
                     volumeBar.value = String(nextVol);
-                    localStorage.setItem('yaya_music_volume', nextVol);
+                    writeStringSetting('yaya_music_volume', String(nextVol));
                     updateVolumeUI(nextVol);
                 }, { passive: false });
             }
@@ -880,27 +954,11 @@
 
             const kw = keyword.toLowerCase().trim();
 
-            let termPinyin = kw;
-            if (window.pinyinPro && kw) {
-                termPinyin = pinyinPro.pinyin(kw, { toneType: 'none', type: 'array' }).join('').toLowerCase();
-            }
-
             const cards = grid.querySelectorAll('.music-card');
             let visibleCount = 0;
 
             cards.forEach(card => {
-                const text = card.textContent.toLowerCase();
-
-                let isMatch = text.includes(kw);
-
-                if (!isMatch && window.pinyinPro && kw) {
-                    if (card._cachedPinyin === undefined) {
-                        card._cachedPinyin = pinyinPro.pinyin(text, { toneType: 'none', type: 'array' }).join('').toLowerCase();
-                    }
-                    if (card._cachedPinyin.includes(termPinyin)) {
-                        isMatch = true;
-                    }
-                }
+                const isMatch = matchesSearchKeyword(card, kw);
 
                 card.style.display = isMatch ? 'flex' : 'none';
                 if (isMatch) visibleCount++;
@@ -935,11 +993,6 @@
 
             const kw = keyword.toLowerCase().trim();
 
-            let termPinyin = kw;
-            if (window.pinyinPro && kw) {
-                termPinyin = pinyinPro.pinyin(kw, { toneType: 'none', type: 'array' }).join('').toLowerCase();
-            }
-
             const children = grid.children;
             let visibleCount = 0;
 
@@ -948,17 +1001,7 @@
 
                 if (card.id === 'video-loading-tip') continue;
 
-                const text = card.textContent.toLowerCase();
-                let isMatch = text.includes(kw);
-
-                if (!isMatch && window.pinyinPro && kw) {
-                    if (card._cachedPinyin === undefined) {
-                        card._cachedPinyin = pinyinPro.pinyin(text, { toneType: 'none', type: 'array' }).join('').toLowerCase();
-                    }
-                    if (card._cachedPinyin.includes(termPinyin)) {
-                        isMatch = true;
-                    }
-                }
+                const isMatch = matchesSearchKeyword(card, kw);
 
                 card.style.display = isMatch ? 'block' : 'none';
                 if (isMatch) visibleCount++;
@@ -995,34 +1038,17 @@
 
             const kw = keyword.toLowerCase().trim();
 
-            let termPinyin = kw;
-            if (window.pinyinPro && kw) {
-                termPinyin = pinyinPro.pinyin(kw, { toneType: 'none', type: 'array' }).join('').toLowerCase();
-            }
-
             let visibleCount = 0;
             const children = grid.children;
 
             for (let i = 0; i < children.length; i++) {
                 const card = children[i];
 
-                if (card.id === 'audio-empty-tip' || card.textContent.includes('已加载全部')) {
+                if (card.id === 'audio-empty-tip') {
                     continue;
                 }
 
-                const text = card.textContent.toLowerCase();
-
-                let isMatch = text.includes(kw);
-
-                if (!isMatch && window.pinyinPro && kw) {
-                    if (card._cachedPinyin === undefined) {
-                        card._cachedPinyin = pinyinPro.pinyin(text, { toneType: 'none', type: 'array' }).join('').toLowerCase();
-                    }
-
-                    if (card._cachedPinyin.includes(termPinyin)) {
-                        isMatch = true;
-                    }
-                }
+                const isMatch = matchesSearchKeyword(card, kw);
 
                 card.style.display = isMatch ? 'flex' : 'none';
 
@@ -1123,7 +1149,7 @@
             });
 
 
-            const savedVolume = localStorage.getItem('yaya_music_volume');
+            const savedVolume = readStringSetting('yaya_music_volume', '');
             if (savedVolume !== null) {
                 const vol = parseFloat(savedVolume);
                 audioEl.volume = vol;
@@ -1148,7 +1174,7 @@
                 const vol = parseFloat(e.target.value);
                 audioEl.volume = vol;
                 audioEl.muted = false;
-                localStorage.setItem('yaya_music_volume', vol);
+                writeStringSetting('yaya_music_volume', String(vol));
                 updateVolumeUI(vol);
             });
             volumeBar.addEventListener('wheel', (e) => {
@@ -1158,7 +1184,7 @@
                 audioEl.volume = nextVol;
                 audioEl.muted = false;
                 volumeBar.value = String(nextVol);
-                localStorage.setItem('yaya_music_volume', nextVol);
+                writeStringSetting('yaya_music_volume', String(nextVol));
                 updateVolumeUI(nextVol);
             }, { passive: false });
 

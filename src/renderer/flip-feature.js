@@ -10,10 +10,17 @@
             setAllFlipData,
             getAppToken,
             getCurrentFlipFilterType,
+            getCurrentFlipPrivacyFilter,
+            getCurrentFlipTimeFrom,
+            getCurrentFlipTimeTo,
             setCurrentFlipFilterType,
+            setCurrentFlipPrivacyFilter,
             getCurrentFlipPage,
             setCurrentFlipPage,
             getCurrentFlipSort,
+            setCurrentFlipSort,
+            setCurrentFlipTimeFrom,
+            setCurrentFlipTimeTo,
             getCurrentSearchKeyword,
             setCurrentSearchKeyword,
             getIsFetchingFlips,
@@ -30,7 +37,10 @@
         let currentFlipPrices = [];
 
         function getSafeToken() {
-            return typeof getAppToken === 'function' ? getAppToken() : localStorage.getItem('yaya_p48_token');
+            if (typeof getAppToken === 'function') {
+                return getAppToken();
+            }
+            return typeof window.getAppToken === 'function' ? window.getAppToken() : '';
         }
 
         function getSafePa() {
@@ -240,6 +250,233 @@
             if (list) list.style.display = (list.style.display === 'block') ? 'none' : 'block';
         }
 
+        const flipDatePickerState = {
+            activeTarget: 'from',
+            displayYear: null,
+            displayMonth: null
+        };
+
+        function padFlipDatePart(value) {
+            return String(value).padStart(2, '0');
+        }
+
+        function toFlipDateValue(year, monthIndex, day) {
+            return `${year}-${padFlipDatePart(monthIndex + 1)}-${padFlipDatePart(day)}`;
+        }
+
+        function parseFlipDateValue(value) {
+            if (!value) return null;
+            const normalized = String(value).trim().replace(/\//g, '-');
+            const match = normalized.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+            if (!match) return null;
+            return {
+                year: Number(match[1]),
+                month: Number(match[2]) - 1,
+                day: Number(match[3])
+            };
+        }
+
+        function formatFlipDateDisplay(value) {
+            return value ? String(value).replace(/-/g, '/') : '请选择';
+        }
+
+        function getFlipDateInput(target) {
+            return document.getElementById(target === 'to' ? 'flip-time-to' : 'flip-time-from');
+        }
+
+        function getFlipDateValue(target) {
+            const input = getFlipDateInput(target);
+            return input ? input.value : '';
+        }
+
+        function syncFlipDateTriggerState() {
+            const trigger = document.querySelector('#flip-date-wrapper .flip-date-trigger');
+            if (!trigger) return;
+            const fromInput = document.getElementById('flip-time-from');
+            const toInput = document.getElementById('flip-time-to');
+            const hasValue = !!((fromInput && fromInput.value) || (toInput && toInput.value));
+            trigger.classList.toggle('is-active', hasValue);
+        }
+
+        function syncFlipDateFieldDisplays() {
+            const fromDisplay = document.getElementById('flip-time-from-display');
+            const toDisplay = document.getElementById('flip-time-to-display');
+            const fromValue = getFlipDateValue('from');
+            const toValue = getFlipDateValue('to');
+
+            if (fromDisplay) {
+                const valueNode = fromDisplay.querySelector('.flip-date-field-card-value');
+                if (valueNode) valueNode.textContent = formatFlipDateDisplay(fromValue);
+                fromDisplay.classList.toggle('is-active', flipDatePickerState.activeTarget === 'from');
+            }
+
+            if (toDisplay) {
+                const valueNode = toDisplay.querySelector('.flip-date-field-card-value');
+                if (valueNode) valueNode.textContent = formatFlipDateDisplay(toValue);
+                toDisplay.classList.toggle('is-active', flipDatePickerState.activeTarget === 'to');
+            }
+        }
+
+        function setFlipDateCalendarMonth(dateValue = '') {
+            const parsed = parseFlipDateValue(dateValue);
+            const baseDate = parsed
+                ? new Date(parsed.year, parsed.month, parsed.day)
+                : new Date();
+            flipDatePickerState.displayYear = baseDate.getFullYear();
+            flipDatePickerState.displayMonth = baseDate.getMonth();
+        }
+
+        function renderFlipDateCalendar() {
+            const label = document.getElementById('flip-date-calendar-label');
+            const grid = document.getElementById('flip-date-calendar-grid');
+            if (!label || !grid) return;
+
+            if (flipDatePickerState.displayYear === null || flipDatePickerState.displayMonth === null) {
+                setFlipDateCalendarMonth(getFlipDateValue(flipDatePickerState.activeTarget));
+            }
+
+            syncFlipDateFieldDisplays();
+
+            const year = flipDatePickerState.displayYear;
+            const month = flipDatePickerState.displayMonth;
+            label.textContent = `${year}年${padFlipDatePart(month + 1)}月`;
+
+            const firstDay = new Date(year, month, 1);
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const prevMonthDays = new Date(year, month, 0).getDate();
+            const startOffset = (firstDay.getDay() + 6) % 7;
+            const fromValue = getFlipDateValue('from');
+            const toValue = getFlipDateValue('to');
+            const fromMs = parseFlipFilterDate(fromValue, false);
+            const toMs = parseFlipFilterDate(toValue, true);
+            const todayValue = (() => {
+                const now = new Date();
+                return toFlipDateValue(now.getFullYear(), now.getMonth(), now.getDate());
+            })();
+
+            grid.innerHTML = '';
+
+            for (let index = 0; index < 42; index += 1) {
+                let day;
+                let cellMonth = month;
+                let cellYear = year;
+                let isMuted = false;
+
+                if (index < startOffset) {
+                    day = prevMonthDays - startOffset + index + 1;
+                    cellMonth -= 1;
+                    if (cellMonth < 0) {
+                        cellMonth = 11;
+                        cellYear -= 1;
+                    }
+                    isMuted = true;
+                } else if (index >= startOffset + daysInMonth) {
+                    day = index - startOffset - daysInMonth + 1;
+                    cellMonth += 1;
+                    if (cellMonth > 11) {
+                        cellMonth = 0;
+                        cellYear += 1;
+                    }
+                    isMuted = true;
+                } else {
+                    day = index - startOffset + 1;
+                }
+
+                const value = toFlipDateValue(cellYear, cellMonth, day);
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'flip-calendar-day';
+                if (isMuted) button.classList.add('is-muted');
+                if (value === fromValue || value === toValue) button.classList.add('is-selected');
+                if (value === todayValue) button.classList.add('is-today');
+
+                const dayMs = parseFlipFilterDate(value, false);
+                if (fromMs !== null && toMs !== null && dayMs !== null && dayMs >= fromMs && dayMs <= toMs) {
+                    button.classList.add('is-in-range');
+                }
+
+                button.textContent = String(day);
+                button.onclick = () => selectFlipCalendarDate(value);
+                grid.appendChild(button);
+            }
+        }
+
+        function toggleFlipDateDropdown() {
+            const list = document.getElementById('flip-date-dropdown');
+            if (!list) return;
+            const willOpen = list.style.display !== 'block';
+            list.style.display = willOpen ? 'block' : 'none';
+            if (willOpen) {
+                setFlipDateCalendarMonth(getFlipDateValue(flipDatePickerState.activeTarget));
+                renderFlipDateCalendar();
+            }
+        }
+
+        function openFlipDatePicker(inputId) {
+            setActiveFlipDateField(inputId === 'flip-time-to' ? 'to' : 'from');
+            const list = document.getElementById('flip-date-dropdown');
+            if (list && list.style.display !== 'block') {
+                toggleFlipDateDropdown();
+            }
+        }
+
+        function setActiveFlipDateField(target) {
+            flipDatePickerState.activeTarget = target === 'to' ? 'to' : 'from';
+            setFlipDateCalendarMonth(getFlipDateValue(flipDatePickerState.activeTarget));
+            renderFlipDateCalendar();
+        }
+
+        function shiftFlipDateCalendarMonth(offset) {
+            if (!Number.isFinite(offset)) return;
+            if (flipDatePickerState.displayYear === null || flipDatePickerState.displayMonth === null) {
+                setFlipDateCalendarMonth(getFlipDateValue(flipDatePickerState.activeTarget));
+            }
+            const nextDate = new Date(flipDatePickerState.displayYear, flipDatePickerState.displayMonth + offset, 1);
+            flipDatePickerState.displayYear = nextDate.getFullYear();
+            flipDatePickerState.displayMonth = nextDate.getMonth();
+            renderFlipDateCalendar();
+        }
+
+        function shiftFlipDateCalendarYear(offset) {
+            if (!Number.isFinite(offset)) return;
+            if (flipDatePickerState.displayYear === null || flipDatePickerState.displayMonth === null) {
+                setFlipDateCalendarMonth(getFlipDateValue(flipDatePickerState.activeTarget));
+            }
+            flipDatePickerState.displayYear += offset;
+            renderFlipDateCalendar();
+        }
+
+        function selectFlipCalendarDate(value) {
+            const input = getFlipDateInput(flipDatePickerState.activeTarget);
+            if (!input) return;
+            input.value = value;
+            applyFlipTimeRangeFilter();
+            renderFlipDateCalendar();
+        }
+
+        function clearActiveFlipDateField() {
+            const input = getFlipDateInput(flipDatePickerState.activeTarget);
+            if (!input) return;
+            input.value = '';
+            applyFlipTimeRangeFilter();
+            renderFlipDateCalendar();
+        }
+
+        function pickTodayForFlipDate() {
+            const now = new Date();
+            selectFlipCalendarDate(toFlipDateValue(now.getFullYear(), now.getMonth(), now.getDate()));
+        }
+
+        function toggleFlipVisibilityDropdown() {
+            const list = document.getElementById('flip-visibility-dropdown');
+            if (list) list.style.display = (list.style.display === 'block') ? 'none' : 'block';
+        }
+
+        function toggleFlipSortDropdown() {
+            const list = document.getElementById('flip-sort-dropdown');
+            if (list) list.style.display = (list.style.display === 'block') ? 'none' : 'block';
+        }
+
         function selectFlipType(value, text) {
             const displayInput = document.getElementById('flip-type-display');
             if (displayInput) displayInput.value = text;
@@ -257,6 +494,84 @@
             if (typeof setCurrentFlipPage === 'function') {
                 setCurrentFlipPage(0);
             }
+            renderLocalPage(0);
+        }
+
+        function selectFlipVisibilityFilter(value, text) {
+            const displayInput = document.getElementById('flip-visibility-display');
+            if (displayInput) displayInput.value = text;
+
+            const dropdown = document.getElementById('flip-visibility-dropdown');
+            if (dropdown) dropdown.style.display = 'none';
+
+            if (typeof setCurrentFlipPrivacyFilter === 'function') {
+                setCurrentFlipPrivacyFilter(value);
+            }
+            if (typeof setCurrentFlipPage === 'function') {
+                setCurrentFlipPage(0);
+            }
+            renderLocalPage(0);
+        }
+
+        function selectFlipSort(value, text) {
+            const displayInput = document.getElementById('flip-sort-display');
+            if (displayInput) displayInput.value = text;
+
+            const dropdown = document.getElementById('flip-sort-dropdown');
+            if (dropdown) dropdown.style.display = 'none';
+
+            if (typeof setCurrentFlipSort === 'function') {
+                setCurrentFlipSort(value);
+            }
+            if (typeof setCurrentFlipPage === 'function') {
+                setCurrentFlipPage(0);
+            }
+            renderLocalPage(0);
+        }
+
+        function applyFlipTimeRangeFilter() {
+            const fromInput = document.getElementById('flip-time-from');
+            const toInput = document.getElementById('flip-time-to');
+
+            if (typeof setCurrentFlipTimeFrom === 'function') {
+                setCurrentFlipTimeFrom(fromInput ? fromInput.value : '');
+            }
+            if (typeof setCurrentFlipTimeTo === 'function') {
+                setCurrentFlipTimeTo(toInput ? toInput.value : '');
+            }
+            if (typeof setCurrentFlipPage === 'function') {
+                setCurrentFlipPage(0);
+            }
+            syncFlipDateTriggerState();
+            syncFlipDateFieldDisplays();
+            renderLocalPage(0);
+        }
+
+        function parseFlipFilterDate(value, isEnd = false) {
+            if (!value) return null;
+            const normalized = String(value).trim().replace(/\//g, '-');
+            const suffix = isEnd ? 'T23:59:59.999' : 'T00:00:00';
+            const parsed = new Date(`${normalized}${suffix}`).getTime();
+            return Number.isFinite(parsed) ? parsed : null;
+        }
+
+        function resetFlipTimeRangeFilter() {
+            const fromInput = document.getElementById('flip-time-from');
+            const toInput = document.getElementById('flip-time-to');
+            if (fromInput) fromInput.value = '';
+            if (toInput) toInput.value = '';
+
+            if (typeof setCurrentFlipTimeFrom === 'function') {
+                setCurrentFlipTimeFrom('');
+            }
+            if (typeof setCurrentFlipTimeTo === 'function') {
+                setCurrentFlipTimeTo('');
+            }
+            if (typeof setCurrentFlipPage === 'function') {
+                setCurrentFlipPage(0);
+            }
+            syncFlipDateTriggerState();
+            syncFlipDateFieldDisplays();
             renderLocalPage(0);
         }
 
@@ -283,10 +598,35 @@
         function getFilteredData() {
             let result = getFlipData();
             const currentFlipFilterType = typeof getCurrentFlipFilterType === 'function' ? getCurrentFlipFilterType() : '0';
+            const currentFlipPrivacyFilter = typeof getCurrentFlipPrivacyFilter === 'function' ? getCurrentFlipPrivacyFilter() : '0';
+            const currentFlipTimeFrom = typeof getCurrentFlipTimeFrom === 'function' ? getCurrentFlipTimeFrom() : '';
+            const currentFlipTimeTo = typeof getCurrentFlipTimeTo === 'function' ? getCurrentFlipTimeTo() : '';
             const currentSearchKeyword = typeof getCurrentSearchKeyword === 'function' ? getCurrentSearchKeyword() : '';
 
             if (currentFlipFilterType !== '0') {
                 result = result.filter(item => item.answerType == currentFlipFilterType);
+            }
+
+            if (currentFlipPrivacyFilter !== '0') {
+                result = result.filter(item => String(item.type) === String(currentFlipPrivacyFilter));
+            }
+
+            if (currentFlipTimeFrom || currentFlipTimeTo) {
+                const fromMs = parseFlipFilterDate(currentFlipTimeFrom, false);
+                const toMs = parseFlipFilterDate(currentFlipTimeTo, true);
+
+                result = result.filter(item => {
+                    const questionMs = Number(item.qtime) || null;
+                    const answerMs = Number(item.answerTime) || null;
+                    const candidates = [questionMs, answerMs].filter(value => Number.isFinite(value) && value > 0);
+                    if (candidates.length === 0) return false;
+
+                    return candidates.some(timeMs => {
+                        if (fromMs !== null && timeMs < fromMs) return false;
+                        if (toMs !== null && timeMs > toMs) return false;
+                        return true;
+                    });
+                });
             }
 
             if (currentSearchKeyword) {
@@ -335,9 +675,6 @@
             const token = getSafeToken();
             if (!token) return;
 
-            const statusText = document.getElementById('flip-status-text');
-            if (statusText) statusText.innerText = '正在同步最新翻牌...';
-
             try {
                 const res = await ipcRenderer.invoke('fetch-flip-list', {
                     token,
@@ -362,14 +699,8 @@
                     });
 
                     setFlipData(nextData);
-
-                    if (statusText) statusText.innerText = `已同步最新状态 (新增 ${addedCount} 条)`;
-                } else if (statusText) {
-                    statusText.innerText = `同步失败: ${res.msg}`;
                 }
-            } catch (e) {
-                if (statusText) statusText.innerText = `同步出错: ${e.message}`;
-            }
+            } catch (e) { }
 
             if (typeof setCurrentSearchKeyword === 'function') {
                 setCurrentSearchKeyword('');
@@ -385,7 +716,6 @@
 
         async function startAutoFetchAll() {
             const container = document.getElementById('flip-list-container');
-            const statusText = document.getElementById('flip-status-text');
             const pagination = document.querySelector('#view-flip .pagination-container');
 
             const token = getSafeToken();
@@ -411,8 +741,6 @@
 
             try {
                 while (hasMore) {
-                    if (statusText) statusText.innerText = `正在下载... 已获取 ${nextData.length} 条`;
-
                     const res = await ipcRenderer.invoke('fetch-flip-list', {
                         token,
                         pa,
@@ -434,18 +762,15 @@
                             }
                         }
                     } else {
-                        if (statusText) statusText.innerText = `同步中断: ${res.msg}`;
                         hasMore = false;
                     }
                 }
             } catch (e) {
-                if (statusText) statusText.innerText = `错误: ${e.message}`;
             } finally {
                 setFlipData(nextData);
                 if (typeof setIsFetchingFlips === 'function') {
                     setIsFetchingFlips(false);
                 }
-                if (statusText) statusText.innerText = `共 ${nextData.length} 条记录`;
                 renderLocalPage(0);
             }
         }
@@ -462,7 +787,11 @@
             let filteredData = getFilteredData();
 
             if (currentFlipSort) {
-                if (currentFlipSort === 'cost_desc') {
+                if (currentFlipSort === 'latest_desc') {
+                    filteredData.sort((a, b) => Number(b.qtime) - Number(a.qtime));
+                } else if (currentFlipSort === 'latest_asc') {
+                    filteredData.sort((a, b) => Number(a.qtime) - Number(b.qtime));
+                } else if (currentFlipSort === 'cost_desc') {
                     filteredData.sort((a, b) => (Number(b.cost) || 0) - (Number(a.cost) || 0));
                 } else if (currentFlipSort === 'cost_asc') {
                     filteredData.sort((a, b) => (Number(a.cost) || 0) - (Number(b.cost) || 0));
@@ -713,7 +1042,12 @@
                 if (res.success && res.content) {
                     const latestMoney = res.content.moneyTotal || 0;
                     balanceEl.innerText = latestMoney;
-                    localStorage.setItem('yaya_p48_money', latestMoney);
+                    const cacheApi = window.desktop && window.desktop.appCache ? window.desktop.appCache : null;
+                    if (cacheApi && typeof cacheApi.setCacheValueSync === 'function') {
+                        cacheApi.setCacheValueSync('yaya_p48_money', latestMoney);
+                    } else {
+                        localStorage.setItem('yaya_p48_money', latestMoney);
+                    }
                 } else {
                     console.error('刷新余额失败:', res.msg);
                 }
@@ -1066,9 +1400,23 @@
             selectFlipPrivacy,
             selectFlipSendMember,
             selectFlipType,
+            selectFlipVisibilityFilter,
+            selectFlipSort,
+            applyFlipTimeRangeFilter,
+            clearActiveFlipDateField,
+            openFlipDatePicker,
+            pickTodayForFlipDate,
+            selectFlipCalendarDate,
+            setActiveFlipDateField,
+            shiftFlipDateCalendarYear,
+            shiftFlipDateCalendarMonth,
             toggleFlipAnswerDropdown,
+            toggleFlipDateDropdown,
             toggleFlipPrivacyDropdown,
             toggleFlipTypeDropdown,
+            toggleFlipVisibilityDropdown,
+            toggleFlipSortDropdown,
+            resetFlipTimeRangeFilter,
             updateFlipCharCount,
             updateLatestFlips
         };

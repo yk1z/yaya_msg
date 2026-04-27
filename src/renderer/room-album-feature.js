@@ -27,6 +27,22 @@
         let isRoomAlbumAutoLoading = false;
         let isBatchDownloadingRoom = false;
 
+        function readStringSetting(key, fallbackValue = '') {
+            if (typeof window.readStoredStringSetting === 'function') {
+                return window.readStoredStringSetting(key, fallbackValue);
+            }
+            const legacyValue = localStorage.getItem(key);
+            return legacyValue === null ? fallbackValue : String(legacyValue);
+        }
+
+        function writeStringSetting(key, value) {
+            if (typeof window.writeStoredStringSetting === 'function') {
+                return window.writeStoredStringSetting(key, value);
+            }
+            localStorage.setItem(key, value);
+            return value;
+        }
+
         function getRoomAlbumChannelId() {
             return String(document.getElementById('room-album-channel-id')?.value || '').trim();
         }
@@ -110,13 +126,13 @@
                 return;
             }
 
-            let currentMediaDir = localStorage.getItem('yaya_path_media');
+            let currentMediaDir = readStringSetting('yaya_path_media', '');
             if (!currentMediaDir) {
                 showToast('尚未设置相册下载路径，请选择一个保存文件夹');
                 try {
                     const selectedPath = await ipcRenderer.invoke('dialog-open-directory');
                     if (selectedPath) {
-                        localStorage.setItem('yaya_path_media', selectedPath);
+                        writeStringSetting('yaya_path_media', selectedPath);
                         const pathInput = document.getElementById('path-media');
                         if (pathInput) pathInput.value = selectedPath;
                         showToast('路径设置成功，开始一键下载');
@@ -248,7 +264,7 @@
         async function fetchRoomAlbum(isLoadMore) {
             const container = document.getElementById('room-album-result-container');
             const channelId = getRoomAlbumChannelId();
-            const token = getAppToken ? getAppToken() : (localStorage.getItem('yaya_p48_token') || '');
+            const token = getAppToken ? getAppToken() : (typeof window.getAppToken === 'function' ? window.getAppToken() : '');
             const statusEl = document.getElementById('room-album-status');
 
             if (!token) {

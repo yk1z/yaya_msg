@@ -145,9 +145,12 @@
 
         function updateLocalGiftDatabase() {
             try {
-                const cachedData = localStorage.getItem('POCKET_GIFT_DATA_CACHE');
+                const cacheApi = window.desktop && window.desktop.appCache ? window.desktop.appCache : null;
+                const cachedData = cacheApi && typeof cacheApi.getCacheValueSync === 'function'
+                    ? cacheApi.getCacheValueSync('POCKET_GIFT_DATA_CACHE', null)
+                    : localStorage.getItem('POCKET_GIFT_DATA_CACHE');
                 if (cachedData) {
-                    const parsed = JSON.parse(cachedData);
+                    const parsed = typeof cachedData === 'string' ? JSON.parse(cachedData) : cachedData;
                     if (Array.isArray(parsed) && parsed.length > 0) {
                         const existingNames = new Set(POCKET_GIFT_DATA.map(g => g.name));
                         parsed.forEach(g => {
@@ -155,6 +158,9 @@
                                 POCKET_GIFT_DATA.push(g);
                             }
                         });
+                    }
+                    if (cacheApi && typeof cacheApi.removeCacheValueSync === 'function') {
+                        localStorage.removeItem('POCKET_GIFT_DATA_CACHE');
                     }
                 }
             } catch (e) {

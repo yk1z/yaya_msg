@@ -19,6 +19,27 @@
         let currentFollowedData = [];
         let draggedCard = null;
         window.allFollowedIds = window.allFollowedIds || new Set();
+        const FOLLOWED_CUSTOM_ORDER_KEY = 'yaya_followed_custom_order';
+
+        function readJsonSetting(key, fallbackValue) {
+            if (typeof window.readStoredJsonSetting === 'function') {
+                return window.readStoredJsonSetting(key, fallbackValue);
+            }
+            try {
+                const raw = localStorage.getItem(key);
+                return raw ? JSON.parse(raw) : fallbackValue;
+            } catch (error) {
+                return fallbackValue;
+            }
+        }
+
+        function writeJsonSetting(key, value) {
+            if (typeof window.writeStoredJsonSetting === 'function') {
+                return window.writeStoredJsonSetting(key, value);
+            }
+            localStorage.setItem(key, JSON.stringify(value));
+            return value;
+        }
 
         function escapeHtml(value) {
             return String(value == null ? '' : value)
@@ -132,7 +153,7 @@
                     return compareFollowedNames(a, b);
                 });
             } else {
-                const savedOrder = JSON.parse(localStorage.getItem('yaya_followed_custom_order') || '[]');
+                const savedOrder = readJsonSetting(FOLLOWED_CUSTOM_ORDER_KEY, []);
 
                 if (savedOrder.length > 0) {
                     sortedData.sort((a, b) => {
@@ -359,7 +380,7 @@
             const container = document.getElementById('followed-rooms-container');
             const cards = container.querySelectorAll('.session-card');
             const newOrder = Array.from(cards).map(card => card.getAttribute('data-channelid'));
-            localStorage.setItem('yaya_followed_custom_order', JSON.stringify(newOrder));
+            writeJsonSetting(FOLLOWED_CUSTOM_ORDER_KEY, newOrder);
         }
 
         function handleQuickFollowSearch(keyword) {

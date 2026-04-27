@@ -23,6 +23,14 @@
             fetchVODPageInternal
         } = deps;
 
+        function readStringSetting(key, fallbackValue = '') {
+            if (typeof window.readStoredStringSetting === 'function') {
+                return window.readStoredStringSetting(key, fallbackValue);
+            }
+            const legacyValue = localStorage.getItem(key);
+            return legacyValue === null ? fallbackValue : String(legacyValue);
+        }
+
         function fetchDanmuNative(url) {
             return new Promise((resolve, reject) => {
                 https.get(url, (res) => {
@@ -208,7 +216,7 @@
             }
 
             const fileName = `【${nickname}】${timeStr}.lrc`;
-            const customSavePath = localStorage.getItem('yaya_path_danmu') || '';
+            const customSavePath = readStringSetting('yaya_path_danmu', '');
 
             try {
                 const res = await fetchPocketAPI('/live/api/v1/live/getLiveOne', JSON.stringify({
@@ -278,7 +286,7 @@
                 downloadList.insertAdjacentHTML('afterbegin', `<div class="download-item" id="${taskId}" data-liveid="${liveId}"><div class="download-title-row"><div class="download-title-line" title="${title}" style="flex:1;">${title}</div><button class="btn-cancel" onclick="cancelDownloadTask('${taskId}')">取消</button></div><div class="download-detail-row"><span>${nickname}</span><b class="download-percent">0%</b></div><div class="download-detail-row"><span>${timeLabel}</span></div><div class="progress-container" style="margin: 5px 0;"><div class="progress-fill"></div></div><span class="download-status-text">正在请求下载地址...</span></div>`);
             }
 
-            const customSavePath = localStorage.getItem('yaya_path_video') || '';
+            const customSavePath = readStringSetting('yaya_path_video', '');
 
             try {
                 const res = await fetchPocketAPI('/live/api/v1/live/getLiveOne', JSON.stringify({ liveId }));

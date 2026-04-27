@@ -2,6 +2,25 @@
     window.YayaRendererFeatures = window.YayaRendererFeatures || {};
 
     window.YayaRendererFeatures.createThemeFeature = function createThemeFeature() {
+        function readThemeSetting() {
+            if (typeof window.readStoredStringSetting === 'function') {
+                return window.readStoredStringSetting('theme', 'light');
+            }
+            const settingsApi = window.desktop && window.desktop.appSettings ? window.desktop.appSettings : null;
+            if (settingsApi && typeof settingsApi.getSettingValueSync === 'function') {
+                return String(settingsApi.getSettingValueSync('theme', 'light') || 'light');
+            }
+            return localStorage.getItem('theme') || 'light';
+        }
+
+        function writeThemeSetting(value) {
+            if (typeof window.writeStoredStringSetting === 'function') {
+                return window.writeStoredStringSetting('theme', value);
+            }
+            localStorage.setItem('theme', value);
+            return value;
+        }
+
         function applyCustomBackground(bgData) {
             if (typeof window.__applyYayaCustomBackground === 'function') {
                 window.__applyYayaCustomBackground(bgData || '');
@@ -16,14 +35,17 @@
         }
 
         function initTheme() {
-            const savedTheme = localStorage.getItem('theme') || 'light';
+            const savedTheme = readThemeSetting();
+            const settingsApi = window.desktop && window.desktop.appSettings ? window.desktop.appSettings : null;
             document.documentElement.setAttribute('data-theme', savedTheme);
             if (typeof window.__applyYayaThemeBootStyle === 'function') {
                 window.__applyYayaThemeBootStyle(savedTheme);
             }
             updateThemeBtn(savedTheme);
 
-            const savedBg = localStorage.getItem('custom_bg_data');
+            const savedBg = settingsApi && typeof settingsApi.getBackgroundUrlSync === 'function'
+                ? settingsApi.getBackgroundUrlSync()
+                : localStorage.getItem('custom_bg_data');
             applyCustomBackground(savedBg || '');
         }
 
@@ -31,7 +53,7 @@
             const current = document.documentElement.getAttribute('data-theme');
             const next = current === 'dark' ? 'light' : 'dark';
             document.documentElement.setAttribute('data-theme', next);
-            localStorage.setItem('theme', next);
+            writeThemeSetting(next);
             if (typeof window.__applyYayaThemeBootStyle === 'function') {
                 window.__applyYayaThemeBootStyle(next);
             }
