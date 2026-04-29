@@ -6639,9 +6639,12 @@ audio::-webkit-media-controls-panel {
 }
 
 .private-message-detail-actions {
+    position: relative;
+    z-index: 5;
     padding: 12px 22px 16px;
     border-top: 1px solid var(--border);
     background: color-mix(in srgb, var(--sidebar-bg) 88%, transparent);
+    overflow: visible;
 }
 
 .private-message-flip-panel {
@@ -6705,6 +6708,10 @@ audio::-webkit-media-controls-panel {
     flex-shrink: 0;
 }
 
+#private-message-flip-privacy-wrapper {
+    width: 76px;
+}
+
 .private-message-flip-dropdown-input {
     width: 100%;
     height: 28px;
@@ -6729,11 +6736,22 @@ audio::-webkit-media-controls-panel {
 }
 
 .private-message-flip-dropdown-wrap .suggestion-box {
+    top: 100%;
+    bottom: auto;
+    margin-top: 4px;
+    margin-bottom: 0;
     display: none;
     width: 100%;
     min-width: 96px;
-    max-height: 160px;
+    max-height: 118px;
     overflow-y: auto;
+    z-index: 10000;
+}
+
+.private-message-flip-dropdown-wrap .suggestion-item {
+    padding: 7px 12px;
+    font-size: 12px;
+    line-height: 1.2;
 }
 
 .private-message-flip-status {
