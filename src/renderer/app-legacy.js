@@ -209,6 +209,8 @@
         let restoreAudioProgramPlayerState;
         let suspendAudioProgramForViewSwitch;
         let stopAudioProgram;
+        let toggleAudioProgramPlayback;
+        let toggleOfficialMusicPlayback;
         let toggleAudioProgramQueue;
         let toggleMusicQueue;
         let resetTimelinePanel;
@@ -369,6 +371,57 @@
         let currentViewName = 'home';
         let currentViewMode = null;
         let mediaPlaybackViewToken = 0;
+
+        function getActivePlaybackScope() {
+            if (currentViewName === 'official-site-music') return 'official-site-music';
+            if (currentViewName === 'audio-programs') return 'audio-programs';
+            if (currentViewName === 'music-library') return 'music-library';
+            return '';
+        }
+
+        function handleSystemMediaKeyAction(action) {
+            const scope = getActivePlaybackScope();
+            if (!scope) return;
+
+            if (scope === 'official-site-music') {
+                if (action === 'play-pause' && typeof window.toggleOfficialSiteMusicPlay === 'function') {
+                    window.toggleOfficialSiteMusicPlay();
+                } else if (action === 'next' && typeof window.playOfficialSiteNext === 'function') {
+                    window.playOfficialSiteNext();
+                } else if (action === 'previous' && typeof window.playOfficialSitePrevious === 'function') {
+                    window.playOfficialSitePrevious();
+                }
+                return;
+            }
+
+            if (scope === 'audio-programs') {
+                if (action === 'play-pause' && typeof window.toggleAudioProgramPlayback === 'function') {
+                    window.toggleAudioProgramPlayback();
+                } else if (action === 'next' && typeof window.playNextAudioProgram === 'function') {
+                    window.playNextAudioProgram();
+                } else if (action === 'previous' && typeof window.playPreviousAudioProgram === 'function') {
+                    window.playPreviousAudioProgram();
+                }
+                return;
+            }
+
+            if (scope === 'music-library') {
+                if (action === 'play-pause' && typeof window.toggleOfficialMusicPlayback === 'function') {
+                    window.toggleOfficialMusicPlayback();
+                } else if (action === 'next' && typeof window.playNextMusic === 'function') {
+                    window.playNextMusic();
+                } else if (action === 'previous' && typeof window.playPreviousMusic === 'function') {
+                    window.playPreviousMusic();
+                }
+            }
+        }
+
+        if (window.ipcRenderer && typeof window.ipcRenderer.on === 'function') {
+            window.ipcRenderer.on('system-media-key', (event, action) => {
+                handleSystemMediaKeyAction(action);
+            });
+        }
+
         const privateMessageListState = {
             items: [],
             cursor: Date.now(),
@@ -5237,6 +5290,8 @@
             restoreAudioProgramPlayerState,
             suspendAudioProgramForViewSwitch,
             stopAudioProgram,
+            toggleAudioProgramPlayback,
+            toggleOfficialMusicPlayback,
             toggleAudioProgramQueue,
             toggleMusicQueue
         } = window.YayaRendererFeatures.createOfficialMediaFeature({
@@ -5267,6 +5322,8 @@
         window.playPreviousMusic = playPreviousMusic;
         window.restoreAudioProgramPlayerState = restoreAudioProgramPlayerState;
         window.suspendAudioProgramForViewSwitch = suspendAudioProgramForViewSwitch;
+        window.toggleAudioProgramPlayback = toggleAudioProgramPlayback;
+        window.toggleOfficialMusicPlayback = toggleOfficialMusicPlayback;
         window.toggleAudioProgramQueue = toggleAudioProgramQueue;
         window.toggleMusicQueue = toggleMusicQueue;
 

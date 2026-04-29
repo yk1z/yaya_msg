@@ -551,7 +551,7 @@
             const isLeftCard = index % 2 === 0;
 
             return (
-                <div className={`rounded-xl border border-gray-200 bg-white dark:bg-gray-900 dark:border-gray-800 p-5 shadow-sm hover:shadow-md transition-all duration-300 group flex flex-col justify-between h-full text-left ${isLeftCard ? 'md:text-right' : 'md:text-left'}`}>
+                <div className={`rounded-xl border border-gray-200 bg-white dark:bg-gray-900 dark:border-gray-800 p-5 shadow-sm hover:shadow-md transition-all duration-300 animate-content group flex flex-col justify-between h-full text-left ${isLeftCard ? 'md:text-right' : 'md:text-left'}`}>
                     <div>
                         <div className={`flex items-start mb-2 ${isLeftCard ? 'md:flex-row-reverse justify-between' : 'justify-between'}`}>
                             <span className={`text-[10px] px-2 py-0.5 rounded-full border font-bold ${getTeamStyle(data.队伍)}`}>
@@ -1086,7 +1086,7 @@
             const isActive = checkIsActive(member);
             return (
                 <div
-                    className={`bg-white rounded-lg shadow-sm hover:shadow-md border p-3 cursor-pointer transition-all duration-200 group flex items-center justify-between hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-750 ${isActive ? 'border-gray-200 dark:border-gray-700' : 'border-gray-100 bg-gray-50 opacity-80 dark:bg-gray-800/50 dark:border-gray-800'}`}
+                    className={`bg-white rounded-lg shadow-sm hover:shadow-md border p-3 cursor-pointer transition-all duration-200 animate-content group flex items-center justify-between hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-750 ${isActive ? 'border-gray-200 dark:border-gray-700' : 'border-gray-100 bg-gray-50 opacity-80 dark:bg-gray-800/50 dark:border-gray-800'}`}
                     onClick={() => onClick(member)}
                 >
                     <div className="flex flex-col min-w-0 flex-1">

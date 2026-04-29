@@ -6646,7 +6646,8 @@ audio::-webkit-media-controls-panel {
 
 .private-message-flip-panel {
     align-items: center;
-    gap: 8px;
+    column-gap: 22px;
+    row-gap: 8px;
     min-height: 34px;
     margin-bottom: 8px;
     padding: 4px 10px;
@@ -6659,7 +6660,7 @@ audio::-webkit-media-controls-panel {
 .private-message-flip-toggle {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     flex-shrink: 0;
     color: var(--text);
     font-size: 12px;
@@ -6679,7 +6680,7 @@ audio::-webkit-media-controls-panel {
 .private-message-flip-cost {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 10px;
     flex-shrink: 0;
 }
 

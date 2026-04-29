@@ -458,6 +458,17 @@
             playAudioProgram(nextItem.talkId);
         }
 
+        function toggleAudioProgramPlayback() {
+            const audioEl = document.getElementById('native-audio-player');
+            if (!audioEl || !currentAudioProgramTalkId) return false;
+            if (audioEl.paused) {
+                audioEl.play().catch(() => { });
+            } else {
+                audioEl.pause();
+            }
+            return true;
+        }
+
         function playPreviousMusic() {
             const previousItem = getPreviousMusicItem({ ignoreLoopOne: true });
             if (!previousItem) {
@@ -474,6 +485,17 @@
                 return;
             }
             playOfficialMusic(nextItem.musicId);
+        }
+
+        function toggleOfficialMusicPlayback() {
+            const audioEl = document.getElementById('music-native-audio');
+            if (!audioEl || !currentPlayingMusicId) return false;
+            if (audioEl.paused) {
+                audioEl.play().catch(() => { });
+            } else {
+                audioEl.pause();
+            }
+            return true;
         }
 
         async function loadAudioPrograms(startCtime = 0) {
@@ -1898,6 +1920,8 @@
             restoreAudioProgramPlayerState,
             suspendAudioProgramForViewSwitch,
             stopAudioProgram,
+            toggleAudioProgramPlayback,
+            toggleOfficialMusicPlayback,
             toggleAudioProgramQueue,
             toggleMusicQueue
         };

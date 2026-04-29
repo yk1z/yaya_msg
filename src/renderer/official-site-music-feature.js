@@ -390,7 +390,7 @@
     function isRemovableMusicTitleParenthetical(content) {
         const text = String(content || '').trim();
         if (!text || text.includes('重填词')) return false;
-        if (/^(?:SNH48(?:\s+GROUP)?|BEJ48|GNZ48|CKG48|CGT48)$/i.test(text)) return true;
+        if (/^(?:SNH48(?:\s+GROUP)?|BEJ48|GNZ48|SHY48|CKG48|CGT48|IDOLS\s*FT)$/i.test(text)) return true;
         if (/^team\s*[a-z0-9]+$/i.test(text)) return true;
 
         const parts = text.split(/[\s,，、/＋+&]+/).filter(Boolean);
@@ -406,7 +406,7 @@
                 const text = String(content || '');
                 return !isRemovableMusicTitleParenthetical(text) && (text.includes('重填词') || (preserveEnglish && /[A-Za-z]/.test(text))) ? match : ' ';
             })
-            .replace(/\s*[–—-]\s*(?:[A-Z]+队|TEAM\s*[A-Z0-9]+|SNH48(?:\s+GROUP)?|BEJ48|GNZ48|CKG48|CGT48)\s*$/i, '')
+            .replace(/\s*[–—-]\s*(?:[A-Z]+队|TEAM\s*[A-Z0-9]+|SNH48(?:\s+GROUP)?|BEJ48|GNZ48|SHY48|CKG48|CGT48|IDOLS\s*FT)\s*$/i, '')
             .replace(/\s+/g, ' ')
             .trim();
     }
@@ -1316,7 +1316,7 @@
             专辑序号: '',
             lrcPath: track.lrcPath || ''
         } : null;
-        setOfficialSiteLyricsPanelState('loading', '正在读取歌词...');
+        setOfficialSiteLyricsPanelState('loading', '');
 
         if (!track || !track.title) {
             setOfficialSiteLyricsPanelState('empty', '当前歌曲暂无歌词');
@@ -1490,13 +1490,13 @@
             : '未加载');
 
         if (state.isLoading) {
-            setEmpty('正在加载官网歌单...');
+            setEmpty('');
             return;
         }
 
         if (!state.isLoaded) {
             setStatus(state.errorMessage ? '加载失败' : '未加载');
-            setEmpty(state.errorMessage || '点击进入后加载官网曲目');
+            setEmpty(state.errorMessage || '');
             return;
         }
 
@@ -1596,8 +1596,8 @@
 
         state.isLoading = true;
         state.errorMessage = '';
-        setStatus('正在加载官网歌单...');
-        setEmpty('正在加载官网歌单...');
+        setStatus('');
+        setEmpty('');
 
         try {
             const results = await Promise.all(GROUPS.map(async (group) => {
@@ -1616,7 +1616,7 @@
             state.errorMessage = error && error.message ? error.message : '官网歌单加载失败';
             setEmpty(state.errorMessage);
             setStatus('加载失败');
-            showOfficialMusicToast('官网音乐源加载失败');
+            showOfficialMusicToast('音乐源加载失败');
         } finally {
             state.isLoading = false;
             renderOfficialSiteMusic();
@@ -1684,7 +1684,7 @@
         }
 
         if (audio.paused) {
-            audio.play().catch(() => showOfficialMusicToast('请先选择一首官网曲目'));
+            audio.play().catch(() => showOfficialMusicToast('请先选择一首曲目'));
         } else {
             audio.pause();
         }
@@ -1706,7 +1706,7 @@
         state.playMode = getNextPlayMode(state.playMode);
         updatePlayModeButton();
         saveOfficialSiteMusicPlayerState();
-        showOfficialMusicToast(`官网音乐播放模式：${PLAYER_MODE_LABELS[state.playMode]}`);
+        showOfficialMusicToast(`音乐播放模式：${PLAYER_MODE_LABELS[state.playMode]}`);
     }
 
     function closeOfficialSiteMusicQueue() {
