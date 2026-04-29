@@ -35,6 +35,7 @@
         } = deps;
 
         let currentFlipPrices = [];
+        let flipCountdownTimer = null;
 
         function getSafeToken() {
             if (typeof getAppToken === 'function') {
@@ -80,6 +81,85 @@
             return `${y}.${m}.${d} ${hh}:${mm}:${ss}`;
         }
 
+        function getFlipSevenDayExpireTime(questionTime) {
+            const qtime = Number(questionTime);
+            if (!Number.isFinite(qtime) || qtime <= 0) return 0;
+
+            const dateObj = new Date(qtime);
+            return new Date(
+                dateObj.getFullYear(),
+                dateObj.getMonth(),
+                dateObj.getDate() + 8,
+                0,
+                0,
+                0,
+                0
+            ).getTime();
+        }
+
+        function formatFlipSevenDayRemaining(expireAt, now = Date.now()) {
+            const remainingMs = Number(expireAt) - Number(now);
+            if (!Number.isFinite(remainingMs) || remainingMs <= 0) {
+                return '七天乐已到期';
+            }
+
+            const totalSeconds = Math.floor(remainingMs / 1000);
+            const days = Math.floor(totalSeconds / 86400);
+            const hours = Math.floor((totalSeconds % 86400) / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+            const parts = [];
+            if (days > 0) parts.push(`${days}天`);
+            if (hours > 0 || parts.length > 0) parts.push(`${hours}小时`);
+            if (minutes > 0 || parts.length > 0) parts.push(`${minutes}分`);
+            parts.push(`${seconds}秒`);
+
+            return `距离七天乐还有 ${parts.join('')}`;
+        }
+
+        function formatFlipDurationFull(durationMs) {
+            const totalSeconds = Math.max(0, Math.floor(Number(durationMs) / 1000));
+            const days = Math.floor(totalSeconds / 86400);
+            const hours = Math.floor((totalSeconds % 86400) / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+            const parts = [];
+
+            if (days > 0) parts.push(`${days}天`);
+            if (hours > 0 || parts.length > 0) parts.push(`${hours}小时`);
+            if (minutes > 0 || parts.length > 0) parts.push(`${minutes}分`);
+            parts.push(`${seconds}秒`);
+
+            return parts.join('');
+        }
+
+        function updateFlipSevenDayCountdowns() {
+            const nodes = document.querySelectorAll('.flip-seven-day-countdown[data-expire-at]');
+            if (!nodes.length) {
+                if (flipCountdownTimer) {
+                    clearInterval(flipCountdownTimer);
+                    flipCountdownTimer = null;
+                }
+                return;
+            }
+
+            const now = Date.now();
+            nodes.forEach(node => {
+                const expireAt = Number(node.getAttribute('data-expire-at') || 0);
+                const remainingMs = expireAt - now;
+                node.textContent = formatFlipSevenDayRemaining(expireAt, now);
+                node.classList.toggle('is-expired', expireAt > 0 && expireAt <= now);
+                node.classList.toggle('is-urgent', remainingMs > 0 && remainingMs <= 24 * 60 * 60 * 1000);
+            });
+        }
+
+        function startFlipSevenDayCountdownTimer() {
+            updateFlipSevenDayCountdowns();
+            if (flipCountdownTimer) return;
+
+            flipCountdownTimer = setInterval(updateFlipSevenDayCountdowns, 1000);
+        }
+
         function createFlipCardDOM(item) {
             const card = document.createElement('div');
             card.className = 'Box-row';
@@ -122,7 +202,7 @@
 
             headerDiv.innerHTML = `
         <span style="font-size:14px; font-weight:bold; color:var(--text);">${qTimeStr}</span>
-        <div style="display:flex; gap:8px; align-items:center;">
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
             ${answerTypeHtml} ${privacyHtml} ${costHtml} ${statusHtml}
             <div style="width: 1px; height: 16px; background: var(--border); margin: 0 4px;"></div>
             ${actionBtnHtml}
@@ -130,13 +210,29 @@
             card.appendChild(headerDiv);
 
             const memberName = item.baseUserInfo ? item.baseUserInfo.nickname : '成员';
+            let questionSideHtml = '';
+            if (item.status === 1) {
+                const expireAt = getFlipSevenDayExpireTime(item.qtime);
+                if (expireAt > 0) {
+                    questionSideHtml = `<span class="flip-seven-day-countdown" data-expire-at="${expireAt}">${formatFlipSevenDayRemaining(expireAt)}</span>`;
+                }
+            } else if (item.status === 2) {
+                const durationText = getFlipDuration(item);
+                if (durationText >= 0) {
+                    const timeCostStr = formatFlipDurationFull(durationText);
+                    questionSideHtml = `<span class="flip-seven-day-countdown flip-answer-duration-side">耗时 ${timeCostStr}</span>`;
+                }
+            }
 
             const questionDiv = document.createElement('div');
             questionDiv.style.marginBottom = '15px';
             questionDiv.innerHTML = `
-        <div style="margin-bottom:6px; display:flex; align-items:center;">
-            <span class="flip-label question-tag" style="margin-right:8px; margin-top:0; margin-bottom:0; transform:none;">翻牌提问</span>
-            <span style="font-size:14px; color:var(--text); line-height: 20px;">向 <strong style="color:var(--primary);">${memberName}</strong> 提问</span>
+        <div style="margin-bottom:6px; display:flex; align-items:center; justify-content:space-between; gap:12px;">
+            <div style="display:flex; align-items:center; min-width:0;">
+                <span class="flip-label question-tag" style="margin-right:8px; margin-top:0; margin-bottom:0; transform:none;">翻牌提问</span>
+                <span style="font-size:14px; color:var(--text); line-height: 20px; min-width:0;">向 <strong style="color:var(--primary);">${memberName}</strong> 提问</span>
+            </div>
+            ${questionSideHtml}
         </div>
         <div style="font-size:14px; color:var(--text); line-height:1.6; padding:0 4px;">${item.content}</div>`;
             card.appendChild(questionDiv);
@@ -149,28 +245,16 @@
                 let timeCostStr = '';
                 if (item.qtime && item.answerTime) {
                     const diffMs = Number(item.answerTime) - Number(item.qtime);
-                    const totalSeconds = Math.floor(diffMs / 1000);
-                    const totalMinutes = Math.floor(totalSeconds / 60);
-                    const totalHours = Math.floor(totalMinutes / 60);
-                    const totalDays = Math.floor(totalHours / 24);
-
-                    if (totalDays > 0) {
-                        timeCostStr = `${totalDays}天${totalHours % 24}小时`;
-                    } else if (totalHours > 0) {
-                        timeCostStr = `${totalHours}小时${totalMinutes % 60}分`;
-                    } else if (totalMinutes > 0) {
-                        timeCostStr = `${totalMinutes}分${totalSeconds % 60}秒`;
-                    } else {
-                        timeCostStr = `${totalSeconds}秒`;
-                    }
+                    timeCostStr = formatFlipDurationFull(diffMs);
                 }
 
                 answerDiv.innerHTML = `
-            <div style="margin-bottom:8px; display:flex; align-items:center; flex-wrap: wrap;">
-                <span class="flip-label answer-tag" style="margin-right:8px; margin-top:0; margin-bottom:0; transform:none;">翻牌回答</span>
-                <span style="font-size:14px; color:var(--text); line-height: 20px;"><strong style="color:var(--primary);">${memberName}</strong> 的回复</span>
-                <span style="font-size:12px; color:var(--text-sub); margin-left: 10px;">翻牌时间：${formattedAnswerTime}</span>
-                ${timeCostStr ? `<span style="font-size:11px; color:var(--primary); margin-left: 8px; font-weight: 500; opacity: 0.9;">(耗时：${timeCostStr})</span>` : ''}
+            <div style="margin-bottom:8px; display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                <div style="display:flex; align-items:center; flex-wrap:wrap; min-width:0;">
+                    <span class="flip-label answer-tag" style="margin-right:8px; margin-top:0; margin-bottom:0; transform:none;">翻牌回答</span>
+                    <span style="font-size:14px; color:var(--text); line-height: 20px;"><strong style="color:var(--primary);">${memberName}</strong> 的回复</span>
+                    <span style="font-size:12px; color:var(--text-sub); margin-left:10px;">翻牌时间：${formattedAnswerTime}</span>
+                </div>
             </div>`;
 
                 try {
@@ -237,7 +321,7 @@
                 } catch (e) {
                     const errDiv = document.createElement('div');
                     errDiv.style.color = '#ff4d4f';
-                    errDiv.innerText = '⚠️ 无法解析回答内容';
+                    errDiv.innerText = '无法解析回答内容';
                     answerDiv.appendChild(errDiv);
                 }
                 card.appendChild(answerDiv);
@@ -721,7 +805,7 @@
             const token = getSafeToken();
             if (!token) {
                 if (container) {
-                    container.innerHTML = '<div class="placeholder-tip"><h3>⚠️ 未登录</h3><p>请先前往“账号设置”页面验证 Token。</p></div>';
+                    container.innerHTML = '<div class="placeholder-tip"><h3>未登录</h3><p>请先前往“账号设置”页面验证 Token。</p></div>';
                 }
                 return;
             }
@@ -870,12 +954,14 @@
             container.innerHTML = '';
             if (pageData.length === 0) {
                 container.innerHTML = '<div class="empty-state">没有符合条件的数据</div>';
+                updateFlipSevenDayCountdowns();
             } else {
                 const fragment = document.createDocumentFragment();
                 pageData.forEach(item => {
                     fragment.appendChild(createFlipCardDOM(item));
                 });
                 container.appendChild(fragment);
+                startFlipSevenDayCountdownTimer();
             }
 
             const viewFlip = document.getElementById('view-flip');
@@ -1166,7 +1252,7 @@
             if (currentVal < minPrice) {
                 input.value = minPrice;
                 if (msgDiv) {
-                    msgDiv.innerText = `⚠️ 鸡腿数不能低于底价 ${minPrice} 🍗`;
+                msgDiv.innerText = `鸡腿数不能低于底价 ${minPrice} 🍗`;
                     msgDiv.style.color = '#fa8c16';
                     setTimeout(() => {
                         if (msgDiv.innerText.includes('不能低于底价')) msgDiv.innerText = '';
@@ -1232,21 +1318,25 @@
             msgDiv.style.color = '#ff4d4f';
 
             if (!memberId) {
-                msgDiv.innerText = '⚠️ 请先选择成员';
+                msgDiv.innerText = '请先选择成员';
                 return;
             }
             if (!content) {
-                msgDiv.innerText = '⚠️ 请输入提问内容';
+                msgDiv.innerText = '请输入提问内容';
+                return;
+            }
+            if (content.length > 200) {
+                msgDiv.innerText = '翻牌内容不能超过 200 字';
                 return;
             }
             if (!answerTypeVal || !costText) {
-                msgDiv.innerText = '⚠️ 请选择有效的回答类型并确认鸡腿数';
+                msgDiv.innerText = '请选择有效的回答类型并确认鸡腿数';
                 return;
             }
 
             const cost = parseInt(costText, 10);
             if (cost < minPrice) {
-                msgDiv.innerText = `⚠️ 发送失败：您填写的鸡腿数不能低于官方设定的 ${minPrice} 🍗`;
+                msgDiv.innerText = `发送失败：您填写的鸡腿数不能低于官方设定的 ${minPrice} 🍗`;
                 if (costInput) costInput.value = String(minPrice);
                 return;
             }
@@ -1275,7 +1365,7 @@
                 });
 
                 if (res.success) {
-                    msgDiv.innerText = '✅ 发送成功！2秒后将自动跳转到翻牌记录';
+                    msgDiv.innerText = '发送成功！2秒后将自动跳转到翻牌记录';
                     msgDiv.style.color = '#28a745';
 
                     const contentInput = document.getElementById('flip-content-input');
@@ -1298,13 +1388,13 @@
                         void updateLatestFlips();
                     }, 2000);
                 } else {
-                    msgDiv.innerText = `❌ 发送失败: ${res.msg}`;
+                    msgDiv.innerText = `发送失败: ${res.msg}`;
                     msgDiv.style.color = '#ff4d4f';
                     btn.disabled = false;
                     btn.innerText = '提问';
                 }
             } catch (e) {
-                msgDiv.innerText = `❌ 出错: ${e.message}`;
+                msgDiv.innerText = `出错: ${e.message}`;
                 msgDiv.style.color = '#ff4d4f';
                 btn.disabled = false;
                 btn.innerText = '提问';
@@ -1320,11 +1410,11 @@
             const confirmAction = () => {
                 const token = getSafeToken();
                 if (!token) {
-                    showCardTip(questionId, '⚠️ 请先登录账号', '#ff4d4f');
+                    showCardTip(questionId, '请先登录账号', '#ff4d4f');
                     return;
                 }
 
-                showCardTip(questionId, `正在${actionName}...`, '#666');
+                showCardTip(questionId, `正在${actionName}`, '#666');
 
                 ipcRenderer.invoke('operate-flip-question', {
                     token,
@@ -1333,7 +1423,7 @@
                     operateType: 1
                 }).then(res => {
                     if (res.success) {
-                        showCardTip(questionId, `✅ ${actionName}成功`, '#28a745');
+                        showCardTip(questionId, `${actionName}成功`, '#28a745');
 
                         const nextData = getFlipData().filter(item => String(item.questionId) !== String(questionId));
                         setFlipData(nextData);
@@ -1347,10 +1437,10 @@
                             }
                         }, 500);
                     } else {
-                        showCardTip(questionId, `❌ ${actionName}失败: ${res.msg}`, '#ff4d4f');
+                        showCardTip(questionId, `${actionName}失败: ${res.msg}`, '#ff4d4f');
                     }
                 }).catch(e => {
-                    showCardTip(questionId, `❌ 出错: ${e.message}`, '#ff4d4f');
+                    showCardTip(questionId, `出错: ${e.message}`, '#ff4d4f');
                 });
             };
 
@@ -1365,19 +1455,13 @@
             const card = document.getElementById(`flip-card-${questionId}`);
             if (!card) return;
 
-            let tipDiv = card.querySelector('.flip-action-tip');
-            if (!tipDiv) {
-                tipDiv = document.createElement('div');
-                tipDiv.className = 'flip-action-tip';
-                tipDiv.style.cssText = 'font-size:12px; font-weight:bold; margin-top:5px; transition:all 0.3s; text-align:right;';
-                const header = card.querySelector('.Box-row > div:first-child');
-                if (header) header.insertAdjacentElement('afterend', tipDiv);
-                else card.prepend(tipDiv);
-            }
+            const tipDiv = card.querySelector('.flip-action-tip') || card.querySelector('[onclick^="executeDeleteFlip"]');
+            if (!tipDiv) return;
 
             tipDiv.innerText = text;
             tipDiv.style.color = color;
             tipDiv.style.opacity = '1';
+            tipDiv.style.fontWeight = '700';
 
             if (color === '#ff4d4f') {
                 setTimeout(() => {

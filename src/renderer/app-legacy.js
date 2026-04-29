@@ -206,6 +206,8 @@
         let playOfficialVideo;
         let playPreviousAudioProgram;
         let playPreviousMusic;
+        let restoreAudioProgramPlayerState;
+        let suspendAudioProgramForViewSwitch;
         let stopAudioProgram;
         let toggleAudioProgramQueue;
         let toggleMusicQueue;
@@ -501,7 +503,25 @@
         }
 
         function stopPlaybackOnViewChange(nextViewName) {
+            const officialSiteMusicAudio = document.getElementById('official-site-music-audio');
+            const audioProgramAudio = document.getElementById('native-audio-player');
+            const shouldSuspendOfficialSiteMusic = nextViewName !== 'official-site-music'
+                && officialSiteMusicAudio
+                && typeof window.suspendOfficialSiteMusicForViewSwitch === 'function';
+            const shouldSuspendAudioProgram = nextViewName !== 'audio-programs'
+                && audioProgramAudio
+                && typeof window.suspendAudioProgramForViewSwitch === 'function';
+            if (shouldSuspendOfficialSiteMusic) {
+                window.suspendOfficialSiteMusicForViewSwitch();
+            }
+            if (shouldSuspendAudioProgram) {
+                window.suspendAudioProgramForViewSwitch();
+            }
+
             document.querySelectorAll('audio, video').forEach(mediaEl => {
+                if (shouldSuspendOfficialSiteMusic && mediaEl === officialSiteMusicAudio) return;
+                if (shouldSuspendAudioProgram && mediaEl === audioProgramAudio) return;
+
                 try {
                     mediaEl.pause();
                 } catch (error) { }
@@ -511,7 +531,7 @@
                 } catch (error) { }
             });
 
-            if (currentPlayingAudio) {
+            if (currentPlayingAudio && currentPlayingAudio !== officialSiteMusicAudio && currentPlayingAudio !== audioProgramAudio) {
                 currentPlayingAudio.pause();
                 currentPlayingAudio.currentTime = 0;
                 currentPlayingAudio = null;
@@ -526,7 +546,7 @@
             }
 
             if (nextViewName !== 'audio-programs') {
-                if (typeof stopAudioProgram === 'function') stopAudioProgram();
+                if (!shouldSuspendAudioProgram && typeof stopAudioProgram === 'function') stopAudioProgram();
             }
 
             if (nextViewName !== 'video-library') {
@@ -546,6 +566,12 @@
                 const musicAudio = document.getElementById('music-native-audio');
                 if (musicAudio) musicAudio.pause();
             }
+
+            if (nextViewName !== 'official-site-music') {
+                if (!shouldSuspendOfficialSiteMusic && officialSiteMusicAudio) {
+                    officialSiteMusicAudio.pause();
+                }
+            }
         }
 
         function getPrimaryViewElements() {
@@ -555,6 +581,7 @@
                 document.getElementById('view-media'),
                 document.getElementById('view-downloads'),
                 document.getElementById('view-database'),
+                document.getElementById('view-official-site-music'),
                 document.getElementById('view-login'),
                 document.getElementById('view-fetch'),
                 document.getElementById('view-private-messages'),
@@ -852,6 +879,7 @@
             messages: '消息检索',
             downloads: '下载管理',
             database: '数据库',
+            'official-site-music': '音乐',
             login: '账号设置',
             fetch: '抓取消息',
             'private-messages': '私信列表',
@@ -909,6 +937,7 @@
                 const mediaView = document.getElementById('view-media');
                 const downloadsView = document.getElementById('view-downloads');
                 const databaseView = document.getElementById('view-database');
+                const officialSiteMusicView = document.getElementById('view-official-site-music');
                 const loginView = document.getElementById('view-login');
                 const fetchView = document.getElementById('view-fetch');
                 const privateMessagesView = document.getElementById('view-private-messages');
@@ -996,6 +1025,15 @@
                     if (databaseView) databaseView.style.display = 'block';
                     if (typeof window.mountDatabaseView === 'function') {
                         window.mountDatabaseView();
+                    }
+
+                } else if (viewName === 'official-site-music') {
+                    setGlobalSidebarVisible(false);
+                    setSidebarHomeMode(false);
+                    toggleSidebarMode('login');
+                    if (officialSiteMusicView) officialSiteMusicView.style.display = 'flex';
+                    if (typeof window.loadOfficialSiteMusic === 'function') {
+                        window.loadOfficialSiteMusic();
                     }
 
                 } else if (viewName === 'private-messages') {
@@ -1135,7 +1173,13 @@
 
                     const list = document.getElementById('audio-programs-list');
                     if (list && list.innerHTML.trim() === '') {
-                        loadAudioPrograms(0);
+                        Promise.resolve(loadAudioPrograms(0)).finally(() => {
+                            if (typeof window.restoreAudioProgramPlayerState === 'function') {
+                                window.restoreAudioProgramPlayerState();
+                            }
+                        });
+                    } else if (typeof window.restoreAudioProgramPlayerState === 'function') {
+                        window.restoreAudioProgramPlayerState();
                     }
 
                 } else if (viewName === 'music-library') {
@@ -1208,7 +1252,7 @@
                 { id: 'btn-sb-room-radio', defaultText: '房间电台', targetView: 'room-radio' },
                 { id: 'btn-sb-audio-programs', defaultText: '电台', targetView: 'audio-programs' },
                 { id: 'btn-sb-video-library', defaultText: '视频', targetView: 'video-library' },
-                { id: 'btn-sb-music-library', defaultText: '音乐', targetView: 'music-library' },
+                { id: 'btn-sb-music-library', defaultText: '音乐', targetView: 'official-site-music' },
                 { id: 'btn-sb-followed-rooms', defaultText: '口袋房间', targetView: 'followed-rooms' },
             ];
 
@@ -2004,9 +2048,11 @@
         }));
 
         ({
+            checkPrivateMessageFlipCostMin,
             closePrivateMessageDetail,
             filterPrivateMessageList,
             flushPrivateMessagePendingMessages,
+            handlePrivateMessageFlipCostInput,
             handlePrivateMessageReplyKeydown,
             loadMorePrivateMessageDetail,
             loadMorePrivateMessageList,
@@ -2017,7 +2063,14 @@
             resetPrivateMessageDetailPanel,
             sendPrivateMessageReply,
             startPrivateMessagePolling,
-            stopPrivateMessagePolling
+            stopPrivateMessagePolling,
+            syncPrivateMessageFlipControls,
+            togglePrivateMessageFlipAnswerDropdown,
+            togglePrivateMessageFlipPrivacyDropdown,
+            selectPrivateMessageFlipAnswer,
+            selectPrivateMessageFlipPrivacy,
+            updatePrivateMessageReplyCounter,
+            updatePrivateMessageFlipCostDisplay
         } = window.YayaRendererFeatures.createPrivateMessagesFeature({
             privateMessageListState,
             privateMessageDetailState,
@@ -2033,6 +2086,7 @@
             getAppToken: () => getCurrentAppToken(),
             getCurrentPlayingAudio: () => currentPlayingAudio,
             getCurrentSearchKeyword: () => (document.getElementById('private-message-search')?.value || ''),
+            getMemberData: () => memberData || [],
             getPrivateMessageAvatar,
             getPrivateMessageConversationKey,
             getPrivateMessageDisplayName,
@@ -2050,12 +2104,21 @@
         window.closePrivateMessageDetail = closePrivateMessageDetail;
         window.filterPrivateMessageList = filterPrivateMessageList;
         window.flushPrivateMessagePendingMessages = flushPrivateMessagePendingMessages;
+        window.handlePrivateMessageFlipCostInput = handlePrivateMessageFlipCostInput;
         window.handlePrivateMessageReplyKeydown = handlePrivateMessageReplyKeydown;
         window.loadMorePrivateMessageDetail = loadMorePrivateMessageDetail;
         window.loadMorePrivateMessageList = loadMorePrivateMessageList;
         window.openPrivateMessageDetail = openPrivateMessageDetail;
         window.refreshPrivateMessageList = refreshPrivateMessageList;
         window.sendPrivateMessageReply = sendPrivateMessageReply;
+        window.checkPrivateMessageFlipCostMin = checkPrivateMessageFlipCostMin;
+        window.syncPrivateMessageFlipControls = syncPrivateMessageFlipControls;
+        window.togglePrivateMessageFlipAnswerDropdown = togglePrivateMessageFlipAnswerDropdown;
+        window.togglePrivateMessageFlipPrivacyDropdown = togglePrivateMessageFlipPrivacyDropdown;
+        window.selectPrivateMessageFlipAnswer = selectPrivateMessageFlipAnswer;
+        window.selectPrivateMessageFlipPrivacy = selectPrivateMessageFlipPrivacy;
+        window.updatePrivateMessageReplyCounter = updatePrivateMessageReplyCounter;
+        window.updatePrivateMessageFlipCostDisplay = updatePrivateMessageFlipCostDisplay;
 
         ({
             directToPotPlayer,
@@ -5171,6 +5234,8 @@
             playOfficialVideo,
             playPreviousAudioProgram,
             playPreviousMusic,
+            restoreAudioProgramPlayerState,
+            suspendAudioProgramForViewSwitch,
             stopAudioProgram,
             toggleAudioProgramQueue,
             toggleMusicQueue
@@ -5200,6 +5265,8 @@
         window.playOfficialVideo = playOfficialVideo;
         window.playPreviousAudioProgram = playPreviousAudioProgram;
         window.playPreviousMusic = playPreviousMusic;
+        window.restoreAudioProgramPlayerState = restoreAudioProgramPlayerState;
+        window.suspendAudioProgramForViewSwitch = suspendAudioProgramForViewSwitch;
         window.toggleAudioProgramQueue = toggleAudioProgramQueue;
         window.toggleMusicQueue = toggleMusicQueue;
 

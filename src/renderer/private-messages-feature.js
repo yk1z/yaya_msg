@@ -17,6 +17,7 @@
             getAppToken,
             getCurrentPlayingAudio,
             getCurrentSearchKeyword,
+            getMemberData,
             getPrivateMessageAvatar,
             getPrivateMessageConversationKey,
             getPrivateMessageDisplayName,
@@ -38,6 +39,9 @@
         let privateMessageAutoRefreshEnabled = false;
         let privateMessagePendingItems = [];
         let privateMessagePendingKeys = new Set();
+        let privateMessageFlipPrices = [];
+        let privateMessageFlipMember = null;
+        let privateMessageFlipLoading = false;
 
         function setPrivateMessageDetailLoading(isLoading) {
             privateMessageDetailState.loading = isLoading;
@@ -88,9 +92,20 @@
             privateMessageDetailState.sending = isSending;
             const btn = document.getElementById('btn-send-private-message');
             const input = document.getElementById('private-message-reply-input');
+            const flipEnabled = document.getElementById('private-message-flip-enabled');
+            const flipAnswer = document.getElementById('private-message-flip-answer-display');
+            const flipPrivacy = document.getElementById('private-message-flip-privacy-display');
+            const flipCost = document.getElementById('private-message-flip-cost-input');
             const disabled = !privateMessageDetailState.targetUserId || isSending;
             if (btn) btn.disabled = disabled;
             if (input) input.disabled = disabled;
+            if (flipEnabled) flipEnabled.disabled = disabled || !privateMessageFlipMember;
+            if (flipAnswer) flipAnswer.disabled = disabled || !isPrivateMessageFlipEnabled() || privateMessageFlipPrices.length === 0;
+            if (flipPrivacy) flipPrivacy.disabled = disabled || !isPrivateMessageFlipEnabled() || privateMessageFlipPrices.length === 0;
+            if (flipCost) flipCost.disabled = disabled || !isPrivateMessageFlipEnabled() || privateMessageFlipPrices.length === 0;
+            if (btn) btn.textContent = isSending
+                ? (isPrivateMessageFlipEnabled() ? '发送翻牌中...' : '发送中...')
+                : (isPrivateMessageFlipEnabled() ? '发送翻牌' : '发送');
         }
 
         function resetPrivateMessageDetailPanel() {
@@ -117,6 +132,8 @@
             if (bodyEl) bodyEl.innerHTML = '<div class="empty-state">请选择一个私信会话</div>';
 
             resetPrivateMessagePendingMessages();
+            resetPrivateMessageFlipPanel();
+            updatePrivateMessageReplyCounter();
             setPrivateMessageSending(false);
             setPrivateMessageDetailLoading(false);
         }
@@ -373,6 +390,372 @@
             return getAppToken();
         }
 
+        function getPrivateMessageSafePa() {
+            return window.getPA ? window.getPA() : null;
+        }
+
+        function getPrivateMessageSourceMembers() {
+            const data = typeof getMemberData === 'function' ? getMemberData() : window.memberData;
+            return Array.isArray(data) ? data : [];
+        }
+
+        function getPrivateMessageMemberRecordIds(member = {}) {
+            return [
+                member.id,
+                member.userId,
+                member.memberId,
+                member.ownerId,
+                member.starId
+            ].map(value => String(value || '').trim()).filter(Boolean);
+        }
+
+        function getPrivateMessageFlipMemberId(member = {}) {
+            const targetId = String(privateMessageDetailState.targetUserId || '').trim();
+            const recordIds = getPrivateMessageMemberRecordIds(member);
+            if (targetId && recordIds.includes(targetId)) return targetId;
+            return '';
+        }
+
+        function findActivePrivateMessageMember() {
+            const targetId = String(privateMessageDetailState.targetUserId || '').trim();
+            if (!targetId) return null;
+
+            const members = getPrivateMessageSourceMembers();
+            if (!members.length) return null;
+
+            return members.find(member => {
+                const ids = getPrivateMessageMemberRecordIds(member);
+                return ids.some(id => id === targetId);
+            }) || null;
+        }
+
+        function getPrivateMessageFlipAnswerName(answerType) {
+            const names = { 1: '文字', 2: '语音', 3: '视频' };
+            return `${names[Number(answerType)] || `类型 ${answerType}`}翻牌`;
+        }
+
+        function getPrivateMessageFlipPanelElements() {
+            return {
+                panel: document.getElementById('private-message-flip-panel'),
+                enabled: document.getElementById('private-message-flip-enabled'),
+                answerType: document.getElementById('private-message-flip-answer-type'),
+                answerDisplay: document.getElementById('private-message-flip-answer-display'),
+                answerDropdown: document.getElementById('private-message-flip-answer-dropdown'),
+                privacyType: document.getElementById('private-message-flip-privacy-type'),
+                privacyDisplay: document.getElementById('private-message-flip-privacy-display'),
+                privacyDropdown: document.getElementById('private-message-flip-privacy-dropdown'),
+                costInput: document.getElementById('private-message-flip-cost-input'),
+                status: document.getElementById('private-message-flip-status'),
+                sendButton: document.getElementById('btn-send-private-message')
+            };
+        }
+
+        function setPrivateMessageFlipStatus(text = '', tone = '') {
+            const { status } = getPrivateMessageFlipPanelElements();
+            if (!status) return;
+
+            status.textContent = text;
+            status.dataset.tone = tone || '';
+        }
+
+        function setPrivateMessageFlipPanelVisible(isVisible) {
+            const { panel } = getPrivateMessageFlipPanelElements();
+            if (panel) panel.style.display = isVisible ? 'flex' : 'none';
+        }
+
+        function resetPrivateMessageFlipPanel() {
+            privateMessageFlipPrices = [];
+            privateMessageFlipMember = null;
+            privateMessageFlipLoading = false;
+
+            const { enabled, answerType, answerDisplay, answerDropdown, privacyType, privacyDisplay, privacyDropdown, costInput, sendButton } = getPrivateMessageFlipPanelElements();
+            if (enabled) enabled.checked = false;
+            if (answerType) {
+                answerType.value = '1';
+            }
+            if (answerDisplay) {
+                answerDisplay.value = '文字翻牌';
+                answerDisplay.disabled = true;
+            }
+            if (answerDropdown) {
+                answerDropdown.innerHTML = '';
+                answerDropdown.style.display = 'none';
+            }
+            if (privacyType) {
+                privacyType.value = '1';
+            }
+            if (privacyDisplay) {
+                privacyDisplay.value = '公开';
+                privacyDisplay.disabled = true;
+            }
+            if (privacyDropdown) {
+                privacyDropdown.style.display = 'none';
+            }
+            if (costInput) {
+                costInput.value = '0';
+                costInput.dataset.minPrice = '0';
+                costInput.disabled = true;
+            }
+            if (sendButton && !privateMessageDetailState.sending) {
+                sendButton.textContent = '发送';
+            }
+            setPrivateMessageFlipStatus('');
+            setPrivateMessageFlipPanelVisible(false);
+        }
+
+        function populatePrivateMessageFlipOptions() {
+            const { answerType, answerDisplay, answerDropdown } = getPrivateMessageFlipPanelElements();
+            if (!answerDropdown) return;
+
+            answerDropdown.innerHTML = '';
+            const enabledPrices = privateMessageFlipPrices.filter(item => Number(item.status) === 1);
+            if (!enabledPrices.length) {
+                const item = document.createElement('div');
+                item.className = 'suggestion-item';
+                item.style.color = '#999';
+                item.style.cursor = 'default';
+                item.textContent = '未开通';
+                answerDropdown.appendChild(item);
+                if (answerType) answerType.value = '';
+                if (answerDisplay) {
+                    answerDisplay.value = '未开通';
+                    answerDisplay.disabled = true;
+                }
+                return;
+            }
+
+            enabledPrices.forEach(item => {
+                const option = document.createElement('div');
+                option.className = 'suggestion-item';
+                option.textContent = getPrivateMessageFlipAnswerName(item.answerType);
+                option.onclick = () => selectPrivateMessageFlipAnswer(item.answerType, option.textContent);
+                answerDropdown.appendChild(option);
+            });
+
+            const first = enabledPrices[0];
+            if (first) {
+                selectPrivateMessageFlipAnswer(first.answerType, getPrivateMessageFlipAnswerName(first.answerType));
+            }
+        }
+
+        function togglePrivateMessageFlipAnswerDropdown() {
+            const { answerDisplay, answerDropdown, privacyDropdown } = getPrivateMessageFlipPanelElements();
+            if (!answerDisplay || answerDisplay.disabled || !answerDropdown) return;
+            if (privacyDropdown) privacyDropdown.style.display = 'none';
+            answerDropdown.style.display = answerDropdown.style.display === 'block' ? 'none' : 'block';
+        }
+
+        function selectPrivateMessageFlipAnswer(value, text) {
+            const { answerType, answerDisplay, answerDropdown } = getPrivateMessageFlipPanelElements();
+            if (answerType) answerType.value = String(value || '');
+            if (answerDisplay) answerDisplay.value = text || getPrivateMessageFlipAnswerName(value);
+            if (answerDropdown) answerDropdown.style.display = 'none';
+            updatePrivateMessageFlipCostDisplay();
+        }
+
+        function togglePrivateMessageFlipPrivacyDropdown() {
+            const { privacyDisplay, privacyDropdown, answerDropdown } = getPrivateMessageFlipPanelElements();
+            if (!privacyDisplay || privacyDisplay.disabled || !privacyDropdown) return;
+            if (answerDropdown) answerDropdown.style.display = 'none';
+            privacyDropdown.style.display = privacyDropdown.style.display === 'block' ? 'none' : 'block';
+        }
+
+        function selectPrivateMessageFlipPrivacy(value, text) {
+            const { privacyType, privacyDisplay, privacyDropdown } = getPrivateMessageFlipPanelElements();
+            if (privacyType) privacyType.value = String(value || '1');
+            if (privacyDisplay) privacyDisplay.value = text || '公开';
+            if (privacyDropdown) privacyDropdown.style.display = 'none';
+            updatePrivateMessageFlipCostDisplay();
+        }
+
+        function closePrivateMessageFlipDropdowns(event) {
+            const { answerDropdown, privacyDropdown } = getPrivateMessageFlipPanelElements();
+            if (!answerDropdown && !privacyDropdown) return;
+
+            const target = event?.target;
+            const answerWrap = document.getElementById('private-message-flip-answer-wrapper');
+            const privacyWrap = document.getElementById('private-message-flip-privacy-wrapper');
+            const clickedInsideAnswer = !!(answerWrap && target && answerWrap.contains(target));
+            const clickedInsidePrivacy = !!(privacyWrap && target && privacyWrap.contains(target));
+
+            if (!clickedInsideAnswer && answerDropdown) answerDropdown.style.display = 'none';
+            if (!clickedInsidePrivacy && privacyDropdown) privacyDropdown.style.display = 'none';
+        }
+
+        document.addEventListener('click', closePrivateMessageFlipDropdowns);
+
+        function updatePrivateMessageFlipCostDisplay() {
+            const { answerType, privacyType, costInput } = getPrivateMessageFlipPanelElements();
+            if (!answerType || !privacyType || !costInput) return;
+
+            const answerTypeValue = Number(answerType.value);
+            const config = privateMessageFlipPrices.find(item => Number(item.answerType) === answerTypeValue);
+            if (!config) {
+                costInput.value = '0';
+                costInput.dataset.minPrice = '0';
+                costInput.disabled = true;
+                return;
+            }
+
+            const privacy = String(privacyType.value || '1');
+            let price = Number(config.normalCost) || 0;
+            if (privacy === '2') price = Number(config.privateCost) || 0;
+            if (privacy === '3') price = Number(config.anonymityCost) || 0;
+
+            costInput.value = String(price);
+            costInput.dataset.minPrice = String(price);
+            costInput.disabled = false;
+        }
+
+        function checkPrivateMessageFlipCostMin() {
+            const { costInput } = getPrivateMessageFlipPanelElements();
+            if (!costInput) return;
+
+            const minPrice = Number(costInput.dataset.minPrice || 0) || 0;
+            const currentCost = Number(costInput.value || 0) || 0;
+            if (currentCost < minPrice) {
+                costInput.value = String(minPrice);
+                setPrivateMessageFlipStatus(`鸡腿数不能低于 ${minPrice}`, 'warn');
+            }
+        }
+
+        function handlePrivateMessageFlipCostInput() {
+            const { costInput } = getPrivateMessageFlipPanelElements();
+            if (!costInput) return;
+
+            const normalized = String(costInput.value || '').replace(/[^\d]/g, '');
+            if (costInput.value !== normalized) {
+                costInput.value = normalized;
+            }
+
+            if (normalized) {
+                const minPrice = Number(costInput.dataset.minPrice || 0) || 0;
+                const currentCost = Number(normalized) || 0;
+                if (currentCost >= minPrice) {
+                    setPrivateMessageFlipStatus('');
+                }
+            }
+        }
+
+        function isPrivateMessageFlipEnabled() {
+            const { panel, enabled } = getPrivateMessageFlipPanelElements();
+            return !!(panel && panel.style.display !== 'none' && enabled && enabled.checked);
+        }
+
+        function updatePrivateMessageReplyCounter() {
+            const input = document.getElementById('private-message-reply-input');
+            const counter = document.getElementById('private-message-reply-count');
+            if (!input || !counter) return;
+
+            if (!isPrivateMessageFlipEnabled()) {
+                input.removeAttribute('maxlength');
+                counter.style.display = 'none';
+                counter.textContent = '0/200';
+                counter.classList.remove('is-limit');
+                return;
+            }
+
+            const count = input.value.length;
+            counter.textContent = `${count}/200`;
+            counter.style.display = 'block';
+            counter.classList.toggle('is-limit', count > 200);
+        }
+
+        function syncPrivateMessageFlipControls() {
+            const { enabled, answerDisplay, answerDropdown, privacyDisplay, privacyDropdown, costInput, sendButton } = getPrivateMessageFlipPanelElements();
+            const isEnabled = !!(enabled && enabled.checked);
+            const canToggleFlip = privateMessageFlipPrices.length > 0
+                && !!privateMessageFlipMember
+                && !privateMessageFlipLoading
+                && !privateMessageDetailState.sending;
+            const canUseFlip = isEnabled && canToggleFlip;
+
+            if (enabled) enabled.disabled = !canToggleFlip;
+            if (answerDisplay) answerDisplay.disabled = !canUseFlip;
+            if (privacyDisplay) privacyDisplay.disabled = !canUseFlip;
+            if (costInput) costInput.disabled = !canUseFlip;
+            if (!canUseFlip) {
+                if (answerDropdown) answerDropdown.style.display = 'none';
+                if (privacyDropdown) privacyDropdown.style.display = 'none';
+            }
+            if (sendButton && !privateMessageDetailState.sending) {
+                sendButton.textContent = isEnabled ? '发送翻牌' : '发送';
+            }
+
+            if (isEnabled && !privateMessageFlipPrices.length && !privateMessageFlipLoading) {
+                setPrivateMessageFlipStatus('该成员暂未开通翻牌', 'warn');
+            } else if (!isEnabled && !privateMessageFlipLoading) {
+                setPrivateMessageFlipStatus('');
+            }
+
+            updatePrivateMessageReplyCounter();
+        }
+
+        async function refreshPrivateMessageFlipPanel() {
+            resetPrivateMessageFlipPanel();
+
+            const targetId = String(privateMessageDetailState.targetUserId || '').trim();
+            if (!targetId) return;
+
+            if (!getPrivateMessagesMemberDataLoaded() && typeof loadMemberData === 'function') {
+                try {
+                    await loadMemberData();
+                } catch (error) {
+                    console.warn('私信翻牌入口加载成员库失败:', error);
+                }
+            }
+
+            const member = findActivePrivateMessageMember();
+            if (!member) return;
+
+            const memberId = getPrivateMessageFlipMemberId(member);
+            if (!memberId) return;
+
+            if (String(privateMessageDetailState.targetUserId || '').trim() !== targetId) return;
+
+            privateMessageFlipMember = {
+                id: memberId,
+                name: member.ownerName || member.nickname || member.name || privateMessageDetailState.title || '成员'
+            };
+
+            const { enabled } = getPrivateMessageFlipPanelElements();
+            if (enabled) enabled.checked = true;
+            setPrivateMessageFlipPanelVisible(true);
+            setPrivateMessageFlipStatus('');
+            privateMessageFlipLoading = true;
+
+            try {
+                const token = getPrivateMessagesToken();
+                const res = await ipcRenderer.invoke('fetch-flip-prices', {
+                    token,
+                    pa: getPrivateMessageSafePa(),
+                    memberId
+                });
+
+                if (String(privateMessageDetailState.targetUserId || '').trim() !== targetId) return;
+
+                if (res && res.success && res.content && Array.isArray(res.content.customs)) {
+                    privateMessageFlipPrices = res.content.customs;
+                    populatePrivateMessageFlipOptions();
+                    updatePrivateMessageFlipCostDisplay();
+                    setPrivateMessageFlipStatus(privateMessageFlipPrices.length ? '' : '该成员暂未开通翻牌', privateMessageFlipPrices.length ? '' : 'warn');
+                } else {
+                    privateMessageFlipPrices = [];
+                    populatePrivateMessageFlipOptions();
+                    setPrivateMessageFlipStatus(`翻牌设置读取失败: ${res?.msg || '未知错误'}`, 'error');
+                }
+            } catch (error) {
+                if (String(privateMessageDetailState.targetUserId || '').trim() !== targetId) return;
+                privateMessageFlipPrices = [];
+                populatePrivateMessageFlipOptions();
+                setPrivateMessageFlipStatus(`翻牌设置读取失败: ${error.message}`, 'error');
+            } finally {
+                if (String(privateMessageDetailState.targetUserId || '').trim() !== targetId) return;
+                privateMessageFlipLoading = false;
+                syncPrivateMessageFlipControls();
+            }
+        }
+
         async function loadPrivateMessageDetail({ targetUserId, title, avatar, reset = false, isAutoRefresh = false } = {}) {
             const token = getPrivateMessagesToken();
             if (!token) {
@@ -402,7 +785,9 @@
                 clearActivePrivateMessageUnread(privateMessageDetailState.targetUserId);
                 filterPrivateMessageList(getCurrentSearchKeyword());
                 renderPrivateMessageDetail();
+                updatePrivateMessageReplyCounter();
                 setPrivateMessageSending(false);
+                void refreshPrivateMessageFlipPanel();
             }
 
             if (!privateMessageDetailState.targetUserId || privateMessageDetailState.loading) return;
@@ -564,12 +949,14 @@
                                     <div class="private-message-name">${escapePrivateMessageHtml(displayName)}</div>
                                     ${shouldShowTeam ? `<span class="private-message-team-badge" style="${teamStyle}">${escapePrivateMessageHtml(teamLabel)}</span>` : ''}
                                 </div>
-                                <div class="private-message-time">${escapePrivateMessageHtml(formatPrivateMessageTime(item.newestMessagetime))}</div>
                             </div>
                             <div class="private-message-list-tail">
                                 <span class="private-message-last">${escapePrivateMessageHtml(preview)}</span>
-                                ${unread > 0 ? `<span class="private-message-unread-dot">${Math.min(unread, 99)}</span>` : ''}
                             </div>
+                        </div>
+                        <div class="private-message-list-side">
+                            <div class="private-message-time">${escapePrivateMessageHtml(formatPrivateMessageTime(item.newestMessagetime))}</div>
+                            ${unread > 0 ? `<span class="private-message-unread-dot">${Math.min(unread, 99)}</span>` : ''}
                         </div>
                     </div>
                 `;
@@ -735,11 +1122,107 @@
             }
         }
 
+        async function sendPrivateMessageFlipQuestion(text, input) {
+            const token = getPrivateMessagesToken();
+            const { answerType, privacyType, costInput } = getPrivateMessageFlipPanelElements();
+
+            if (!privateMessageFlipMember || !privateMessageFlipMember.id) {
+                setPrivateMessageFlipStatus('当前私信对象不是可翻牌成员', 'error');
+                return;
+            }
+
+            if (privateMessageFlipLoading) {
+                setPrivateMessageFlipStatus('翻牌设置还在读取中', 'warn');
+                return;
+            }
+
+            const answerTypeValue = Number(answerType?.value || 0);
+            const privacyValue = Number(privacyType?.value || 1);
+            const cost = parseInt(costInput?.value || '0', 10) || 0;
+            const minPrice = parseInt(costInput?.dataset.minPrice || '0', 10) || 0;
+
+            if (!answerTypeValue || !privateMessageFlipPrices.length) {
+                setPrivateMessageFlipStatus('请选择有效的翻牌类型', 'error');
+                return;
+            }
+
+            if (cost < minPrice) {
+                if (costInput) costInput.value = String(minPrice);
+                setPrivateMessageFlipStatus(`鸡腿数不能低于 ${minPrice}`, 'warn');
+                return;
+            }
+
+            setPrivateMessageSending(true);
+            setPrivateMessageFlipStatus('正在发送翻牌...', '');
+
+            try {
+                const payload = {
+                    memberId: Number(privateMessageFlipMember.id),
+                    content: text,
+                    type: privacyValue,
+                    cost,
+                    answerType: answerTypeValue
+                };
+
+                const res = await ipcRenderer.invoke('send-flip-question', {
+                    token,
+                    pa: getPrivateMessageSafePa(),
+                    payload
+                });
+
+                if (!res || !res.success) {
+                    throw new Error(res && res.msg ? res.msg : '发送失败');
+                }
+
+                privateMessageDetailState.items.push({
+                    messageId: `local-flip-${Date.now()}`,
+                    timestamp: Date.now(),
+                    messageType: 'FLIPCARD_QUESTION',
+                    content: {
+                        messageType: 'FLIPCARD_QUESTION',
+                        text,
+                        question: text
+                    },
+                    question: text
+                });
+                renderPrivateMessageDetail({ stickToBottom: true });
+
+                const conversation = privateMessageListState.items.find(entry => String(entry.user?.userId || '') === String(privateMessageDetailState.targetUserId));
+                if (conversation) {
+                    conversation.newestMessage = '[翻牌提问]';
+                    conversation.newestMessagetime = Date.now();
+                    filterPrivateMessageList(getCurrentSearchKeyword(), { preserveScroll: true });
+                }
+
+                if (input) {
+                    input.value = '';
+                    input.focus();
+                }
+
+                setPrivateMessageFlipStatus('翻牌发送成功', 'success');
+                setTimeout(() => {
+                    const { status } = getPrivateMessageFlipPanelElements();
+                    if (status && status.textContent === '翻牌发送成功' && status.dataset.tone === 'success') {
+                        setPrivateMessageFlipStatus('');
+                    }
+                }, 3000);
+            } catch (error) {
+                console.error('发送私信翻牌失败:', error);
+                setPrivateMessageFlipStatus(`发送失败: ${error.message}`, 'error');
+            } finally {
+                setPrivateMessageSending(false);
+            }
+        }
+
         async function sendPrivateMessageReply() {
             if (privateMessageDetailState.sending) return;
             const token = getPrivateMessagesToken();
             if (!token) {
-                showToast('请先登录账号');
+                if (isPrivateMessageFlipEnabled()) {
+                    setPrivateMessageFlipStatus('请先登录账号', 'error');
+                } else {
+                    showToast('请先登录账号');
+                }
                 return switchView('login');
             }
             if (!privateMessageDetailState.targetUserId) return;
@@ -747,16 +1230,28 @@
             const input = document.getElementById('private-message-reply-input');
             const rawText = input ? input.value : '';
             const text = String(rawText || '').trim();
+            const isFlipMode = isPrivateMessageFlipEnabled();
             if (!text) {
+                if (isFlipMode) {
+                    setPrivateMessageFlipStatus('请输入内容', 'error');
+                    return;
+                }
                 return showToast('请输入私信内容');
+            }
+
+            if (isFlipMode) {
+                if (text.length > 200) {
+                    setPrivateMessageFlipStatus('翻牌内容不能超过 200 字', 'error');
+                    return;
+                }
+                return sendPrivateMessageFlipQuestion(text, input);
             }
 
             setPrivateMessageSending(true);
             try {
-                const pa = window.getPA ? window.getPA() : null;
                 const res = await ipcRenderer.invoke('send-private-message-reply', {
                     token,
-                    pa,
+                    pa: getPrivateMessageSafePa(),
                     targetUserId: privateMessageDetailState.targetUserId,
                     text
                 });
@@ -846,8 +1341,10 @@
 
         return {
             closePrivateMessageDetail,
+            checkPrivateMessageFlipCostMin,
             filterPrivateMessageList,
             flushPrivateMessagePendingMessages,
+            handlePrivateMessageFlipCostInput,
             handlePrivateMessageReplyKeydown,
             loadMorePrivateMessageDetail,
             loadMorePrivateMessageList,
@@ -858,7 +1355,14 @@
             resetPrivateMessageDetailPanel,
             sendPrivateMessageReply,
             startPrivateMessagePolling,
-            stopPrivateMessagePolling
+            stopPrivateMessagePolling,
+            syncPrivateMessageFlipControls,
+            togglePrivateMessageFlipAnswerDropdown,
+            togglePrivateMessageFlipPrivacyDropdown,
+            selectPrivateMessageFlipAnswer,
+            selectPrivateMessageFlipPrivacy,
+            updatePrivateMessageReplyCounter,
+            updatePrivateMessageFlipCostDisplay
         };
     };
 })();

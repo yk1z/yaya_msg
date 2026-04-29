@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy"
         content="default-src 'self' file: https: data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net https://unpkg.com https://cdn.tailwindcss.com https://esm.sh; style-src 'self' 'unsafe-inline' https:; img-src 'self' file: https: data: blob:; media-src 'self' file: https: http: data: blob:; connect-src 'self' file: https: http: ws: wss: data: blob:; font-src 'self' https: data:;">
-    <title>牙牙消息 v2.2</title>
+    <title>牙牙消息 v2.3</title>
     <link rel="icon" href="./icon.png" type="image/x-icon">
 
     <link rel="stylesheet" href="style.css">
@@ -43,7 +43,7 @@
                 </svg>
             </div>
             <img src="./icon.png" class="title-logo">
-            <span>牙牙消息 v2.2</span>
+            <span>牙牙消息 v2.3</span>
         </div>
         <div id="topbar-page-title" class="title-bar-center-title" aria-live="polite"></div>
         <div class="window-controls">
@@ -161,7 +161,7 @@
                     <button id="btn-sb-video-library" class="btn btn-secondary btn-full"
                         style="flex: 1; height: 38px; padding: 0;" onclick="switchView('video-library')">视频</button>
                     <button id="btn-sb-music-library" class="btn btn-secondary btn-full"
-                        style="flex: 1; height: 38px; padding: 0;" onclick="switchView('music-library')">音乐</button>
+                        style="flex: 1; height: 38px; padding: 0;" onclick="switchView('official-site-music')">音乐</button>
                     <button id="btn-sb-audio-programs" class="btn btn-secondary btn-full"
                         style="flex: 1; height: 38px; padding: 0;" onclick="switchView('audio-programs')">电台</button>
                 </div>
@@ -402,9 +402,9 @@
                                     <span class="home-card-title">视频</span>
                                     <span class="home-card-desc">查看视频资源</span>
                                 </button>
-                                <button class="home-card" onclick="switchView('music-library')">
+                                <button class="home-card" onclick="switchView('official-site-music')">
                                     <span class="home-card-title">音乐</span>
-                                    <span class="home-card-desc">进入音乐列表</span>
+                                    <span class="home-card-desc">官网音乐源</span>
                                 </button>
                                 <button class="home-card" onclick="switchView('audio-programs')">
                                     <span class="home-card-title">电台</span>
@@ -1117,6 +1117,162 @@
                 </div>
             </div>
 
+            <div id="view-official-site-music" class="main-content"
+                style="height: 100%; display: none; flex-direction: column; padding: 20px 0 0 0; box-sizing: border-box; background: transparent;">
+                <div class="list-container official-site-music-view-shell">
+                    <div class="page-header official-site-music-header">
+                        <div class="page-header-left">
+                            <h2 class="page-title">官网音乐源</h2>
+                            <span id="official-site-music-status" class="page-status" style="display: none;">未加载</span>
+                        </div>
+                        <div class="official-site-music-header-tools">
+                            <div class="official-site-music-toolbar" aria-label="分团筛选">
+                                <button type="button" class="official-site-music-filter is-active"
+                                    data-group-filter="ALL" onclick="setOfficialSiteMusicGroupFilter('ALL')">全部</button>
+                                <button type="button" class="official-site-music-filter official-site-music-favorite-filter"
+                                    data-favorites-filter onclick="toggleOfficialSiteMusicFavoritesFilter()">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                        <path d="M12 3.5l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.2-4.1 5.8-.8L12 3.5z" />
+                                    </svg>
+                                    <span>收藏</span>
+                                </button>
+                                <button type="button" class="official-site-music-filter"
+                                    data-group-filter="SNH" onclick="setOfficialSiteMusicGroupFilter('SNH')">SNH48</button>
+                                <button type="button" class="official-site-music-filter"
+                                    data-group-filter="GNZ" onclick="setOfficialSiteMusicGroupFilter('GNZ')">GNZ48</button>
+                                <button type="button" class="official-site-music-filter"
+                                    data-group-filter="BEJ" onclick="setOfficialSiteMusicGroupFilter('BEJ')">BEJ48</button>
+                                <button type="button" class="official-site-music-filter"
+                                    data-group-filter="CKG" onclick="setOfficialSiteMusicGroupFilter('CKG')">CKG48</button>
+                                <button type="button" class="official-site-music-filter"
+                                    data-group-filter="CGT" onclick="setOfficialSiteMusicGroupFilter('CGT')">CGT48</button>
+                            </div>
+                            <div class="official-site-music-search media-search-shell">
+                                <span class="media-search-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none">
+                                        <circle cx="11" cy="11" r="6.5"></circle>
+                                        <path d="M16 16L21 21"></path>
+                                    </svg>
+                                </span>
+                                <input type="text" id="official-site-music-search-input"
+                                    class="input-control media-search-input" placeholder="搜索歌曲名 / 分团 / 歌手"
+                                    oninput="handleOfficialSiteMusicSearch(this.value)">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="official-site-music-list" class="official-site-music-grid">
+                        <div class="official-site-music-empty">点击进入后加载官网曲目</div>
+                    </div>
+                </div>
+
+                <div class="official-site-music-player-wrap">
+                    <div id="official-site-music-lyrics-panel" class="music-lyrics-panel" style="display: none;">
+                        <div class="music-lyrics-panel-header">
+                            <div class="music-lyrics-panel-title-group">
+                                <span class="music-lyrics-panel-title">歌词</span>
+                                <span id="official-site-music-lyrics-panel-subtitle"
+                                    class="music-lyrics-panel-subtitle">未载入歌词</span>
+                            </div>
+                        </div>
+                        <div id="official-site-music-lyrics-empty" class="music-lyrics-empty">当前歌曲暂无歌词</div>
+                        <div id="official-site-music-lyrics-scroll" class="music-lyrics-scroll" style="display: none;">
+                            <div id="official-site-music-lyrics-lines" class="music-lyrics-lines"></div>
+                        </div>
+                    </div>
+                    <div class="premium-player-bar official-site-music-player" id="official-site-music-player">
+                        <div class="official-site-music-disc">
+                            <img id="official-site-music-cover" class="vinyl-spin vinyl-pause" src="./icon.png" alt="">
+                        </div>
+                        <div class="official-site-music-player-info">
+                            <div class="title-scroll-container">
+                                <div id="official-site-music-current-title" class="title-scroll-text">未播放</div>
+                            </div>
+                            <div class="official-site-music-subline">
+                                <div id="official-site-music-status-dot" class="official-site-music-status-dot"></div>
+                                <div id="official-site-music-current-subtitle" class="official-site-music-current-subtitle">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="official-site-music-player-controls">
+                            <div class="official-site-music-center-controls">
+                                <button class="player-step-btn" type="button" title="上一首" aria-label="上一首"
+                                    onclick="playOfficialSitePrevious()">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                        <path d="M7 6v12" />
+                                        <path d="M17 7l-7 5 7 5V7z" />
+                                    </svg>
+                                </button>
+                                <button id="official-site-music-play-btn"
+                                    class="player-toggle-icon is-play official-site-music-play-toggle" type="button"
+                                    title="播放或暂停" aria-label="播放或暂停" onclick="toggleOfficialSiteMusicPlay()">
+                                    <span class="audio-icon-play"></span>
+                                    <span class="audio-icon-pause"><span></span><span></span></span>
+                                </button>
+                                <button class="player-step-btn" type="button" title="下一首" aria-label="下一首"
+                                    onclick="playOfficialSiteNext()">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                        <path d="M17 6v12" />
+                                        <path d="M7 7l7 5-7 5V7z" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <span class="official-site-music-progress-track"></span>
+                            <span id="official-site-music-progress-fill" class="official-site-music-progress-fill"></span>
+                            <input type="range" id="official-site-music-progress" min="0" max="100" value="0" step="any"
+                                class="premium-slider official-site-music-progress">
+                            <span id="official-site-music-progress-tooltip"
+                                class="official-site-music-progress-tooltip">00:00 / 00:00</span>
+                            <div class="official-site-music-right-controls">
+                                <button id="official-site-music-favorite-btn" class="player-mini-btn player-mode-btn"
+                                    type="button" onclick="toggleOfficialSiteMusicFavorite()" title="收藏当前歌曲"
+                                    aria-label="收藏当前歌曲">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                        <path d="M12 3.5l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.2-4.1 5.8-.8L12 3.5z" />
+                                    </svg>
+                                </button>
+                                <button id="official-site-music-play-mode-btn" class="player-mini-btn player-mode-btn"
+                                    type="button" onclick="cycleOfficialSiteMusicPlayMode()" title="当前模式：顺序">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                        <path d="M4 7h14" />
+                                        <path d="M15 4l3 3-3 3" />
+                                        <path d="M20 17H6" />
+                                        <path d="M9 14l-3 3 3 3" />
+                                    </svg>
+                                </button>
+                                <button id="official-site-music-playlist-btn" class="player-mini-btn player-mode-btn"
+                                    type="button" onclick="toggleOfficialSiteMusicQueue()" title="播放列表" aria-label="播放列表">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                        <line x1="6" y1="7" x2="18" y2="7" />
+                                        <line x1="6" y1="12" x2="18" y2="12" />
+                                        <line x1="6" y1="17" x2="14" y2="17" />
+                                        <circle cx="18" cy="17" r="1.4" fill="currentColor" stroke="none" />
+                                    </svg>
+                                </button>
+                                <button id="official-site-music-lyrics-toggle-btn" class="player-mini-btn player-mode-btn"
+                                    type="button" onclick="toggleOfficialSiteMusicLyricsPanel()" title="展开歌词" aria-label="展开歌词">
+                                    <span class="official-site-music-lyrics-glyph" aria-hidden="true">词</span>
+                                </button>
+                                <div class="official-site-music-volume">
+                                    <span id="official-site-music-volume-icon" title="静音/恢复"
+                                        onclick="toggleOfficialSiteMusicMute()"></span>
+                                    <input type="range" id="official-site-music-volume-bar" min="0" max="1" step="0.01"
+                                        value="1" class="premium-slider" oninput="setOfficialSiteMusicVolume(this.value)">
+                                </div>
+                            </div>
+                        </div>
+                        <audio id="official-site-music-audio" class="official-site-music-audio" preload="none"></audio>
+                    </div>
+                    <div id="official-site-music-player-queue" class="player-queue-panel" style="display: none;">
+                        <div class="player-queue-header">
+                            <span>播放列表</span>
+                            <span id="official-site-music-player-queue-count">0 首</span>
+                        </div>
+                        <div id="official-site-music-player-queue-list" class="player-queue-list"></div>
+                    </div>
+                </div>
+            </div>
+
             <div id="view-fetch"
                 style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
                 <div class="list-container">
@@ -1241,14 +1397,64 @@
                             <div class="empty-state">请选择一个私信会话</div>
                         </div>
                         <div class="private-message-detail-actions">
-                            <div style="display:flex; gap:10px; align-items:flex-end; margin-bottom:10px;">
-                                <textarea id="private-message-reply-input" class="input-control"
-                                    placeholder="输入私信内容..."
-                                    style="height:74px; resize:none; padding:10px 12px; line-height:1.6;"
-                                    onkeydown="handlePrivateMessageReplyKeydown(event)" disabled></textarea>
+                            <div id="private-message-flip-panel" class="private-message-flip-panel" style="display:none;">
+                                <label class="private-message-flip-toggle" title="打开后会按翻牌形式发送当前输入内容">
+                                    <input type="checkbox" id="private-message-flip-enabled"
+                                        onchange="syncPrivateMessageFlipControls()">
+                                    <span>翻牌</span>
+                                </label>
+                                <div class="private-message-flip-control">
+                                    <span class="private-message-flip-label">类型</span>
+                                    <div id="private-message-flip-answer-wrapper"
+                                        class="private-message-flip-dropdown-wrap">
+                                        <input type="hidden" id="private-message-flip-answer-type">
+                                        <input type="text" id="private-message-flip-answer-display"
+                                            class="input-control private-message-flip-dropdown-input" value="文字翻牌"
+                                            readonly onclick="togglePrivateMessageFlipAnswerDropdown()" disabled>
+                                        <div class="private-message-flip-dropdown-arrow">▼</div>
+                                        <div id="private-message-flip-answer-dropdown" class="suggestion-box"></div>
+                                    </div>
+                                </div>
+                                <div class="private-message-flip-control">
+                                    <span class="private-message-flip-label">公开</span>
+                                    <div id="private-message-flip-privacy-wrapper"
+                                        class="private-message-flip-dropdown-wrap">
+                                        <input type="hidden" id="private-message-flip-privacy-type" value="1">
+                                        <input type="text" id="private-message-flip-privacy-display"
+                                            class="input-control private-message-flip-dropdown-input" value="公开"
+                                            readonly onclick="togglePrivateMessageFlipPrivacyDropdown()" disabled>
+                                        <div class="private-message-flip-dropdown-arrow">▼</div>
+                                        <div id="private-message-flip-privacy-dropdown" class="suggestion-box">
+                                            <div class="suggestion-item"
+                                                onclick="selectPrivateMessageFlipPrivacy('1', '公开')">公开</div>
+                                            <div class="suggestion-item"
+                                                onclick="selectPrivateMessageFlipPrivacy('3', '匿名')">匿名</div>
+                                            <div class="suggestion-item"
+                                                onclick="selectPrivateMessageFlipPrivacy('2', '私密')">私密</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="private-message-flip-cost">
+                                    <span class="private-message-flip-label">鸡腿</span>
+                                    <input type="number" id="private-message-flip-cost-input" class="input-control"
+                                        min="0" value="0" onblur="checkPrivateMessageFlipCostMin()"
+                                        oninput="handlePrivateMessageFlipCostInput()" disabled>
+                                </div>
+                                <div id="private-message-flip-status" class="private-message-flip-status"></div>
+                            </div>
+                            <div style="display:flex; gap:10px; align-items:stretch; margin-bottom:10px;">
+                                <div class="private-message-reply-wrap">
+                                    <textarea id="private-message-reply-input" class="input-control"
+                                        placeholder="请输入内容"
+                                        style="height:74px; resize:none; padding:10px 12px; line-height:1.6;"
+                                        oninput="updatePrivateMessageReplyCounter()"
+                                        onkeydown="handlePrivateMessageReplyKeydown(event)" disabled></textarea>
+                                    <div id="private-message-reply-count" class="private-message-reply-count"
+                                        style="display:none;">0/200</div>
+                                </div>
                                 <button class="btn btn-primary" id="btn-send-private-message"
                                     onclick="sendPrivateMessageReply()"
-                                    style="width:96px; flex-shrink:0;" disabled>发送</button>
+                                    style="width:96px; height:74px; flex-shrink:0;" disabled>发送</button>
                             </div>
                         </div>
                     </div>
@@ -1339,97 +1545,102 @@
                                     </div>
                                 </div>
 
-                                <div id="audio-programs-list"
-                                    style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; padding-bottom: 20px;">
+                                <div id="audio-programs-list" class="audio-programs-table"
+                                    style="display: block; padding-bottom: 20px;">
                                 </div>
 
                             </div>
                         </div>
 
-                        <div id="audio-player-bar-container"
+                        <div id="audio-player-bar-container" class="media-player-bar-container"
                             style="flex-shrink: 0; padding-top: 15px; padding-bottom: 25px; display: flex; flex-direction: column; align-items: center; background: transparent;">
-                            <div id="audio-player-bar" class="premium-player-bar"
-                                style="display: none; width: 95%; padding: 12px 20px; align-items: center; gap: 18px; border-radius: 16px; box-sizing: border-box;">
+                            <div id="audio-player-bar" class="premium-player-bar official-site-music-player audio-program-player-bar"
+                                style="display: flex;">
 
-                                <div
+                                <div class="official-site-music-disc"
                                     style="position: relative; width: 52px; height: 52px; border-radius: 50%; background: #111; padding: 2px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); flex-shrink: 0;">
-                                    <img id="audio-player-cover" class="vinyl-spin vinyl-pause" src=""
+                                    <img id="audio-player-cover" class="vinyl-spin vinyl-pause" src="./icon.png"
                                         style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; opacity: 0.9;">
-                                    <div
-                                        style="position: absolute; top: 50%; left: 50%; width: 12px; height: 12px; background: var(--input-bg); border-radius: 50%; transform: translate(-50%, -50%); border: 1px solid rgba(0,0,0,0.5); box-shadow: inset 0 1px 2px rgba(0,0,0,0.3);">
-                                    </div>
                                 </div>
 
-                                <div
+                                <div class="official-site-music-player-info has-track"
                                     style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;">
                                     <div class="title-scroll-container">
                                         <div id="audio-player-title" class="title-scroll-text">未播放</div>
                                     </div>
-                                    <div style="display: flex; align-items: center; gap: 6px;">
-                                        <div id="audio-status-dot"
+                                    <div class="official-site-music-subline" style="display: flex; align-items: center; gap: 6px;">
+                                        <div id="audio-status-dot" class="official-site-music-status-dot"
                                             style="width: 8px; height: 8px; border-radius: 50%; background: #ccc; box-shadow: 0 0 4px #ccc; transition: all 0.3s;">
                                         </div>
-                                        <div id="audio-player-subtitle"
+                                        <div id="audio-player-subtitle" class="official-site-music-current-subtitle"
                                             style="font-size: 12px; color: var(--text-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                                             准备就绪</div>
                                     </div>
                                 </div>
 
-                                <div style="flex: 2; min-width: 250px; display: flex; align-items: center; gap: 12px;">
-                                    <button class="player-step-btn" type="button" title="上一首" aria-label="上一首"
-                                        onclick="playPreviousAudioProgram()">
-                                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                                            <path d="M7 6v12" />
-                                            <path d="M17 7l-7 5 7 5V7z" />
-                                        </svg>
-                                    </button>
-                                    <button id="custom-play-btn" class="player-toggle-icon is-play"
-                                        style="width: 36px; height: 36px; border-radius: 50%; border: none; background: var(--primary); color: white; display: flex; justify-content: center; align-items: center; cursor: pointer; font-size: 14px; flex-shrink: 0; box-shadow: 0 4px 10px rgba(155, 106, 156, 0.3); transition: transform 0.1s;">
-                                        <span class="audio-icon-play"></span>
-                                        <span class="audio-icon-pause"><span></span><span></span></span>
-                                    </button>
-                                    <button class="player-step-btn" type="button" title="下一首" aria-label="下一首"
-                                        onclick="playNextAudioProgram()">
-                                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                                            <path d="M17 6v12" />
-                                            <path d="M7 7l7 5-7 5V7z" />
-                                        </svg>
-                                    </button>
+                                <div class="official-site-music-player-controls">
+                                    <div class="official-site-music-center-controls">
+                                        <button class="player-step-btn" type="button" title="上一首" aria-label="上一首"
+                                            onclick="playPreviousAudioProgram()">
+                                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                                <path d="M7 6v12" />
+                                                <path d="M17 7l-7 5 7 5V7z" />
+                                            </svg>
+                                        </button>
+                                        <button id="custom-play-btn"
+                                            class="player-toggle-icon is-play official-site-music-play-toggle" type="button">
+                                            <span class="audio-icon-play"></span>
+                                            <span class="audio-icon-pause"><span></span><span></span></span>
+                                        </button>
+                                        <button class="player-step-btn" type="button" title="下一首" aria-label="下一首"
+                                            onclick="playNextAudioProgram()">
+                                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                                <path d="M17 6v12" />
+                                                <path d="M7 7l7 5-7 5V7z" />
+                                            </svg>
+                                        </button>
+                                    </div>
 
-                                    <span id="custom-time-current"
-                                        style="font-size: 12px; color: var(--text-sub); width: 35px; text-align: right; flex-shrink: 0;">00:00</span>
+                                    <span id="custom-time-current" class="audio-program-time-current">00:00</span>
+                                    <span class="official-site-music-progress-track"></span>
+                                    <span id="audio-program-progress-fill" class="official-site-music-progress-fill"></span>
+                                    <input type="range" id="custom-progress-bar" min="0" max="100" value="0" step="any"
+                                        class="premium-slider official-site-music-progress audio-program-progress">
+                                    <span id="audio-program-progress-tooltip"
+                                        class="official-site-music-progress-tooltip">00:00 / 00:00</span>
+                                    <span id="custom-time-duration" class="audio-program-time-duration">00:00</span>
 
-                                    <input type="range" id="custom-progress-bar" min="0" max="100" value="0"
-                                        class="premium-slider" style="flex: 1; min-width: 50px;">
+                                    <div class="official-site-music-right-controls">
+                                        <button id="audio-play-mode-btn" class="player-mini-btn player-mode-btn" type="button"
+                                            onclick="cycleAudioProgramPlayMode()" title="当前模式：顺序">
+                                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                                <path d="M4 7h14" />
+                                                <path d="M15 4l3 3-3 3" />
+                                                <path d="M20 17H6" />
+                                                <path d="M9 14l-3 3 3 3" />
+                                            </svg>
+                                        </button>
+                                        <button id="audio-playlist-btn" class="player-mini-btn player-mode-btn" type="button"
+                                            onclick="toggleAudioProgramQueue()" title="播放列表" aria-label="播放列表">
+                                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                                <line x1="6" y1="7" x2="18" y2="7" />
+                                                <line x1="6" y1="12" x2="18" y2="12" />
+                                                <line x1="6" y1="17" x2="14" y2="17" />
+                                                <circle cx="18" cy="17" r="1.4" fill="currentColor" stroke="none" />
+                                            </svg>
+                                        </button>
 
-                                    <span id="custom-time-duration"
-                                        style="font-size: 12px; color: var(--text-sub); width: 35px; flex-shrink: 0;">00:00</span>
-
-                                    <button id="audio-play-mode-btn" class="player-mini-btn player-mode-btn" type="button"
-                                        onclick="cycleAudioProgramPlayMode()" title="当前模式：顺序">
-                                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                                            <path d="M4 7h14" />
-                                            <path d="M15 4l3 3-3 3" />
-                                            <path d="M20 17H6" />
-                                            <path d="M9 14l-3 3 3 3" />
-                                        </svg>
-                                    </button>
-                                    <button id="audio-playlist-btn" class="player-mini-btn player-mode-btn" type="button"
-                                        onclick="toggleAudioProgramQueue()" title="播放列表" aria-label="播放列表">
-                                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                                            <line x1="6" y1="7" x2="18" y2="7" />
-                                            <line x1="6" y1="12" x2="18" y2="12" />
-                                            <line x1="6" y1="17" x2="14" y2="17" />
-                                            <circle cx="18" cy="17" r="1.4" fill="currentColor" stroke="none" />
-                                        </svg>
-                                    </button>
-
-                                    <div
-                                        style="display: flex; align-items: center; gap: 6px; margin-left: 5px; border-left: 1px solid var(--border); padding-left: 12px;">
-                                        <span id="audio-volume-icon" title="静音/恢复"
-                                            style="cursor: pointer; font-size: 14px; color: var(--text-sub); user-select: none; width: 16px; text-align: center;">🔊</span>
-                                        <input type="range" id="audio-volume-bar" min="0" max="1" step="0.01" value="1"
-                                            class="premium-slider" style="width: 60px;">
+                                        <div class="official-site-music-volume">
+                                            <span id="audio-volume-icon" title="静音/恢复">
+                                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                                    <path d="M4 10v4h4l5 4V6L8 10H4z" />
+                                                    <path d="M15 8.5a4.5 4.5 0 0 1 0 7" />
+                                                    <path d="M18 6a8 8 0 0 1 0 12" />
+                                                </svg>
+                                            </span>
+                                            <input type="range" id="audio-volume-bar" min="0" max="1" step="0.01" value="1"
+                                                class="premium-slider">
+                                        </div>
                                     </div>
 
                                     <audio id="native-audio-player" style="display: none;"></audio>
@@ -1531,7 +1742,7 @@
                             </div>
                         </div>
 
-                        <div id="music-player-bar-container"
+                        <div id="music-player-bar-container" class="media-player-bar-container"
                             style="flex-shrink: 0; padding-top: 15px; padding-bottom: 25px; display: flex; flex-direction: column; align-items: center; background: transparent;">
                             <div id="music-lyrics-panel" class="music-lyrics-panel" style="display: none;">
                                 <div class="music-lyrics-panel-header">
@@ -1545,31 +1756,31 @@
                                     <div id="music-lyrics-lines" class="music-lyrics-lines"></div>
                                 </div>
                             </div>
-                            <div id="music-player-bar" class="premium-player-bar"
+                            <div id="music-player-bar" class="premium-player-bar media-player-bar"
                                 style="display: none; width: 95%; padding: 12px 20px; align-items: center; gap: 18px; border-radius: 16px; box-sizing: border-box; box-shadow: 0 -4px 20px rgba(0,0,0,0.15);">
-                                <div
+                                <div class="media-player-disc"
                                     style="position: relative; width: 52px; height: 52px; border-radius: 50%; background: #111; padding: 2px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); flex-shrink: 0;">
-                                    <img id="music-player-cover" class="vinyl-spin vinyl-pause" src=""
+                                    <img id="music-player-cover" class="vinyl-spin vinyl-pause media-player-cover" src=""
                                         style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; opacity: 0.9;">
                                     <div
                                         style="position: absolute; top: 50%; left: 50%; width: 12px; height: 12px; background: var(--input-bg); border-radius: 50%; transform: translate(-50%, -50%); border: 1px solid rgba(0,0,0,0.5); box-shadow: inset 0 1px 2px rgba(0,0,0,0.3);">
                                     </div>
                                 </div>
-                                <div
+                                <div class="media-player-info"
                                     style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;">
                                     <div class="title-scroll-container">
                                         <div id="music-player-title" class="title-scroll-text">未播放</div>
                                     </div>
-                                    <div style="display: flex; align-items: center; gap: 6px;">
-                                        <div id="music-status-dot"
+                                    <div class="media-player-subline" style="display: flex; align-items: center; gap: 6px;">
+                                        <div id="music-status-dot" class="media-player-status-dot"
                                             style="width: 8px; height: 8px; border-radius: 50%; background: #ccc; box-shadow: 0 0 4px #ccc; transition: all 0.3s;">
                                         </div>
-                                        <div id="music-player-subtitle"
+                                        <div id="music-player-subtitle" class="media-player-subtitle"
                                             style="font-size: 12px; color: var(--text-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                                             准备就绪</div>
                                     </div>
                                 </div>
-                                <div style="flex: 2; min-width: 250px; display: flex; align-items: center; gap: 12px;">
+                                <div class="media-player-controls" style="flex: 2; min-width: 250px; display: flex; align-items: center; gap: 12px;">
                                     <button class="player-step-btn" type="button" title="上一首" aria-label="上一首"
                                         onclick="playPreviousMusic()">
                                         <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -1618,7 +1829,7 @@
                                         </svg>
                                     </button>
 
-                                    <div
+                                    <div class="media-player-volume"
                                         style="display: flex; align-items: center; gap: 6px; margin-left: 5px; border-left: 1px solid var(--border); padding-left: 12px;">
                                         <span id="music-volume-icon" title="静音/恢复"
                                             style="cursor: pointer; font-size: 14px; color: var(--text-sub); user-select: none; width: 16px; text-align: center;">🔊</span>
@@ -1935,7 +2146,7 @@
                                         提问内容</h3>
 
                                     <div style="position: relative;">
-                                        <textarea id="flip-content-input" class="input-control" maxlength="200"
+                                        <textarea id="flip-content-input" class="input-control"
                                             oninput="updateFlipCharCount(this)"
                                             style="width: 100%; height: 150px; resize: none; padding: 15px; padding-bottom: 30px; font-size: 14px; line-height: 1.5; font-family: inherit;"
                                             placeholder="在这里写下你想对成员说的话..."></textarea>
@@ -2372,6 +2583,7 @@
     <script src="./src/renderer/bilibili-live-feature.js"></script>
     <script src="./src/renderer/music-lyrics-feature.js"></script>
     <script src="./src/renderer/official-media-feature.js"></script>
+    <script src="./src/renderer/official-site-music-feature.js"></script>
     <script src="./src/renderer/openlive-feature.js"></script>
     <script src="./src/renderer/media-utils-feature.js"></script>
     <script src="./src/renderer/member-lookup-feature.js"></script>

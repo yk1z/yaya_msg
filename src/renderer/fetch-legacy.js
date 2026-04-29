@@ -422,6 +422,7 @@
 
         async function performPocketCheckin(options = {}) {
             const { force = false, silentWhenSkipped = true } = options;
+            const shouldShowCheckinToast = force || !silentWhenSkipped;
 
             if (!appToken) {
                 updateAutoCheckinStatus('请先登录账号后再签到', '#ff4d4f');
@@ -463,27 +464,33 @@
                     markCheckinComplete(currentPocketUserId);
                     const successMsg = formatCheckinSuccessMessage(res.content);
                     updateAutoCheckinStatus(`${successMsg}，今日无需重复签到`, '#28a745');
-                    showToast(successMsg);
+                    if (shouldShowCheckinToast) {
+                        showToast(successMsg);
+                    }
                     return { success: true, content: res.content };
                 }
 
                 const errorMessage = res?.msg || '签到失败';
-                if (/已签到|重复签到|已经签到/.test(errorMessage)) {
+                if (/已签到|重复签到|已经签到|已领取|明天再来/.test(errorMessage)) {
                     markCheckinComplete(currentPocketUserId);
                     updateAutoCheckinStatus('今日签到已完成，重复打开软件不会再次提交', '#28a745');
-                    if (force || !silentWhenSkipped) {
+                    if (shouldShowCheckinToast) {
                         showToast('今天已经签到过了');
                     }
                     return { success: true, skipped: true, reason: 'already-signed' };
                 }
 
                 updateAutoCheckinStatus(`签到失败：${errorMessage}`, '#ff4d4f');
-                showToast(`签到失败：${errorMessage}`);
+                if (shouldShowCheckinToast) {
+                    showToast(`签到失败：${errorMessage}`);
+                }
                 return { success: false, msg: errorMessage };
             } catch (error) {
                 const errorMessage = error?.message || '签到请求异常';
                 updateAutoCheckinStatus(`签到失败：${errorMessage}`, '#ff4d4f');
-                showToast(`签到失败：${errorMessage}`);
+                if (shouldShowCheckinToast) {
+                    showToast(`签到失败：${errorMessage}`);
+                }
                 return { success: false, msg: errorMessage };
             } finally {
                 autoCheckinInFlight = false;
