@@ -395,22 +395,20 @@
             if (headerDiv) {
                 headerDiv.style.paddingRight = '6px';
 
-                const createHeaderCol = (title, varName, isFlex = false, isLast = false) => {
-                    const wRule = isFlex ? 'flex: 1; padding-left: 15px;' : `width: var(${varName}); flex-shrink: 0; margin-left: ${varName === '--col-seq' ? '0' : '10px'};`;
+                const createHeaderCol = (title, varName, isFlex = false, isLast = false, isFirst = false) => {
+                    const wRule = isFlex ? 'flex: 1; padding-left: 15px;' : `width: var(${varName}); flex-shrink: 0; margin-left: ${isFirst ? '0' : '10px'};`;
                     const resizerHtml = (!isFlex && !isLast) ? `<div class="col-resizer" data-var="${varName}"></div>` : '';
                     return `<div class="resizable-col" style="${wRule} text-align: left; font-weight: bold;">${title}${resizerHtml}</div>`;
                 };
 
                 if (currentTimelineMode === 'subtitle') {
                     headerDiv.innerHTML =
-                        createHeaderCol('序号', '--col-seq') +
-                        createHeaderCol('起始时间', '--col-time') +
+                        createHeaderCol('时间', '--col-time', false, false, true) +
                         createHeaderCol('字幕内容', null, true) +
                         createHeaderCol('操作', '--col-act', false, true);
                 } else {
                     headerDiv.innerHTML =
-                        createHeaderCol('序号', '--col-seq') +
-                        createHeaderCol('起始时间', '--col-time') +
+                        createHeaderCol('时间', '--col-time', false, false, true) +
                         createHeaderCol('发送者', '--col-name') +
                         createHeaderCol('弹幕内容', null, true, true);
                 }
@@ -493,10 +491,8 @@
                                 onclick="event.stopPropagation(); setClipEndFromTimeline(${endPointTime})">终</button>
                     </div>
                 ` : '';
-
                 div.innerHTML = `
-                    <div style="width: var(--col-seq); text-align: left; color: var(--text-sub); flex-shrink: 0;">${index + 1}</div>
-                    <div style="width: var(--col-time); text-align: left; flex-shrink: 0; margin-left: 10px; color: var(--primary); font-weight: bold;">${timeStr}</div>
+                    <div style="width: var(--col-time); text-align: left; flex-shrink: 0; margin-left: 0; color: var(--primary); font-weight: bold;">${timeStr}</div>
                     ${nameHtml}
                     <div title="${safeEscapeHtml(item.text)}" style="padding-left: 15px; flex: 1; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text);">${safeEscapeHtml(item.text) || '&nbsp;'}</div>
                     ${actionHtml}

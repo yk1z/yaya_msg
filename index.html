@@ -24,7 +24,21 @@
 
 <body class="topbar-page-title-enabled">
     <script>
-        document.documentElement.dataset.platform = (window.desktop && window.desktop.platform) || '';
+        (function () {
+            const platform = (window.desktop && window.desktop.platform) || '';
+            const root = document.documentElement;
+            root.dataset.platform = platform;
+            if (platform !== 'web') return;
+
+            const host = String(window.location.hostname || '').toLowerCase();
+            const pathSlug = decodeURIComponent(String(window.location.pathname || '/'))
+                .replace(/^\/+|\/+$/g, '');
+            const isRootPath = !pathSlug || pathSlug === 'index.html';
+            if (host === 'music.gnz.hk' && isRootPath && !window.location.hash) {
+                root.classList.add('web-route-pending', 'web-secondary-route-boot');
+                document.title = '牙牙消息 - 音乐';
+            }
+        })();
     </script>
     <div id="loading-shield" style="display: none;">
         <div class="spinner"></div>

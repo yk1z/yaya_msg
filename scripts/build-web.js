@@ -215,10 +215,11 @@ function applyWebTransforms() {
     );
     fs.writeFileSync(officialSiteMusicPath, officialSiteMusic);
 
-    danmuTimeline = replaceOnce(
+    danmuTimeline = addClassByPattern(
         danmuTimeline,
-        "                        createHeaderCol('字幕内容', null, true) +\r\n                        createHeaderCol('操作', '--col-act', false, true);",
-        "                        createHeaderCol('字幕内容', null, true, true);"
+        /createHeaderCol\('字幕内容', null, true\) \+\r?\n\s*createHeaderCol\('操作', '--col-act', false, true\);/,
+        "createHeaderCol('字幕内容', null, true, true);",
+        '字幕网页表头操作列'
     );
     danmuTimeline = addClassByPattern(
         danmuTimeline,
@@ -338,6 +339,12 @@ function applyWebTransforms() {
             return slug && WEB_ROUTE_MAP[slug] ? WEB_ROUTE_MAP[slug].title : '';
         }
 
+        function getWebHostDefaultSlug() {
+            const host = String(window.location.hostname || '').toLowerCase();
+            if (host === 'music.gnz.hk') return 'music';
+            return '';
+        }
+
         function getWebSlugFromLocation() {
             const hashSlug = String(window.location.hash || '')
                 .replace(/^#\\/?/, '')
@@ -346,7 +353,7 @@ function applyWebTransforms() {
             if (hashSlug) return hashSlug;
             const pathSlug = decodeURIComponent(String(window.location.pathname || '/'))
                 .replace(/^\\/+|\\/+$/g, '');
-            return pathSlug && pathSlug !== 'index.html' ? pathSlug : 'home';
+            return pathSlug && pathSlug !== 'index.html' ? pathSlug : (getWebHostDefaultSlug() || 'home');
         }
 
         function getWebRouteFromLocation() {
@@ -378,7 +385,8 @@ function applyWebTransforms() {
 
             if (isApplyingWebRoute) return;
 
-            const nextPath = slug === 'home' ? '/' : \`/\${slug}\`;
+            const hostDefaultSlug = getWebHostDefaultSlug();
+            const nextPath = (slug === 'home' || slug === hostDefaultSlug) ? '/' : \`/\${slug}\`;
             const currentPath = decodeURIComponent(window.location.pathname || '/').replace(/\\/+$/, '') || '/';
             const nextComparablePath = decodeURIComponent(nextPath).replace(/\\/+$/, '') || '/';
             if (!window.location.hash && currentPath === nextComparablePath) return;
@@ -549,6 +557,10 @@ function applyWebTransforms() {
         '}',
         '',
         'html[data-platform="web"] .web-hidden {',
+        '    display: none !important;',
+        '}',
+        '',
+        'html[data-platform="web"] .home-panel-messages {',
         '    display: none !important;',
         '}',
         '',

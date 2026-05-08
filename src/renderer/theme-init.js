@@ -6,6 +6,7 @@
             const savedBg = settingsApi && typeof settingsApi.getBackgroundUrlSync === 'function'
                 ? settingsApi.getBackgroundUrlSync()
                 : localStorage.getItem('custom_bg_data');
+            const DEFAULT_BACKGROUND_URL = 'https://yaya-data.pages.dev/assets/default-background.jpg';
             const THEME_STYLE_ID = 'yaya-theme-init-style';
             const BG_STYLE_ID = 'yaya-custom-bg-style';
 
@@ -28,12 +29,9 @@
 
             function applyCustomBackground(bgData) {
                 const styleEl = ensureStyleNode(BG_STYLE_ID);
-                if (!bgData) {
-                    styleEl.textContent = '';
-                    return;
-                }
+                const nextBg = bgData || DEFAULT_BACKGROUND_URL;
 
-                const escapedBg = String(bgData)
+                const escapedBg = String(nextBg)
                     .replace(/\\/g, '\\\\')
                     .replace(/"/g, '\\"');
                 styleEl.textContent = `html, body { background-image: url("${escapedBg}") !important; background-size: cover !important; background-position: center !important; background-repeat: no-repeat !important; }`;
