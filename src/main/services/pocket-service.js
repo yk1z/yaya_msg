@@ -2,11 +2,16 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const axios = require('axios');
+const settingsService = require('./settings-service');
 const { ensureWasmLoaded, generatePa } = require('./wasm-service');
 
 const APP_VERSION = '7.0.41';
 const APP_BUILD = '24011601';
 const DEVICE_ID = createDeviceId();
+const MEET48_APP_VERSION = '2.0.3';
+const MEET48_APP_BUILD = '2602062';
+const MEET48_BUNDLE_ID = 'com.dapp.meet48';
+const MEET48_APP_ID = '2e63a31eac9d056755b0f83b89ef6674';
 
 function createDeviceId() {
     const chars = 'QWERTYUIOPASDFGHJKLZXCVBNM1234567890';
@@ -75,6 +80,44 @@ function createModernHeaders(token, pa) {
 function createCheckinHeaders(token, pa) {
     const headers = createModernHeaders(token, pa);
     headers['P-Sign-Type'] = 'V0';
+    return headers;
+}
+
+function createMeet48Headers() {
+    const storedAuth = settingsService.readSettings().meet48Auth || {};
+    const authDisabled = storedAuth.disabled === true;
+    const deviceId = (!authDisabled && storedAuth.deviceId) || process.env.MEET48_DEVICE_ID || createDeviceId();
+    const headers = {
+        'content-type': 'application/json',
+        accept: '*/*',
+        'accept-language': 'zh_TW',
+        'user-agent': `Meet48/${MEET48_APP_VERSION} (${MEET48_BUNDLE_ID}; build:${MEET48_APP_BUILD}; iOS 26.4.2) Alamofire/5.8.0`,
+        'x-versioncode': MEET48_APP_VERSION,
+        'x-app-id': MEET48_APP_ID,
+        'x-device-info': JSON.stringify({
+            appVersion: MEET48_APP_VERSION,
+            deviceId,
+            osType: 'ios',
+            appName: 'Meet48',
+            vendor: 'apple',
+            osVersion: '26.4.2',
+            appBuildId: MEET48_APP_BUILD,
+            osLoginType: 'common',
+            bundleId: MEET48_BUNDLE_ID,
+            deviceName: 'iPhone17,1'
+        }),
+        'x-web-type': '1',
+        'x-deviceid': deviceId,
+        'x-custom-device-type': 'IOS'
+    };
+    const token = authDisabled ? '' : (storedAuth.token || process.env.MEET48_TOKEN || '');
+    const cookie = authDisabled ? '' : (storedAuth.cookie || process.env.MEET48_COOKIE || '');
+    if (token) {
+        headers.token = token;
+    }
+    if (cookie) {
+        headers.cookie = cookie;
+    }
     return headers;
 }
 
@@ -543,6 +586,51 @@ async function fetchOpenLivePublicList({ token, pa, groupId = 0, next = 0, recor
         return apiError(response);
     } catch (error) {
         console.error('Fetch Open Live Public List Error:', error);
+        return { success: false, msg: error.message };
+    }
+}
+
+async function fetchMeet48LiveList({ next = 0, record = false } = {}) {
+    try {
+        const response = await axios.post(
+            'https://meetapi-v2.meet48.xyz/meet48-api/live/api/v1/live/getLiveList',
+            {
+                title: null,
+                next: next || 0,
+                record: !!record
+            },
+            { headers: createMeet48Headers() }
+        );
+
+        if (response.status === 200 && response.data && (response.data.status === 200 || response.data.code === 0 || response.data.success)) {
+            return { success: true, content: response.data.content || response.data.data };
+        }
+
+        return apiError(response, 'Meet48 API 错误');
+    } catch (error) {
+        console.error('Fetch Meet48 Live List Error:', error.response?.status || error.message);
+        return { success: false, msg: error.message };
+    }
+}
+
+async function fetchMeet48LiveOne({ liveId }) {
+    try {
+        const response = await axios.post(
+            'https://meetapi-v2.meet48.xyz/meet48-api/live/api/v1/live/getLiveOne',
+            {
+                liveId: String(liveId || ''),
+                streamProtocol: 'RTMP'
+            },
+            { headers: createMeet48Headers() }
+        );
+
+        if (response.status === 200 && response.data && (response.data.status === 200 || response.data.code === 0 || response.data.success)) {
+            return { success: true, content: response.data.content || response.data.data };
+        }
+
+        return apiError(response, 'Meet48 API 错误');
+    } catch (error) {
+        console.error('Fetch Meet48 Live One Error:', error.response?.status || error.message);
         return { success: false, msg: error.message };
     }
 }
@@ -1169,6 +1257,8 @@ module.exports = {
     fetchOpenLive,
     fetchOpenLiveOne,
     fetchOpenLivePublicList,
+    fetchMeet48LiveList,
+    fetchMeet48LiveOne,
     fetchOpenLiveParticipants,
     fetchFlipPrices,
     sendFlipQuestion,

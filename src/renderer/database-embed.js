@@ -1,5 +1,6 @@
 (function initDatabaseEmbed() {
     const DATABASE_TEMPLATE_PATH = 'src/renderer/database/index.html';
+    const WEB_DATABASE_TEMPLATE_PATH = '/database-template.txt';
     const TAILWIND_URL = 'https://cdn.tailwindcss.com';
     const BABEL_URL = 'https://unpkg.com/@babel/standalone/babel.min.js';
     const REACT_URL = 'https://esm.sh/react@18.2.0';
@@ -86,8 +87,16 @@
         return runtimePromise;
     }
 
-    function readDatabaseTemplate() {
+    async function readDatabaseTemplate() {
         const desktop = window.desktop;
+        if (desktop && desktop.platform === 'web') {
+            const response = await fetch(WEB_DATABASE_TEMPLATE_PATH);
+            if (!response.ok) {
+                throw new Error(`数据库模板加载失败: ${response.status}`);
+            }
+            return response.text();
+        }
+
         if (!desktop || !desktop.fs || !desktop.path || !desktop.appDir) {
             throw new Error('数据库运行环境未准备好');
         }
@@ -133,7 +142,7 @@
 
         mountPromise = (async () => {
             try {
-                const template = readDatabaseTemplate();
+                const template = await readDatabaseTemplate();
                 const doc = new DOMParser().parseFromString(template, 'text/html');
                 const appScript = doc.querySelector('script[type="text/babel"]');
 

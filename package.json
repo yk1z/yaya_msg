@@ -1,11 +1,16 @@
 {
   "name": "yaya_msg",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "description": "牙牙消息",
   "homepage": "https://github.com/yk1z/yaya_msg",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
+    "web:build": "node scripts/build-web.js",
+    "web:dev": "npm run web:build && npx wrangler dev",
+    "web:dev:lan": "npm run web:build && npx wrangler dev --ip 0.0.0.0 --port 8787",
+    "web:deploy": "npm run web:build && npx wrangler deploy",
+    "api:start": "node server/yaya-api.mjs",
     "pack": "node scripts/run-builder.js --dir",
     "dist": "node scripts/run-builder.js"
   },

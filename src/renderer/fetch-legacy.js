@@ -61,6 +61,193 @@
             localStorage.removeItem('yaya_p48_token');
         }
 
+        function readStoredMeet48Auth() {
+            const settingsApi = getAppSettingsApi();
+            if (settingsApi && typeof settingsApi.getSettingValueSync === 'function') {
+                const auth = settingsApi.getSettingValueSync('meet48Auth', null);
+                if (auth && typeof auth === 'object' && !Array.isArray(auth)) {
+                    return {
+                        token: String(auth.token || '').trim(),
+                        cookie: String(auth.cookie || '').trim(),
+                        deviceId: String(auth.deviceId || '').trim(),
+                        disabled: auth.disabled === true
+                    };
+                }
+            }
+            return { token: '', cookie: '', deviceId: '', disabled: false };
+        }
+
+        function writeStoredMeet48Auth(auth) {
+            const settingsApi = getAppSettingsApi();
+            if (!settingsApi || typeof settingsApi.setSettingValueSync !== 'function') {
+                throw new Error('当前环境不支持本机设置保存');
+            }
+
+            const normalized = {
+                token: String(auth?.token || '').trim(),
+                cookie: String(auth?.cookie || '').trim(),
+                deviceId: String(auth?.deviceId || '').trim(),
+                disabled: false
+            };
+            settingsApi.setSettingValueSync('meet48Auth', normalized);
+            return normalized;
+        }
+
+        function clearStoredMeet48AuthValue() {
+            const settingsApi = getAppSettingsApi();
+            if (settingsApi && typeof settingsApi.removeSettingValueSync === 'function') {
+                settingsApi.removeSettingValueSync('meet48Auth');
+            }
+        }
+
+        function setMeet48LoginStatus(message, type = 'muted') {
+            const statusEl = document.getElementById('meet48-login-status');
+            if (!statusEl) return;
+            statusEl.innerText = message;
+            statusEl.style.color = type === 'success'
+                ? '#28a745'
+                : (type === 'error' ? '#ff4d4f' : 'var(--text-sub)');
+        }
+
+        function clearMeet48AuthFields() {
+            const tokenInput = document.getElementById('meet48-token');
+            const cookieInput = document.getElementById('meet48-cookie');
+            if (tokenInput) tokenInput.value = '';
+            if (cookieInput) cookieInput.value = '';
+        }
+
+        function getHeaderValue(headers, name) {
+            const target = String(name || '').toLowerCase();
+            if (!Array.isArray(headers)) return '';
+            const found = headers.find(header => String(header?.name || '').toLowerCase() === target);
+            return String(found?.value || '').trim();
+        }
+
+        function extractMeet48AuthFromHarText(text) {
+            let har;
+            try {
+                har = JSON.parse(String(text || ''));
+            } catch (error) {
+                throw new Error('HAR 文件不是有效 JSON');
+            }
+
+            const entries = Array.isArray(har?.log?.entries) ? har.log.entries : [];
+            const candidates = entries.filter(entry => {
+                const url = String(entry?.request?.url || '');
+                return url.includes('meetapi-v2.meet48.xyz') || url.includes('meet48-api');
+            });
+
+            for (const entry of candidates) {
+                const headers = entry?.request?.headers || [];
+                const token = getHeaderValue(headers, 'token');
+                const deviceId = getHeaderValue(headers, 'x-deviceid');
+                const cookie = getHeaderValue(headers, 'cookie');
+                if (token || deviceId || cookie) {
+                    return { token, cookie, deviceId };
+                }
+            }
+
+            throw new Error('没有在 HAR 中找到 Meet48 的 token / x-deviceid 请求头');
+        }
+
+        function normalizeMeet48LiveList(content) {
+            const list = content?.liveList || content?.list || content?.records || [];
+            return Array.isArray(list) ? list : [];
+        }
+
+        async function validateMeet48AuthSaved() {
+            const listResult = await ipcRenderer.invoke('fetch-meet48-live-list', { next: 0, record: true });
+            if (!listResult?.success) {
+                return { ok: false, message: listResult?.msg || '列表验证失败' };
+            }
+
+            const firstItem = normalizeMeet48LiveList(listResult.content)
+                .find(item => item && (item.liveId || item.id));
+            if (!firstItem) {
+                return { ok: true, message: '已保存，列表验证通过' };
+            }
+
+            const liveId = String(firstItem.liveId || firstItem.id || '');
+            const oneResult = await ipcRenderer.invoke('fetch-meet48-live-one', { liveId });
+            if (oneResult?.success) {
+                return { ok: true, message: '已保存，播放验证通过' };
+            }
+
+            return { ok: false, message: oneResult?.msg || '播放验证失败，登录态可能已过期' };
+        }
+
+        async function refreshMeet48AuthPanel() {
+            const panel = document.getElementById('meet48-login-status');
+            if (!panel) return;
+
+            const auth = readStoredMeet48Auth();
+            const deviceInput = document.getElementById('meet48-device-id');
+            if (deviceInput) deviceInput.value = auth.deviceId || '';
+            clearMeet48AuthFields();
+
+            if (auth.token || auth.cookie || auth.deviceId) {
+                const parts = [];
+                if (auth.token) parts.push('token');
+                if (auth.cookie) parts.push('cookie');
+                if (auth.deviceId) parts.push('deviceId');
+                setMeet48LoginStatus(`本机已保存 ${parts.join(' / ')}，不会回显敏感内容`, 'success');
+            } else {
+                setMeet48LoginStatus('未保存 Meet48 登录态', 'muted');
+            }
+        }
+
+        async function saveMeet48AuthFromFields() {
+            const token = document.getElementById('meet48-token')?.value?.trim() || '';
+            const cookie = document.getElementById('meet48-cookie')?.value?.trim() || '';
+            const deviceId = document.getElementById('meet48-device-id')?.value?.trim() || '';
+            if (!token || !deviceId) {
+                setMeet48LoginStatus('至少需要 token 和 x-deviceid', 'error');
+                return;
+            }
+
+            try {
+                setMeet48LoginStatus('正在保存并验证...', 'muted');
+                writeStoredMeet48Auth({ token, cookie, deviceId });
+                clearMeet48AuthFields();
+                const validation = await validateMeet48AuthSaved();
+                setMeet48LoginStatus(validation.message, validation.ok ? 'success' : 'error');
+            } catch (error) {
+                setMeet48LoginStatus(error.message || '保存失败', 'error');
+            }
+        }
+
+        function importMeet48HarFile(file) {
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async () => {
+                try {
+                    setMeet48LoginStatus('正在解析 HAR...', 'muted');
+                    const auth = extractMeet48AuthFromHarText(reader.result);
+                    if (!auth.token || !auth.deviceId) {
+                        throw new Error('HAR 中缺少 token 或 x-deviceid');
+                    }
+                    writeStoredMeet48Auth(auth);
+                    const deviceInput = document.getElementById('meet48-device-id');
+                    if (deviceInput) deviceInput.value = auth.deviceId;
+                    clearMeet48AuthFields();
+                    const validation = await validateMeet48AuthSaved();
+                    setMeet48LoginStatus(validation.message, validation.ok ? 'success' : 'error');
+                } catch (error) {
+                    setMeet48LoginStatus(error.message || '导入失败', 'error');
+                }
+            };
+            reader.onerror = () => setMeet48LoginStatus('读取 HAR 失败', 'error');
+            reader.readAsText(file, 'utf-8');
+        }
+
+        function clearMeet48Auth() {
+            clearStoredMeet48AuthValue();
+            const deviceInput = document.getElementById('meet48-device-id');
+            if (deviceInput) deviceInput.value = '';
+            clearMeet48AuthFields();
+            setMeet48LoginStatus('Meet48 登录态已清除', 'success');
+        }
+
         function readStoredSettingStringFallback(key, fallbackValue = '') {
             if (typeof window.readStoredStringSetting === 'function') {
                 return window.readStoredStringSetting(key, fallbackValue);
@@ -1688,9 +1875,32 @@
                 `;
             }
 
+            async function fetchDownloadMedia(downloadUrl) {
+                const response = await fetch(downloadUrl, { cache: 'no-store', credentials: 'omit' });
+                if (!response.ok) throw new Error(`网络请求失败: ${response.status}`);
+                return response;
+            }
+
+            function getWebMediaProxyUrl(downloadUrl) {
+                if (!window.desktop || window.desktop.platform !== 'web') return '';
+                try {
+                    const parsed = new URL(downloadUrl);
+                    if (!['http:', 'https:'].includes(parsed.protocol)) return '';
+                    return `/web-media-proxy?url=${encodeURIComponent(parsed.toString())}`;
+                } catch (error) {
+                    return '';
+                }
+            }
+
             try {
-                const response = await fetch(url);
-                if (!response.ok) throw new Error('网络请求失败');
+                let response;
+                try {
+                    response = await fetchDownloadMedia(url);
+                } catch (directError) {
+                    const proxyUrl = getWebMediaProxyUrl(url);
+                    if (!proxyUrl) throw directError;
+                    response = await fetchDownloadMedia(proxyUrl);
+                }
 
                 const customPath = readStoredSettingStringFallback(`yaya_path_${dlType}`, '');
 

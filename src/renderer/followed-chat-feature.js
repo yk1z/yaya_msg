@@ -360,6 +360,8 @@
             followedLastScrollTop = 0;
             invalidateFollowedAutoScrollJobs();
             resetFollowedPendingMessages();
+            const followedView = document.getElementById('view-followed-rooms');
+            if (followedView) followedView.classList.add('is-chat-open');
 
             if (followedAutoRefreshTimer) {
                 clearTimeout(followedAutoRefreshTimer);
@@ -433,6 +435,12 @@
                 scheduleNext();
             });
         };
+
+        function backToFollowedRoomList(event) {
+            if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
+            const followedView = document.getElementById('view-followed-rooms');
+            if (followedView) followedView.classList.remove('is-chat-open');
+        }
 
         function toggleFollowedRoomType() {
             if (isFollowedChatLoading || !activeFollowedName) return;
@@ -911,6 +919,7 @@
         }
 
         return {
+            backToFollowedRoomList,
             flushFollowedPendingMessages,
             getActiveFollowedChannel,
             jumpToFullRoom,

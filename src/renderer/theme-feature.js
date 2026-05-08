@@ -26,12 +26,7 @@
                 window.__applyYayaCustomBackground(bgData || '');
             }
 
-            if (!bgData) {
-                document.body.style.backgroundImage = '';
-                return;
-            }
-
-            document.body.style.backgroundImage = `url('${bgData}')`;
+            document.body.style.backgroundImage = '';
         }
 
         function initTheme() {

@@ -17,6 +17,8 @@ function registerPocketIpc() {
     ipcMain.handle('fetch-open-live', (event, payload) => pocketService.fetchOpenLive(payload));
     ipcMain.handle('fetch-open-live-one', (event, payload) => pocketService.fetchOpenLiveOne(payload));
     ipcMain.handle('fetch-open-live-public-list', (event, payload) => pocketService.fetchOpenLivePublicList(payload));
+    ipcMain.handle('fetch-meet48-live-list', (event, payload) => pocketService.fetchMeet48LiveList(payload));
+    ipcMain.handle('fetch-meet48-live-one', (event, payload) => pocketService.fetchMeet48LiveOne(payload));
     ipcMain.handle('fetch-open-live-participants', (event, payload) => pocketService.fetchOpenLiveParticipants(payload));
     ipcMain.handle('fetch-flip-prices', (event, payload) => pocketService.fetchFlipPrices(payload));
     ipcMain.handle('send-flip-question', (event, payload) => pocketService.sendFlipQuestion(payload));

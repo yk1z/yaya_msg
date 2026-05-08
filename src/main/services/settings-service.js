@@ -50,6 +50,23 @@ function normalizeSettings(rawSettings) {
         }
     }
 
+    if (Object.prototype.hasOwnProperty.call(safeSettings, 'meet48Auth')) {
+        const auth = safeSettings.meet48Auth;
+        if (!auth || typeof auth !== 'object' || Array.isArray(auth)) {
+            delete safeSettings.meet48Auth;
+        } else {
+            safeSettings.meet48Auth = {
+                token: String(auth.token || '').trim(),
+                cookie: String(auth.cookie || '').trim(),
+                deviceId: String(auth.deviceId || '').trim(),
+                disabled: auth.disabled === true
+            };
+            if (!safeSettings.meet48Auth.token && !safeSettings.meet48Auth.cookie && !safeSettings.meet48Auth.deviceId && !safeSettings.meet48Auth.disabled) {
+                delete safeSettings.meet48Auth;
+            }
+        }
+    }
+
     return safeSettings;
 }
 

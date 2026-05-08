@@ -57,6 +57,12 @@ function getBackgroundFilePath(fileName) {
     return path.join(storagePaths.internalDataDir, fileName);
 }
 
+function getBackgroundFileUrl(filePath, version = '') {
+    const fileUrl = pathToFileURL(filePath).href;
+    const safeVersion = String(version || '').trim();
+    return safeVersion ? `${fileUrl}?v=${encodeURIComponent(safeVersion)}` : fileUrl;
+}
+
 function removeFileIfExists(filePath) {
     try {
         if (fs.existsSync(filePath)) {
@@ -89,7 +95,7 @@ function persistBackgroundFileSync(bufferLike, extName) {
     removeManagedBackgroundFiles(targetFileName);
     invokeSettingsSync('set', { key: 'customBackgroundFile', value: targetFileName });
 
-    return pathToFileURL(targetFilePath).href;
+    return getBackgroundFileUrl(targetFilePath, Date.now());
 }
 
 function inferExtFromMimeType(mimeType) {
@@ -124,7 +130,7 @@ function getBackgroundUrlSync() {
         return '';
     }
 
-    return pathToFileURL(filePath).href;
+    return getBackgroundFileUrl(filePath, fs.statSync(filePath).mtimeMs);
 }
 
 function saveBackgroundFromFileSync(sourcePath) {
@@ -141,7 +147,7 @@ function saveBackgroundFromFileSync(sourcePath) {
     removeManagedBackgroundFiles(targetFileName);
     invokeSettingsSync('set', { key: 'customBackgroundFile', value: targetFileName });
 
-    return pathToFileURL(targetFilePath).href;
+    return getBackgroundFileUrl(targetFilePath, Date.now());
 }
 
 function saveBackgroundFromDataUrlSync(dataUrl) {

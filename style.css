@@ -2866,6 +2866,7 @@ blockquote {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    flex: 0 0 auto;
     height: 20px;
     padding: 0 8px;
     border-radius: 4px;
@@ -2873,9 +2874,40 @@ blockquote {
     font-weight: bold;
     color: #fff;
     margin-right: 6px;
+    white-space: nowrap;
     user-select: none;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     transform: translateY(-1px);
+}
+
+.flip-question-title-wrap,
+.flip-answer-title-wrap {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.flip-question-title,
+.flip-answer-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.flip-answer-time {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+.flip-question-side-inline {
+    display: flex;
+    flex: 0 0 auto;
+}
+
+.flip-question-meta-row {
+    display: none;
+    justify-content: flex-end;
+    margin: 8px 4px 0;
 }
 
 .flip-label.question-tag {
@@ -3797,6 +3829,11 @@ a {
 .pagination-btn:disabled {
     opacity: 0.5;
     cursor: default;
+}
+
+.pagination-btn.pagination-placeholder {
+    visibility: hidden;
+    pointer-events: none;
 }
 
 .artplayer-app {
@@ -6168,6 +6205,10 @@ audio::-webkit-media-controls-panel {
     overflow-anchor: auto;
 }
 
+.followed-chat-mobile-back {
+    display: none;
+}
+
 .drag-over-target {
     border-top: 2px solid var(--primary) !important;
     background-color: var(--chip-hover) !important;
@@ -6463,6 +6504,12 @@ audio::-webkit-media-controls-panel {
     color: rgb(var(--team-rgb, 255, 255, 255));
 }
 
+[data-theme="light"] .private-message-team-badge:not([style*="--team-rgb"]) {
+    background: rgba(108, 117, 125, 0.12);
+    border-color: rgba(108, 117, 125, 0.38);
+    color: #5f6873;
+}
+
 .private-message-list-tail {
     font-size: 11px;
     color: var(--text-sub);
@@ -6531,6 +6578,10 @@ audio::-webkit-media-controls-panel {
     justify-content: space-between;
     align-items: center;
     flex-shrink: 0;
+}
+
+.private-message-mobile-back {
+    display: none;
 }
 
 .private-message-detail-body {
@@ -6870,5 +6921,574 @@ html[data-theme="light"] .flip-seven-day-countdown.is-urgent {
         width: 100%;
         flex-basis: 100%;
         text-align: left;
+    }
+}
+
+@media (max-width: 768px) {
+    html,
+    body {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+        -webkit-text-size-adjust: 100%;
+    }
+
+    #view-media,
+    #live-player-view,
+    #player-split-layout,
+    #player-right-column,
+    #player-combo-wrapper,
+    #danmu-timeline-wrapper,
+    #clip-toolbar {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    #view-media {
+        height: auto !important;
+        min-height: 100dvh !important;
+        padding: 0 10px 14px !important;
+        overflow-y: visible !important;
+        scrollbar-gutter: auto !important;
+    }
+
+    #live-player-view {
+        height: auto !important;
+        min-height: 0 !important;
+        overflow: visible !important;
+        gap: 12px !important;
+    }
+
+    #live-player-view > div:first-child {
+        margin: 10px 0 2px !important;
+        padding: 12px !important;
+        border-radius: 10px !important;
+    }
+
+    #live-player-view > div:first-child > div:first-child {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center !important;
+        gap: 12px !important;
+    }
+
+    #live-player-view > div:first-child > div:first-child > div:first-child {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 14px 18px !important;
+        min-width: 0 !important;
+    }
+
+    #live-player-view > div:first-child > div:first-child > div:first-child > div {
+        min-width: 0 !important;
+    }
+
+    #current-live-author,
+    #current-live-title,
+    #current-live-date,
+    #current-live-time {
+        display: block !important;
+        min-width: 0 !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+    }
+
+    #live-player-view > div:first-child > div:first-child > button {
+        width: auto !important;
+        min-width: 72px !important;
+        height: 40px !important;
+        padding: 0 10px !important;
+        white-space: nowrap !important;
+    }
+
+    #current-openlive-members-wrap {
+        margin-top: 10px !important;
+        padding-top: 10px !important;
+    }
+
+    #player-split-layout {
+        flex: none !important;
+        flex-direction: column !important;
+        gap: 12px !important;
+        height: auto !important;
+        min-height: 0 !important;
+        padding: 0 0 12px !important;
+        overflow: visible !important;
+    }
+
+    #player-right-column {
+        order: 1;
+        height: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: visible !important;
+    }
+
+    #player-combo-wrapper {
+        flex: none !important;
+        height: auto !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        border-radius: 8px !important;
+    }
+
+    #live-announcement-bar {
+        padding: 10px 12px !important;
+    }
+
+    #live-player-area {
+        flex: none !important;
+        width: 100% !important;
+        height: min(68vh, 720px) !important;
+        height: min(68svh, 720px) !important;
+        max-height: none !important;
+        min-height: 0 !important;
+        aspect-ratio: auto !important;
+        background: #000 !important;
+    }
+
+    #live-player-container,
+    #live-video,
+    #live-player-container .artplayer,
+    #live-player-container video {
+        width: 100% !important;
+        height: 100% !important;
+        min-width: 0 !important;
+        object-fit: contain !important;
+        background: #000 !important;
+    }
+
+    #clip-toolbar {
+        padding: 12px !important;
+        border-radius: 10px !important;
+    }
+
+    #clip-toolbar > div {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 12px !important;
+    }
+
+    #clip-toolbar > div > div:first-child {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 10px !important;
+        width: 100% !important;
+    }
+
+    #clip-toolbar > div > div:first-child > div,
+    #clip-toolbar > div > div:first-child > div > div {
+        min-width: 0 !important;
+    }
+
+    #clip-start-display,
+    #clip-end-display {
+        min-width: 0 !important;
+        padding: 0 8px !important;
+        font-size: 13px !important;
+    }
+
+    #clip-toolbar > div > div:last-child {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        width: 100% !important;
+    }
+
+    #clip-duration-display {
+        width: auto !important;
+        text-align: left !important;
+        white-space: nowrap !important;
+    }
+
+    #btn-do-clip {
+        width: 132px !important;
+        max-width: 45% !important;
+    }
+
+    #danmu-timeline-wrapper {
+        order: 2;
+        height: auto !important;
+        max-height: none !important;
+        min-height: 280px !important;
+        --col-seq: 34px !important;
+        --col-time: 112px !important;
+        --col-name: 90px !important;
+        --col-act: 72px !important;
+    }
+
+    #danmu-timeline-wrapper > div:first-child {
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+        padding: 10px 12px !important;
+    }
+
+    #danmu-timeline-wrapper > div:first-child > div:first-child {
+        flex: 0 0 auto !important;
+        gap: 12px !important;
+    }
+
+    #danmu-timeline-wrapper > div:first-child > div:nth-child(2) {
+        flex: 1 1 100% !important;
+        min-width: 0 !important;
+    }
+
+    #danmu-search-input {
+        min-width: 0 !important;
+        margin-left: 0 !important;
+    }
+
+    #btn-danmu-analysis,
+    #danmu-count-display {
+        flex-shrink: 0 !important;
+    }
+
+    #danmu-list-body {
+        flex: none !important;
+        height: auto !important;
+        max-height: 42dvh !important;
+        overflow-y: auto !important;
+    }
+
+    .danmu-row {
+        padding: 0 12px !important;
+    }
+
+    #view-private-messages {
+        height: auto !important;
+        min-height: 100dvh !important;
+        padding: 8px !important;
+        overflow: hidden !important;
+    }
+
+    #view-private-messages .private-messages-shell {
+        height: calc(100dvh - 16px);
+        min-height: 0;
+        border-radius: 10px;
+        flex-direction: column;
+    }
+
+    #view-private-messages .private-messages-sidebar {
+        width: 100%;
+        max-height: none;
+        flex: 1 1 auto;
+        border-right: none;
+        border-bottom: none;
+    }
+
+    #view-private-messages:not(.is-detail-open) .private-messages-panel {
+        display: none;
+    }
+
+    #view-private-messages.is-detail-open .private-messages-sidebar {
+        display: none;
+    }
+
+    #view-private-messages.is-detail-open .private-messages-panel {
+        display: flex;
+        flex: 1 1 auto;
+        min-height: 0;
+    }
+
+    #view-private-messages .private-messages-sidebar-header {
+        padding: 12px;
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    #view-private-messages .private-messages-sidebar-header > div:first-child {
+        display: grid !important;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 12px !important;
+        width: 100%;
+    }
+
+    #view-private-messages .private-messages-toolbar-actions {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    #view-private-messages .private-messages-toolbar-actions .btn {
+        width: 100%;
+        height: 38px;
+        font-size: 13px;
+    }
+
+    #view-private-messages .private-messages-side-status {
+        padding: 8px 12px;
+    }
+
+    #view-private-messages .private-message-list {
+        padding: 8px 0;
+    }
+
+    #view-private-messages .private-message-list-item {
+        padding: 12px;
+        gap: 12px;
+    }
+
+    #view-private-messages .private-message-list-item.active {
+        padding-left: 10px;
+    }
+
+    #view-private-messages .private-message-list-avatar {
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
+    }
+
+    #view-private-messages .private-messages-panel-header {
+        min-height: 58px;
+        padding: 9px 12px;
+    }
+
+    #view-private-messages .private-message-mobile-back {
+        height: 34px;
+        padding: 0 10px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--input-bg);
+        color: var(--primary);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        font-size: 13px;
+        font-weight: 800;
+        cursor: pointer;
+    }
+
+    #view-private-messages .private-message-avatar {
+        width: 36px !important;
+        height: 36px !important;
+        min-width: 36px;
+        min-height: 36px;
+    }
+
+    #view-private-messages .private-message-detail-body {
+        padding: 12px;
+        gap: 12px;
+    }
+
+    #view-private-messages .private-message-item {
+        max-width: 88%;
+    }
+
+    #view-private-messages .private-message-bubble {
+        padding: 7px 11px 8px;
+        line-height: 1.38;
+        font-size: 14px;
+    }
+
+    #view-private-messages .private-message-detail-actions {
+        padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    }
+
+    #view-private-messages .private-message-flip-panel {
+        column-gap: 10px;
+        row-gap: 8px;
+    }
+
+    #view-private-messages .private-message-detail-actions > div:last-child {
+        gap: 8px !important;
+        margin-bottom: 0 !important;
+    }
+
+    #private-message-reply-input {
+        height: 56px !important;
+        min-height: 56px;
+        padding: 8px 10px 22px !important;
+    }
+
+    #btn-send-private-message {
+        width: 68px !important;
+        height: 56px !important;
+    }
+
+    #private-message-new-messages {
+        bottom: 82px !important;
+    }
+
+    #view-followed-rooms {
+        height: auto !important;
+        min-height: 100dvh !important;
+        padding: 8px !important;
+        overflow: hidden !important;
+    }
+
+    #view-followed-rooms > div {
+        height: calc(100dvh - 16px) !important;
+        min-height: 0 !important;
+        border-radius: 10px !important;
+        flex-direction: column !important;
+    }
+
+    #view-followed-rooms > div > div:first-child {
+        width: 100% !important;
+        max-height: none !important;
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+        border-right: none !important;
+        border-bottom: none !important;
+    }
+
+    #view-followed-rooms:not(.is-chat-open) > div > div:last-child {
+        display: none !important;
+    }
+
+    #view-followed-rooms.is-chat-open > div > div:first-child {
+        display: none !important;
+    }
+
+    #view-followed-rooms.is-chat-open > div > div:last-child {
+        display: flex !important;
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+    }
+
+    #view-followed-rooms > div > div:first-child > div:first-child {
+        padding: 12px !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px !important;
+    }
+
+    #view-followed-rooms > div > div:first-child > div:first-child > div {
+        width: 100% !important;
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px !important;
+    }
+
+    #followed-sort-wrapper {
+        width: 100% !important;
+    }
+
+    #followed-rooms-container {
+        padding: 8px 0 !important;
+    }
+
+    #view-followed-rooms .session-card {
+        margin: 2px 8px 6px !important;
+        padding: 12px !important;
+    }
+
+    #view-followed-rooms > div > div:first-child > div:last-child {
+        padding: 10px !important;
+    }
+
+    #followed-chat-header {
+        min-height: 58px;
+        padding: 9px 12px !important;
+        gap: 8px !important;
+        flex-wrap: nowrap !important;
+    }
+
+    #followed-chat-header > div:first-child {
+        margin-right: 0 !important;
+        gap: 10px !important;
+    }
+
+    .followed-chat-mobile-back {
+        height: 34px;
+        padding: 0 10px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--input-bg);
+        color: var(--primary);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        font-size: 13px;
+        font-weight: 800;
+        cursor: pointer;
+    }
+
+    #followed-chat-avatar {
+        width: 36px !important;
+        height: 36px !important;
+    }
+
+    #followed-chat-header > div:last-child {
+        gap: 6px !important;
+    }
+
+    #btn-toggle-room-type {
+        height: 30px !important;
+        padding: 0 8px !important;
+    }
+
+    #btn-toggle-followed-mode {
+        width: 72px !important;
+        height: 30px !important;
+    }
+
+    #followed-chat-messages {
+        padding: 12px !important;
+    }
+
+    #view-flip .flip-question-row {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 6px !important;
+    }
+
+    #view-flip .flip-question-title-wrap,
+    #view-flip .flip-answer-title-wrap {
+        width: 100%;
+    }
+
+    #view-flip .flip-question-title {
+        display: block;
+    }
+
+    #view-flip .flip-question-side-inline {
+        display: none;
+    }
+
+    #view-flip .flip-question-meta-row {
+        display: flex;
+    }
+
+    #view-flip .flip-answer-row {
+        align-items: flex-start !important;
+    }
+
+    #view-flip .flip-answer-time {
+        flex-basis: 100%;
+        margin-left: 0 !important;
+        margin-top: 4px;
+    }
+}
+
+@media (max-width: 380px) {
+    #live-player-view > div:first-child > div:first-child {
+        grid-template-columns: 1fr !important;
+    }
+
+    #live-player-view > div:first-child > div:first-child > button {
+        width: 100% !important;
+    }
+
+    #clip-toolbar > div > div:first-child {
+        grid-template-columns: 1fr !important;
+    }
+
+    #btn-do-clip {
+        width: 118px !important;
+    }
+
+    #danmu-timeline-wrapper {
+        --col-time: 98px !important;
+        --col-name: 72px !important;
     }
 }

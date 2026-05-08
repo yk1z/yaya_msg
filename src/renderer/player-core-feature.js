@@ -30,6 +30,7 @@
             stopRoomRadio,
             syncDanmuHighlight
         } = deps;
+
         function ensureAnnouncementBar(comboWrapper, playerArea) {
             let announcementBar = document.getElementById('live-announcement-bar');
             if (!announcementBar && comboWrapper && playerArea) {
@@ -119,6 +120,25 @@
             return rankContainer;
         }
 
+        function isMeet48Playback(mode, item) {
+            return mode === 'meet-live' || mode === 'meet-vod' || item?.source === 'meet48';
+        }
+
+        function isLivePlaybackMode(mode, item) {
+            return mode === 'live' || mode === 'meet-live' || (item?.source === 'meet48' && mode !== 'meet-vod');
+        }
+
+        function getMeet48StreamUrl(content) {
+            if (!content) return '';
+            if (content.playStreamPath) return content.playStreamPath;
+            if (content.streamPath) return content.streamPath;
+            if (Array.isArray(content.playStreams)) {
+                const stream = content.playStreams.find(item => item && item.streamPath) || content.playStreams[0];
+                return stream?.streamPath || '';
+            }
+            return '';
+        }
+
         function configurePlayerLayout(mode) {
             const splitLayout = document.getElementById('player-split-layout');
             const timelineWrapper = document.getElementById('danmu-timeline-wrapper');
@@ -126,10 +146,13 @@
             const rightWrapper = document.getElementById('player-right-column');
             const comboWrapper = document.getElementById('player-combo-wrapper');
             const playerView = document.getElementById('live-player-view');
+            const isMobileLayout = window.matchMedia
+                ? window.matchMedia('(max-width: 768px)').matches
+                : window.innerWidth <= 768;
 
             if (!splitLayout || !playerView) return;
 
-            if (mode === 'live') {
+            if (mode === 'live' || mode === 'meet-live') {
                 splitLayout.style.flexDirection = 'column';
                 splitLayout.style.alignItems = 'stretch';
                 if (timelineWrapper) timelineWrapper.style.display = 'none';
@@ -152,42 +175,52 @@
                 if (comboWrapper) {
                     comboWrapper.style.flex = 'none';
                     comboWrapper.style.height = 'auto';
+                    comboWrapper.style.width = isMobileLayout ? '100%' : '';
+                    comboWrapper.style.maxWidth = '';
+                    comboWrapper.style.margin = '';
                 }
                 if (playerArea) {
                     playerArea.style.flex = 'none';
-                    playerArea.style.height = 'auto';
-                    playerArea.style.aspectRatio = '16 / 9';
-                    playerArea.style.minHeight = '350px';
+                    playerArea.style.height = isMobileLayout ? 'min(68svh, 720px)' : 'auto';
+                    playerArea.style.width = isMobileLayout ? '100%' : '';
+                    playerArea.style.maxHeight = '';
+                    playerArea.style.aspectRatio = isMobileLayout ? 'auto' : '16 / 9';
+                    playerArea.style.minHeight = isMobileLayout ? '0' : '350px';
                 }
             } else {
-                splitLayout.style.flexDirection = 'row';
+                splitLayout.style.flexDirection = isMobileLayout ? 'column' : 'row';
                 splitLayout.style.alignItems = 'stretch';
                 if (timelineWrapper) timelineWrapper.style.display = 'flex';
 
                 if (rightWrapper) {
-                    rightWrapper.style.width = 'auto';
+                    rightWrapper.style.width = isMobileLayout ? '100%' : 'auto';
                     rightWrapper.style.maxWidth = 'none';
                     rightWrapper.style.margin = '0';
-                    rightWrapper.style.overflowY = 'auto';
-                    rightWrapper.style.paddingRight = '5px';
+                    rightWrapper.style.overflowY = isMobileLayout ? 'visible' : 'auto';
+                    rightWrapper.style.paddingRight = isMobileLayout ? '0' : '5px';
                     rightWrapper.style.paddingBottom = '0';
-                    rightWrapper.style.height = '100%';
+                    rightWrapper.style.height = isMobileLayout ? 'auto' : '100%';
                 }
 
                 playerView.style.flex = '1';
                 playerView.style.height = 'auto';
                 playerView.style.minHeight = '0';
-                playerView.style.setProperty('overflow', 'hidden', 'important');
+                playerView.style.setProperty('overflow', isMobileLayout ? 'visible' : 'hidden', 'important');
 
                 if (comboWrapper) {
-                    comboWrapper.style.flex = '1 0 auto';
+                    comboWrapper.style.flex = isMobileLayout ? 'none' : '1 0 auto';
                     comboWrapper.style.height = 'auto';
+                    comboWrapper.style.width = isMobileLayout ? '100%' : '';
+                    comboWrapper.style.maxWidth = '';
+                    comboWrapper.style.margin = '';
                 }
                 if (playerArea) {
-                    playerArea.style.flex = '1 0 auto';
-                    playerArea.style.height = 'auto';
+                    playerArea.style.flex = isMobileLayout ? 'none' : '1 0 auto';
+                    playerArea.style.height = isMobileLayout ? 'min(68svh, 720px)' : 'auto';
+                    playerArea.style.width = isMobileLayout ? '100%' : '';
+                    playerArea.style.maxHeight = '';
                     playerArea.style.aspectRatio = 'auto';
-                    playerArea.style.minHeight = '300px';
+                    playerArea.style.minHeight = isMobileLayout ? '0' : '300px';
                 }
             }
         }
@@ -248,6 +281,31 @@
             if (timeContainer) timeContainer.textContent = timeLabel || '未知';
         }
 
+        function mergeLiveResponseMeta(item, content) {
+            if (!content || typeof content !== 'object') return item;
+            const user = content.user || content.userInfo || {};
+            return Object.assign({}, item, {
+                title: content.title || content.liveTitle || item.title || item.liveTitle,
+                liveTitle: content.liveTitle || content.title || item.liveTitle || item.title,
+                startTime: content.startTime || content.ctime || content.beginTime || item.startTime || item.ctime,
+                ctime: content.ctime || content.startTime || content.beginTime || item.ctime || item.startTime,
+                userInfo: Object.assign({}, item.userInfo || {}, {
+                    nickname: user.userName || user.nickname || item.userInfo?.nickname || item.nickname
+                }),
+                nickname: user.userName || user.nickname || item.nickname
+            });
+        }
+
+        function syncMediaDeepLink(item, mode) {
+            if (!item || !item.liveId) return;
+            if (!window.desktop || window.desktop.platform !== 'web') return;
+            if (mode === 'live' && typeof window.syncWebLiveRoute === 'function') {
+                window.syncWebLiveRoute(item);
+            } else if (mode === 'vod' && typeof window.syncWebVodRoute === 'function') {
+                window.syncWebVodRoute(item);
+            }
+        }
+
         async function playLiveStream(item, mode) {
             if (typeof setCurrentPlayingItem === 'function') {
                 setCurrentPlayingItem(item);
@@ -270,6 +328,7 @@
             if (playerView) playerView.style.display = 'flex';
 
             updatePlayerMeta(item);
+            syncMediaDeepLink(item, mode);
 
             const announcementBar = ensureAnnouncementBar(comboWrapper, playerArea);
             const rankContainer = ensureRankContainer(comboWrapper);
@@ -291,14 +350,28 @@
             }
 
             try {
-                const res = await fetchPocketAPI('/live/api/v1/live/getLiveOne', JSON.stringify({
-                    liveId: item.liveId
-                }));
+                const isMeet48 = isMeet48Playback(mode, item);
+                const isLiveContent = isLivePlaybackMode(mode, item);
+                const res = isMeet48
+                    ? await ipcRenderer.invoke('fetch-meet48-live-one', { liveId: item.liveId })
+                    : await fetchPocketAPI('/live/api/v1/live/getLiveOne', JSON.stringify({
+                        liveId: item.liveId
+                    }));
 
-                if (res && res.status === 200 && res.content) {
-                    const streamUrl = res.content.playStreamPath;
-                    const title = item.title || item.liveTitle;
-                    const isLive = mode === 'live';
+                if (res && (res.status === 200 || res.success) && res.content) {
+                    const hydratedItem = mergeLiveResponseMeta(item, res.content);
+                    if (typeof setCurrentPlayingItem === 'function') {
+                        setCurrentPlayingItem(hydratedItem);
+                    }
+                    updatePlayerMeta(hydratedItem);
+                    const streamUrl = isMeet48 ? getMeet48StreamUrl(res.content) : res.content.playStreamPath;
+                    if (!streamUrl) {
+                        showToast('无法获取流地址');
+                        backToLiveList();
+                        return;
+                    }
+                    const title = hydratedItem.title || hydratedItem.liveTitle;
+                    const isLive = isLiveContent || /^rtmp:\/\//i.test(streamUrl);
                     const danmuUrl = res.content.msgFilePath;
 
                     if (announcementBar) {
@@ -319,7 +392,7 @@
                     }
 
                     if (rankContainer) {
-                        if (isLive) {
+                        if (mode === 'live') {
                             rankContainer.style.display = 'block';
                             if (typeof window.fetchLiveRank === 'function') {
                                 window.fetchLiveRank(item.liveId);
@@ -344,7 +417,7 @@
                     }
                     await startPlayer(streamUrl, title, isLive, res.content.chatroomId, danmuData);
                 } else {
-                    showToast('无法获取流地址');
+                    showToast(res?.msg || res?.message || '无法获取流地址');
                     backToLiveList();
                 }
             } catch (err) {
@@ -362,6 +435,9 @@
             if (isLiveContent) {
                 try {
                     container.innerHTML = '<div style="color:white;display:flex;height:100%;align-items:center;justify-content:center;">来自yk1z的提示：正在连接中...</div>';
+                    if (typeof window.ensureYayaWebPlayerLibs === 'function') {
+                        await window.ensureYayaWebPlayerLibs('dplayer');
+                    }
                     const localUrl = await ipcRenderer.invoke('start-live-proxy', url);
                     await new Promise(resolve => setTimeout(resolve, 1000));
                     container.innerHTML = '<div id="dplayer-container" style="width:100%; height:100%"></div>';
@@ -378,11 +454,11 @@
                         video: {
                             url: localUrl,
                             type: 'customFlv',
-                            customType: {
-                                customFlv: function (video) {
-                                    flvPlayer = mpegts.createPlayer({
-                                        type: 'flv',
-                                        url: localUrl,
+                                customType: {
+                                    customFlv: function (video) {
+                                        flvPlayer = mpegts.createPlayer({
+                                            type: 'flv',
+                                            url: localUrl,
                                         isLive: true,
                                         enableWorker: false,
                                         enableStashBuffer: false
@@ -426,6 +502,9 @@
             }
 
             container.innerHTML = '<div class="artplayer-app"></div>';
+            if (typeof window.ensureYayaWebPlayerLibs === 'function') {
+                await window.ensureYayaWebPlayerLibs('player');
+            }
             const loadSubtitle = (file) => {
                 const currentArt = getArt();
                 if (!file || !currentArt) return;

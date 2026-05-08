@@ -664,7 +664,6 @@
 
                     const audioEl = document.getElementById('native-audio-player');
                     const coverEl = document.getElementById('audio-player-cover');
-                    const dotEl = document.getElementById('audio-status-dot');
                     let currentUrlIndex = 0;
 
                     if (typeof initCustomAudioUI === 'function') {
@@ -690,10 +689,6 @@
                     audioEl.onplaying = null;
                     audioEl.onpause = null;
 
-                    if (dotEl) {
-                        dotEl.style.background = '#17a2b8';
-                        dotEl.style.boxShadow = '0 0 6px #17a2b8';
-                    }
                     if (coverEl) coverEl.classList.add('vinyl-pause');
 
                     audioEl.onplaying = () => {
@@ -701,19 +696,11 @@
                         subTitleEl.innerText = subTitle || '正在播放';
 
                         if (coverEl) coverEl.classList.remove('vinyl-pause');
-                        if (dotEl) {
-                            dotEl.style.background = '#28a745';
-                            dotEl.style.boxShadow = '0 0 6px #28a745';
-                        }
                     };
 
                     audioEl.onpause = () => {
                         if (requestId !== currentAudioPlayRequestId) return;
                         if (coverEl) coverEl.classList.add('vinyl-pause');
-                        if (dotEl) {
-                            dotEl.style.background = '#ffc107';
-                            dotEl.style.boxShadow = '0 0 6px #ffc107';
-                        }
                     };
 
                     audioEl.onerror = () => {
@@ -722,11 +709,6 @@
                         if (currentUrlIndex < tryUrls.length) {
                             console.log(`[电台播放] 节点失效，尝试备用线路 (${currentUrlIndex + 1}/${tryUrls.length})`);
                             subTitleEl.innerText = `切换线路 (${currentUrlIndex + 1}/${tryUrls.length})...`;
-
-                            if (dotEl) {
-                                dotEl.style.background = '#ffc107';
-                                dotEl.style.boxShadow = '0 0 6px #ffc107';
-                            }
 
                             audioEl.src = tryUrls[currentUrlIndex];
                             if (shouldAutoplay) {
@@ -738,10 +720,6 @@
                             showToast('❌ 无法播放，该节目文件可能已在服务器下线');
                             subTitleEl.innerText = '加载失败 (文件已失效)';
 
-                            if (dotEl) {
-                                dotEl.style.background = '#dc3545';
-                                dotEl.style.boxShadow = '0 0 6px #dc3545';
-                            }
                             if (coverEl) coverEl.classList.add('vinyl-pause');
                         }
                     };
@@ -1107,7 +1085,6 @@
             const titleEl = document.getElementById('audio-player-title');
             const subtitleEl = document.getElementById('audio-player-subtitle');
             const coverEl = document.getElementById('audio-player-cover');
-            const dotEl = document.getElementById('audio-status-dot');
             const playBtn = document.getElementById('custom-play-btn');
             const progressBar = document.getElementById('custom-progress-bar');
             const progressFill = document.getElementById('audio-program-progress-fill');
@@ -1132,10 +1109,6 @@
             if (coverEl) {
                 coverEl.src = "./icon.png";
                 coverEl.classList.add('vinyl-pause');
-            }
-            if (dotEl) {
-                dotEl.style.background = '#ccc';
-                dotEl.style.boxShadow = '0 0 4px #ccc';
             }
             if (playBtn) {
                 playBtn.classList.remove('is-pause');

@@ -299,20 +299,36 @@
                 user.userId,
                 user.id,
                 user.memberId,
-                user.starId
+                user.starId,
+                user.ownerId,
+                user.accountId,
+                user.roomId
             ].map(value => String(value || '').trim()).filter(Boolean);
 
-            return sourceMembers.find(m => {
+            const memberById = sourceMembers.find(m => {
                 const memberIds = [
                     m.id,
                     m.userId,
-                    m.memberId
+                    m.memberId,
+                    m.ownerId,
+                    m.accountId,
+                    m.roomId,
+                    m.serverId,
+                    m.channelId,
+                    m.yklzId
                 ].map(value => String(value || '').trim()).filter(Boolean);
 
                 if (userIds.length > 0 && memberIds.some(id => userIds.includes(id))) {
                     return true;
                 }
 
+                return false;
+            });
+            if (memberById) return memberById;
+
+            if (userIds.length > 0) return null;
+
+            return sourceMembers.find(m => {
                 const memberNames = [
                     m.ownerName,
                     m.name,

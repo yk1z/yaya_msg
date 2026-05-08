@@ -34,7 +34,13 @@
         }
 
         function getPreferredExternalPlayerName() {
-            return window.desktop && window.desktop.platform === 'win32' ? 'PotPlayer' : 'VLC';
+            if (window.desktop && window.desktop.platform === 'win32') {
+                return 'PotPlayer';
+            }
+            if (window.desktop && window.desktop.platform === 'web' && /Windows/i.test(navigator.userAgent || '')) {
+                return 'PotPlayer';
+            }
+            return 'VLC';
         }
 
         async function openMediaInExternalPlayer(url, options = {}) {

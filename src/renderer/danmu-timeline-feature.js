@@ -29,6 +29,33 @@
                 .replace(/'/g, '&#39;');
         }
 
+        function isMobileWebTimeline() {
+            const platform = document.documentElement?.dataset?.platform;
+            return platform === 'web' && window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+        }
+
+        function scrollTimelineRowIntoPosition(row) {
+            const container = document.getElementById('danmu-list-body');
+            if (!row || !container || !container.contains(row)) return;
+
+            const canScrollInside = container.scrollHeight > container.clientHeight + 1;
+            if (canScrollInside) {
+                const rowTop = row.offsetTop;
+                const rowHeight = row.offsetHeight || 36;
+                const targetTop = rowTop - ((container.clientHeight - rowHeight) / 2);
+                const maxTop = Math.max(0, container.scrollHeight - container.clientHeight);
+                container.scrollTo({
+                    top: Math.max(0, Math.min(targetTop, maxTop)),
+                    behavior: 'smooth'
+                });
+                return;
+            }
+
+            if (!isMobileWebTimeline()) {
+                row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
         function handleDanmuSearch(keyword) {
             const term = String(keyword || '').trim().toLowerCase();
             const list = currentTimelineMode === 'danmu' ? currentDanmuList : currentSubtitleList;
@@ -513,7 +540,7 @@
                     const newRow = document.getElementById(`dm-row-${activeIndex}`);
                     if (newRow) {
                         newRow.classList.add('active');
-                        newRow.scrollIntoView({ behavior: "smooth", block: "center" });
+                        scrollTimelineRowIntoPosition(newRow);
                     }
                 }
                 lastActiveIndex = activeIndex;

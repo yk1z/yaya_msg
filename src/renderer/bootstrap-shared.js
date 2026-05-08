@@ -42,6 +42,11 @@
                 ? error
                 : (error && error.message) || fallbackDetail;
 
+            if (window.desktop && window.desktop.platform === 'web' && /switchView is not defined/i.test(String(detail || ''))) {
+                console.warn('忽略网页版早期路由点击:', detail);
+                return;
+            }
+
             console.error('启动阶段发生异常:', error);
             showShield('初始化失败', detail);
         }
@@ -86,7 +91,8 @@
             'K': '#FF5043', 'TEAM K': '#FF5043',
             'CII': '#D21217', 'TEAM CII': '#D21217',
             'GII': '#0061C0', 'TEAM GII': '#0061C0',
-            'IDFT': '#900058'
+            'IDFT': '#900058',
+            '预备生': '#7B8493'
         };
 
         var POCKET_GIFT_DATA = [

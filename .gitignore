@@ -1,6 +1,10 @@
 node_modules/
 dist/
+web-dist/
+.wrangler/
+.wrangler-dry-run/
 html/
+tmp/
 .npmrc
 
 *.log

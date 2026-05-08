@@ -241,6 +241,9 @@
         `;
 
                 radioMediaElement = document.getElementById('hidden-radio-audio');
+                if (typeof window.ensureYayaWebPlayerLibs === 'function') {
+                    await window.ensureYayaWebPlayerLibs('mpegts');
+                }
                 if (window.mpegts && window.mpegts.isSupported()) {
                     radioMpegtsPlayer = window.mpegts.createPlayer(
                         {

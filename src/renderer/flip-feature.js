@@ -227,14 +227,15 @@
             const questionDiv = document.createElement('div');
             questionDiv.style.marginBottom = '15px';
             questionDiv.innerHTML = `
-        <div style="margin-bottom:6px; display:flex; align-items:center; justify-content:space-between; gap:12px;">
-            <div style="display:flex; align-items:center; min-width:0;">
+        <div class="flip-question-row" style="margin-bottom:6px; display:flex; align-items:center; justify-content:space-between; gap:12px;">
+            <div class="flip-question-title-wrap" style="display:flex; align-items:center; min-width:0;">
                 <span class="flip-label question-tag" style="margin-right:8px; margin-top:0; margin-bottom:0; transform:none;">翻牌提问</span>
-                <span style="font-size:14px; color:var(--text); line-height: 20px; min-width:0;">向 <strong style="color:var(--primary);">${memberName}</strong> 提问</span>
+                <span class="flip-question-title" style="font-size:14px; color:var(--text); line-height: 20px; min-width:0;">向 <strong style="color:var(--primary);">${memberName}</strong> 提问</span>
             </div>
-            ${questionSideHtml}
+            ${questionSideHtml ? `<div class="flip-question-side-inline">${questionSideHtml}</div>` : ''}
         </div>
-        <div style="font-size:14px; color:var(--text); line-height:1.6; padding:0 4px;">${item.content}</div>`;
+        <div style="font-size:14px; color:var(--text); line-height:1.6; padding:0 4px;">${item.content}</div>
+        ${questionSideHtml && item.status === 1 ? `<div class="flip-question-meta-row">${questionSideHtml}</div>` : ''}`;
             card.appendChild(questionDiv);
 
             if (item.status === 2) {
@@ -249,11 +250,11 @@
                 }
 
                 answerDiv.innerHTML = `
-            <div style="margin-bottom:8px; display:flex; align-items:center; justify-content:space-between; gap:12px;">
-                <div style="display:flex; align-items:center; flex-wrap:wrap; min-width:0;">
+            <div class="flip-answer-row" style="margin-bottom:8px; display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                <div class="flip-answer-title-wrap" style="display:flex; align-items:center; flex-wrap:wrap; min-width:0;">
                     <span class="flip-label answer-tag" style="margin-right:8px; margin-top:0; margin-bottom:0; transform:none;">翻牌回答</span>
-                    <span style="font-size:14px; color:var(--text); line-height: 20px;"><strong style="color:var(--primary);">${memberName}</strong> 的回复</span>
-                    <span style="font-size:12px; color:var(--text-sub); margin-left:10px;">翻牌时间：${formattedAnswerTime}</span>
+                    <span class="flip-answer-title" style="font-size:14px; color:var(--text); line-height: 20px;"><strong style="color:var(--primary);">${memberName}</strong> 的回复</span>
+                    <span class="flip-answer-time" style="font-size:12px; color:var(--text-sub); margin-left:10px;">翻牌时间：${formattedAnswerTime}</span>
                 </div>
             </div>`;
 
@@ -323,6 +324,12 @@
                     errDiv.style.color = '#ff4d4f';
                     errDiv.innerText = '无法解析回答内容';
                     answerDiv.appendChild(errDiv);
+                }
+                if (questionSideHtml) {
+                    const mobileDurationDiv = document.createElement('div');
+                    mobileDurationDiv.className = 'flip-question-meta-row';
+                    mobileDurationDiv.innerHTML = questionSideHtml;
+                    answerDiv.appendChild(mobileDurationDiv);
                 }
                 card.appendChild(answerDiv);
             }

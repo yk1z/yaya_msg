@@ -43,30 +43,73 @@
             });
         }
 
-        async function directToPotPlayer(e, liveId) {
-            e.stopPropagation();
-            e.target.style.cursor = 'wait';
+        function getStreamUrlFromLiveResponse(content, source = 'pocket') {
+            if (!content) return '';
+            if (source === 'meet48') {
+                if (content.playStreamPath) return content.playStreamPath;
+                if (content.streamPath) return content.streamPath;
+                if (Array.isArray(content.playStreams)) {
+                    const stream = content.playStreams.find(item => item && item.streamPath) || content.playStreams[0];
+                    return stream?.streamPath || '';
+                }
+                return '';
+            }
+            return content.playStreamPath || '';
+        }
+
+        async function directToPotPlayer(e, liveId, source = 'pocket') {
+            if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+            const targetEl = (e && (e.currentTarget || e.target)) || null;
+            if (targetEl) targetEl.style.cursor = 'wait';
 
             const titleEl = document.getElementById('live-view-title') || document.getElementById('live-modal-title');
             const originalTitle = titleEl ? titleEl.textContent : '';
+            const normalizedSource = source === 'meet48' || source === 'meet-live' || source === 'meet-vod'
+                ? 'meet48'
+                : 'pocket';
+            const isWeb = window.desktop && window.desktop.platform === 'web';
+            let pendingWebWindow = null;
 
             if (titleEl) titleEl.textContent = '⌛ 正在解析外部播放器地址...';
+            if (isWeb) {
+                pendingWebWindow = window.open('', '_blank');
+                if (pendingWebWindow) {
+                    pendingWebWindow.document.title = '正在解析播放地址';
+                    pendingWebWindow.document.body.innerHTML = '<div style="font:16px system-ui,sans-serif;padding:24px;">正在解析播放地址...</div>';
+                }
+            }
 
             try {
-                const res = await fetchPocketAPI('/live/api/v1/live/getLiveOne', JSON.stringify({ liveId }));
-                if (res && res.status === 200 && res.content && res.content.playStreamPath) {
+                const res = normalizedSource === 'meet48'
+                    ? await ipcRenderer.invoke('fetch-meet48-live-one', { liveId })
+                    : await fetchPocketAPI('/live/api/v1/live/getLiveOne', JSON.stringify({ liveId }));
+                const streamUrl = getStreamUrlFromLiveResponse(res?.content, normalizedSource);
+                if (res && (res.status === 200 || res.success) && streamUrl) {
                     if (titleEl) titleEl.textContent = `正在唤起 ${getPreferredExternalPlayerName()}...`;
-                    const opened = await openMediaInExternalPlayer(res.content.playStreamPath, { silent: true });
-                    if (!opened && titleEl) {
-                        titleEl.textContent = `❌ 无法唤起 ${getPreferredExternalPlayerName()}`;
+                    let opened = false;
+                    if (pendingWebWindow) {
+                        pendingWebWindow.location.href = streamUrl;
+                        opened = true;
+                    } else {
+                        opened = await openMediaInExternalPlayer(streamUrl, { silent: true });
                     }
-                } else if (titleEl) {
-                    titleEl.textContent = '❌ 无法获取流地址 (可能已失效)';
+                    if (!opened) {
+                        const message = `无法唤起 ${getPreferredExternalPlayerName()}`;
+                        if (titleEl) titleEl.textContent = `❌ ${message}`;
+                        showToast(message);
+                    }
+                } else {
+                    const message = res?.msg || '无法获取流地址，可能已失效或登录态不可用';
+                    if (pendingWebWindow) pendingWebWindow.close();
+                    if (titleEl) titleEl.textContent = `❌ ${message}`;
+                    showToast(message);
                 }
             } catch (err) {
+                if (pendingWebWindow) pendingWebWindow.close();
                 if (titleEl) titleEl.textContent = '❌ 网络请求失败';
+                showToast(`网络请求失败: ${err.message || err}`);
             } finally {
-                e.target.style.cursor = 'pointer';
+                if (targetEl) targetEl.style.cursor = 'pointer';
                 if (titleEl) {
                     setTimeout(() => {
                         if (document.body.contains(titleEl)) {

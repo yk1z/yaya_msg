@@ -123,6 +123,7 @@
             const avatarEl = document.getElementById('private-message-detail-avatar');
             const inputEl = document.getElementById('private-message-reply-input');
             const bodyEl = document.getElementById('private-message-detail-body');
+            const viewEl = document.getElementById('view-private-messages');
 
             if (headerEl) headerEl.style.visibility = 'hidden';
             if (titleEl) titleEl.textContent = '私信详情';
@@ -130,12 +131,20 @@
             if (avatarEl) avatarEl.src = './icon.png';
             if (inputEl) inputEl.value = '';
             if (bodyEl) bodyEl.innerHTML = '<div class="empty-state">请选择一个私信会话</div>';
+            if (viewEl) viewEl.classList.remove('is-detail-open');
 
             resetPrivateMessagePendingMessages();
             resetPrivateMessageFlipPanel();
             updatePrivateMessageReplyCounter();
             setPrivateMessageSending(false);
             setPrivateMessageDetailLoading(false);
+        }
+
+        function backToPrivateMessageList(event) {
+            if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
+            const viewEl = document.getElementById('view-private-messages');
+            if (viewEl) viewEl.classList.remove('is-detail-open');
+            filterPrivateMessageList(getCurrentSearchKeyword(), { preserveScroll: true });
         }
 
         function canPrivateMessageStickToBottom(container) {
@@ -777,11 +786,13 @@
                 const subtitleEl = document.getElementById('private-message-detail-subtitle');
                 const avatarEl = document.getElementById('private-message-detail-avatar');
                 const inputEl = document.getElementById('private-message-reply-input');
+                const viewEl = document.getElementById('view-private-messages');
                 if (headerEl) headerEl.style.visibility = 'visible';
                 if (titleEl) titleEl.textContent = privateMessageDetailState.title;
                 if (subtitleEl) subtitleEl.textContent = `ID: ${privateMessageDetailState.targetUserId}`;
                 if (avatarEl) avatarEl.src = privateMessageDetailState.avatar;
                 if (inputEl) inputEl.value = '';
+                if (viewEl) viewEl.classList.add('is-detail-open');
                 clearActivePrivateMessageUnread(privateMessageDetailState.targetUserId);
                 filterPrivateMessageList(getCurrentSearchKeyword());
                 renderPrivateMessageDetail();
@@ -1116,7 +1127,7 @@
         }
 
         function handlePrivateMessageReplyKeydown(event) {
-            if (event.key === 'Enter' && !event.shiftKey) {
+            if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
                 event.preventDefault();
                 sendPrivateMessageReply();
             }
@@ -1340,6 +1351,7 @@
         }
 
         return {
+            backToPrivateMessageList,
             closePrivateMessageDetail,
             checkPrivateMessageFlipCostMin,
             filterPrivateMessageList,

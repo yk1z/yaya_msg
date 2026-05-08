@@ -4,6 +4,7 @@
     const DATA_BASE_URL = 'https://yaya-data.pages.dev';
     const MUSIC_LYRICS_BASE_URL = `${DATA_BASE_URL}/lyrics`;
     const MUSIC_LYRICS_INDEX_URL = `${DATA_BASE_URL}/lyrics-index.json`;
+    const R2_MUSIC_PUBLIC_ORIGIN = 'https://gnz.hk';
     const FAVORITES_STORAGE_KEY = 'yaya_official_site_music_favorites';
     const PLAYER_STATE_STORAGE_KEY = 'yaya_official_site_music_player_state';
     const GROUPS = [
@@ -13,6 +14,14 @@
         { key: 'CKG', label: 'CKG48', script: 'json_data_ckg.js', listVar: 'ix_mp3list_ckg', recordsVar: 'records_ckg', songsVar: 'ix_songs_ckg' },
         { key: 'CGT', label: 'CGT48', script: 'json_data_cgt.js', listVar: 'ix_mp3list_cgt', recordsVar: 'records_cgt', songsVar: 'ix_songs_cgt' }
     ];
+    const GROUP_SORT_ORDER = new Map([
+        ['SNH', 0],
+        ['GNZ', 1],
+        ['BEJ', 2],
+        ['CKG', 3],
+        ['CGT', 4],
+        ['SHY', 5]
+    ]);
 
     const state = {
         allTracks: [],
@@ -130,7 +139,10 @@
     ]);
 
     const MUSIC_LYRIC_TITLE_ALIASES = new Map([
-        ['奔跑的少女', ['奔跑吧少女']]
+        ['奔跑的少女', ['奔跑吧少女']],
+        ['最初的爱', ['最初的，最后的爱', '最初的，最后的爱 (Live)']],
+        ['花火 ((Fire in the rA.I.n)', ['花火 (Fire in the rA.I.n)', '花火']],
+        ['荊棘皇冠', ['荆棘皇冠']]
     ]);
 
     const SNH_LYRIC_PATH_BY_AUDIO_GROUP_AND_TITLE = new Map([
@@ -381,6 +393,7 @@
             .replace(/[：]/g, ':')
             .replace(/[·•・]/g, '·')
             .replace(/協/g, '协')
+            .replace(/荊/g, '荆')
             .replace(/[<>]/g, '')
             .replace(/[‐‑‒–—―-]/g, '')
             .replace(/\s+/g, '')
@@ -414,7 +427,11 @@
     function getOfficialSiteTrackDisplayTitle(track) {
         if (!track) return '';
         const title = stripMusicLyricParenthetical(track.title, { preserveEnglish: true }) || track.title || '未命名歌曲';
-        return title.replace(/\bremenber\b/ig, 'Remember');
+        return title
+            .replace(/\bremenber\b/ig, 'Remember')
+            .replace(/荊/g, '荆')
+            .replace(/_\d{1,3}$/u, '')
+            .trim();
     }
 
     function getOfficialSiteAlbumDisplayName(album) {
@@ -422,6 +439,50 @@
             .replace(/\s*【蓝版】\s*/g, '')
             .replace(/\s+B版\s*$/i, '')
             .trim();
+    }
+
+    function getWebApiUrl(path) {
+        if (typeof window.yayaWebApiUrl === 'function') {
+            return window.yayaWebApiUrl(path);
+        }
+        return path;
+    }
+
+    function getR2MusicPublicUrl(path) {
+        const text = String(path || '').trim();
+        if (!text) return '';
+        if (/^https?:\/\//i.test(text)) return text;
+        if (typeof window.yayaWebApiUrl === 'function') return window.yayaWebApiUrl(text);
+        return `${R2_MUSIC_PUBLIC_ORIGIN}${text.startsWith('/') ? text : `/${text}`}`;
+    }
+
+    function normalizeR2MusicTrack(item, index) {
+        if (!item || !item.mp3 || !item.title) return null;
+        const groupLabel = String(item.groupLabel || '').trim() || '公演';
+        const groupKey = String(item.groupKey || groupLabel.replace(/48$/i, '') || '').trim().toUpperCase();
+        const coverUrl = String(item.coverUrl || '').trim();
+        return {
+            id: String(item.id || `R2-${item.key || index}`),
+            title: String(item.title || '').trim(),
+            groupKey,
+            groupLabel,
+            artist: String(item.album || groupLabel || '').trim(),
+            album: String(item.album || '').trim(),
+            coverUrl: coverUrl ? getR2MusicPublicUrl(coverUrl) : '',
+            duration: '',
+            sourceIndex: Number.isFinite(Number(item.sourceIndex)) ? Number(item.sourceIndex) : 100000 + index,
+            audioGroupKey: String(item.key || item.id || index),
+            lrcPath: '',
+            mp3: getR2MusicPublicUrl(item.mp3)
+        };
+    }
+
+    async function loadR2PerformanceMusicTracks() {
+        const response = await fetch(getR2MusicPublicUrl('/api/r2-music'));
+        if (!response.ok) throw new Error(`R2 music list failed: ${response.status}`);
+        const data = await response.json();
+        const tracks = Array.isArray(data.tracks) ? data.tracks : [];
+        return tracks.map(normalizeR2MusicTrack).filter(Boolean);
     }
 
     function getOfficialSiteMusicPinyinParts(value) {
@@ -564,7 +625,7 @@
         rawValues.forEach((value) => {
             const text = String(value || '').trim();
             if (!text) return;
-            const matched = text.match(/\b(SNH48|BEJ48|GNZ48|CKG48|CGT48)\b/i);
+            const matched = text.match(/\b(SNH48|BEJ48|GNZ48|SHY48|CKG48|CGT48)\b/i);
             if (matched) {
                 candidates.add(matched[1].toUpperCase());
             }
@@ -698,7 +759,7 @@
     async function fetchOfficialScriptText(url) {
         if (typeof fetch === 'function') {
             try {
-                const response = await fetch(url, { cache: 'no-store' });
+                const response = await fetch(url);
                 if (response.ok) {
                     return response.text();
                 }
@@ -984,7 +1045,8 @@
             if (state.sortKey === 'source') {
                 result = a.groupKey === b.groupKey
                     ? a.sourceIndex - b.sourceIndex
-                    : collator.compare(a.groupKey, b.groupKey);
+                    : ((GROUP_SORT_ORDER.get(a.groupKey) ?? 999) - (GROUP_SORT_ORDER.get(b.groupKey) ?? 999))
+                        || collator.compare(a.groupKey, b.groupKey);
             } else if (state.sortKey === 'title') {
                 result = collator.compare(a.title || '', b.title || '');
             } else if (state.sortKey === 'group') {
@@ -1027,7 +1089,6 @@
         const audio = $('official-site-music-audio');
         const button = $('official-site-music-play-btn');
         const cover = $('official-site-music-cover');
-        const dot = $('official-site-music-status-dot');
         if (!audio) return;
 
         const isPlaying = !audio.paused;
@@ -1039,9 +1100,6 @@
         }
         if (cover) {
             cover.classList.toggle('vinyl-pause', !isPlaying);
-        }
-        if (dot) {
-            dot.classList.toggle('is-playing', isPlaying);
         }
     }
 
@@ -1526,7 +1584,7 @@
                         <span class="official-site-music-song-cell">
                             <span class="official-site-music-index${track.coverUrl ? ' has-cover' : ''}">
                                 ${track.coverUrl
-                    ? `<img src="${escapeHtml(track.coverUrl)}" alt="">`
+                    ? `<img src="${escapeHtml(track.coverUrl)}" alt="" loading="${index < 24 ? 'eager' : 'lazy'}" decoding="async">`
                     : `${escapeHtml(track.groupKey)}`}
                             </span>
                             <span class="official-site-music-card-body">
@@ -1604,7 +1662,13 @@
                 const payload = await loadOfficialPayload(group);
                 return buildTracks(group, payload.list, payload.recordsMap, payload.songRecordMap);
             }));
-            state.allTracks = results.flat();
+            let r2Tracks = [];
+            try {
+                r2Tracks = await loadR2PerformanceMusicTracks();
+            } catch (error) {
+                console.warn('[official-site-music] R2 performance music skipped', error);
+            }
+            state.allTracks = results.flat().concat(r2Tracks);
             state.isLoaded = true;
             restoreOfficialSiteMusicPlayerState();
             if (state.allTracks.length === 0) {

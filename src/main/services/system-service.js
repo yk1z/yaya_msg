@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { spawn } = require('child_process');
+const { execFileSync } = require('child_process');
 const axios = require('axios');
 const { dialog, session, shell } = require('electron');
 const { ensureStoragePaths } = require('../../common/storage-paths');
@@ -351,9 +352,52 @@ function spawnDetached(command, args) {
     });
 }
 
+function stripWindowsCommandValue(value) {
+    return String(value || '')
+        .trim()
+        .replace(/^"([^"]+)".*$/, '$1')
+        .replace(/\s*"%1".*$/i, '')
+        .replace(/^([^"]+?\.exe).*$/i, '$1')
+        .trim();
+}
+
+function queryRegistryDefaultValue(key) {
+    try {
+        const output = execFileSync('reg', ['query', key, '/ve'], {
+            encoding: 'utf8',
+            windowsHide: true
+        });
+        const line = output.split(/\r?\n/).find(item => /\sREG_\w+\s/.test(item));
+        if (!line) return '';
+        return line.replace(/^\s*\(Default\)\s+REG_\w+\s+/i, '').trim();
+    } catch (error) {
+        return '';
+    }
+}
+
+function getRegisteredWindowsPotPlayerPaths() {
+    const registryKeys = [
+        'HKCU\\Software\\Classes\\potplayer\\shell\\open\\command',
+        'HKCR\\potplayer\\shell\\open\\command',
+        'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths\\PotPlayerMini64.exe',
+        'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths\\PotPlayerMini.exe',
+        'HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths\\PotPlayerMini64.exe',
+        'HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths\\PotPlayerMini.exe'
+    ];
+
+    return [...new Set(registryKeys
+        .map(key => stripWindowsCommandValue(queryRegistryDefaultValue(key)))
+        .filter(playerPath => playerPath && /\.exe$/i.test(playerPath) && fs.existsSync(playerPath)))];
+}
+
 function getExternalPlayerCandidates(mediaUrl) {
     if (process.platform === 'win32') {
+        const registeredPlayers = getRegisteredWindowsPotPlayerPaths()
+            .map(command => ({ command, args: [mediaUrl], needsPathCheck: true }));
         return [
+            ...registeredPlayers,
+            { command: 'C:\\PotPlayer\\PotPlayerMini64.exe', args: [mediaUrl], needsPathCheck: true },
+            { command: 'C:\\PotPlayer\\PotPlayerMini.exe', args: [mediaUrl], needsPathCheck: true },
             { command: 'C:\\Program Files\\DAUM\\PotPlayer\\PotPlayerMini64.exe', args: [mediaUrl], needsPathCheck: true },
             { command: 'C:\\Program Files\\DAUM\\PotPlayer\\PotPlayerMini.exe', args: [mediaUrl], needsPathCheck: true },
             { command: 'C:\\Program Files\\PotPlayer\\PotPlayerMini64.exe', args: [mediaUrl], needsPathCheck: true },

@@ -18,6 +18,9 @@
 
         let currentFollowedData = [];
         let draggedCard = null;
+        let followedRoomsAutoRefreshTimer = null;
+        let followedRoomsAutoRefreshEnabled = false;
+        let followedRoomsAutoRefreshRunning = false;
         window.allFollowedIds = window.allFollowedIds || new Set();
         const FOLLOWED_CUSTOM_ORDER_KEY = 'yaya_followed_custom_order';
 
@@ -173,7 +176,8 @@
             renderFollowedRoomsList(sortedData);
         }
 
-        async function loadFollowedRooms() {
+        async function loadFollowedRooms(options = {}) {
+            const { silent = false, preserveScroll = false } = options;
             const container = document.getElementById('followed-rooms-container');
             const token = getAppToken();
             if (!token) {
@@ -182,12 +186,13 @@
             }
 
             const refreshBtn = document.querySelector('button[onclick="loadFollowedRooms()"]');
-            if (refreshBtn) {
+            if (refreshBtn && !silent) {
                 refreshBtn.innerText = '刷新';
                 refreshBtn.disabled = true;
             }
 
-            if (!container.querySelector('.session-card')) {
+            const previousScrollTop = container ? container.scrollTop : 0;
+            if (!silent && !container.querySelector('.session-card')) {
                 container.innerHTML = '<div class="empty-state">正在加载</div>';
             }
 
@@ -243,6 +248,9 @@
                 });
 
                 sortFollowedRooms();
+                if (preserveScroll && container) {
+                    container.scrollTop = previousScrollTop;
+                }
 
                 const currentSearchId = document.getElementById('quick-follow-id')?.value;
                 const currentSearchName = document.getElementById('quick-follow-input')?.value;
@@ -250,13 +258,58 @@
                     selectQuickFollowMember(currentSearchName, currentSearchId);
                 }
             } catch (e) {
-                container.innerHTML = `<div class="empty-state">❌ ${escapeHtml(e.message)}</div>`;
+                if (silent) {
+                    console.warn('口袋房间列表自动刷新失败:', e);
+                } else {
+                    container.innerHTML = `<div class="empty-state">❌ ${escapeHtml(e.message)}</div>`;
+                }
             } finally {
-                if (refreshBtn) {
+                if (refreshBtn && !silent) {
                     refreshBtn.innerText = '刷新';
                     refreshBtn.disabled = false;
                 }
             }
+        }
+
+        function stopFollowedRoomsPolling() {
+            followedRoomsAutoRefreshEnabled = false;
+            if (followedRoomsAutoRefreshTimer) {
+                clearTimeout(followedRoomsAutoRefreshTimer);
+                followedRoomsAutoRefreshTimer = null;
+            }
+            followedRoomsAutoRefreshRunning = false;
+        }
+
+        function startFollowedRoomsPolling() {
+            stopFollowedRoomsPolling();
+            followedRoomsAutoRefreshEnabled = true;
+
+            const scheduleNext = () => {
+                if (!followedRoomsAutoRefreshEnabled) return;
+                followedRoomsAutoRefreshTimer = setTimeout(runPoll, getAdaptivePollDelay());
+            };
+
+            const runPoll = async () => {
+                if (!followedRoomsAutoRefreshEnabled) return;
+                const view = document.getElementById('view-followed-rooms');
+                if (!view || view.style.display === 'none' || followedRoomsAutoRefreshRunning) {
+                    scheduleNext();
+                    return;
+                }
+
+                followedRoomsAutoRefreshRunning = true;
+                try {
+                    await loadFollowedRooms({
+                        silent: true,
+                        preserveScroll: true
+                    });
+                } finally {
+                    followedRoomsAutoRefreshRunning = false;
+                    scheduleNext();
+                }
+            };
+
+            scheduleNext();
         }
 
         function renderFollowedRoomsList(renderData) {
@@ -480,6 +533,8 @@
             loadFollowedRooms,
             selectFollowedSort,
             selectQuickFollowMember,
+            startFollowedRoomsPolling,
+            stopFollowedRoomsPolling,
             sortFollowedRooms,
             toggleFollowedSortDropdown
         };

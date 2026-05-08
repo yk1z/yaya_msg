@@ -718,6 +718,9 @@
             playerEl.innerHTML = '<div id="bilibili-dplayer-container" style="width:100%; height:100%;"></div>';
             playerEl.style.display = 'block';
             if (placeholderEl) placeholderEl.style.display = 'none';
+            if (typeof window.ensureYayaWebPlayerLibs === 'function') {
+                await window.ensureYayaWebPlayerLibs('dplayer');
+            }
 
             const attemptId = bilibiliLiveAttemptId;
             let hasPlaybackStarted = false;

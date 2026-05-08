@@ -68,6 +68,7 @@
         let toggleMusicLyricsPanel;
         let loadMusicLyrics;
         let seekMusicLyricLine;
+        let backToPrivateMessageList;
         let closePrivateMessageDetail;
         let filterPrivateMessageList;
         let handlePrivateMessageReplyKeydown;
@@ -81,6 +82,8 @@
         let sendPrivateMessageReply;
         let startPrivateMessagePolling;
         let stopPrivateMessagePolling;
+        let startFollowedRoomsPolling;
+        let stopFollowedRoomsPolling;
         let handleOpenLiveSearch;
         let selectOpenLiveMember;
         let fetchOpenLiveList;
@@ -225,6 +228,7 @@
         let handleQuickFollowSearch;
         let selectQuickFollowMember;
         let executeQuickAction;
+        let backToFollowedRoomList;
         let openFollowedChat;
         let toggleFollowedRoomType;
         let jumpToFullRoom;
@@ -615,6 +619,10 @@
                 stopPrivateMessagePolling();
             }
 
+            if (nextViewName !== 'followed-rooms') {
+                if (typeof stopFollowedRoomsPolling === 'function') stopFollowedRoomsPolling();
+            }
+
             if (nextViewName !== 'music-library') {
                 const musicAudio = document.getElementById('music-native-audio');
                 if (musicAudio) musicAudio.pause();
@@ -956,6 +964,8 @@
             if (viewName === 'media') {
                 if (mode === 'live') return '正在直播';
                 if (mode === 'vod') return '直播回放';
+                if (mode === 'meet-live') return '海外直播';
+                if (mode === 'meet-vod') return '海外回放';
                 return '直播/回放';
             }
             return APP_TOPBAR_TITLE_MAP[viewName] || '';
@@ -1041,20 +1051,28 @@
                     const vodPagination = document.getElementById('vod-pagination-controls');
                     const liveControls = document.getElementById('live-list-controls');
 
-                    if (mode === 'live') {
-                        titleEl.textContent = '正在直播';
+                    configureMeet48ListControls();
+
+                    if (isLiveMediaMode(mode)) {
+                        titleEl.textContent = mode === 'meet-live' ? '海外直播' : '正在直播';
                         if (vodControls) vodControls.style.display = 'none';
                         if (vodPagination) vodPagination.style.display = 'none';
                         if (liveControls) liveControls.style.display = 'flex';
                         fetchLiveList();
-                    } else if (mode === 'vod') {
-                        titleEl.textContent = '录播回放';
+                    } else if (isVodMediaMode(mode)) {
+                        titleEl.textContent = mode === 'meet-vod' ? '海外回放' : '录播回放';
                         if (vodControls) vodControls.style.display = 'flex';
                         if (vodPagination) vodPagination.style.display = 'flex';
                         if (liveControls) liveControls.style.display = 'none';
                         if (window.vodState) {
+                            const nextSource = getMediaSourceForMode(mode);
+                            if (vodState.source !== nextSource) {
+                                vodState.source = nextSource;
+                                vodState.resetPagination(vodState.currentGroup);
+                                vodState.filterSignature = getVodFilterSignature();
+                            }
                             if (vodState.list.length === 0) {
-                                ensurePageData(2).then(() => window.renderVODListUI());
+                                ensurePageData(VOD_INITIAL_PAGE_TARGET).then(() => window.renderVODListUI());
                             } else {
                                 window.renderVODListUI();
                             }
@@ -1150,6 +1168,9 @@
                     }
 
                     refreshBilibiliLoginStatus(true);
+                    if (typeof refreshMeet48AuthPanel === 'function') {
+                        refreshMeet48AuthPanel();
+                    }
 
                 } else if (viewName === 'fetch') {
                     setGlobalSidebarVisible(false);
@@ -1255,6 +1276,7 @@
                     if (followedRoomsView) {
                         followedRoomsView.style.display = 'block';
                         loadFollowedRooms();
+                        if (typeof startFollowedRoomsPolling === 'function') startFollowedRoomsPolling();
                     }
 
                 } else if (viewName === 'video-library') {
@@ -1324,32 +1346,22 @@
                 }
             });
 
-            const btnLive = document.getElementById('btn-sb-live');
-            const btnVod = document.getElementById('btn-sb-vod');
-            if (btnLive && btnVod) {
-                if (viewName === 'media' && mode === 'live') {
-                    btnLive.innerHTML = '返回主页';
-                    btnLive.className = 'btn btn-primary';
-                    btnLive.onclick = () => switchView('home');
-                    btnVod.innerHTML = '录播回放';
-                    btnVod.className = 'btn btn-secondary';
-                    btnVod.onclick = () => switchView('media', 'vod');
-                } else if (viewName === 'media' && mode === 'vod') {
-                    btnLive.innerHTML = '正在直播';
-                    btnLive.className = 'btn btn-secondary';
-                    btnLive.onclick = () => switchView('media', 'live');
-                    btnVod.innerHTML = '返回主页';
-                    btnVod.className = 'btn btn-primary';
-                    btnVod.onclick = () => switchView('home');
+            [
+                { id: 'btn-sb-live', label: '正在直播', mode: 'live' },
+                { id: 'btn-sb-vod', label: '录播回放', mode: 'vod' }
+            ].forEach((btn) => {
+                const el = document.getElementById(btn.id);
+                if (!el) return;
+                if (viewName === 'media' && mode === btn.mode) {
+                    el.innerHTML = '返回主页';
+                    el.className = 'btn btn-primary';
+                    el.onclick = () => switchView('home');
                 } else {
-                    btnLive.innerHTML = '正在直播';
-                    btnLive.className = 'btn btn-secondary';
-                    btnLive.onclick = () => switchView('media', 'live');
-                    btnVod.innerHTML = '录播回放';
-                    btnVod.className = 'btn btn-secondary';
-                    btnVod.onclick = () => switchView('media', 'vod');
+                    el.innerHTML = btn.label;
+                    el.className = 'btn btn-secondary';
+                    el.onclick = () => switchView('media', btn.mode);
                 }
-            }
+            });
         }
 
         updateTopbarPageTitle(currentViewName, currentViewMode);
@@ -1405,6 +1417,7 @@
             storagePaths,
             openExternal
         } = window.desktop;
+        const isWebRuntime = window.desktop && window.desktop.platform === 'web';
         const memberNameMap = new Map();
         const memberIdSet = new Set();
         const memberTeamMap = new Map();
@@ -1599,8 +1612,7 @@
             input.value = name;
             box.style.display = 'none';
             if (window.vodState) {
-                vodState.currentPage = 1;
-                ensurePageData(2).then(() => renderVODListUI());
+                reloadVodListForCurrentFilter();
             }
         }
 
@@ -1625,6 +1637,9 @@
                 this.list = [];
                 this.searchPageToken = 0;
                 this.isSearchActive = false;
+                this.filterSignature = '';
+                this.requestVersion = 0;
+                this.source = 'pocket';
                 this.nextPageTokens = {
                     0: 0,
                     10: 0,
@@ -1637,7 +1652,8 @@
                     17: 0,
                     18: 20,
                     19: 0,
-                    21: 0
+                    21: 0,
+                    meet48: 0
                 };
                 this.hasMore = true;
                 this.groups = [{
@@ -1689,7 +1705,11 @@
                 this.pageSize = 5;
             }
             resetPagination(groupId) {
+                this.requestVersion++;
+                this.isLoading = false;
                 this.nextPageTokens[groupId] = 0;
+                this.nextPageTokens.meet48 = 0;
+                this.searchPageToken = 0;
                 this.list = [];
                 this.hasMore = true;
                 this.currentPage = 1;
@@ -1697,19 +1717,109 @@
         }
         const vodState = new VODState();
         window.vodState = vodState;
+        const VOD_INITIAL_PAGE_TARGET = 5;
+
+        function isMeet48Mode(mode = currentMode) {
+            return mode === 'meet-live' || mode === 'meet-vod';
+        }
+
+        function isLiveMediaMode(mode = currentMode) {
+            return mode === 'live' || mode === 'meet-live';
+        }
+
+        function isVodMediaMode(mode = currentMode) {
+            return mode === 'vod' || mode === 'meet-vod';
+        }
+
+        function getMediaSourceForMode(mode = currentMode) {
+            return isMeet48Mode(mode) ? 'meet48' : 'pocket';
+        }
+
+        function normalizeMediaCoverUrl(pathname, source = 'pocket') {
+            const value = String(pathname || '').trim();
+            if (!value) return './icon.png';
+            if (/^https?:\/\//i.test(value)) return value;
+            const base = source === 'meet48'
+                ? (/^(?:image|avatarUpload)\//i.test(value.replace(/^\/+/, '')) ? 'https://static.meet48.xyz/' : 'https://source3.48.cn/')
+                : 'https://source.48.cn/';
+            try {
+                return new URL(value.replace(/^\/+/, ''), base).href;
+            } catch (error) {
+                return value.startsWith('/') ? `${base.replace(/\/$/, '')}${value}` : `${base}${value}`;
+            }
+        }
+
+        function normalizeMeet48LiveItem(item, record = false) {
+            const raw = item || {};
+            const user = raw.userInfo || raw.user || {};
+            return Object.assign({}, raw, {
+                source: 'meet48',
+                liveId: String(raw.liveId || raw.id || ''),
+                title: raw.title || raw.liveTitle || (record ? '海外回放' : '海外直播'),
+                liveTitle: raw.liveTitle || raw.title || (record ? '海外回放' : '海外直播'),
+                liveType: raw.liveType || 1,
+                liveMode: raw.liveMode || 0,
+                userInfo: Object.assign({}, user, {
+                    nickname: user.nickname || user.userName || raw.nickname || '海外成员',
+                    userId: user.userId || raw.userId || ''
+                })
+            });
+        }
+
+        async function fetchMeet48ListPage({ next = 0, record = false } = {}) {
+            const result = await ipcRenderer.invoke('fetch-meet48-live-list', { next, record });
+            if (result?.success && result.content?.liveList) {
+                return {
+                    status: 200,
+                    content: {
+                        liveList: result.content.liveList.map(item => normalizeMeet48LiveItem(item, record)),
+                        next: result.content.next
+                    }
+                };
+            }
+            return { status: 500, message: result?.msg || 'Meet48 列表加载失败', content: {} };
+        }
+
+        function configureMeet48ListControls() {
+            const isMeet = isMeet48Mode();
+            const liveGroupWrapper = document.getElementById('live-group-wrapper');
+            const liveTypeWrapper = document.getElementById('live-type-wrapper');
+            const vodGroupWrapper = document.getElementById('vod-group-wrapper');
+            const vodTypeWrapper = document.getElementById('vod-type-wrapper');
+            const liveGroupValue = document.getElementById('live-group-value');
+            const liveGroupDisplay = document.getElementById('live-group-display');
+            const liveTypeValue = document.getElementById('live-type-value');
+            const liveTypeDisplay = document.getElementById('live-type-display');
+            const vodTypeValue = document.getElementById('vod-type-filter');
+            const vodTypeDisplay = document.getElementById('vod-type-display');
+
+            if (liveGroupWrapper?.parentElement) liveGroupWrapper.parentElement.style.display = isMeet ? 'none' : 'flex';
+            if (liveTypeWrapper?.parentElement) liveTypeWrapper.parentElement.style.display = isMeet ? 'none' : 'flex';
+            if (vodGroupWrapper?.parentElement) vodGroupWrapper.parentElement.style.display = isMeet ? 'none' : 'flex';
+            if (vodTypeWrapper?.parentElement) vodTypeWrapper.parentElement.style.display = isMeet ? 'none' : 'flex';
+            if (isMeet) {
+                if (liveGroupValue) liveGroupValue.value = 'all';
+                if (liveGroupDisplay) liveGroupDisplay.value = '全部团体';
+                if (liveTypeValue) liveTypeValue.value = 'all';
+                if (liveTypeDisplay) liveTypeDisplay.value = '全部';
+                if (vodTypeValue) vodTypeValue.value = '0';
+                if (vodTypeDisplay) vodTypeDisplay.value = '全部';
+            }
+        }
+
         async function fetchVODList(groupId, loadMore = false) {
             if (vodState.isLoading || (!vodState.hasMore && loadMore)) return;
             vodState.isLoading = true;
             const nextToken = loadMore ? vodState.nextPageTokens[groupId] : 0;
-            document.getElementById('vod-loading').textContent = loadMore ? '正在加载更多...' : '正在加载录播列表...';
-            document.getElementById('vod-loading').style.display = 'block';
+            document.getElementById('vod-loading').textContent = '';
+            document.getElementById('vod-loading').style.display = 'none';
             try {
                 const res = await fetchPocketAPI('/live/api/v1/live/getLiveList', JSON.stringify({
                     debug: true,
                     next: nextToken,
                     record: true,
                     groupId: groupId,
-                    limit: 50
+                    limit: 20
                 }));
                 vodState.isLoading = false;
                 document.getElementById('vod-loading').style.display = 'none';
@@ -1892,6 +2002,27 @@
         }
 
         function fetchPocketAPI(path, postData) {
+            if (isWebRuntime) {
+                return fetch('/api/pocket', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path, postData })
+                }).then(async (response) => {
+                    const data = await response.json().catch(() => ({ status: 500, content: {} }));
+                    if (!response.ok) {
+                        return {
+                            status: response.status,
+                            message: data?.msg || data?.message || '网页版 API 请求失败',
+                            content: data?.content || {}
+                        };
+                    }
+                    return data;
+                }).catch(() => ({
+                    status: 500,
+                    content: {}
+                }));
+            }
+
             return new Promise((resolve, reject) => {
                 const options = {
                     hostname: 'pocketapi.48.cn',
@@ -1992,6 +2123,7 @@
         }));
 
         ({
+            backToFollowedRoomList,
             flushFollowedPendingMessages,
             getActiveFollowedChannel,
             jumpToFullRoom,
@@ -2018,6 +2150,7 @@
             showToast: (...args) => showToast(...args),
             switchView
         }));
+        window.backToFollowedRoomList = backToFollowedRoomList;
         window.flushFollowedPendingMessages = flushFollowedPendingMessages;
         window.jumpToFullRoom = jumpToFullRoom;
         window.loadFollowedChatPage = loadFollowedChatPage;
@@ -2043,6 +2176,8 @@
             loadFollowedRooms,
             selectFollowedSort,
             selectQuickFollowMember,
+            startFollowedRoomsPolling,
+            stopFollowedRoomsPolling,
             sortFollowedRooms,
             toggleFollowedSortDropdown
         } = window.YayaRendererFeatures.createFollowedRoomsFeature({
@@ -2101,6 +2236,7 @@
         }));
 
         ({
+            backToPrivateMessageList,
             checkPrivateMessageFlipCostMin,
             closePrivateMessageDetail,
             filterPrivateMessageList,
@@ -2154,6 +2290,7 @@
             showToast: (...args) => showToast(...args),
             switchView
         }));
+        window.backToPrivateMessageList = backToPrivateMessageList;
         window.closePrivateMessageDetail = closePrivateMessageDetail;
         window.filterPrivateMessageList = filterPrivateMessageList;
         window.flushPrivateMessagePendingMessages = flushPrivateMessagePendingMessages;
@@ -2819,7 +2956,12 @@
                     console.warn('成员列表预加载失败:', error);
                 });
 
-                if (fs.existsSync(CACHE_FILE)) {
+                if (isWebRuntime || !fs || typeof fs.existsSync !== 'function') {
+                    allPosts = [];
+                    initUIWithData();
+                    statusMsg.textContent = "网页版已就绪";
+                    outputList.innerHTML = '<div class="placeholder-tip"><h3>网页版已启动</h3><p>本地历史 HTML 扫描仅桌面版支持；网页版可继续使用登录、抓取、房间、相册、翻牌等在线功能。</p></div>';
+                } else if (fs.existsSync(CACHE_FILE)) {
                     setMessageIndexLoadingState(true, '正在读取缓存', '解析本地历史数据');
                     statusMsg.textContent = "🚀 正在流式读取缓存...";
 
@@ -3237,6 +3379,11 @@
             document.getElementById('media-list-area').style.display = 'block';
 
             destroyPlayers();
+            if (currentMode === 'live' && typeof window.syncWebLiveListRoute === 'function') {
+                window.syncWebLiveListRoute();
+            } else if (currentMode === 'vod' && typeof window.syncWebVodListRoute === 'function') {
+                window.syncWebVodListRoute();
+            }
             const oldNotice = document.querySelector('#live-player-area .live-link-info');
             if (oldNotice) oldNotice.remove();
 
@@ -3244,7 +3391,9 @@
             const vodPagination = document.getElementById('vod-pagination-controls');
             const mediaControls = document.getElementById('media-list-controls');
 
-            if (currentMode === 'vod') {
+            configureMeet48ListControls();
+
+            if (isVodMediaMode()) {
                 if (vodPagination) vodPagination.style.display = 'flex';
                 if (mediaControls) mediaControls.style.display = 'flex';
 
@@ -3252,7 +3401,7 @@
 
                 if (window.vodState) window.renderVODListUI();
 
-            } else if (currentMode === 'live') {
+            } else if (isLiveMediaMode()) {
                 if (liveControls) liveControls.style.display = 'flex';
 
                 if (vodPagination) vodPagination.style.display = 'none';
@@ -3266,11 +3415,72 @@
             if (!window.vodState) return;
             vodState.currentGroup = parseInt(apiId);
             vodState.resetPagination(vodState.currentGroup);
-            ensurePageData(2, { silent: true }).then(() => {
+            vodState.filterSignature = getVodFilterSignature();
+            ensurePageData(VOD_INITIAL_PAGE_TARGET, { silent: true }).then(() => {
                 window.renderVODListUI();
             });
         }
         let filterTimeout;
+
+        function getVodFilterSignature() {
+            const memberFilterInput = document.getElementById('vod-member-filter');
+            const typeFilterSelect = document.getElementById('vod-type-filter');
+            const filterText = memberFilterInput ? memberFilterInput.value.trim().toLowerCase() : '';
+            const typeFilter = typeFilterSelect ? typeFilterSelect.value : '0';
+            const groupId = window.vodState ? vodState.currentGroup : 0;
+            const source = window.vodState ? vodState.source : getMediaSourceForMode();
+            return `${source}|${groupId}|${typeFilter}|${filterText}`;
+        }
+
+        function resetVodDataForFilterChange() {
+            if (!window.vodState) return false;
+            const nextSignature = getVodFilterSignature();
+            if (vodState.filterSignature === nextSignature) return false;
+
+            vodState.filterSignature = nextSignature;
+            vodState.requestVersion++;
+            vodState.isLoading = false;
+            vodState.searchPageToken = 0;
+            vodState.nextPageTokens[vodState.currentGroup] = 0;
+            vodState.nextPageTokens.meet48 = 0;
+            vodState.list = [];
+            vodState.hasMore = true;
+            vodState.currentPage = 1;
+            resetLoadAllButton();
+            return true;
+        }
+
+        let vodMemberLookupPromise = null;
+
+        async function ensureVodMemberLookupReady(filterText) {
+            if (!filterText || window.isMemberDataLoaded || isMemberDataLoaded || typeof loadMemberData !== 'function') return;
+
+            if (!vodMemberLookupPromise) {
+                vodMemberLookupPromise = Promise.resolve(loadMemberData()).finally(() => {
+                    vodMemberLookupPromise = null;
+                });
+            }
+
+            try {
+                await vodMemberLookupPromise;
+            } catch (error) {
+                console.warn('录播成员索引加载失败:', error);
+            }
+        }
+
+        async function reloadVodListForCurrentFilter(options = {}) {
+            if (!window.vodState) return;
+            const requestSignature = getVodFilterSignature();
+            const memberFilterInput = document.getElementById('vod-member-filter');
+            const filterText = memberFilterInput ? memberFilterInput.value.trim() : '';
+
+            await ensureVodMemberLookupReady(filterText);
+            if (!window.vodState || getVodFilterSignature() !== requestSignature) return;
+
+            resetVodDataForFilterChange();
+            vodState.currentPage = 1;
+            ensurePageData(VOD_INITIAL_PAGE_TARGET, options).then(() => renderVODListUI());
+        }
 
         function handleMemberFilter() {
             const input = document.getElementById('vod-member-filter');
@@ -3325,10 +3535,7 @@
 
             clearTimeout(filterTimeout);
             filterTimeout = setTimeout(() => {
-                if (window.vodState) {
-                    vodState.currentPage = 1;
-                    ensurePageData(2, { silent: true }).then(() => renderVODListUI());
-                }
+                reloadVodListForCurrentFilter({ silent: true });
             }, 500);
         }
 
@@ -3373,10 +3580,7 @@
         }
 
         function handleVodTypeChange() {
-            if (window.vodState) {
-                vodState.currentPage = 1;
-                ensurePageData(2, { silent: true }).then(() => renderVODListUI());
-            }
+            reloadVodListForCurrentFilter({ silent: true });
         }
 
         let isVodAutoLoading = false;
@@ -3413,10 +3617,12 @@
 
             try {
                 let previousTotal = getFilteredVODList().length;
+                const autoLoadVersion = vodState.requestVersion;
 
-                while (isVodAutoLoading && vodState.hasMore) {
+                while (isVodAutoLoading && vodState.hasMore && autoLoadVersion === vodState.requestVersion) {
 
-                    await fetchVODPageInternal();
+                    await fetchVODPageInternal(autoLoadVersion);
+                    if (autoLoadVersion !== vodState.requestVersion) break;
 
                     if (typeof renderVODListUI === 'function') {
                         renderVODListUI();
@@ -3472,13 +3678,17 @@
             vodState.searchPageToken = 0;
             const groupId = vodState.currentGroup;
             vodState.nextPageTokens[groupId] = 0;
+            vodState.nextPageTokens.meet48 = 0;
             vodState.hasMore = true;
             vodState.currentPage = 1;
+            vodState.requestVersion++;
+            vodState.isLoading = false;
+            vodState.filterSignature = getVodFilterSignature();
 
             try {
                 await fetchVODPageInternal();
 
-                await ensurePageData(4);
+                await ensurePageData(VOD_INITIAL_PAGE_TARGET);
 
                 window.renderVODListUI();
             } catch (e) {
@@ -3551,13 +3761,32 @@
             });
         }
 
-        async function fetchVODPageInternal() {
+        async function fetchVODPageInternal(requestVersion = vodState.requestVersion) {
+            const isStaleVodRequest = () => requestVersion !== vodState.requestVersion;
             const memberFilterInput = document.getElementById('vod-member-filter');
             let filterText = memberFilterInput ? memberFilterInput.value.trim() : '';
-            const memberId = filterText ? getMemberIdFromQuery(filterText) : null;
+            const isMeetSource = vodState.source === 'meet48' || currentMode === 'meet-vod';
+            const memberId = (!isMeetSource && filterText) ? getMemberIdFromQuery(filterText) : null;
             const groupId = vodState.currentGroup;
-            let nextToken = memberId ? (vodState.searchPageToken || 0) : vodState.nextPageTokens[groupId];
+            let nextToken = isMeetSource
+                ? (vodState.nextPageTokens.meet48 || 0)
+                : (memberId ? (vodState.searchPageToken || 0) : vodState.nextPageTokens[groupId]);
             try {
+                if (isMeetSource) {
+                    const res = await fetchMeet48ListPage({ next: nextToken, record: true });
+                    if (isStaleVodRequest()) return 0;
+                    if (res?.status === 200 && res.content?.liveList) {
+                        const newList = res.content.liveList;
+                        if (vodState.nextPageTokens.meet48 === 0) vodState.list = newList;
+                        else vodState.list = vodState.list.concat(newList);
+                        vodState.nextPageTokens.meet48 = res.content.next;
+                        vodState.hasMore = res.content.next !== 0 && res.content.next !== null;
+                        return newList.length;
+                    }
+                    if (!isStaleVodRequest()) vodState.hasMore = false;
+                    return 0;
+                }
+
                 if (memberId && nextToken === 0) {
                     const anchorRes = await fetchPocketAPI('/live/api/v1/live/getLiveList', JSON.stringify({
                         debug: true,
@@ -3565,22 +3794,22 @@
                         record: true,
                         limit: 1
                     }));
+                    if (isStaleVodRequest()) return 0;
                     if (anchorRes?.content?.liveList?.[0]) nextToken = anchorRes.content.liveList[0].liveId;
                 }
                 const payload = {
                     debug: true,
                     next: nextToken,
                     record: true,
-                    limit: 50
+                    limit: 20
                 };
                 if (memberId) {
                     payload.userId = parseInt(memberId, 10);
-                    document.getElementById('vod-loading').textContent = `正在检索 ID: ${memberId} 的回放...`;
                 } else {
                     payload.groupId = groupId;
-                    document.getElementById('vod-loading').textContent = `正在加载最近录播...`;
                 }
                 const res = await fetchPocketAPI('/live/api/v1/live/getLiveList', JSON.stringify(payload));
+                if (isStaleVodRequest()) return 0;
                 if (res?.status === 200 && res.content?.liveList) {
                     const newList = res.content.liveList;
                     if (memberId) {
@@ -3595,29 +3824,39 @@
                     vodState.hasMore = res.content.next !== 0 && res.content.next !== null;
                     return newList.length;
                 }
-            } catch (e) { }
+                if (!isStaleVodRequest()) vodState.hasMore = false;
+            } catch (e) {
+                if (!isStaleVodRequest()) vodState.hasMore = false;
+            }
             return 0;
         }
         async function ensurePageData(page, options = {}) {
             if (vodState.isLoading) return;
+            const requestVersion = vodState.requestVersion;
             const silent = !!options.silent;
             const targetCount = page * vodState.pageSize;
             if (getFilteredVODList().length >= targetCount || !vodState.hasMore) return;
             vodState.isLoading = true;
-            if (!silent && vodState.list.length === 0) document.getElementById('vod-loading').style.display = 'block';
+            document.getElementById('vod-loading').style.display = 'none';
             togglePagination(false);
             let loopSafety = 0;
             const MAX_LOOPS = 50;
             try {
-                while (getFilteredVODList().length < targetCount && vodState.hasMore && loopSafety < MAX_LOOPS) {
-                    const addedRaw = await fetchVODPageInternal();
-                    if (addedRaw === 0 && !vodState.hasMore) break;
+                while (requestVersion === vodState.requestVersion && getFilteredVODList().length < targetCount && vodState.hasMore && loopSafety < MAX_LOOPS) {
+                    const addedRaw = await fetchVODPageInternal(requestVersion);
+                    if (requestVersion !== vodState.requestVersion) break;
+                    if (addedRaw === 0) {
+                        vodState.hasMore = false;
+                        break;
+                    }
                     loopSafety++;
                 }
             } catch (e) { } finally {
-                vodState.isLoading = false;
-                document.getElementById('vod-loading').style.display = 'none';
-                togglePagination(true);
+                if (requestVersion === vodState.requestVersion) {
+                    vodState.isLoading = false;
+                    document.getElementById('vod-loading').style.display = 'none';
+                    togglePagination(true);
+                }
             }
         }
 
@@ -3640,9 +3879,7 @@
 
                 console.log("当前筛选结果不足，自动拉取下一页...");
 
-                if (container.innerHTML.trim() === '') {
-                    container.innerHTML = '<div style="width:100%; text-align:center; padding:20px; color:#888;">正在检索更多历史数据...</div>';
-                }
+                if (container.innerHTML.trim() === '') container.innerHTML = '';
 
                 fetchVODPageInternal().then(() => {
                     renderVODListUI();
@@ -3663,6 +3900,9 @@
                 updatePaginationControls(0);
                 return;
             }
+            const totalPages = Math.max(1, Math.ceil(filteredList.length / vodState.pageSize));
+            if (vodState.currentPage > totalPages) vodState.currentPage = totalPages;
+            if (vodState.currentPage < 1) vodState.currentPage = 1;
             const startIndex = (vodState.currentPage - 1) * vodState.pageSize;
             const endIndex = startIndex + vodState.pageSize;
             const pageItems = filteredList.slice(startIndex, endIndex);
@@ -3683,8 +3923,9 @@
                     btnDisabled = "disabled";
                 }
                 const isLive = item.liveStatus === 1;
+                const isMeetItem = item.source === 'meet48';
                 const name = item.userInfo ? item.userInfo.nickname : item.nickname || '未知成员';
-                const cover = item.coverPath ? `https://source.48.cn${item.coverPath}` : './icon.png';
+                const cover = normalizeMediaCoverUrl(item.coverPath, isMeetItem ? 'meet48' : 'pocket');
                 const titleText = item.liveTitle || item.title || '无标题';
                 let timeStr = '未知时间';
                 const rawTime = item.startTime || item.ctime;
@@ -3704,24 +3945,24 @@
                 }
                 card.innerHTML = `
                     <div class="vod-row-cover-container">
-                        <img src="${cover}" class="vod-row-cover" onclick="directToPotPlayer(event, '${item.liveId}')" title="点击头像直接调用外部播放器播放">
+                        <img src="${cover}" class="vod-row-cover" onclick="directToPotPlayer(event, '${item.liveId}', '${isMeetItem ? 'meet48' : 'pocket'}')" title="点击头像直接调用外部播放器播放">
                         <div class="vod-badge ${badgeClass}">${liveTypeLabel}</div>
                     </div>
                     <div class="vod-row-info">
                         <div class="vod-row-name">
                             ${name}
                             <div style="margin-left:auto; display:flex; gap:5px;">
-                                <button class="btn btn-secondary"
+                                ${isMeetItem ? '' : `<button class="btn btn-secondary web-hidden"
                                         style="padding: 2px 8px; font-size: 11px; height: 24px;" 
                                         onclick="handleDownloadDanmu(event, ${JSON.stringify(item).replace(/"/g, '&quot;')})">
                                     弹幕下载
                                 </button>
                                 
-                                <button class="btn ${btnStyleClass} vod-btn-${item.liveId}" ${btnDisabled} 
+                                <button class="btn ${btnStyleClass} vod-btn-${item.liveId} web-hidden" ${btnDisabled} 
                                         style="padding: 2px 8px; font-size: 11px; height: 24px;" 
                                         onclick="handleDownloadVOD(event, ${JSON.stringify(item).replace(/"/g, '&quot;')})">
                                     ${btnText}
-                                </button>
+                                </button>`}
                             </div>
                         </div>
                         
@@ -3731,12 +3972,13 @@
                 `;
                 card.onclick = () => playLiveStream({
                     liveId: item.liveId,
+                    source: item.source,
                     userInfo: {
                         nickname: name
                     },
                     title: titleText,
                     startTime: rawTime
-                }, isLive ? 'live' : 'vod');
+                }, isMeetItem ? currentMode : (isLive ? 'live' : 'vod'));
                 container.appendChild(card);
             });
             updatePaginationControls(filteredList.length);
@@ -3763,7 +4005,12 @@
                 end = Math.max(totalPagesLocal, 1);
                 start = Math.max(1, end - 4);
             }
-            for (let i = start; i <= end; i++) html += generatePageBtn(i, current);
+            const visiblePages = [];
+            for (let i = start; i <= end; i++) visiblePages.push(i);
+            while (visiblePages.length < 5) visiblePages.push(null);
+            visiblePages.forEach(pageNum => {
+                html += pageNum === null ? generatePagePlaceholderBtn() : generatePageBtn(pageNum, current);
+            });
             const canNext = current < totalPagesLocal || vodState.hasMore;
             html += `<button class="pagination-btn" onclick="handleNextPage()" ${!canNext ? 'disabled' : ''}>下一页</button>`;
             html += `<button class="pagination-btn" onclick="goToPage(${totalPagesLocal})" ${totalPagesLocal <= 1 ? 'disabled' : ''}>尾页</button>`;
@@ -3776,6 +4023,10 @@
             const activeClass = pageNum === current ? 'active' : '';
             return `<button class="pagination-btn ${activeClass}" onclick="goToPage(${pageNum})">${pageNum}</button>`;
         }
+
+        function generatePagePlaceholderBtn() {
+            return '<button class="pagination-btn pagination-placeholder" disabled aria-hidden="true" tabindex="-1"></button>';
+        }
         async function fetchLiveList() {
             const vodLoading = document.getElementById('vod-loading');
             const vodListContainer = document.getElementById('vod-list-container');
@@ -3784,12 +4035,14 @@
             vodListContainer.innerHTML = '';
 
             try {
-                const res = await fetchPocketAPI('/live/api/v1/live/getLiveList', JSON.stringify({
-                    debug: true,
-                    next: 0,
-                    groupId: 0,
-                    record: false
-                }));
+                const res = currentMode === 'meet-live'
+                    ? await fetchMeet48ListPage({ next: 0, record: false })
+                    : await fetchPocketAPI('/live/api/v1/live/getLiveList', JSON.stringify({
+                        debug: true,
+                        next: 0,
+                        groupId: 0,
+                        record: false
+                    }));
 
                 vodLoading.style.display = 'none';
 
@@ -3899,7 +4152,8 @@
             list.forEach(item => {
                 const card = document.createElement('div');
                 card.className = 'live-card';
-                const cover = item.coverPath ? `https://source.48.cn${item.coverPath}` : './icon.png';
+                const isMeetItem = item.source === 'meet48';
+                const cover = normalizeMediaCoverUrl(item.coverPath, isMeetItem ? 'meet48' : 'pocket');
                 let typeText = '视频', typeClass = 'badge-video';
 
                 if (item.liveMode === 1) {
@@ -3911,11 +4165,11 @@
                 }
                 card.innerHTML = `
                     <div class="live-badge ${typeClass}">${typeText}</div>
-                    <img src="${cover}" onclick="directToPotPlayer(event, '${item.liveId}')" title="点击头像直接调用外部播放器播放" style="cursor: pointer;">
+                    <img src="${cover}" onclick="directToPotPlayer(event, '${item.liveId}', '${isMeetItem ? 'meet48' : 'pocket'}')" title="点击头像直接调用外部播放器播放" style="cursor: pointer;">
                     <div class="name">${item.userInfo.nickname}</div>
                     <div class="title">${item.title}</div>
                 `;
-                card.onclick = () => playLiveStream(item, 'live');
+                card.onclick = () => playLiveStream(item, isMeetItem ? 'meet-live' : 'live');
                 vodListContainer.appendChild(card);
             });
         }

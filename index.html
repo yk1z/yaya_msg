@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy"
         content="default-src 'self' file: https: data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net https://unpkg.com https://cdn.tailwindcss.com https://esm.sh; style-src 'self' 'unsafe-inline' https:; img-src 'self' file: https: data: blob:; media-src 'self' file: https: http: data: blob:; connect-src 'self' file: https: http: ws: wss: data: blob:; font-src 'self' https: data:;">
-    <title>牙牙消息 v2.3</title>
+    <title>牙牙消息 v2.4</title>
     <link rel="icon" href="./icon.png" type="image/x-icon">
 
     <link rel="stylesheet" href="style.css">
@@ -43,7 +43,7 @@
                 </svg>
             </div>
             <img src="./icon.png" class="title-logo">
-            <span>牙牙消息 v2.3</span>
+            <span>牙牙消息 v2.4</span>
         </div>
         <div id="topbar-page-title" class="title-bar-center-title" aria-live="polite"></div>
         <div class="window-controls">
@@ -95,7 +95,6 @@
                         录播回放
                     </button>
                 </div>
-
                 <button class="btn btn-secondary btn-full"
                     onclick="openInBrowser('https://www.bilibili.com/video/BV1Ba8FzxEje')">
                     牙牙回放
@@ -341,6 +340,14 @@
                                     <span class="home-card-title">回放</span>
                                     <span class="home-card-desc">进入录播与弹幕页</span>
                                 </button>
+                                <button class="home-card" onclick="switchView('media', 'meet-live')" style="display: none;">
+                                    <span class="home-card-title">海外直播</span>
+                                    <span class="home-card-desc">查看 Meet48 直播</span>
+                                </button>
+                                <button class="home-card" onclick="switchView('media', 'meet-vod')" style="display: none;">
+                                    <span class="home-card-title">海外回放</span>
+                                    <span class="home-card-desc">查看 Meet48 回放</span>
+                                </button>
                                 <button class="home-card" onclick="switchView('room-radio')">
                                     <span class="home-card-title">上麦</span>
                                     <span class="home-card-desc">进入房间电台</span>
@@ -528,6 +535,8 @@
 
                             <div
                                 style="flex: 1; min-width: 0; margin-right: 15px; display: flex; align-items: center; gap: 12px;">
+                                <button type="button" class="followed-chat-mobile-back"
+                                    onclick="backToFollowedRoomList(event)">‹ 聚聚</button>
                                 <img id="followed-chat-avatar" src="./icon.png"
                                     style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1.5px solid var(--primary); display: none;">
 
@@ -698,8 +707,7 @@
                     <div id="media-list-area"
                         style="display: flex; flex-direction: column; justify-content: flex-start;">
                     <div id="vod-loading"
-                        style="text-align: center; padding: 20px; color: var(--text-sub); display: none;">正在加载数据...
-                    </div>
+                        style="text-align: center; padding: 20px; color: var(--text-sub); display: none;"></div>
                         <div class="live-card-grid" id="vod-list-container"></div>
                 </div>
 
@@ -1088,6 +1096,36 @@
                             </div>
                         </div>
                     </div>
+
+                    <div class="Box-row account-section-card">
+                        <div
+                            style="display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 15px;">
+                            <div style="min-width: 0;">
+                                <label style="display:block; font-weight:bold; color:var(--text);">Meet48 登录态</label>
+                                <span id="meet48-login-status"
+                                    style="font-size: 12px; color: var(--text-sub);">正在读取状态...</span>
+                            </div>
+                            <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end;">
+                                <button class="btn btn-secondary" onclick="document.getElementById('meet48-har-file').click()">导入 HAR</button>
+                                <button class="btn btn-secondary" onclick="saveMeet48AuthFromFields()">保存并验证</button>
+                                <button class="btn btn-secondary" onclick="clearMeet48Auth()" style="color: #ff4d4f;">清除</button>
+                            </div>
+                        </div>
+                        <input id="meet48-har-file" type="file" accept=".har,application/json,.json"
+                            style="display: none;" onchange="importMeet48HarFile(this.files && this.files[0]); this.value='';">
+                        <div style="display: grid; grid-template-columns: 1fr; gap: 10px;">
+                            <textarea id="meet48-token" class="input-control"
+                                style="height: 72px; resize: vertical; padding: 10px;"
+                                placeholder="Meet48 token（已保存时不会回显）" spellcheck="false"></textarea>
+                            <textarea id="meet48-cookie" class="input-control"
+                                style="height: 72px; resize: vertical; padding: 10px;"
+                                placeholder="Meet48 cookie（可选，已保存时不会回显）" spellcheck="false"></textarea>
+                            <input id="meet48-device-id" class="input-control" placeholder="x-deviceid" spellcheck="false">
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-sub); line-height: 1.6; margin-top: 10px;">
+                            目前 Meet48 播放接口需要已登录请求头。导入登录后的 HAR 或手动填写后只保存到本机设置文件，不会写进代码或上传云端。
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -1146,6 +1184,8 @@
                                     data-group-filter="CKG" onclick="setOfficialSiteMusicGroupFilter('CKG')">CKG48</button>
                                 <button type="button" class="official-site-music-filter"
                                     data-group-filter="CGT" onclick="setOfficialSiteMusicGroupFilter('CGT')">CGT48</button>
+                                <button type="button" class="official-site-music-filter"
+                                    data-group-filter="SHY" onclick="setOfficialSiteMusicGroupFilter('SHY')">SHY48</button>
                             </div>
                             <div class="official-site-music-search media-search-shell">
                                 <span class="media-search-icon" aria-hidden="true">
@@ -1155,7 +1195,7 @@
                                     </svg>
                                 </span>
                                 <input type="text" id="official-site-music-search-input"
-                                    class="input-control media-search-input" placeholder="搜索歌曲名 / 分团 / 歌手"
+                                    class="input-control media-search-input" placeholder="搜索歌曲名 / 专辑 / 分团 / 歌手"
                                     oninput="handleOfficialSiteMusicSearch(this.value)">
                             </div>
                         </div>
@@ -1189,7 +1229,6 @@
                                 <div id="official-site-music-current-title" class="title-scroll-text">未播放</div>
                             </div>
                             <div class="official-site-music-subline">
-                                <div id="official-site-music-status-dot" class="official-site-music-status-dot"></div>
                                 <div id="official-site-music-current-subtitle" class="official-site-music-current-subtitle">
                                 </div>
                             </div>
@@ -1377,6 +1416,8 @@
                         <div id="private-message-detail-panel-header" class="private-messages-panel-header"
                             style="visibility:hidden;">
                             <div style="display:flex; align-items:center; gap:12px; min-width:0;">
+                                <button type="button" class="private-message-mobile-back"
+                                    onclick="backToPrivateMessageList(event)">‹ 私信</button>
                                 <img id="private-message-detail-avatar" class="private-message-avatar" src="./icon.png"
                                     style="width:40px;height:40px;">
                                 <div style="min-width:0;">
@@ -1569,9 +1610,6 @@
                                         <div id="audio-player-title" class="title-scroll-text">未播放</div>
                                     </div>
                                     <div class="official-site-music-subline" style="display: flex; align-items: center; gap: 6px;">
-                                        <div id="audio-status-dot" class="official-site-music-status-dot"
-                                            style="width: 8px; height: 8px; border-radius: 50%; background: #ccc; box-shadow: 0 0 4px #ccc; transition: all 0.3s;">
-                                        </div>
                                         <div id="audio-player-subtitle" class="official-site-music-current-subtitle"
                                             style="font-size: 12px; color: var(--text-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                                             准备就绪</div>
