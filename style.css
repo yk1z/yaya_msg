@@ -4814,11 +4814,49 @@ html[data-theme="dark"] .account-checkin-toggle {
 
 @media (max-width: 880px) {
     .account-state-card {
+        flex-direction: column !important;
+        align-items: stretch;
+        justify-content: flex-start;
+        gap: 14px;
         padding: 18px;
     }
 
+    .account-state-profile {
+        display: grid;
+        grid-template-columns: 48px minmax(0, 1fr);
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+    }
+
+    .account-state-main {
+        width: 100%;
+        min-width: 0;
+    }
+
     .account-state-name {
+        min-width: 0;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
         font-size: 22px;
+        line-height: 1.15;
+    }
+
+    .account-state-name-row {
+        flex-wrap: nowrap;
+        min-width: 0;
+    }
+
+    .account-state-badge {
+        flex: 0 0 auto;
+    }
+
+    .account-state-id {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .account-state-avatar {
@@ -4830,12 +4868,20 @@ html[data-theme="dark"] .account-checkin-toggle {
     }
 
     .account-state-actions {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
         width: 100%;
+        gap: 10px;
         justify-content: stretch;
     }
 
     .account-state-actions .btn {
-        flex: 1 1 160px;
+        width: 100%;
+        min-width: 0;
+        height: 44px !important;
+        padding: 0 10px !important;
+        white-space: nowrap;
+        flex: none;
     }
 
     .account-section-card {
