@@ -181,8 +181,9 @@ function applyWebTransforms() {
     indexHtml = replaceOnce(
         indexHtml,
         '                    </section>\r\n                    <div class="home-footer-credit">presented by yk1z</div>',
-        `                    </section>\r\n                    <div class="web-limit-notice">\r\n                        <span class="web-limit-copy">由于网页限制，使用完整功能请下载桌面端。</span>\r\n                        <div class="web-download-actions" aria-label="桌面端下载">\r\n                            <a class="web-desktop-download-btn" href="/downloads/yaya_msg-v2.3-win.zip" download>Windows</a>\r\n                            <a class="web-desktop-download-btn" href="/downloads/yaya_msg-v2.3-mac.zip" download>macOS</a>\r\n                            <a class="web-desktop-download-btn" href="/downloads/yaya_msg-v2.3-linux.tar.gz" download>Linux</a>\r\n                        </div>\r\n                    </div>\r\n                    <div class="home-footer-credit">presented by yk1z</div>`
+        `                    </section>\r\n                    <div class="web-limit-notice">\r\n                        <span class="web-limit-copy">由于网页限制，使用完整功能请下载桌面端。</span>\r\n                        <div class="web-download-actions" aria-label="桌面端下载">\r\n                            <a class="web-desktop-download-btn" href="/downloads/yaya_msg-v2.3-win.zip" download><span class="web-platform-icon" aria-hidden="true">⊞</span><span>Windows</span></a>\r\n                            <a class="web-desktop-download-btn" href="/downloads/yaya_msg-v2.3-mac.zip" download><span class="web-platform-icon" aria-hidden="true"></span><span>macOS</span></a>\r\n                            <a class="web-desktop-download-btn" href="/downloads/yaya_msg-v2.3-linux.tar.gz" download><span class="web-platform-icon" aria-hidden="true">◆</span><span>Linux</span></a>\r\n                        </div>\r\n                    </div>\r\n                    <div class="home-footer-credit">presented by yk1z</div>`
     );
+    indexHtml = indexHtml.replace(/<span class="web-platform-icon" aria-hidden="true">.*?<\/span><span>(Windows|macOS|Linux)<\/span>/g, '$1');
 
     fs.writeFileSync(indexPath, indexHtml);
 
@@ -339,12 +340,6 @@ function applyWebTransforms() {
             return slug && WEB_ROUTE_MAP[slug] ? WEB_ROUTE_MAP[slug].title : '';
         }
 
-        function getWebHostDefaultSlug() {
-            const host = String(window.location.hostname || '').toLowerCase();
-            if (host === 'music.gnz.hk') return 'music';
-            return '';
-        }
-
         function getWebSlugFromLocation() {
             const hashSlug = String(window.location.hash || '')
                 .replace(/^#\\/?/, '')
@@ -353,7 +348,7 @@ function applyWebTransforms() {
             if (hashSlug) return hashSlug;
             const pathSlug = decodeURIComponent(String(window.location.pathname || '/'))
                 .replace(/^\\/+|\\/+$/g, '');
-            return pathSlug && pathSlug !== 'index.html' ? pathSlug : (getWebHostDefaultSlug() || 'home');
+            return pathSlug && pathSlug !== 'index.html' ? pathSlug : 'home';
         }
 
         function getWebRouteFromLocation() {
@@ -385,8 +380,7 @@ function applyWebTransforms() {
 
             if (isApplyingWebRoute) return;
 
-            const hostDefaultSlug = getWebHostDefaultSlug();
-            const nextPath = (slug === 'home' || slug === hostDefaultSlug) ? '/' : \`/\${slug}\`;
+            const nextPath = slug === 'home' ? '/' : \`/\${slug}\`;
             const currentPath = decodeURIComponent(window.location.pathname || '/').replace(/\\/+$/, '') || '/';
             const nextComparablePath = decodeURIComponent(nextPath).replace(/\\/+$/, '') || '/';
             if (!window.location.hash && currentPath === nextComparablePath) return;
@@ -711,11 +705,11 @@ function applyWebTransforms() {
         '}',
         '',
         'html[data-platform="web"] .web-limit-notice {',
-        '    margin: 8px 8px 0;',
-        '    padding: 18px 20px;',
+        '    margin: auto 8px 0;',
+        '    padding: 16px 20px;',
         '    border: 1px solid rgba(148, 163, 184, 0.28);',
         '    border-radius: 12px;',
-        '    background: color-mix(in srgb, var(--card) 86%, transparent);',
+        '    background: linear-gradient(90deg, rgba(15, 23, 42, 0.56), color-mix(in srgb, var(--card) 72%, transparent));',
         '    color: var(--text-sub);',
         '    font-size: 14px;',
         '    font-weight: 700;',
@@ -725,8 +719,13 @@ function applyWebTransforms() {
         '    display: flex;',
         '    align-items: center;',
         '    justify-content: center;',
-        '    gap: 12px;',
+        '    gap: 18px;',
         '    flex-wrap: wrap;',
+        '    min-height: 72px;',
+        '}',
+        '',
+        'html[data-platform="web"] .home-footer-credit {',
+        '    margin-top: 0;',
         '}',
         '',
         'html[data-platform="web"] .web-limit-copy {',
@@ -737,7 +736,7 @@ function applyWebTransforms() {
         '    display: inline-flex;',
         '    align-items: center;',
         '    justify-content: center;',
-        '    gap: 8px;',
+        '    gap: 10px;',
         '    flex-wrap: wrap;',
         '}',
         '',
@@ -745,28 +744,36 @@ function applyWebTransforms() {
         '    display: inline-flex;',
         '    align-items: center;',
         '    justify-content: center;',
-        '    min-width: 96px;',
-        '    min-height: 36px;',
-        '    padding: 0 14px;',
+        '    gap: 8px;',
+        '    min-width: 118px;',
+        '    min-height: 40px;',
+        '    padding: 0 18px;',
         '    border-radius: 8px;',
-        '    background: color-mix(in srgb, var(--card) 92%, transparent);',
+        '    background: rgba(18, 24, 34, 0.58);',
         '    color: var(--text);',
         '    border: 1px solid color-mix(in srgb, var(--border) 82%, var(--primary));',
         '    text-decoration: none;',
         '    font-size: 13px;',
         '    font-weight: 800;',
-        '    box-shadow: none;',
-        '    transition: background 0.16s ease, border-color 0.16s ease;',
+        '    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);',
+        '    transition: background 0.16s ease, border-color 0.16s ease, transform 0.16s ease;',
+        '}',
+        '',
+        'html[data-platform="web"] .web-platform-icon {',
+        '    font-size: 18px;',
+        '    line-height: 1;',
+        '    color: color-mix(in srgb, var(--text) 72%, var(--text-sub));',
         '}',
         '',
         'html[data-platform="web"] .web-desktop-download-btn:hover {',
         '    background: color-mix(in srgb, var(--primary) 8%, var(--card));',
         '    border-color: color-mix(in srgb, var(--primary) 36%, var(--border));',
+        '    transform: translateY(-1px);',
         '}',
         '',
         'html[data-platform="web"][data-theme="dark"] .web-limit-notice {',
         '    border-color: rgba(255, 255, 255, 0.12);',
-        '    background: rgba(22, 27, 34, 0.62);',
+        '    background: linear-gradient(90deg, rgba(13, 17, 23, 0.7), rgba(22, 27, 34, 0.52));',
         '    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.18);',
         '}',
         '',
@@ -849,10 +856,12 @@ function applyWebTransforms() {
         '    }',
         '',
         '    html[data-platform="web"] .web-limit-notice {',
-        '        margin: 0;',
-        '        padding: 14px 12px;',
-        '        font-size: 13px;',
-        '        line-height: 1.6;',
+        '        display: none;',
+        '    }',
+        '',
+        '    html[data-platform="web"] .home-footer-credit {',
+        '        margin-top: 0;',
+        '        padding-bottom: max(10px, env(safe-area-inset-bottom));',
         '    }',
         '',
         '    html[data-platform="web"] #view-media,',
@@ -1201,7 +1210,7 @@ function applyWebTransforms() {
         '',
         '    html[data-platform="web"] .official-site-music-table-head,',
         '    html[data-platform="web"] .official-site-music-card {',
-        '        grid-template-columns: 44px minmax(0, 1.1fr) minmax(84px, 0.8fr) 54px;',
+        '        grid-template-columns: minmax(0, 1.1fr) minmax(84px, 0.8fr) 54px;',
         '        gap: 8px;',
         '    }',
         '',
@@ -1211,6 +1220,11 @@ function applyWebTransforms() {
         '',
         '    html[data-platform="web"] .official-site-music-card {',
         '        padding: 9px 10px;',
+        '    }',
+        '',
+        '    html[data-platform="web"] .official-site-music-table-head .official-site-music-sort:nth-child(1),',
+        '    html[data-platform="web"] .official-site-music-card > .official-site-music-row-index {',
+        '        display: none !important;',
         '    }',
         '',
         '    html[data-platform="web"] .official-site-music-table-head .official-site-music-sort:nth-child(3),',
@@ -1452,7 +1466,7 @@ function applyWebTransforms() {
         '    }',
         '',
         '    html[data-platform="web"] .web-limit-notice {',
-        '        padding: 12px 10px;',
+        '        padding: 12px 10px max(12px, env(safe-area-inset-bottom));',
         '        font-size: 12px;',
         '    }',
         '',

@@ -30,14 +30,6 @@
             root.dataset.platform = platform;
             if (platform !== 'web') return;
 
-            const host = String(window.location.hostname || '').toLowerCase();
-            const pathSlug = decodeURIComponent(String(window.location.pathname || '/'))
-                .replace(/^\/+|\/+$/g, '');
-            const isRootPath = !pathSlug || pathSlug === 'index.html';
-            if (host === 'music.gnz.hk' && isRootPath && !window.location.hash) {
-                root.classList.add('web-route-pending', 'web-secondary-route-boot');
-                document.title = '牙牙消息 - 音乐';
-            }
         })();
     </script>
     <div id="loading-shield" style="display: none;">
@@ -1111,7 +1103,7 @@
                         </div>
                     </div>
 
-                    <div class="Box-row account-section-card">
+                    <div class="Box-row account-section-card meet48-login-panel-hidden" style="display: none;">
                         <div
                             style="display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 15px;">
                             <div style="min-width: 0;">

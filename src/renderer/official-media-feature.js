@@ -103,6 +103,7 @@
         let audioProgramStateSaveTimer = null;
         let audioProgramLastStateSavedAt = 0;
         let audioProgramRestoring = false;
+        let audioProgramMediaSessionBound = false;
 
         let musicPlaylist = [];
         let currentMusicPlayMode = readStringSetting('yaya_music_play_mode', 'sequence');
@@ -398,6 +399,115 @@
             return audioProgramPlaylist[currentIndex - 1];
         }
 
+        function supportsAudioProgramMediaSession() {
+            return typeof navigator !== 'undefined' && 'mediaSession' in navigator;
+        }
+
+        function resolveAudioProgramArtworkUrl(coverUrl) {
+            const rawUrl = String(coverUrl || './icon.png').trim();
+            if (!rawUrl) return '';
+            try {
+                return new URL(rawUrl, window.location.href).href;
+            } catch (_) {
+                return rawUrl;
+            }
+        }
+
+        function getAudioProgramMediaArtwork(coverUrl) {
+            const artworkUrl = resolveAudioProgramArtworkUrl(coverUrl);
+            if (!artworkUrl) return [];
+            return [
+                { src: artworkUrl, sizes: '96x96' },
+                { src: artworkUrl, sizes: '128x128' },
+                { src: artworkUrl, sizes: '192x192' },
+                { src: artworkUrl, sizes: '256x256' },
+                { src: artworkUrl, sizes: '512x512' }
+            ];
+        }
+
+        function updateAudioProgramMediaSessionMetadata(item = getCurrentAudioProgramPlaylistItem()) {
+            if (!supportsAudioProgramMediaSession()) return;
+            setupAudioProgramMediaSession();
+            if (!item) {
+                try {
+                    navigator.mediaSession.metadata = null;
+                } catch (_) { }
+                updateAudioProgramMediaSessionPlaybackState();
+                return;
+            }
+
+            const metadata = {
+                title: item.title || '未命名节目',
+                artist: item.subTitle || item.guest || '口袋电台',
+                album: '往期音频电台',
+                artwork: getAudioProgramMediaArtwork(item.coverUrl)
+            };
+            try {
+                navigator.mediaSession.metadata = typeof MediaMetadata === 'function'
+                    ? new MediaMetadata(metadata)
+                    : metadata;
+            } catch (_) {
+                try {
+                    navigator.mediaSession.metadata = metadata;
+                } catch (_) { }
+            }
+            updateAudioProgramMediaSessionPlaybackState();
+            updateAudioProgramMediaSessionPosition();
+        }
+
+        function updateAudioProgramMediaSessionPlaybackState() {
+            if (!supportsAudioProgramMediaSession()) return;
+            const audioEl = document.getElementById('native-audio-player');
+            try {
+                navigator.mediaSession.playbackState = audioEl && !audioEl.paused && !audioEl.ended ? 'playing' : 'paused';
+            } catch (_) { }
+        }
+
+        function updateAudioProgramMediaSessionPosition() {
+            if (!supportsAudioProgramMediaSession() || typeof navigator.mediaSession.setPositionState !== 'function') return;
+            const audioEl = document.getElementById('native-audio-player');
+            if (!audioEl) return;
+            const duration = Number(audioEl.duration);
+            if (!Number.isFinite(duration) || duration <= 0) return;
+            const position = Math.max(0, Math.min(duration, Number(audioEl.currentTime) || 0));
+            const playbackRate = Number.isFinite(audioEl.playbackRate) && audioEl.playbackRate > 0 ? audioEl.playbackRate : 1;
+            try {
+                navigator.mediaSession.setPositionState({ duration, playbackRate, position });
+            } catch (_) { }
+        }
+
+        function setupAudioProgramMediaSession() {
+            if (!supportsAudioProgramMediaSession()) return;
+            audioProgramMediaSessionBound = true;
+            const handlers = {
+                play: () => {
+                    const audioEl = document.getElementById('native-audio-player');
+                    if (audioEl && audioEl.src) {
+                        audioEl.play().catch(() => showToast('请先选择一个电台节目'));
+                        return;
+                    }
+                    const item = getCurrentAudioProgramPlaylistItem() || audioProgramPlaylist[0];
+                    if (item) playAudioProgram(item.talkId);
+                },
+                pause: () => {
+                    document.getElementById('native-audio-player')?.pause();
+                },
+                previoustrack: () => {
+                    const item = getPreviousAudioProgramItem({ ignoreLoopOne: true });
+                    if (item) playAudioProgram(item.talkId);
+                },
+                nexttrack: () => {
+                    const item = getNextAudioProgramItem({ ignoreLoopOne: true });
+                    if (item) playAudioProgram(item.talkId);
+                }
+            };
+            Object.entries(handlers).forEach(([action, handler]) => {
+                try {
+                    navigator.mediaSession.setActionHandler(action, handler);
+                } catch (_) { }
+            });
+        }
+
         function getNextMusicItem(options = {}) {
             const { ignoreLoopOne = false } = options;
             if (!musicPlaylist.length) return null;
@@ -545,7 +655,6 @@
                             const tableHead = document.createElement('div');
                             tableHead.className = 'audio-program-table-head';
                             tableHead.innerHTML = `
-                                <span>#</span>
                                 <span>标题</span>
                                 <span>节目</span>
                                 <span>日期</span>
@@ -569,14 +678,11 @@
 
                             const realSubtitle = item.subTitle || '口袋电台';
                             const guestText = item.guest || '';
-                            const rowIndex = audioProgramPlaylist.findIndex(existing => String(existing.talkId) === String(item.talkId)) + 1;
-
                             const card = document.createElement('button');
                             card.type = 'button';
                             card.className = 'audio-program-row';
                             card.dataset.id = item.talkId;
                             card.innerHTML = `
-                                <span class="audio-program-row-index">${String(rowIndex).padStart(2, '0')}</span>
                                 <span class="audio-program-title-cell">
                                     <span class="audio-program-cover${coverUrl ? '' : ' is-empty'}">
                                         ${coverUrl ? `<img src="${escapeMediaHtml(coverUrl)}" loading="lazy" alt="">` : '电台'}
@@ -646,6 +752,12 @@
                     if (!filePath) return showToast('❌ 未找到该节目的音频文件');
                     currentAudioProgramTalkId = talkId;
                     updateAudioProgramRows();
+                    updateAudioProgramMediaSessionMetadata({
+                        talkId,
+                        title,
+                        coverUrl,
+                        subTitle
+                    });
 
                     document.getElementById('audio-player-bar').style.display = 'flex';
                     document.getElementById('audio-player-cover').src = coverUrl;
@@ -785,6 +897,7 @@
 
             const volumeIcon = document.getElementById('audio-volume-icon');
             const volumeBar = document.getElementById('audio-volume-bar');
+            setupAudioProgramMediaSession();
 
             const getAudioProgramVolumeIconSvg = (level) => {
                 const waves = level === 'high'
@@ -897,11 +1010,15 @@
                 playBtn.classList.remove('is-play');
                 playBtn.classList.add('is-pause');
                 startAudioProgramProgressAnimation();
+                updateAudioProgramMediaSessionPlaybackState();
+                updateAudioProgramMediaSessionPosition();
                 saveAudioProgramPlayerState();
             });
             audioEl.addEventListener('playing', () => {
                 syncAudioProgramProgressAnchor();
                 startAudioProgramProgressAnimation();
+                updateAudioProgramMediaSessionPlaybackState();
+                updateAudioProgramMediaSessionPosition();
                 saveAudioProgramPlayerState();
             });
             audioEl.addEventListener('pause', () => {
@@ -910,12 +1027,15 @@
                 playBtn.classList.add('is-play');
                 stopAudioProgramProgressAnimation();
                 updateAudioProgramProgressVisual();
+                updateAudioProgramMediaSessionPlaybackState();
+                updateAudioProgramMediaSessionPosition();
                 saveAudioProgramPlayerState();
             });
             audioEl.addEventListener('ended', () => {
                 syncAudioProgramProgressAnchor();
                 stopAudioProgramProgressAnimation();
                 updateAudioProgramProgressVisual();
+                updateAudioProgramMediaSessionPlaybackState();
                 const nextItem = getNextAudioProgramItem();
                 if (!nextItem) return;
                 if (currentAudioProgramPlayMode === 'loop-one') {
@@ -931,28 +1051,38 @@
                 progressBar.max = audioEl.duration;
                 timeDuration.innerText = formatTime(audioEl.duration);
                 updateAudioProgramProgressVisual();
+                updateAudioProgramMediaSessionPosition();
                 saveAudioProgramPlayerState();
             });
 
             audioEl.addEventListener('timeupdate', () => {
                 syncAudioProgramProgressAnchor();
                 updateAudioProgramProgressVisual();
+                updateAudioProgramMediaSessionPosition();
                 requestAudioProgramPlayerStateSave();
             });
             audioEl.addEventListener('waiting', () => {
                 syncAudioProgramProgressAnchor();
                 stopAudioProgramProgressAnimation();
                 updateAudioProgramProgressVisual();
+                updateAudioProgramMediaSessionPosition();
             });
             audioEl.addEventListener('seeking', syncAudioProgramProgressAnchor);
-            audioEl.addEventListener('seeked', syncAudioProgramProgressAnchor);
-            audioEl.addEventListener('ratechange', syncAudioProgramProgressAnchor);
+            audioEl.addEventListener('seeked', () => {
+                syncAudioProgramProgressAnchor();
+                updateAudioProgramMediaSessionPosition();
+            });
+            audioEl.addEventListener('ratechange', () => {
+                syncAudioProgramProgressAnchor();
+                updateAudioProgramMediaSessionPosition();
+            });
 
             progressBar.addEventListener('input', () => {
                 audioEl.currentTime = progressBar.value;
                 syncAudioProgramProgressAnchor();
                 updateAudioProgramProgressVisual();
                 updateAudioProgramProgressTooltip();
+                updateAudioProgramMediaSessionPosition();
                 saveAudioProgramPlayerState({ currentTime: Number(progressBar.value) || 0 });
             });
 
@@ -1124,6 +1254,7 @@
             if (timeDuration) timeDuration.innerText = "00:00";
             currentAudioProgramTalkId = null;
             updateAudioProgramRows();
+            updateAudioProgramMediaSessionMetadata(null);
         }
 
         let musicNextCtime = 0;

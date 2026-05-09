@@ -12,10 +12,6 @@ run_worker_first = true
 pattern = "gnz.hk"
 custom_domain = true
 
-[[routes]]
-pattern = "music.gnz.hk"
-custom_domain = true
-
 [[r2_buckets]]
 binding = "YAYA_DOWNLOADS"
 bucket_name = "yaya-downloads"

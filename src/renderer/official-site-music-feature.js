@@ -51,6 +51,7 @@
         restoredPlayerState: false,
         suspendedPlaybackIntent: false,
         suppressNextPauseStateSave: false,
+        mediaSessionBound: false,
         errorMessage: '',
         isLoaded: false,
         isLoading: false
@@ -1101,6 +1102,99 @@
         if (cover) {
             cover.classList.toggle('vinyl-pause', !isPlaying);
         }
+        updateOfficialSiteMediaSessionPlaybackState();
+    }
+
+    function supportsOfficialSiteMediaSession() {
+        return typeof navigator !== 'undefined' && 'mediaSession' in navigator;
+    }
+
+    function getOfficialSiteMediaArtwork(track) {
+        const artworkUrl = track && track.coverUrl ? String(track.coverUrl).trim() : '';
+        if (!artworkUrl) return [];
+        return [
+            { src: artworkUrl, sizes: '96x96' },
+            { src: artworkUrl, sizes: '128x128' },
+            { src: artworkUrl, sizes: '192x192' },
+            { src: artworkUrl, sizes: '256x256' },
+            { src: artworkUrl, sizes: '512x512' }
+        ];
+    }
+
+    function updateOfficialSiteMediaSessionMetadata(track = getCurrentOfficialSiteTrack()) {
+        if (!supportsOfficialSiteMediaSession()) return;
+        if (!track) {
+            try {
+                navigator.mediaSession.metadata = null;
+            } catch (_) { }
+            updateOfficialSiteMediaSessionPlaybackState();
+            return;
+        }
+
+        const metadata = {
+            title: getOfficialSiteTrackDisplayTitle(track) || track.title || '未命名歌曲',
+            artist: track.artist || track.groupLabel || 'SNH48 Group',
+            album: getOfficialSiteAlbumDisplayName(track.album) || track.groupLabel || '牙牙消息',
+            artwork: getOfficialSiteMediaArtwork(track)
+        };
+        try {
+            navigator.mediaSession.metadata = typeof MediaMetadata === 'function'
+                ? new MediaMetadata(metadata)
+                : metadata;
+        } catch (_) {
+            try {
+                navigator.mediaSession.metadata = metadata;
+            } catch (_) { }
+        }
+        updateOfficialSiteMediaSessionPlaybackState();
+        updateOfficialSiteMediaSessionPosition();
+    }
+
+    function updateOfficialSiteMediaSessionPlaybackState() {
+        if (!supportsOfficialSiteMediaSession()) return;
+        const audio = $('official-site-music-audio');
+        try {
+            navigator.mediaSession.playbackState = audio && !audio.paused && !audio.ended ? 'playing' : 'paused';
+        } catch (_) { }
+    }
+
+    function updateOfficialSiteMediaSessionPosition() {
+        if (!supportsOfficialSiteMediaSession() || typeof navigator.mediaSession.setPositionState !== 'function') return;
+        const audio = $('official-site-music-audio');
+        if (!audio) return;
+        const duration = Number(audio.duration);
+        if (!Number.isFinite(duration) || duration <= 0) return;
+        const position = Math.max(0, Math.min(duration, Number(audio.currentTime) || 0));
+        const playbackRate = Number.isFinite(audio.playbackRate) && audio.playbackRate > 0 ? audio.playbackRate : 1;
+        try {
+            navigator.mediaSession.setPositionState({ duration, playbackRate, position });
+        } catch (_) { }
+    }
+
+    function setupOfficialSiteMediaSession() {
+        if (!supportsOfficialSiteMediaSession() || state.mediaSessionBound) return;
+        state.mediaSessionBound = true;
+        const handlers = {
+            play: () => {
+                const audio = $('official-site-music-audio');
+                if (!audio) return;
+                if (!state.currentTrackId && state.filteredTracks.length) {
+                    playOfficialSiteTrack(state.filteredTracks[0].id);
+                    return;
+                }
+                audio.play().catch(() => showOfficialMusicToast('请先选择一首曲目'));
+            },
+            pause: () => {
+                $('official-site-music-audio')?.pause();
+            },
+            previoustrack: () => playOfficialSitePrevious(),
+            nexttrack: () => playOfficialSiteNext()
+        };
+        Object.entries(handlers).forEach(([action, handler]) => {
+            try {
+                navigator.mediaSession.setActionHandler(action, handler);
+            } catch (_) { }
+        });
     }
 
     function syncOfficialSiteProgressAnchor() {
@@ -1144,6 +1238,7 @@
         if (syncLyrics) {
             syncOfficialSiteMusicLyrics(audio.currentTime);
         }
+        updateOfficialSiteMediaSessionPosition();
     }
 
     function stopOfficialSiteProgressAnimation() {
@@ -1437,6 +1532,7 @@
             cover.src = track && track.coverUrl ? track.coverUrl : './icon.png';
         }
         updateFavoriteButton();
+        updateOfficialSiteMediaSessionMetadata(track);
     }
 
     function restoreOfficialSiteMusicPlayerState() {
@@ -1696,6 +1792,7 @@
         audio.src = track.mp3;
         syncOfficialSiteProgressAnchor();
         updatePlayerProgress();
+        updateOfficialSiteMediaSessionMetadata(track);
         saveOfficialSiteMusicPlayerState({ currentTime: 0, wasPlaying: true });
         audio.play().catch((error) => {
             console.warn('[official-site-music] play blocked', error);
@@ -1763,6 +1860,7 @@
         syncOfficialSiteProgressAnchor();
         updateRangeFill($('official-site-music-progress'), (nextTime / audio.duration) * 100 || 0);
         updatePlayerProgress();
+        updateOfficialSiteMediaSessionPosition();
         saveOfficialSiteMusicPlayerState({ currentTime: nextTime });
     }
 
@@ -1932,6 +2030,7 @@
         const audio = $('official-site-music-audio');
         if (!audio || audio.dataset.officialSiteMusicBound === '1') return;
         audio.dataset.officialSiteMusicBound = '1';
+        setupOfficialSiteMediaSession();
         const volumeBar = $('official-site-music-volume-bar');
         const progressBar = $('official-site-music-progress');
         const lyricsScroll = $('official-site-music-lyrics-scroll');
@@ -1952,6 +2051,8 @@
         audio.addEventListener('playing', () => {
             syncOfficialSiteProgressAnchor();
             startOfficialSiteProgressAnimation();
+            updateOfficialSiteMediaSessionPlaybackState();
+            updateOfficialSiteMediaSessionPosition();
             saveOfficialSiteMusicPlayerState({ wasPlaying: true });
         });
         audio.addEventListener('pause', () => {
@@ -1967,6 +2068,7 @@
         audio.addEventListener('loadedmetadata', () => {
             syncOfficialSiteProgressAnchor();
             updatePlayerProgress();
+            updateOfficialSiteMediaSessionPosition();
             saveOfficialSiteMusicPlayerState();
         });
         audio.addEventListener('timeupdate', () => {
@@ -1977,6 +2079,7 @@
         audio.addEventListener('durationchange', () => {
             syncOfficialSiteProgressAnchor();
             updatePlayerProgress();
+            updateOfficialSiteMediaSessionPosition();
         });
         audio.addEventListener('waiting', () => {
             syncOfficialSiteProgressAnchor();
@@ -1984,8 +2087,14 @@
             updatePlayerProgress(false);
         });
         audio.addEventListener('seeking', syncOfficialSiteProgressAnchor);
-        audio.addEventListener('seeked', syncOfficialSiteProgressAnchor);
-        audio.addEventListener('ratechange', syncOfficialSiteProgressAnchor);
+        audio.addEventListener('seeked', () => {
+            syncOfficialSiteProgressAnchor();
+            updateOfficialSiteMediaSessionPosition();
+        });
+        audio.addEventListener('ratechange', () => {
+            syncOfficialSiteProgressAnchor();
+            updateOfficialSiteMediaSessionPosition();
+        });
         audio.addEventListener('volumechange', () => {
             updateVolumeUI();
             requestOfficialSiteMusicPlayerStateSave();
@@ -1994,6 +2103,7 @@
             updatePlayerButton();
             stopOfficialSiteProgressAnimation();
             updatePlayerProgress();
+            updateOfficialSiteMediaSessionPlaybackState();
             if (state.playMode === 'loop-one') {
                 audio.currentTime = 0;
                 audio.play().catch(() => showOfficialMusicToast('播放失败，请稍后重试'));
@@ -2005,6 +2115,7 @@
             updatePlayerButton();
             stopOfficialSiteProgressAnimation();
             updatePlayerProgress();
+            updateOfficialSiteMediaSessionPlaybackState();
             showOfficialMusicToast('当前音频无法播放');
         });
         if (progressBar) {
