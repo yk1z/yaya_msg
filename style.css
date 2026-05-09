@@ -3613,8 +3613,9 @@ a {
 .yaya-dplayer-control-group {
     display: flex;
     align-items: center;
-    gap: 0;
+    gap: 8px;
     height: 100%;
+    margin: 0 2px;
 }
 
 .yaya-dplayer-control-btn {

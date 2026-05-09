@@ -984,14 +984,17 @@
 
         const MemberDetailModal = ({ member, onClose }) => {
             if (!member) return null;
+            const [previewPhoto, setPreviewPhoto] = useState(null);
             const isActive = checkIsActive(member);
             const InfoItem = ({ icon: Icon, label, value, colorClass = "text-gray-800", isCopyable = false }) => {
                 const [copied, setCopied] = useState(false);
+                const hasValue = value !== undefined && value !== null && value !== '';
+                const displayValue = typeof value === 'boolean' ? (value ? '是' : '否') : (hasValue ? String(value) : '-');
                 const handleCopy = (e) => {
-                    if (!isCopyable || !value) return;
+                    if (!isCopyable || !hasValue) return;
                     e.stopPropagation();
                     const textArea = document.createElement("textarea");
-                    textArea.value = value;
+                    textArea.value = displayValue;
                     document.body.appendChild(textArea);
                     textArea.select();
                     try { document.execCommand('copy'); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch (err) { }
@@ -1003,10 +1006,37 @@
                             <span className="flex items-center"><Icon className="w-3 h-3 mr-1" />{label}</span>
                             {isCopyable && <span className={`text-[10px] transition-opacity duration-300 ${copied ? 'text-green-500 opacity-100' : 'opacity-0 group-hover:opacity-100 text-gray-400 dark:text-gray-500'}`}>{copied ? '已复制' : '点击复制'}</span>}
                         </span>
-                        <span className={`text-sm font-medium ${colorClass} break-words dark:text-gray-200`}>{value || '-'}</span>
+                        <span className={`text-sm font-medium ${colorClass} break-words dark:text-gray-200`}>{displayValue}</span>
                         {copied && <div className="absolute inset-0 border-2 border-green-400 rounded-lg pointer-events-none animate-pulse"></div>}
                     </div>
                 );
+            };
+            const formatTimestamp = (value) => {
+                if (value === undefined || value === null || value === '') return null;
+                const timestamp = Number(value);
+                if (!Number.isFinite(timestamp)) return String(value);
+                const date = new Date(timestamp);
+                if (Number.isNaN(date.getTime())) return String(value);
+                const yyyy = date.getFullYear();
+                const mm = String(date.getMonth() + 1).padStart(2, '0');
+                const dd = String(date.getDate()).padStart(2, '0');
+                const hh = String(date.getHours()).padStart(2, '0');
+                const mi = String(date.getMinutes()).padStart(2, '0');
+                return `${yyyy}.${mm}.${dd} ${hh}:${mi}`;
+            };
+            const photoEntries = [
+                ['头像', member.avatar],
+                ['全身照 1', member.fullPhoto1],
+                ['全身照 2', member.fullPhoto2],
+                ['全身照 3', member.fullPhoto3],
+                ['全身照 4', member.fullPhoto4]
+            ].filter(([, url]) => !!url);
+            const openPhotoPreview = (label, url) => {
+                if (typeof window.openImageModal === 'function') {
+                    window.openImageModal(url);
+                    return;
+                }
+                setPreviewPhoto({ label, url });
             };
             return (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-40 backdrop-blur-sm animate-backdrop" onClick={onClose}>
@@ -1054,10 +1084,11 @@
                                 <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center dark:text-gray-500"><Calendar className="w-3.5 h-3.5 mr-1.5" />生涯历程</h4>
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                     <InfoItem icon={Layers} label="期数" value={member.periodName} colorClass="text-blue-600 dark:text-blue-400" />
+                                    {member.rank && <InfoItem icon={Trophy} label="最高排名" value={member.rank} colorClass="text-amber-600 dark:text-amber-400" />}
                                     {member.jtime && <InfoItem icon={CalendarDays} label="加入时间" value={formatDate(member.jtime)} colorClass="text-emerald-600 dark:text-emerald-400" />}
                                     {member.ptime && <InfoItem icon={ArrowUpCircle} label="升格时间" value={formatDate(member.ptime)} colorClass="text-purple-600 dark:text-purple-400" />}
-                                    {member.gtime && <InfoItem icon={GraduationCap} label="毕业时间" value={member.gtime} colorClass="text-indigo-600 dark:text-indigo-400" />}
-                                    {member.qtime && <InfoItem icon={LogOut} label="退团时间" value={member.qtime} colorClass="text-red-500 dark:text-red-400" />}
+                                    {member.gtime && <InfoItem icon={GraduationCap} label="毕业时间" value={formatDate(member.gtime)} colorClass="text-indigo-600 dark:text-indigo-400" />}
+                                    {member.qtime && <InfoItem icon={LogOut} label="退团时间" value={formatDate(member.qtime)} colorClass="text-red-500 dark:text-red-400" />}
                                 </div>
                             </div>
 
@@ -1068,8 +1099,33 @@
                                     <InfoItem icon={Hash} label="服务器 ID" value={member.serverId} colorClass="font-mono text-gray-600 dark:text-gray-300" isCopyable={true} />
                                     <InfoItem icon={Hash} label="大房间 ID" value={member.channelId} colorClass="font-mono text-gray-600 dark:text-gray-300" isCopyable={true} />
                                     {member.yklzId && <InfoItem icon={Hash} label="小房间 ID" value={member.yklzId} colorClass="font-mono text-gray-600 dark:text-gray-300" isCopyable={true} />}
+                                    {member.wbName && <InfoItem icon={UserCircle} label="微博名" value={member.wbName} isCopyable={true} />}
+                                    {member.wbUid && <InfoItem icon={Hash} label="微博 UID" value={member.wbUid} colorClass="font-mono text-gray-600 dark:text-gray-300" isCopyable={true} />}
                                 </div>
                             </div>
+                            {photoEntries.length > 0 && (
+                                <div className="animate-content" style={{ animationDelay: '0.18s' }}>
+                                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center dark:text-gray-500"><UserSquare2 className="w-3.5 h-3.5 mr-1.5" />公式照</h4>
+                                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                                        {photoEntries.map(([label, url]) => (
+                                            <button
+                                                type="button"
+                                                key={label}
+                                                onClick={() => openPhotoPreview(label, url)}
+                                                className="group block overflow-hidden rounded-xl border border-gray-100 bg-gray-50 dark:border-gray-700 dark:bg-gray-800"
+                                                title={url}
+                                            >
+                                                <div className="aspect-[3/4] overflow-hidden bg-gray-100 dark:bg-gray-900">
+                                                    <img src={url} alt={label} loading="lazy" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                                                </div>
+                                                <div className="flex items-center justify-center px-2 py-2 text-center text-xs font-bold text-gray-500 dark:text-gray-400">
+                                                    <span>{label}</span>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                             {member.note && (
                                 <div className="animate-content" style={{ animationDelay: '0.2s' }}>
                                     <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center dark:text-gray-500"><FileText className="w-3.5 h-3.5 mr-1.5" />备注</h4>
@@ -1078,6 +1134,30 @@
                             )}
                         </div>
                     </div>
+                    {previewPhoto && (
+                        <div
+                            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setPreviewPhoto(null);
+                            }}
+                        >
+                            <div className="relative max-h-[86vh] max-w-[88vw]" onClick={(e) => e.stopPropagation()}>
+                                <button
+                                    type="button"
+                                    onClick={() => setPreviewPhoto(null)}
+                                    className="absolute -right-3 -top-3 rounded-full bg-white/90 p-2 text-gray-700 shadow-lg transition-colors hover:bg-white dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+                                >
+                                    <X className="h-5 w-5" />
+                                </button>
+                                <img
+                                    src={previewPhoto.url}
+                                    alt={previewPhoto.label}
+                                    className="max-h-[86vh] max-w-[88vw] rounded-2xl object-contain shadow-2xl"
+                                />
+                            </div>
+                        </div>
+                    )}
                 </div>
             );
         };

@@ -460,7 +460,6 @@
                 if (nameEl) nameEl.innerText = nickname;
                 refreshAccountRenameCount();
                 setAccountProfileEditStatus('昵称已保存', 'success');
-                showToast('昵称已保存');
             } catch (error) {
                 setAccountProfileEditStatus(error.message || '保存昵称失败', 'error');
             } finally {
@@ -2225,11 +2224,11 @@
                     }
 
                     const arrayBuffer = await response.arrayBuffer();
-                    const buffer = Buffer.from(arrayBuffer);
+                    const fileBytes = new Uint8Array(arrayBuffer);
                     const fullPath = path.join(finalDir, filename);
 
                     await new Promise((resolve, reject) => {
-                        fs.writeFile(fullPath, buffer, (err) => err ? reject(err) : resolve());
+                        fs.writeFile(fullPath, fileBytes, (err) => err ? reject(err) : resolve());
                     });
                 } else {
                     const blob = await response.blob();

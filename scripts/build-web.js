@@ -102,6 +102,11 @@ function applyWebTransforms() {
     );
     indexHtml = replaceOnce(
         indexHtml,
+        '<html lang="zh-CN" data-theme="light">',
+        '<html lang="zh-CN" data-theme="light" data-platform="web">'
+    );
+    indexHtml = replaceOnce(
+        indexHtml,
         '    <script src="./src/renderer/theme-init.js"></script>',
         `    <script src="./src/web/browser-shim.js?v=${buildVersion}"></script>\n    <script src="./src/renderer/theme-init.js"></script>`
     );
@@ -181,7 +186,7 @@ function applyWebTransforms() {
     indexHtml = replaceOnce(
         indexHtml,
         '                    </section>\r\n                    <div class="home-footer-credit">presented by yk1z</div>',
-        `                    </section>\r\n                    <div class="web-limit-notice">\r\n                        <span class="web-limit-copy">由于网页限制，使用完整功能请下载桌面端。</span>\r\n                        <div class="web-download-actions" aria-label="桌面端下载">\r\n                            <a class="web-desktop-download-btn" href="/downloads/yaya_msg-v2.3-win.zip" download><span class="web-platform-icon" aria-hidden="true">⊞</span><span>Windows</span></a>\r\n                            <a class="web-desktop-download-btn" href="/downloads/yaya_msg-v2.3-mac.zip" download><span class="web-platform-icon" aria-hidden="true"></span><span>macOS</span></a>\r\n                            <a class="web-desktop-download-btn" href="/downloads/yaya_msg-v2.3-linux.tar.gz" download><span class="web-platform-icon" aria-hidden="true">◆</span><span>Linux</span></a>\r\n                        </div>\r\n                    </div>\r\n                    <div class="home-footer-credit">presented by yk1z</div>`
+        `                    </section>\r\n                    <div class="web-limit-notice">\r\n                        <span class="web-limit-copy">由于网页限制，使用完整功能请下载桌面端。</span>\r\n                        <div class="web-download-actions" aria-label="桌面端下载">\r\n                            <a class="web-desktop-download-btn" href="/downloads/yaya_msg-v2.4-win.zip" download><span class="web-platform-icon" aria-hidden="true">⊞</span><span>Windows</span></a>\r\n                            <a class="web-desktop-download-btn" href="/downloads/yaya_msg-v2.4-mac.zip" download><span class="web-platform-icon" aria-hidden="true"></span><span>macOS</span></a>\r\n                            <a class="web-desktop-download-btn" href="/downloads/yaya_msg-v2.4-linux.tar.gz" download><span class="web-platform-icon" aria-hidden="true">◆</span><span>Linux</span></a>\r\n                        </div>\r\n                    </div>\r\n                    <div class="home-footer-credit">presented by yk1z</div>`
     );
     indexHtml = indexHtml.replace(/<span class="web-platform-icon" aria-hidden="true">.*?<\/span><span>(Windows|macOS|Linux)<\/span>/g, '$1');
 

@@ -1,7 +1,7 @@
 const APP_VERSION = '7.0.41';
 const APP_BUILD = '24011601';
 const DEFAULT_API_BACKEND = 'https://api.gnz.hk';
-const DESKTOP_DOWNLOAD_FILE = 'yaya_msg-v2.3-win.zip';
+const DESKTOP_DOWNLOAD_FILE = 'yaya_msg-v2.4-win.zip';
 const MEET48_APP_VERSION = '2.0.3';
 const MEET48_APP_BUILD = '2602062';
 const MEET48_BUNDLE_ID = 'com.dapp.meet48';
@@ -232,7 +232,8 @@ async function handleDownloadRequest(request, env, url) {
         return new Response('Invalid download path', { status: 400 });
     }
 
-    const object = await env.YAYA_DOWNLOADS.get(requestedKey, {
+    const resolvedKey = requestedKey;
+    const object = await env.YAYA_DOWNLOADS.get(resolvedKey, {
         range: request.headers
     });
     if (!object) {
@@ -244,8 +245,8 @@ async function handleDownloadRequest(request, env, url) {
     headers.set('etag', object.httpEtag);
     headers.set('Accept-Ranges', 'bytes');
     headers.set('Cache-Control', 'public, max-age=3600');
-    headers.set('Content-Type', headers.get('Content-Type') || 'application/zip');
-    headers.set('Content-Disposition', `attachment; filename="${encodeURIComponent(requestedKey.split('/').pop() || DESKTOP_DOWNLOAD_FILE)}"`);
+    headers.set('Content-Type', headers.get('Content-Type') || getDownloadContentType(resolvedKey));
+    headers.set('Content-Disposition', `attachment; filename="${encodeURIComponent(resolvedKey.split('/').pop() || DESKTOP_DOWNLOAD_FILE)}"`);
     if (object.range) {
         headers.set('Content-Range', `bytes ${object.range.offset}-${object.range.end ?? object.size - 1}/${object.size}`);
     }
@@ -254,6 +255,13 @@ async function handleDownloadRequest(request, env, url) {
         status: object.range ? 206 : 200,
         headers
     });
+}
+
+function getDownloadContentType(key) {
+    const lowered = String(key || '').toLowerCase();
+    if (lowered.endsWith('.tar.gz') || lowered.endsWith('.tgz')) return 'application/gzip';
+    if (lowered.endsWith('.zip')) return 'application/zip';
+    return 'application/octet-stream';
 }
 
 const R2_MUSIC_PREFIXES = ['SNH48/', 'GNZ48/', 'BEJ48/', 'CKG48/', 'CGT48/', 'SHY48/'];
