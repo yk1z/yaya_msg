@@ -280,6 +280,25 @@
             followedRoomsAutoRefreshRunning = false;
         }
 
+        function resetFollowedRoomsState() {
+            stopFollowedRoomsPolling();
+            currentFollowedData = [];
+            window.allFollowedIds = new Set();
+            const container = document.getElementById('followed-rooms-container');
+            if (container) {
+                container.innerHTML = '<div class="empty-state" style="margin-top: 50px;">正在加载房间列表</div>';
+            }
+            const quickInput = document.getElementById('quick-follow-input');
+            const quickId = document.getElementById('quick-follow-id');
+            const quickButton = document.getElementById('btn-quick-action');
+            if (quickInput) quickInput.value = '';
+            if (quickId) quickId.value = '';
+            if (quickButton) {
+                quickButton.innerText = '关注';
+                quickButton.style.color = '';
+            }
+        }
+
         function startFollowedRoomsPolling() {
             stopFollowedRoomsPolling();
             followedRoomsAutoRefreshEnabled = true;
@@ -531,6 +550,7 @@
             executeQuickAction,
             handleQuickFollowSearch,
             loadFollowedRooms,
+            resetFollowedRoomsState,
             selectFollowedSort,
             selectQuickFollowMember,
             startFollowedRoomsPolling,

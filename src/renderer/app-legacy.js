@@ -84,6 +84,8 @@
         let stopPrivateMessagePolling;
         let startFollowedRoomsPolling;
         let stopFollowedRoomsPolling;
+        let resetFollowedRoomsState;
+        let resetPrivateMessageListState;
         let handleOpenLiveSearch;
         let selectOpenLiveMember;
         let fetchOpenLiveList;
@@ -1183,7 +1185,9 @@
                     setSidebarHomeMode(false);
                     toggleSidebarMode('login');
                     if (flipView) flipView.style.display = 'block';
-                    if (typeof flipCurrentPage !== 'undefined' && flipCurrentPage === 0) loadFlipList(0);
+                    if (typeof loadFlipList === 'function') {
+                        loadFlipList(typeof flipCurrentPage !== 'undefined' ? flipCurrentPage : 0);
+                    }
 
                 } else if (viewName === 'send-flip') {
                     setGlobalSidebarVisible(false);
@@ -2174,6 +2178,7 @@
             executeQuickAction,
             handleQuickFollowSearch,
             loadFollowedRooms,
+            resetFollowedRoomsState,
             selectFollowedSort,
             selectQuickFollowMember,
             startFollowedRoomsPolling,
@@ -2200,6 +2205,7 @@
         window.executeQuickAction = executeQuickAction;
         window.handleQuickFollowSearch = handleQuickFollowSearch;
         window.loadFollowedRooms = loadFollowedRooms;
+        window.resetFollowedRoomsState = resetFollowedRoomsState;
         window.selectFollowedSort = selectFollowedSort;
         window.selectQuickFollowMember = selectQuickFollowMember;
         window.sortFollowedRooms = sortFollowedRooms;
@@ -2250,6 +2256,7 @@
             openPrivateMessageDetail,
             refreshPrivateMessageList,
             resetPrivateMessageDetailPanel,
+            resetPrivateMessageListState,
             sendPrivateMessageReply,
             startPrivateMessagePolling,
             stopPrivateMessagePolling,
@@ -2300,6 +2307,7 @@
         window.loadMorePrivateMessageList = loadMorePrivateMessageList;
         window.openPrivateMessageDetail = openPrivateMessageDetail;
         window.refreshPrivateMessageList = refreshPrivateMessageList;
+        window.resetPrivateMessageListState = resetPrivateMessageListState;
         window.sendPrivateMessageReply = sendPrivateMessageReply;
         window.checkPrivateMessageFlipCostMin = checkPrivateMessageFlipCostMin;
         window.syncPrivateMessageFlipControls = syncPrivateMessageFlipControls;
@@ -2730,6 +2738,8 @@
             getAllFlipData: () => allFlipData || [],
             setAllFlipData: value => { allFlipData = value; },
             getAppToken: () => getCurrentAppToken(),
+            loadCachedFlipData: () => loadCachedFlipDataForCurrentAccount(),
+            saveFlipDataCache: value => saveFlipDataForCurrentAccount(value),
             getCurrentFlipFilterType: () => currentFlipFilterType,
             setCurrentFlipFilterType: value => { currentFlipFilterType = value; },
             getCurrentFlipPrivacyFilter: () => currentFlipPrivacyFilter,
@@ -5158,6 +5168,119 @@
         let currentFlipTimeFrom = "";
         let currentFlipTimeTo = "";
         let currentSearchKeyword = "";
+        const FLIP_HISTORY_CACHE_KEY = 'yaya_flip_history_cache_v1';
+
+        function getSimpleCacheHash(value) {
+            const text = String(value || '');
+            let hash = 0;
+            for (let i = 0; i < text.length; i += 1) {
+                hash = ((hash << 5) - hash) + text.charCodeAt(i);
+                hash |= 0;
+            }
+            return Math.abs(hash).toString(36);
+        }
+
+        function getCurrentFlipCacheUserKey() {
+            if (typeof currentPocketUserId !== 'undefined' && currentPocketUserId) {
+                return `user:${currentPocketUserId}`;
+            }
+
+            const idText = String(document.getElementById('user-id-display')?.textContent || '');
+            const idMatch = idText.match(/ID:\s*([^\s]+)/i);
+            if (idMatch && idMatch[1] && idMatch[1] !== '--') {
+                return `user:${idMatch[1]}`;
+            }
+
+            const token = getCurrentAppToken();
+            return token ? `token:${getSimpleCacheHash(token)}` : '';
+        }
+
+        function getFlipHistoryCacheApi() {
+            return window.desktop && window.desktop.appCache ? window.desktop.appCache : null;
+        }
+
+        function readFlipHistoryCache() {
+            const fallback = { accounts: {} };
+            const cacheApi = getFlipHistoryCacheApi();
+            const value = cacheApi && typeof cacheApi.getCacheValueSync === 'function'
+                ? cacheApi.getCacheValueSync(FLIP_HISTORY_CACHE_KEY, fallback)
+                : readStoredJsonSetting(FLIP_HISTORY_CACHE_KEY, fallback);
+            return value && typeof value === 'object' && !Array.isArray(value)
+                ? value
+                : fallback;
+        }
+
+        function writeFlipHistoryCache(value) {
+            const cacheApi = getFlipHistoryCacheApi();
+            if (cacheApi && typeof cacheApi.setCacheValueSync === 'function') {
+                cacheApi.setCacheValueSync(FLIP_HISTORY_CACHE_KEY, value);
+                return value;
+            }
+            return writeStoredJsonSetting(FLIP_HISTORY_CACHE_KEY, value);
+        }
+
+        function loadCachedFlipDataForCurrentAccount() {
+            const userKey = getCurrentFlipCacheUserKey();
+            if (!userKey) return [];
+            const cache = readFlipHistoryCache();
+            const entry = cache.accounts && cache.accounts[userKey];
+            return entry && Array.isArray(entry.items) ? entry.items : [];
+        }
+
+        function saveFlipDataForCurrentAccount(items) {
+            const userKey = getCurrentFlipCacheUserKey();
+            if (!userKey || !Array.isArray(items)) return;
+
+            const cache = readFlipHistoryCache();
+            const accounts = cache.accounts && typeof cache.accounts === 'object' && !Array.isArray(cache.accounts)
+                ? cache.accounts
+                : {};
+            accounts[userKey] = {
+                updatedAt: Date.now(),
+                items
+            };
+
+            const orderedKeys = Object.keys(accounts)
+                .sort((a, b) => Number(accounts[b]?.updatedAt || 0) - Number(accounts[a]?.updatedAt || 0));
+            orderedKeys.slice(5).forEach((key) => delete accounts[key]);
+
+            writeFlipHistoryCache({
+                version: 1,
+                updatedAt: Date.now(),
+                accounts
+            });
+        }
+
+        function resetFlipSessionState() {
+            allFlipData = [];
+            isFetchingFlips = false;
+            flipCurrentPage = 0;
+            currentSearchKeyword = "";
+
+            const searchInput = document.getElementById('flipSearchInput');
+            if (searchInput) searchInput.value = '';
+
+            const statusText = document.getElementById('flip-status-text');
+            if (statusText) statusText.textContent = '';
+
+            const listContainer = document.getElementById('flip-list-container');
+            if (listContainer) {
+                listContainer.innerHTML = '<div class="empty-state">正在加载翻牌记录</div>';
+            }
+
+            const pagination = document.querySelector('#view-flip .pagination-container');
+            if (pagination) pagination.style.display = 'none';
+        }
+
+        function resetAccountScopedSessionState() {
+            resetFlipSessionState();
+            if (typeof resetFollowedRoomsState === 'function') {
+                resetFollowedRoomsState();
+            }
+            if (typeof resetPrivateMessageListState === 'function') {
+                resetPrivateMessageListState();
+            }
+        }
 
         function getPinyinInitials(pinyinStr) {
             if (!pinyinStr) return "";

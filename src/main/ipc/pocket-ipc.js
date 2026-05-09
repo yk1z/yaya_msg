@@ -25,6 +25,15 @@ function registerPocketIpc() {
     ipcMain.handle('operate-flip-question', (event, payload) => pocketService.operateFlipQuestion(payload));
     ipcMain.handle('fetch-member-photos', (event, payload) => pocketService.fetchMemberPhotos(payload));
     ipcMain.handle('fetch-user-money', (event, payload) => pocketService.fetchUserMoney(payload));
+    ipcMain.handle('fetch-checkin-today', (event, payload) => pocketService.fetchCheckinToday(payload));
+    ipcMain.handle('fetch-unread-message-count', (event, payload) => pocketService.fetchUnreadMessageCount(payload));
+    ipcMain.handle('edit-user-info', (event, payload) => pocketService.editUserInfo(payload));
+    ipcMain.handle('upload-user-avatar', (event, payload) => pocketService.uploadUserAvatar(payload));
+    ipcMain.handle('fetch-user-rename-count', (event, payload) => pocketService.fetchUserRenameCount(payload));
+    ipcMain.handle('fetch-user-picture-frames', (event, payload) => pocketService.fetchUserPictureFrames(payload));
+    ipcMain.handle('fetch-client-group-team-star-update', (event, payload) => pocketService.fetchClientGroupTeamStarUpdate(payload));
+    ipcMain.handle('fetch-star-server-map', (event, payload) => pocketService.fetchStarServerMap(payload));
+    ipcMain.handle('fetch-media-collection-total-count', (event, payload) => pocketService.fetchMediaCollectionTotalCount(payload));
     ipcMain.handle('send-live-gift', (event, payload) => pocketService.sendLiveGift(payload));
     ipcMain.handle('fetch-gift-list', (event, payload) => pocketService.fetchGiftList(payload));
     ipcMain.handle('get-nim-login-info', (event, payload) => pocketService.getNimLoginInfo(payload));

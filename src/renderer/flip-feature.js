@@ -29,7 +29,9 @@
             getPageSize,
             getTeamStyle,
             ipcRenderer,
+            loadCachedFlipData,
             loadMemberData,
+            saveFlipDataCache,
             showConfirm,
             switchView
         } = deps;
@@ -61,6 +63,45 @@
             if (typeof setAllFlipData === 'function') {
                 setAllFlipData(Array.isArray(data) ? data : []);
             }
+        }
+
+        function saveFlipCache(data = getFlipData()) {
+            if (typeof saveFlipDataCache === 'function' && Array.isArray(data)) {
+                saveFlipDataCache(data);
+            }
+        }
+
+        function getFlipItemKey(item) {
+            if (!item || typeof item !== 'object') return '';
+            return String(item.questionId || item.id || item.qid || `${item.qtime || ''}:${item.content || ''}:${item.baseUserInfo?.userId || ''}`);
+        }
+
+        function mergeFlipItems(existingItems = [], incomingItems = []) {
+            const byKey = new Map();
+            const merged = [];
+
+            (Array.isArray(existingItems) ? existingItems : []).forEach((item) => {
+                const key = getFlipItemKey(item);
+                if (key && !byKey.has(key)) byKey.set(key, item);
+            });
+
+            (Array.isArray(incomingItems) ? incomingItems : []).forEach((item) => {
+                const key = getFlipItemKey(item);
+                if (!key) return;
+                const nextItem = { ...(byKey.get(key) || {}), ...item };
+                byKey.set(key, nextItem);
+                if (!merged.some((entry) => getFlipItemKey(entry) === key)) {
+                    merged.push(nextItem);
+                }
+            });
+
+            byKey.forEach((item, key) => {
+                if (!merged.some((entry) => getFlipItemKey(entry) === key)) {
+                    merged.push(item);
+                }
+            });
+
+            return merged;
         }
 
         function getFlipDuration(item) {
@@ -741,14 +782,23 @@
             const isFetching = typeof getIsFetchingFlips === 'function' ? getIsFetchingFlips() : false;
 
             if (data.length === 0 && !isFetching) {
+                const cachedData = typeof loadCachedFlipData === 'function' ? loadCachedFlipData() : [];
+                if (Array.isArray(cachedData) && cachedData.length > 0) {
+                    setFlipData(cachedData);
+                    renderLocalPage(pageIndex);
+                    void startAutoFetchAll({ background: true });
+                    return;
+                }
                 await startAutoFetchAll();
             } else {
                 renderLocalPage(pageIndex);
+                if (!isFetching) {
+                    void startAutoFetchAll({ background: true });
+                }
             }
         }
 
         function forceReloadFlips() {
-            setFlipData([]);
             if (typeof setCurrentFlipPage === 'function') {
                 setCurrentFlipPage(0);
             }
@@ -759,7 +809,11 @@
             const input = document.getElementById('flipSearchInput');
             if (input) input.value = '';
 
-            void loadFlipList(0);
+            if (getFlipData().length > 0) {
+                void updateLatestFlips();
+            } else {
+                void loadFlipList(0);
+            }
         }
 
         async function updateLatestFlips() {
@@ -776,20 +830,10 @@
 
                 if (res.success && res.content) {
                     const latestList = res.content || [];
-                    const nextData = [...getFlipData()];
-                    let addedCount = 0;
-
-                    latestList.reverse().forEach(newItem => {
-                        const existingIndex = nextData.findIndex(item => String(item.questionId) === String(newItem.questionId));
-                        if (existingIndex !== -1) {
-                            nextData[existingIndex] = newItem;
-                        } else {
-                            nextData.unshift(newItem);
-                            addedCount++;
-                        }
-                    });
+                    const nextData = mergeFlipItems(getFlipData(), latestList);
 
                     setFlipData(nextData);
+                    saveFlipCache(nextData);
                 }
             } catch (e) { }
 
@@ -805,9 +849,11 @@
             renderLocalPage(0);
         }
 
-        async function startAutoFetchAll() {
+        async function startAutoFetchAll(options = {}) {
             const container = document.getElementById('flip-list-container');
             const pagination = document.querySelector('#view-flip .pagination-container');
+            const shouldReset = !!options.reset;
+            const background = !!options.background && getFlipData().length > 0;
 
             const token = getSafeToken();
             if (!token) {
@@ -820,12 +866,12 @@
             if (typeof setIsFetchingFlips === 'function') {
                 setIsFetchingFlips(true);
             }
-            if (pagination) pagination.style.display = 'none';
-            if (container) {
+            if (pagination && !background) pagination.style.display = 'none';
+            if (container && !background) {
                 container.innerHTML = '<div class="empty-state" style="padding:40px;"><h3>正在同步数据...</h3><p>正在拉取所有历史记录，完成后将自动显示。</p></div>';
             }
 
-            let nextData = getFlipData().slice();
+            let fetchedData = [];
             let beginLimit = 0;
             let hasMore = true;
             const pa = getSafePa();
@@ -844,7 +890,7 @@
                         if (list.length === 0) {
                             hasMore = false;
                         } else {
-                            nextData = nextData.concat(list);
+                            fetchedData = fetchedData.concat(list);
                             beginLimit += list.length;
                             if (list.length < 20) {
                                 hasMore = false;
@@ -858,11 +904,15 @@
                 }
             } catch (e) {
             } finally {
+                const nextData = shouldReset
+                    ? mergeFlipItems([], fetchedData)
+                    : (fetchedData.length > 0 ? mergeFlipItems([], fetchedData) : getFlipData());
                 setFlipData(nextData);
+                saveFlipCache(nextData);
                 if (typeof setIsFetchingFlips === 'function') {
                     setIsFetchingFlips(false);
                 }
-                renderLocalPage(0);
+                renderLocalPage(background && typeof getCurrentFlipPage === 'function' ? getCurrentFlipPage() : 0);
             }
         }
 

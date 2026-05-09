@@ -74,6 +74,39 @@
             updatePrivateMessagePendingNotice();
         }
 
+        function isLocalPrivateMessageFlipQuestion(item = {}) {
+            const messageId = String(item.messageId || item.msgId || item.id || '').trim();
+            const type = String(item.messageType || item?.content?.messageType || '').toUpperCase();
+            return messageId.startsWith('local-flip-') && type === 'FLIPCARD_QUESTION';
+        }
+
+        function isPrivateMessageFlipQuestion(item = {}) {
+            const type = String(item.messageType || item?.content?.messageType || '').toUpperCase();
+            return type === 'FLIPCARD_QUESTION';
+        }
+
+        function normalizePrivateMessageCompareText(value = '') {
+            return String(value || '').replace(/\s+/g, ' ').trim();
+        }
+
+        function findMatchingLocalFlipQuestionIndex(serverItem = {}) {
+            if (!isPrivateMessageFlipQuestion(serverItem)) return -1;
+
+            const serverText = normalizePrivateMessageCompareText(formatPrivateMessageContent(serverItem));
+            const serverTimestamp = Number(serverItem.timestamp || serverItem.sendTime || serverItem.createTime || 0);
+            if (!serverText || !serverTimestamp) return -1;
+
+            return privateMessageDetailState.items.findIndex(item => {
+                if (!isLocalPrivateMessageFlipQuestion(item)) return false;
+
+                const localText = normalizePrivateMessageCompareText(formatPrivateMessageContent(item));
+                const localTimestamp = Number(item.timestamp || 0);
+                if (!localText || !localTimestamp || localText !== serverText) return false;
+
+                return Math.abs(serverTimestamp - localTimestamp) <= 5 * 60 * 1000;
+            });
+        }
+
         function queuePrivateMessagePendingItems(items = []) {
             if (!Array.isArray(items) || items.length === 0) return;
 
@@ -832,9 +865,21 @@
                     privateMessageDetailState.items.map(item => getPrivateMessageItemKey(item, privateMessageDetailState.targetUserId))
                 );
                 let addedCount = 0;
+                let replacedCount = 0;
                 const addedItems = [];
                 incoming.forEach(item => {
                     const key = getPrivateMessageItemKey(item, privateMessageDetailState.targetUserId);
+                    const localFlipIndex = findMatchingLocalFlipQuestionIndex(item);
+                    if (localFlipIndex >= 0) {
+                        const oldItem = privateMessageDetailState.items[localFlipIndex];
+                        const oldKey = getPrivateMessageItemKey(oldItem, privateMessageDetailState.targetUserId);
+                        if (oldKey) seen.delete(oldKey);
+                        privateMessageDetailState.items[localFlipIndex] = item;
+                        if (key) seen.add(key);
+                        replacedCount += 1;
+                        return;
+                    }
+
                     if (!seen.has(key)) {
                         seen.add(key);
                         privateMessageDetailState.items.push(item);
@@ -849,7 +894,7 @@
                 privateMessageDetailState.hasMore = incoming.length > 0 && Number(res.content.lastTime || 0) > 0;
                 clearActivePrivateMessageUnread(privateMessageDetailState.targetUserId);
                 filterPrivateMessageList(getCurrentSearchKeyword(), { preserveScroll: true });
-                if (reset || addedCount > 0 || !isAutoRefresh) {
+                if (reset || addedCount > 0 || replacedCount > 0 || !isAutoRefresh) {
                     const addedMinTimestamp = addedItems.length
                         ? Math.min(...addedItems.map(item => Number(item.timestamp || 0)))
                         : 0;
@@ -865,7 +910,12 @@
                         && previousItems.length > 0
                         && addedMinTimestamp >= previousMaxTimestamp;
 
-                    if (canPrependIncrementally) {
+                    if (replacedCount > 0) {
+                        renderPrivateMessageDetail({
+                            keepScrollOffset: shouldKeepScrollOffset,
+                            stickToBottom: shouldStickToBottom
+                        });
+                    } else if (canPrependIncrementally) {
                         renderPrivateMessageDetailIncremental(addedItems, {
                             prepend: true,
                             keepScrollOffset: true
@@ -1307,6 +1357,22 @@
             privateMessageAutoRefreshRunning = false;
         }
 
+        function resetPrivateMessageListState() {
+            stopPrivateMessagePolling();
+            privateMessageListState.items = [];
+            privateMessageListState.cursor = Date.now();
+            privateMessageListState.hasMore = true;
+            privateMessageListState.loading = false;
+            privateMessageListState.initialized = false;
+            resetPrivateMessageDetailPanel();
+            const searchEl = document.getElementById('private-message-search');
+            const listEl = document.getElementById('private-message-list');
+            const statusEl = document.getElementById('private-messages-status');
+            if (searchEl) searchEl.value = '';
+            if (statusEl) statusEl.textContent = '';
+            if (listEl) listEl.innerHTML = '<div class="empty-state">正在加载私信列表</div>';
+        }
+
         function startPrivateMessagePolling() {
             stopPrivateMessagePolling();
             privateMessageAutoRefreshEnabled = true;
@@ -1365,6 +1431,7 @@
             openPrivateMessageDetail,
             refreshPrivateMessageList,
             resetPrivateMessageDetailPanel,
+            resetPrivateMessageListState,
             sendPrivateMessageReply,
             startPrivateMessagePolling,
             stopPrivateMessagePolling,

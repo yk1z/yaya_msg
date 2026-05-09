@@ -2833,7 +2833,7 @@ html[data-theme="light"] #audio-player-queue .player-queue-item-time {
     z-index: 1;
 }
 
-.Box-row img:not(.avatar):not(.private-message-avatar):not(.account-state-avatar):not(.account-card-avatar) {
+.Box-row img:not(.avatar):not(.private-message-avatar):not(.account-state-avatar):not(.account-card-avatar):not(.account-avatar-preview) {
     max-height: 250px !important;
     max-width: 100% !important;
     width: auto !important;
@@ -4436,6 +4436,24 @@ input::-webkit-calendar-picker-indicator {
     border-radius: 20px;
 }
 
+.account-settings-shell .Box-row:hover {
+    border-color: var(--border);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+.account-settings-shell .account-state-card:hover {
+    border-color: rgba(40, 167, 69, 0.35);
+    box-shadow: 0 14px 28px rgba(40, 167, 69, 0.08);
+}
+
+.account-settings-shell .account-profile-edit-card:hover {
+    border-color: rgba(178, 111, 184, 0.22);
+}
+
+.account-settings-shell .account-checkin-panel:hover {
+    border-color: rgba(40, 167, 69, 0.24);
+}
+
 .account-section-head {
     display: flex;
     flex-direction: column;
@@ -4453,6 +4471,187 @@ input::-webkit-calendar-picker-indicator {
     font-size: 12px;
     color: var(--text-sub);
     line-height: 1.5;
+}
+
+.account-rename-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 18px;
+    color: var(--primary);
+    font-weight: 800;
+}
+
+.account-rename-count span {
+    display: inline-flex;
+    white-space: nowrap;
+}
+
+.account-profile-meta-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    margin-top: 12px;
+    min-height: 22px;
+}
+
+.account-profile-meta-row.account-profile-meta-loading {
+    visibility: hidden;
+}
+
+.account-profile-meta-left {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    min-width: 0;
+    flex-wrap: wrap;
+}
+
+.account-profile-meta-row .account-rename-count {
+    font-size: 12px;
+    line-height: 1;
+    min-width: 0;
+    flex-wrap: wrap;
+}
+
+.account-profile-meta-row .account-rename-count,
+.account-balance-line {
+    height: 26px;
+}
+
+.account-profile-meta-row .account-rename-count span,
+.account-balance-line {
+    display: inline-flex;
+    align-items: center;
+}
+
+.account-profile-edit-card {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(248, 250, 253, 0.76)),
+        rgba(255, 255, 255, 0.72);
+    border-color: rgba(178, 111, 184, 0.22);
+}
+
+.account-profile-edit-grid {
+    display: grid;
+    grid-template-columns: 300px minmax(0, 1fr);
+    gap: 28px;
+    align-items: stretch;
+}
+
+.account-avatar-edit {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    min-width: 0;
+    padding: 12px 14px;
+    border-radius: 16px;
+    border: 1px solid rgba(178, 111, 184, 0.16);
+    background: rgba(255, 255, 255, 0.42);
+}
+
+.account-avatar-preview {
+    width: 72px !important;
+    height: 72px !important;
+    min-width: 72px !important;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid rgba(185, 193, 205, 0.65);
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+    display: block;
+}
+
+.account-avatar-edit-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 132px;
+}
+
+.account-avatar-edit-actions .btn {
+    height: 38px;
+    padding: 0 12px;
+    font-size: 13px;
+}
+
+.account-nickname-edit {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+}
+
+.account-nickname-edit-main {
+    min-width: 0;
+}
+
+.account-edit-label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--text);
+}
+
+.account-nickname-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 124px;
+    gap: 12px;
+    align-items: center;
+}
+
+.account-nickname-row .btn {
+    height: 38px;
+    padding: 0 14px;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.account-profile-edit-status {
+    min-height: 18px;
+    margin-top: 0;
+    font-size: 12px;
+    color: var(--text-sub);
+    line-height: 1.5;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.account-balance-line {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-sub);
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.account-balance-line b {
+    color: #fa8c16;
+    font-size: inherit;
+}
+
+.account-recharge-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: auto;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: #1890ff;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.account-recharge-btn:hover {
+    color: #40a9ff;
+    text-decoration: underline;
 }
 
 .account-switcher-panel {
@@ -4523,6 +4722,18 @@ html[data-theme="dark"] .account-checkin-panel {
     border-color: rgba(67, 180, 102, 0.24);
 }
 
+html[data-theme="dark"] .account-profile-edit-card {
+    background:
+        linear-gradient(180deg, rgba(22, 27, 34, 0.9), rgba(15, 20, 27, 0.84)),
+        rgba(13, 17, 23, 0.78);
+    border-color: rgba(178, 111, 184, 0.24);
+}
+
+html[data-theme="dark"] .account-avatar-edit {
+    background: rgba(13, 17, 23, 0.35);
+    border-color: rgba(178, 111, 184, 0.18);
+}
+
 html[data-theme="dark"] .account-checkin-toggle {
     background: rgba(13, 17, 23, 0.72);
     border-color: rgba(255, 255, 255, 0.1);
@@ -4549,7 +4760,7 @@ html[data-theme="dark"] .account-checkin-toggle {
 
 .account-card:hover {
     background: var(--input-bg) !important;
-    border-color: var(--primary) !important;
+    border-color: var(--border) !important;
     transform: translateY(-1px);
 }
 
@@ -4628,6 +4839,34 @@ html[data-theme="dark"] .account-checkin-toggle {
 
     .account-section-card {
         padding: 16px;
+    }
+
+    .account-profile-edit-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .account-avatar-edit {
+        align-items: flex-start;
+    }
+
+    .account-nickname-row {
+        grid-template-columns: 1fr;
+    }
+
+    .account-profile-meta-row {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .account-profile-meta-left {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .account-profile-edit-status {
+        text-align: left;
     }
 }
 

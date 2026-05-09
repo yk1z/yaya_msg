@@ -500,14 +500,12 @@
                                         </div>
                                     </div>
                                 </div>
-                                <button class="btn btn-secondary" onclick="loadFollowedRooms()"
-                                    style="height: 26px; padding: 0 10px; font-size: 12px;">刷新</button>
                             </div>
                         </div>
                         <div style="display: flex; flex-direction: column; flex: 1; min-height: 0;">
 
                             <div id="followed-rooms-container" style="flex: 1; overflow-y: auto; padding: 10px;">
-                                <div class="empty-state" style="margin-top: 50px;">点击上方刷新获取列表</div>
+                                <div class="empty-state" style="margin-top: 50px;">正在加载房间列表</div>
                             </div>
                             <div
                                 style="padding: 10px; border-top: 1px solid var(--border); background: var(--sidebar-bg); flex-shrink: 0;">
@@ -1051,6 +1049,54 @@
                             </div>
                         </div>
 
+                        <div class="Box-row account-section-card account-profile-edit-card">
+                            <div class="account-section-head">
+                                <div class="account-section-title">账号资料</div>
+                                <div class="account-section-subtitle">修改口袋账号的昵称和头像</div>
+                            </div>
+                            <div class="account-profile-edit-grid">
+                                <div class="account-avatar-edit">
+                                    <img id="account-avatar-preview" class="account-avatar-preview" src="./icon.png"
+                                        alt="头像预览" onerror="this.src='./icon.png'">
+                                    <input id="account-avatar-file" type="file" accept="image/jpeg,image/png,image/webp"
+                                        style="display: none;" onchange="handleAccountAvatarSelected(this.files && this.files[0]);">
+                                    <div class="account-avatar-edit-actions">
+                                        <button class="btn btn-secondary" onclick="document.getElementById('account-avatar-file').click()">
+                                            更换头像
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="account-nickname-edit">
+                                    <div class="account-nickname-edit-main">
+                                        <label class="account-edit-label" for="account-nickname-input">昵称</label>
+                                        <div class="account-nickname-row">
+                                            <input type="text" id="account-nickname-input" class="input-control"
+                                                placeholder="请输入新昵称" maxlength="20">
+                                            <button class="btn btn-primary" id="btn-save-account-nickname"
+                                                onclick="saveAccountNickname()">
+                                                保存昵称
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="account-profile-meta-row account-profile-meta-loading" id="account-profile-meta-row">
+                                        <div class="account-profile-meta-left">
+                                            <div id="account-rename-count" class="account-rename-count">
+                                                <span>免费修改：--</span><span>鸡腿修改：--</span>
+                                            </div>
+                                            <div class="account-balance-line">
+                                                <span>余额：<b id="account-chicken-balance">--</b> 🍗</span>
+                                                <button type="button" class="account-recharge-btn"
+                                                    onclick="openInBrowser('https://live.48.cn/Recharge/')">
+                                                    充值
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div id="account-profile-edit-status" class="account-profile-edit-status"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="Box-row account-section-card account-checkin-panel">
                             <div class="account-checkin-head">
                                 <div>
@@ -1406,15 +1452,13 @@
                                 style="flex:1; min-width:0; height:30px; font-size:12px;">
                         </div>
                             <div class="private-messages-toolbar-actions">
-                                <button class="btn btn-secondary" id="btn-refresh-private-messages"
-                                    onclick="refreshPrivateMessageList()">刷新</button>
                                 <button class="btn btn-secondary" id="btn-load-more-private-messages"
                                     onclick="loadMorePrivateMessageList()" style="display:none;">更多</button>
                             </div>
                         </div>
                         <div id="private-messages-status" class="private-messages-side-status"></div>
                         <div id="private-message-list" class="private-message-list">
-                            <div class="empty-state">请先刷新获取私信列表</div>
+                            <div class="empty-state">正在加载私信列表</div>
                         </div>
                     </div>
 

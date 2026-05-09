@@ -11,6 +11,10 @@
         const AUTO_CHECKIN_LAST_DATE_KEY = 'yaya_auto_checkin_last_date';
         const AUTO_CHECKIN_LAST_USER_KEY = 'yaya_auto_checkin_last_user';
         let currentPocketUserId = '';
+        let currentPocketProfile = { nickname: '', avatar: '', avatarUrl: '' };
+        let selectedAccountAvatarFile = null;
+        let selectedAccountAvatarDataUrl = '';
+        let accountProfileStatusTimer = null;
         let autoCheckinInFlight = false;
         let autoCheckinSettingsMigrated = false;
 
@@ -246,6 +250,283 @@
             if (deviceInput) deviceInput.value = '';
             clearMeet48AuthFields();
             setMeet48LoginStatus('Meet48 登录态已清除', 'success');
+        }
+
+        function normalizeAccountAvatarUrl(avatarPath) {
+            const raw = String(avatarPath || '').trim();
+            if (!raw) return './icon.png';
+            if (/^https?:\/\//i.test(raw) || raw.startsWith('data:') || raw.startsWith('blob:')) return raw;
+            return raw.startsWith('/') ? `https://source.48.cn${raw}` : `https://source.48.cn/${raw}`;
+        }
+
+        function setAccountProfileEditStatus(message, type = 'muted') {
+            const statusEl = document.getElementById('account-profile-edit-status');
+            if (!statusEl) return;
+            if (accountProfileStatusTimer) {
+                clearTimeout(accountProfileStatusTimer);
+                accountProfileStatusTimer = null;
+            }
+            statusEl.innerText = message || '';
+            statusEl.style.color = type === 'success'
+                ? '#28a745'
+                : (type === 'error' ? '#ff4d4f' : 'var(--text-sub)');
+            if ((type === 'success' || type === 'error') && message) {
+                accountProfileStatusTimer = setTimeout(() => {
+                    statusEl.innerText = '';
+                    accountProfileStatusTimer = null;
+                }, 3000);
+            }
+        }
+
+        function syncAccountProfileEditUi(profile = currentPocketProfile) {
+            const nickname = String(profile?.nickname || '').trim();
+            const avatarUrl = profile?.avatarUrl || normalizeAccountAvatarUrl(profile?.avatar);
+            const nicknameInput = document.getElementById('account-nickname-input');
+            const preview = document.getElementById('account-avatar-preview');
+            if (nicknameInput) nicknameInput.value = nickname;
+            if (preview) preview.src = avatarUrl || './icon.png';
+            setAccountProfileEditStatus('');
+        }
+
+        function setAccountProfileMetaVisible(visible) {
+            const row = document.getElementById('account-profile-meta-row');
+            if (!row) return;
+            row.classList.toggle('account-profile-meta-loading', !visible);
+        }
+
+        function setRenameCountDisplay(freeText, chickenText) {
+            const countEl = document.getElementById('account-rename-count');
+            if (!countEl) return;
+            countEl.replaceChildren();
+
+            const freeEl = document.createElement('span');
+            freeEl.textContent = `免费修改：${freeText}`;
+            const chickenEl = document.createElement('span');
+            chickenEl.textContent = `鸡腿修改：${chickenText}`;
+            countEl.append(freeEl, chickenEl);
+        }
+
+        function renderAccountRenameCount(content) {
+            const countEl = document.getElementById('account-rename-count');
+            if (!countEl) return;
+
+            if (content && typeof content === 'object') {
+                const freeCount = content.count ?? content.renameCount ?? content.renameNum ?? content.num ?? content.leftCount ?? content.remainCount;
+                const chickenCount = content.jtcount ?? content.jtCount ?? content.chickenCount ?? content.payCount;
+                const freeText = freeCount === undefined || freeCount === null || freeCount === '' ? '--' : String(freeCount);
+                const chickenText = chickenCount === undefined || chickenCount === null || chickenCount === '' ? '--' : String(chickenCount);
+                setRenameCountDisplay(freeText, chickenText);
+                return;
+            }
+
+            const normalized = content === undefined || content === null || content === ''
+                ? '--'
+                : String(content);
+            setRenameCountDisplay(normalized, '--');
+        }
+
+        async function refreshAccountRenameCount() {
+            const countEl = document.getElementById('account-rename-count');
+            const token = appToken || readStoredToken();
+            if (!countEl) return;
+            if (!token) {
+                countEl.innerText = '改名次数：--';
+                return;
+            }
+
+            setRenameCountDisplay('读取中...', '读取中...');
+            try {
+                const pa = window.getPA ? window.getPA() : null;
+                const res = await ipcRenderer.invoke('fetch-user-rename-count', { token, pa });
+                if (!res?.success) {
+                    throw new Error(res?.msg || '读取失败');
+                }
+                renderAccountRenameCount(res.content);
+            } catch (error) {
+                setRenameCountDisplay('读取失败', '读取失败');
+            }
+        }
+
+        function renderAccountChickenBalance(content) {
+            const balanceEl = document.getElementById('account-chicken-balance');
+            if (!balanceEl) return;
+            const total = content && typeof content === 'object'
+                ? (content.moneyTotal ?? content.total ?? content.balance ?? content.money)
+                : content;
+            balanceEl.innerText = total === undefined || total === null || total === '' ? '--' : String(total);
+        }
+
+        async function refreshAccountChickenBalance() {
+            const balanceEl = document.getElementById('account-chicken-balance');
+            const token = appToken || readStoredToken();
+            if (!balanceEl) return;
+            if (!token) {
+                balanceEl.innerText = '--';
+                return;
+            }
+
+            balanceEl.innerText = '读取中...';
+            try {
+                const pa = window.getPA ? window.getPA() : null;
+                const res = await ipcRenderer.invoke('fetch-user-money', { token, pa });
+                if (!res?.success) {
+                    throw new Error(res?.msg || '读取失败');
+                }
+                renderAccountChickenBalance(res.content);
+            } catch (error) {
+                balanceEl.innerText = '读取失败';
+            }
+        }
+
+        async function refreshAccountProfileMeta() {
+            setAccountProfileMetaVisible(false);
+            await Promise.all([
+                refreshAccountRenameCount(),
+                refreshAccountChickenBalance()
+            ]);
+            setAccountProfileMetaVisible(true);
+        }
+
+        function handleAccountAvatarSelected(file) {
+            selectedAccountAvatarFile = file || null;
+            selectedAccountAvatarDataUrl = '';
+            const fileInput = document.getElementById('account-avatar-file');
+
+            if (!file) return;
+
+            if (!/^image\/(jpeg|png|webp)$/i.test(file.type || '')) {
+                selectedAccountAvatarFile = null;
+                setAccountProfileEditStatus('请选择 JPG、PNG 或 WebP 图片', 'error');
+                if (fileInput) fileInput.value = '';
+                return;
+            }
+
+            if (file.size > 5 * 1024 * 1024) {
+                selectedAccountAvatarFile = null;
+                setAccountProfileEditStatus('头像图片请控制在 5MB 以内', 'error');
+                if (fileInput) fileInput.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = () => {
+                selectedAccountAvatarDataUrl = String(reader.result || '');
+                const preview = document.getElementById('account-avatar-preview');
+                if (preview && selectedAccountAvatarDataUrl) preview.src = selectedAccountAvatarDataUrl;
+                setAccountProfileEditStatus('');
+                uploadAccountAvatar();
+            };
+            reader.onerror = () => {
+                selectedAccountAvatarFile = null;
+                selectedAccountAvatarDataUrl = '';
+                setAccountProfileEditStatus('读取头像图片失败', 'error');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function saveAccountNickname() {
+            const nicknameInput = document.getElementById('account-nickname-input');
+            const button = document.getElementById('btn-save-account-nickname');
+            const nickname = String(nicknameInput?.value || '').trim();
+            const token = appToken || readStoredToken();
+
+            if (!token) {
+                showToast('请先登录账号');
+                return;
+            }
+
+            if (!nickname) {
+                setAccountProfileEditStatus('昵称不能为空', 'error');
+                return;
+            }
+
+            try {
+                if (button) button.disabled = true;
+                setAccountProfileEditStatus('');
+                const pa = window.getPA ? window.getPA() : null;
+                const res = await ipcRenderer.invoke('edit-user-info', {
+                    token,
+                    pa,
+                    key: 'nickname',
+                    value: nickname
+                });
+
+                if (!res?.success) {
+                    throw new Error(res?.msg || '保存昵称失败');
+                }
+
+                currentPocketProfile.nickname = nickname;
+                const nameEl = document.getElementById('user-nickname');
+                if (nameEl) nameEl.innerText = nickname;
+                refreshAccountRenameCount();
+                setAccountProfileEditStatus('昵称已保存', 'success');
+                showToast('昵称已保存');
+            } catch (error) {
+                setAccountProfileEditStatus(error.message || '保存昵称失败', 'error');
+            } finally {
+                if (button) button.disabled = false;
+            }
+        }
+
+        async function uploadAccountAvatar() {
+            const button = document.querySelector('.account-avatar-edit-actions .btn');
+            const token = appToken || readStoredToken();
+
+            if (!token) {
+                showToast('请先登录账号');
+                return;
+            }
+
+            if (!selectedAccountAvatarFile || !selectedAccountAvatarDataUrl) {
+                setAccountProfileEditStatus('请先选择头像图片', 'error');
+                return;
+            }
+
+            try {
+                if (button) button.disabled = true;
+                setAccountProfileEditStatus('');
+                const pa = window.getPA ? window.getPA() : null;
+                const uploadRes = await ipcRenderer.invoke('upload-user-avatar', {
+                    token,
+                    pa,
+                    fileName: selectedAccountAvatarFile.name,
+                    mimeType: selectedAccountAvatarFile.type,
+                    dataBase64: selectedAccountAvatarDataUrl
+                });
+
+                if (!uploadRes?.success || !uploadRes.path) {
+                    throw new Error(uploadRes?.msg || '上传头像失败');
+                }
+
+                const editRes = await ipcRenderer.invoke('edit-user-info', {
+                    token,
+                    pa,
+                    key: 'avatar',
+                    value: uploadRes.path
+                });
+
+                if (!editRes?.success) {
+                    throw new Error(editRes?.msg || '头像写入失败');
+                }
+
+                const avatarUrl = normalizeAccountAvatarUrl(uploadRes.path);
+                currentPocketProfile.avatar = uploadRes.path;
+                currentPocketProfile.avatarUrl = avatarUrl;
+                const currentAvatarEl = document.getElementById('current-user-avatar');
+                const preview = document.getElementById('account-avatar-preview');
+                if (currentAvatarEl) currentAvatarEl.src = avatarUrl;
+                if (preview) preview.src = avatarUrl;
+                selectedAccountAvatarFile = null;
+                selectedAccountAvatarDataUrl = '';
+                const fileInput = document.getElementById('account-avatar-file');
+                if (fileInput) fileInput.value = '';
+                setAccountProfileEditStatus('头像已更新', 'success');
+                showToast('头像已更新');
+            } catch (error) {
+                setAccountProfileEditStatus(error.message || '上传头像失败', 'error');
+            } finally {
+                if (button) button.disabled = false;
+            }
         }
 
         function readStoredSettingStringFallback(key, fallbackValue = '') {
@@ -1036,12 +1317,23 @@
                     const currentAvatarUrl = currentAvatarRaw
                         ? (String(currentAvatarRaw).startsWith('http') ? String(currentAvatarRaw) : `https://source.48.cn${currentAvatarRaw}`)
                         : './icon.png';
+                    if (currentPocketUserId && String(currentPocketUserId) !== String(userId)
+                        && typeof resetAccountScopedSessionState === 'function') {
+                        resetAccountScopedSessionState();
+                    }
                     currentPocketUserId = String(userId);
+                    currentPocketProfile = {
+                        nickname: safeName,
+                        avatar: currentAvatarRaw,
+                        avatarUrl: currentAvatarUrl
+                    };
                     document.getElementById('user-nickname').innerText = safeName;
                     const idDisplay = document.getElementById('user-id-display');
                     if (idDisplay) idDisplay.innerText = `ID: ${userId}`;
                     const currentAvatarEl = document.getElementById('current-user-avatar');
                     if (currentAvatarEl) currentAvatarEl.src = currentAvatarUrl;
+                    syncAccountProfileEditUi(currentPocketProfile);
+                    refreshAccountProfileMeta();
                     if (msgBox) msgBox.innerText = '';
                     syncAutoCheckinUi();
 
@@ -1102,6 +1394,7 @@
 
                 } else {
                     currentPocketUserId = '';
+                    currentPocketProfile = { nickname: '', avatar: '', avatarUrl: '' };
                     if (panelInput) panelInput.style.display = 'block';
                     if (panelSuccess) panelSuccess.style.display = 'none';
                     syncAutoCheckinUi();
@@ -1113,6 +1406,7 @@
             } catch (e) {
                 console.error(e);
                 currentPocketUserId = '';
+                currentPocketProfile = { nickname: '', avatar: '', avatarUrl: '' };
                 if (panelInput) panelInput.style.display = 'block';
                 if (panelSuccess) panelSuccess.style.display = 'none';
                 syncAutoCheckinUi();
@@ -1141,6 +1435,9 @@
                 if (res.success) {
                     const newToken = res.content.token;
                     if (newToken) {
+                        if (typeof resetAccountScopedSessionState === 'function') {
+                            resetAccountScopedSessionState();
+                        }
                         appToken = newToken;
                         writeStoredToken(newToken);
                         document.getElementById('login-token').value = newToken;
@@ -1187,6 +1484,12 @@
             clearStoredToken();
             appToken = '';
             currentPocketUserId = '';
+            currentPocketProfile = { nickname: '', avatar: '', avatarUrl: '' };
+            selectedAccountAvatarFile = null;
+            selectedAccountAvatarDataUrl = '';
+            if (typeof resetAccountScopedSessionState === 'function') {
+                resetAccountScopedSessionState();
+            }
 
             const panelInput = document.getElementById('panel-login');
             const panelSuccess = document.getElementById('panel-logged-in');
@@ -1195,6 +1498,12 @@
             if (panelInput) panelInput.style.display = 'block';
 
             document.getElementById('login-token').value = '';
+            syncAccountProfileEditUi(currentPocketProfile);
+            renderAccountRenameCount(null);
+            renderAccountChickenBalance(null);
+            setAccountProfileMetaVisible(false);
+            const avatarInput = document.getElementById('account-avatar-file');
+            if (avatarInput) avatarInput.value = '';
             const msgBox = document.getElementById('login-msg');
             if (msgBox) {
                 msgBox.innerText = '记录已清除';

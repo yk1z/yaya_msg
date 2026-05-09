@@ -83,6 +83,13 @@ function createCheckinHeaders(token, pa) {
     return headers;
 }
 
+function createPfileHeaders(token, pa) {
+    const headers = createModernHeaders(token, pa);
+    delete headers['Content-Type'];
+    delete headers.Host;
+    return headers;
+}
+
 function createMeet48Headers() {
     const storedAuth = settingsService.readSettings().meet48Auth || {};
     const authDisabled = storedAuth.disabled === true;
@@ -982,6 +989,222 @@ async function fetchUserMoney({ token, pa }) {
     }
 }
 
+async function fetchCheckinToday({ token, pa }) {
+    if (!token) {
+        return missingToken();
+    }
+
+    try {
+        const response = await axios.post(
+            'https://pocketapi.48.cn/user/api/v1/checkin/check/today',
+            {},
+            { headers: createModernHeaders(token, pa) }
+        );
+
+        if (response.status === 200 && response.data && (response.data.status === 200 || response.data.success)) {
+            return { success: true, content: response.data.content };
+        }
+
+        return apiError(response, '获取签到状态失败');
+    } catch (error) {
+        return { success: false, msg: error.message };
+    }
+}
+
+async function fetchUnreadMessageCount({ token, pa }) {
+    if (!token) {
+        return missingToken();
+    }
+
+    try {
+        const response = await axios.post(
+            'https://pocketapi.48.cn/message/api/v1/unread/message/num',
+            {},
+            { headers: createModernHeaders(token, pa) }
+        );
+
+        if (response.status === 200 && response.data && (response.data.status === 200 || response.data.success)) {
+            return { success: true, content: response.data.content };
+        }
+
+        return apiError(response, '获取未读消息数失败');
+    } catch (error) {
+        return { success: false, msg: error.message };
+    }
+}
+
+async function editUserInfo({ token, pa, key, value }) {
+    if (!token) {
+        return missingToken();
+    }
+
+    if (!key) {
+        return { success: false, msg: '缺少修改字段' };
+    }
+
+    try {
+        const response = await axios.post(
+            'https://pocketapi.48.cn/user/api/v1/user/info/edit',
+            { key, value },
+            { headers: createModernHeaders(token, pa) }
+        );
+
+        if (response.status === 200 && response.data && (response.data.status === 200 || response.data.success)) {
+            return { success: true, content: response.data.content, msg: response.data.message };
+        }
+
+        return apiError(response, '修改资料失败');
+    } catch (error) {
+        return { success: false, msg: error.message };
+    }
+}
+
+async function uploadUserAvatar({ token, pa, fileName, mimeType, dataBase64 }) {
+    if (!token) {
+        return missingToken();
+    }
+
+    const base64Body = String(dataBase64 || '').replace(/^data:[^;,]+;base64,/, '');
+    if (!base64Body) {
+        return { success: false, msg: '缺少头像图片数据' };
+    }
+
+    try {
+        const buffer = Buffer.from(base64Body, 'base64');
+        const finalMimeType = mimeType || 'image/jpeg';
+        const finalFileName = fileName || `avatar-${Date.now()}.${finalMimeType.includes('png') ? 'png' : 'jpg'}`;
+        const formData = new FormData();
+        formData.append('fromType', 'avatar');
+        formData.append('file', new Blob([buffer], { type: finalMimeType }), finalFileName);
+
+        const response = await fetch('https://pfile.48.cn/filesystem/upload/image', {
+            method: 'POST',
+            headers: createPfileHeaders(token, pa),
+            body: formData
+        });
+
+        const data = await response.json();
+        if (response.ok && data && data.status === 200) {
+            const item = Array.isArray(data.content) ? data.content[0] : data.content;
+            return { success: true, content: item, path: item?.path || '' };
+        }
+
+        return { success: false, msg: data?.message || '上传头像失败' };
+    } catch (error) {
+        return { success: false, msg: error.message };
+    }
+}
+
+async function fetchUserRenameCount({ token, pa }) {
+    if (!token) {
+        return missingToken();
+    }
+
+    try {
+        const response = await axios.post(
+            'https://pocketapi.48.cn/user/api/v1/user/rename/count',
+            {},
+            { headers: createModernHeaders(token, pa) }
+        );
+
+        if (response.status === 200 && response.data && (response.data.status === 200 || response.data.success)) {
+            return { success: true, content: response.data.content };
+        }
+
+        return apiError(response, '获取改名次数失败');
+    } catch (error) {
+        return { success: false, msg: error.message };
+    }
+}
+
+async function fetchUserPictureFrames({ token, pa }) {
+    if (!token) {
+        return missingToken();
+    }
+
+    try {
+        const response = await axios.post(
+            'https://pocketapi.48.cn/user/api/v1/user/get/picture/frame',
+            {},
+            { headers: createModernHeaders(token, pa) }
+        );
+
+        if (response.status === 200 && response.data && (response.data.status === 200 || response.data.success)) {
+            return { success: true, content: response.data.content };
+        }
+
+        return apiError(response, '获取头像框失败');
+    } catch (error) {
+        return { success: false, msg: error.message };
+    }
+}
+
+async function fetchClientGroupTeamStarUpdate({ token, pa, payload }) {
+    if (!token) {
+        return missingToken();
+    }
+
+    try {
+        const response = await axios.post(
+            'https://pocketapi.48.cn/user/api/v1/client/update/group_team_star',
+            payload || {},
+            { headers: createModernHeaders(token, pa) }
+        );
+
+        if (response.status === 200 && response.data && (response.data.status === 200 || response.data.success)) {
+            return { success: true, content: response.data.content };
+        }
+
+        return apiError(response, '获取成员基础数据更新失败');
+    } catch (error) {
+        return { success: false, msg: error.message };
+    }
+}
+
+async function fetchStarServerMap({ token, pa }) {
+    if (!token) {
+        return missingToken();
+    }
+
+    try {
+        const response = await axios.post(
+            'https://pocketapi.48.cn/im/api/v1/team/star/server/map/get',
+            {},
+            { headers: createModernHeaders(token, pa) }
+        );
+
+        if (response.status === 200 && response.data && (response.data.status === 200 || response.data.success)) {
+            return { success: true, content: response.data.content };
+        }
+
+        return apiError(response, '获取成员房间映射失败');
+    } catch (error) {
+        return { success: false, msg: error.message };
+    }
+}
+
+async function fetchMediaCollectionTotalCount({ token, pa }) {
+    if (!token) {
+        return missingToken();
+    }
+
+    try {
+        const response = await axios.post(
+            'https://pocketapi.48.cn/media/api/media/v1/getCollectionTotalCount',
+            {},
+            { headers: createModernHeaders(token, pa) }
+        );
+
+        if (response.status === 200 && response.data && (response.data.status === 200 || response.data.success)) {
+            return { success: true, content: response.data.content };
+        }
+
+        return apiError(response, '获取收藏统计失败');
+    } catch (error) {
+        return { success: false, msg: error.message };
+    }
+}
+
 async function sendLiveGift({ token, pa, giftId, liveId, acceptUserId, giftNum }) {
     if (!token) {
         return missingToken();
@@ -1265,6 +1488,15 @@ module.exports = {
     operateFlipQuestion,
     fetchMemberPhotos,
     fetchUserMoney,
+    fetchCheckinToday,
+    fetchUnreadMessageCount,
+    editUserInfo,
+    uploadUserAvatar,
+    fetchUserRenameCount,
+    fetchUserPictureFrames,
+    fetchClientGroupTeamStarUpdate,
+    fetchStarServerMap,
+    fetchMediaCollectionTotalCount,
     sendLiveGift,
     fetchGiftList,
     getNimLoginInfo,
