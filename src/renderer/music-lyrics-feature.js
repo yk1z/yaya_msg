@@ -15,6 +15,9 @@
         let currentMusicLyricActiveIndex = -1;
         let currentMusicLyricsVisible = false;
         let currentMusicLyricsRequestId = 0;
+        let currentMusicLyricsUserScrolling = false;
+        let currentMusicLyricsScrollResumeTimer = null;
+        let currentMusicLyricsScrollListenersBound = false;
 
         function fetchMusicLyricsIndex() {
             if (!musicLyricsIndexPromise) {
@@ -193,11 +196,37 @@
 
             const activeEl = lineEls[activeIndex];
             if (!activeEl) return;
+            if (!force && currentMusicLyricsUserScrolling) return;
             const targetTop = activeEl.offsetTop - (scrollEl.clientHeight / 2) + (activeEl.offsetHeight / 2);
             scrollEl.scrollTo({
                 top: Math.max(targetTop, 0),
                 behavior: force ? 'auto' : 'smooth'
             });
+        }
+
+        function handleMusicLyricsUserScroll() {
+            currentMusicLyricsUserScrolling = true;
+            if (currentMusicLyricsScrollResumeTimer) {
+                clearTimeout(currentMusicLyricsScrollResumeTimer);
+            }
+            currentMusicLyricsScrollResumeTimer = setTimeout(() => {
+                currentMusicLyricsUserScrolling = false;
+                currentMusicLyricsScrollResumeTimer = null;
+                if (!currentMusicLyricsVisible) return;
+                syncMusicLyrics(document.getElementById('music-native-audio')?.currentTime || 0, true);
+            }, 2000);
+        }
+
+        function bindMusicLyricsUserScroll() {
+            const scrollEl = document.getElementById('music-lyrics-scroll');
+            if (!scrollEl || currentMusicLyricsScrollListenersBound) return;
+            currentMusicLyricsScrollListenersBound = true;
+            scrollEl.addEventListener('wheel', handleMusicLyricsUserScroll, { passive: true });
+            scrollEl.addEventListener('touchstart', handleMusicLyricsUserScroll, { passive: true });
+            scrollEl.addEventListener('touchmove', handleMusicLyricsUserScroll, { passive: true });
+            scrollEl.addEventListener('scroll', () => {
+                if (currentMusicLyricsUserScrolling) handleMusicLyricsUserScroll();
+            }, { passive: true });
         }
 
         function seekMusicLyricLine(index) {
@@ -247,7 +276,13 @@
             currentMusicLyricMeta = meta || null;
             currentMusicLyrics = [];
             currentMusicLyricActiveIndex = -1;
+            currentMusicLyricsUserScrolling = false;
+            if (currentMusicLyricsScrollResumeTimer) {
+                clearTimeout(currentMusicLyricsScrollResumeTimer);
+                currentMusicLyricsScrollResumeTimer = null;
+            }
             setMusicLyricsPanelState('loading', '正在读取歌词...');
+            bindMusicLyricsUserScroll();
 
             if (!meta || !meta.歌曲名) {
                 setMusicLyricsPanelState('empty', '当前歌曲暂无歌词');

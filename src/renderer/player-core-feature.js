@@ -31,6 +31,90 @@
             syncDanmuHighlight
         } = deps;
 
+        function applyDPlayerVideoTransform(dp) {
+            if (!dp || !dp.video) return;
+            const degree = Number(dp.yayaRotateDegree) || 0;
+            const mirror = dp.yayaMirrorMode || 'none';
+            const isPerpendicular = degree % 180 !== 0;
+            const bounds = (dp.container || dp.video.parentElement || dp.video).getBoundingClientRect();
+            const rotateScale = isPerpendicular && bounds.width > 0 && bounds.height > 0
+                ? Math.min(1, bounds.width / bounds.height, bounds.height / bounds.width)
+                : 1;
+            const rotateTransform = degree ? `rotate(${degree}deg)` : '';
+            const scaleTransform = rotateScale < 1 ? `scale(${rotateScale})` : '';
+            const mirrorTransform = mirror === 'horizontal'
+                ? 'scaleX(-1)'
+                : mirror === 'vertical'
+                    ? 'scaleY(-1)'
+                    : '';
+            dp.video.style.transition = 'transform 0.3s ease';
+            dp.video.style.transformOrigin = 'center center';
+            dp.video.style.objectFit = isPerpendicular ? 'contain' : '';
+            dp.video.style.transform = [rotateTransform, scaleTransform, mirrorTransform].filter(Boolean).join(' ');
+        }
+
+        function enhanceDPlayerControls(dp) {
+            if (!dp || !dp.container) return;
+
+            const install = () => {
+                const iconsRight = dp.container.querySelector('.dplayer-icons-right');
+                if (!iconsRight) return;
+                if (dp.container.querySelector('.yaya-dplayer-control-group')) return;
+
+                const group = document.createElement('div');
+                group.className = 'yaya-dplayer-control-group';
+
+                const rotateBtn = document.createElement('button');
+                rotateBtn.type = 'button';
+                rotateBtn.className = 'yaya-dplayer-control-btn';
+                rotateBtn.textContent = '旋转';
+                rotateBtn.title = '画面旋转';
+                rotateBtn.onclick = (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    dp.yayaRotateDegree = ((Number(dp.yayaRotateDegree) || 0) + 90) % 360;
+                    applyDPlayerVideoTransform(dp);
+                    if (typeof dp.notice === 'function') dp.notice(`旋转: ${dp.yayaRotateDegree}°`);
+                };
+
+                const mirrorBtn = document.createElement('button');
+                mirrorBtn.type = 'button';
+                mirrorBtn.className = 'yaya-dplayer-control-btn';
+                mirrorBtn.textContent = '镜像';
+                mirrorBtn.title = '镜像翻转';
+                mirrorBtn.onclick = (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const modes = ['none', 'horizontal', 'vertical'];
+                    const labels = {
+                        none: '关闭',
+                        horizontal: '水平镜像',
+                        vertical: '垂直镜像'
+                    };
+                    const currentIndex = modes.indexOf(dp.yayaMirrorMode || 'none');
+                    dp.yayaMirrorMode = modes[(currentIndex + 1) % modes.length] || 'none';
+                    mirrorBtn.dataset.mode = dp.yayaMirrorMode;
+                    applyDPlayerVideoTransform(dp);
+                    if (typeof dp.notice === 'function') dp.notice(`镜像: ${labels[dp.yayaMirrorMode] || '关闭'}`);
+                };
+
+                group.appendChild(rotateBtn);
+                group.appendChild(mirrorBtn);
+                const fullControl = iconsRight.querySelector('.dplayer-full');
+                iconsRight.insertBefore(group, fullControl || null);
+            };
+
+            install();
+            setTimeout(install, 100);
+            setTimeout(install, 500);
+            if (!dp.yayaTransformResizeBound) {
+                dp.yayaTransformResizeBound = true;
+                window.addEventListener('resize', () => applyDPlayerVideoTransform(dp));
+            }
+        }
+
+        window.enhanceYayaDPlayerControls = enhanceDPlayerControls;
+
         function ensureAnnouncementBar(comboWrapper, playerArea) {
             let announcementBar = document.getElementById('live-announcement-bar');
             if (!announcementBar && comboWrapper && playerArea) {
@@ -471,6 +555,7 @@
                     });
 
                     setDp(nextDp);
+                    enhanceDPlayerControls(nextDp);
                     setArt({
                         get currentTime() {
                             return nextDp.video.currentTime;
@@ -505,58 +590,28 @@
             if (typeof window.ensureYayaWebPlayerLibs === 'function') {
                 await window.ensureYayaWebPlayerLibs('player');
             }
-            const loadSubtitle = (file) => {
-                const currentArt = getArt();
-                if (!file || !currentArt) return;
-
-                const ext = file.name.split('.').pop().toLowerCase();
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    let text = e.target.result;
-
-                    if (ext === 'srt') {
-                        if (typeof loadTimelineSubtitleText === 'function') {
-                            loadTimelineSubtitleText(text);
-                        }
-                    } else {
-                        console.warn('时间轴目前主要支持解析 SRT 格式的本地字幕');
-                    }
-
-                    if (ext === 'srt') {
-                        let vttText = text.replace(/(^|[\r\n]+)\d+([\r\n]+)(?=\d{2}:\d{2}:\d{2})/g, '$1');
-                        vttText = vttText.replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2');
-                        if (!vttText.startsWith('WEBVTT')) vttText = 'WEBVTT\n\n' + vttText;
-
-                        const blobUrl = URL.createObjectURL(new Blob([vttText], { type: 'text/vtt;charset=utf-8' }));
-                        currentArt.subtitle.switch(blobUrl, { type: 'vtt', name: '本地字幕' }).then(() => {
-                            if (currentArt.notice) currentArt.notice.show = `字幕加载成功: ${file.name}`;
-                        });
-                    } else {
-                        const blobUrl = URL.createObjectURL(file);
-                        currentArt.subtitle.switch(blobUrl, { type: ext, name: '本地字幕' }).then(() => {
-                            if (currentArt.notice) currentArt.notice.show = `字幕加载成功: ${file.name}`;
-                        });
-                    }
-                };
-
-                reader.readAsText(file);
-            };
-
-            let subInput = document.getElementById('art-subtitle-loader');
-            if (!subInput) {
-                subInput = document.createElement('input');
-                subInput.type = 'file';
-                subInput.id = 'art-subtitle-loader';
-                subInput.accept = '.srt,.vtt,.ass';
-                subInput.style.display = 'none';
-                document.body.appendChild(subInput);
-            }
-            subInput.onchange = (e) => {
-                loadSubtitle(e.target.files[0]);
-                subInput.value = '';
-            };
-
             if (window.Artplayer) Artplayer.CONTEXTMENU = false;
+
+            const applyVideoTransform = (art) => {
+                if (!art || !art.video) return;
+                const degree = Number(art.currentRotate) || 0;
+                const mirror = art.currentMirror || 'none';
+                const isPerpendicular = degree % 180 !== 0;
+                const bounds = (art.container || art.video.parentElement || art.video).getBoundingClientRect();
+                const rotateScale = isPerpendicular && bounds.width > 0 && bounds.height > 0
+                    ? Math.min(1, bounds.width / bounds.height, bounds.height / bounds.width)
+                    : 1;
+                const rotateTransform = degree ? `rotate(${degree}deg)` : '';
+                const scaleTransform = rotateScale < 1 ? `scale(${rotateScale})` : '';
+                const mirrorTransform = mirror === 'horizontal'
+                    ? 'scaleX(-1)'
+                    : mirror === 'vertical'
+                        ? 'scaleY(-1)'
+                        : '';
+                art.video.style.transition = 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
+                art.video.style.objectFit = isPerpendicular ? 'contain' : '';
+                art.video.style.transform = [rotateTransform, scaleTransform, mirrorTransform].filter(Boolean).join(' ');
+            };
 
             const nextArt = new Artplayer({
                 container: '.artplayer-app',
@@ -568,11 +623,11 @@
                 fullscreen: true,
                 fullscreenWeb: true,
                 setting: true,
-                subtitleOffset: true,
+                subtitleOffset: false,
                 pip: true,
-                flip: true,
+                flip: false,
                 playbackRate: true,
-                aspectRatio: true,
+                aspectRatio: false,
                 contextmenu: [],
                 subtitle: {
                     url: '',
@@ -645,7 +700,7 @@
                         return item.html;
                     }
                 }, {
-                    html: '垂直位置',
+                    html: '字幕位置',
                     width: 250,
                     tooltip: '30px',
                     selector: [{
@@ -669,58 +724,53 @@
                         nextArt.subtitle.style('marginBottom', item.url);
                         return item.html;
                     }
-                }],
-                controls: [
-                    {
-                        name: 'upload-subtitle',
-                        position: 'right',
-                        html: `
-        <svg width="22" height="22" viewBox="0 0 24 24" style="background:none;">
-            <path d="M19 4H5C3.89 4 3 4.9 3 6V18C3 19.1 3.89 20 5 20H19C20.1 20 21 19.1 21 18V6C21 4.9 20.1 4 19 4ZM11 11H9.5V10.5H7.5V13.5H9.5V13H11V14C11 14.55 10.55 15 10 15H7C6.45 15 6 14.55 6 14V10C6 9.45 6.45 9 7 9H10C10.55 9 11 9.45 11 10V11ZM18 11H16.5V10.5H14.5V13.5H16.5V13H18V14C18 14.55 17.55 15 17 15H14C13.45 15 13 14.55 13 14V10C13 9.45 13.45 9 14 9H17C17.55 9 18 9.45 18 10V11Z" 
-                  style="fill: #ffffff !important; stroke: none !important;">
-            </path>
-        </svg>
-    `,
-                        tooltip: '加载本地字幕',
-                        click: function () {
-                            subInput.click();
-                        }
-                    },
-                    {
-                        name: 'rotate',
-                        position: 'right',
-                        html: `
-        <svg width="22" height="22" viewBox="0 0 24 24" style="background:none;">
-            <path d="M17 1L7 1C5.89 1 5 1.89 5 3V21C5 22.1 5.89 23 7 23H17C18.1 23 19 22.1 19 21V3C19 1.89 18.1 1 17 1Z" 
-                  style="fill: none !important; stroke: #ffffff !important; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;">
-            </path>
-            <path d="M12 18L12 18.01" 
-                  style="fill: none !important; stroke: #ffffff !important; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;">
-            </path>
-            <path d="M22 8L22 16" stroke-dasharray="2 2"
-                  style="fill: none !important; stroke: #ffffff !important; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;">
-            </path>
-            <path d="M2 8L2 16" stroke-dasharray="2 2"
-                  style="fill: none !important; stroke: #ffffff !important; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;">
-            </path>
-        </svg>
-    `,
-                        tooltip: '画面旋转',
-                        click: function () {
-                            if (typeof this.currentRotate === 'undefined') {
-                                this.currentRotate = 0;
-                                this.video.style.transition = 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
-                            }
-
-                            this.currentRotate += 90;
-                            const isPerpendicular = this.currentRotate % 180 !== 0;
-                            this.video.style.objectFit = isPerpendicular ? 'contain' : '';
-                            this.video.style.transform = `rotate(${this.currentRotate}deg)`;
-                            const displayDeg = this.currentRotate % 360;
-                            this.notice.show = `旋转: ${displayDeg}°`;
-                        }
+                }, {
+                    html: '画面旋转',
+                    width: 250,
+                    tooltip: '正常',
+                    selector: [{
+                        html: '正常',
+                        url: '0',
+                        default: true
+                    }, {
+                        html: '90°',
+                        url: '90'
+                    }, {
+                        html: '180°',
+                        url: '180'
+                    }, {
+                        html: '270°',
+                        url: '270'
+                    }],
+                    onSelect: function (item) {
+                        const degree = Number(item.url) || 0;
+                        nextArt.currentRotate = degree;
+                        applyVideoTransform(nextArt);
+                        if (nextArt.notice) nextArt.notice.show = `旋转: ${degree}°`;
+                        return item.html;
                     }
-                ],
+                }, {
+                    html: '镜像翻转',
+                    width: 250,
+                    tooltip: '关闭',
+                    selector: [{
+                        html: '关闭',
+                        url: 'none',
+                        default: true
+                    }, {
+                        html: '水平镜像',
+                        url: 'horizontal'
+                    }, {
+                        html: '垂直镜像',
+                        url: 'vertical'
+                    }],
+                    onSelect: function (item) {
+                        nextArt.currentMirror = item.url || 'none';
+                        applyVideoTransform(nextArt);
+                        if (nextArt.notice) nextArt.notice.show = `镜像翻转: ${item.html}`;
+                        return item.html;
+                    }
+                }],
                 plugins: [artplayerPluginDanmuku({
                     danmuku: isLiveContent ? [] : vodDanmuData,
                     speed: 8,

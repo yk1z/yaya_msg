@@ -7,6 +7,9 @@
     const R2_MUSIC_PUBLIC_ORIGIN = 'https://gnz.hk';
     const FAVORITES_STORAGE_KEY = 'yaya_official_site_music_favorites';
     const PLAYER_STATE_STORAGE_KEY = 'yaya_official_site_music_player_state';
+    const DURATION_STORAGE_KEY = 'yaya_official_site_music_durations';
+    const TRACKS_CACHE_STORAGE_KEY = 'yaya_official_site_music_tracks_cache_v1';
+    const TRACKS_CACHE_TTL = 24 * 60 * 60 * 1000;
     const GROUPS = [
         { key: 'SNH', label: 'SNH48', script: 'json_data_snh.js', listVar: 'ix_mp3list_snh', recordsVar: 'records_snh', songsVar: 'ix_songs_snh' },
         { key: 'GNZ', label: 'GNZ48', script: 'json_data_gnz.js', listVar: 'ix_mp3list_gnz', recordsVar: 'records_gnz', songsVar: 'ix_songs_gnz' },
@@ -43,6 +46,7 @@
         lyricsRequestId: 0,
         lyricsUserScrolling: false,
         lyricsScrollResumeTimer: null,
+        lyricsScrollListenersBound: false,
         progressAnimationFrame: null,
         progressAnchorTime: 0,
         progressAnchorStamp: 0,
@@ -52,6 +56,7 @@
         suspendedPlaybackIntent: false,
         suppressNextPauseStateSave: false,
         mediaSessionBound: false,
+        durationCache: new Map(),
         errorMessage: '',
         isLoaded: false,
         isLoading: false
@@ -221,6 +226,17 @@
         return value;
     }
 
+    function isOfficialSiteMusicWebRuntime() {
+        return Boolean(
+            window.desktop?.platform === 'web' ||
+            document.documentElement?.dataset?.platform === 'web'
+        );
+    }
+
+    function hasOfficialSiteMusicPinyinTool() {
+        return typeof (window.pinyinPro && window.pinyinPro.pinyin) === 'function';
+    }
+
     function readOfficialSiteMusicFavorites() {
         try {
             const rawValue = readStringSetting(FAVORITES_STORAGE_KEY, '[]');
@@ -243,6 +259,57 @@
     function isOfficialSiteTrackFavorite(track) {
         const key = getOfficialSiteTrackFavoriteKey(track);
         return Boolean(key && state.favoriteTrackKeys.has(key));
+    }
+
+    function readOfficialSiteMusicDurationCache() {
+        try {
+            const parsed = JSON.parse(readStringSetting(DURATION_STORAGE_KEY, '{}') || '{}');
+            if (!parsed || typeof parsed !== 'object') return new Map();
+            return new Map(Object.entries(parsed).filter(([, value]) => /^\d{1,3}:\d{2}$/.test(String(value || ''))));
+        } catch (_) {
+            return new Map();
+        }
+    }
+
+    function saveOfficialSiteMusicDurationCache() {
+        writeStringSetting(DURATION_STORAGE_KEY, JSON.stringify(Object.fromEntries(state.durationCache)));
+    }
+
+    function readOfficialSiteMusicTracksCache() {
+        try {
+            const parsed = JSON.parse(readStringSetting(TRACKS_CACHE_STORAGE_KEY, '{}') || '{}');
+            return parsed && typeof parsed === 'object'
+                ? {
+                    updatedAt: Number(parsed.updatedAt) || 0,
+                    tracks: Array.isArray(parsed.tracks) ? parsed.tracks : []
+                }
+                : { updatedAt: 0, tracks: [] };
+        } catch (_) {
+            return { updatedAt: 0, tracks: [] };
+        }
+    }
+
+    function isOfficialSiteMusicTracksCacheFresh(cache = readOfficialSiteMusicTracksCache()) {
+        return cache.updatedAt && Date.now() - cache.updatedAt < TRACKS_CACHE_TTL;
+    }
+
+    function saveOfficialSiteMusicTracksCache(tracks) {
+        writeStringSetting(TRACKS_CACHE_STORAGE_KEY, JSON.stringify({
+            updatedAt: Date.now(),
+            tracks: Array.isArray(tracks) ? tracks : []
+        }));
+    }
+
+    function getOfficialSiteTrackDurationKey(track) {
+        if (!track) return '';
+        return String(track.mp3 || getOfficialSiteTrackFavoriteKey(track) || track.id || '');
+    }
+
+    function applyCachedOfficialSiteTrackDuration(track) {
+        const key = getOfficialSiteTrackDurationKey(track);
+        if (!track || track.duration || !key) return;
+        const cached = state.durationCache.get(key);
+        if (cached) track.duration = cached;
     }
 
     function readOfficialSiteMusicPlayerState() {
@@ -315,7 +382,7 @@
 
     function formatDuration(seconds) {
         const safeSeconds = Number.isFinite(seconds) && seconds > 0 ? Math.floor(seconds) : 0;
-        const minutes = String(Math.floor(safeSeconds / 60)).padStart(2, '0');
+        const minutes = String(Math.floor(safeSeconds / 60));
         const remainSeconds = String(safeSeconds % 60).padStart(2, '0');
         return `${minutes}:${remainSeconds}`;
     }
@@ -324,6 +391,41 @@
         const parts = String(durationText || '').split(':').map((part) => Number(part));
         if (parts.length !== 2 || parts.some((part) => !Number.isFinite(part))) return Number.POSITIVE_INFINITY;
         return parts[0] * 60 + parts[1];
+    }
+
+    function updateCurrentTrackDurationFromAudio() {
+        if (isOfficialSiteMusicWebRuntime()) return false;
+        const audio = $('official-site-music-audio');
+        const track = getCurrentOfficialSiteTrack();
+        if (!audio || !track || !Number.isFinite(audio.duration) || audio.duration <= 0) return false;
+        const durationText = formatDuration(audio.duration);
+        if (!durationText || durationText === track.duration) return false;
+        track.duration = durationText;
+        const key = getOfficialSiteTrackDurationKey(track);
+        if (key) {
+            state.durationCache.set(key, durationText);
+            saveOfficialSiteMusicDurationCache();
+        }
+        renderOfficialSiteMusic();
+        return true;
+    }
+
+    function resetOfficialSiteMusicSearchCaches() {
+        state.allTracks.forEach((track) => {
+            if (track) delete track._searchCache;
+        });
+    }
+
+    function ensureOfficialSiteMusicPinyinReady() {
+        if (!isOfficialSiteMusicWebRuntime() || hasOfficialSiteMusicPinyinTool() || typeof window.ensureYayaWebPinyin !== 'function') return;
+        window.ensureYayaWebPinyin()
+            .then(() => {
+                resetOfficialSiteMusicSearchCaches();
+                renderOfficialSiteMusic();
+            })
+            .catch((error) => {
+                console.warn('[official-site-music] pinyin search helper failed', error);
+            });
     }
 
     function getTrackSubtitle(track, options = {}) {
@@ -430,6 +532,7 @@
         const title = stripMusicLyricParenthetical(track.title, { preserveEnglish: true }) || track.title || '未命名歌曲';
         return title
             .replace(/\bremenber\b/ig, 'Remember')
+            .replace(/夏日協奏曲/g, '夏日协奏曲')
             .replace(/荊/g, '荆')
             .replace(/_\d{1,3}$/u, '')
             .trim();
@@ -470,7 +573,7 @@
             artist: String(item.album || groupLabel || '').trim(),
             album: String(item.album || '').trim(),
             coverUrl: coverUrl ? getR2MusicPublicUrl(coverUrl) : '',
-            duration: '',
+            duration: String(item.duration || '').trim(),
             sourceIndex: Number.isFinite(Number(item.sourceIndex)) ? Number(item.sourceIndex) : 100000 + index,
             audioGroupKey: String(item.key || item.id || index),
             lrcPath: '',
@@ -489,7 +592,7 @@
     function getOfficialSiteMusicPinyinParts(value) {
         const raw = String(value || '').trim().toLowerCase();
         const fallback = { text: raw, full: raw.replace(/\s+/g, ''), initials: raw.replace(/\s+/g, '') };
-        const pinyinTool = window.pinyinPro && window.pinyinPro.pinyin;
+        const pinyinTool = hasOfficialSiteMusicPinyinTool() ? window.pinyinPro.pinyin : null;
         if (!raw || typeof pinyinTool !== 'function') return fallback;
 
         try {
@@ -521,7 +624,8 @@
 
     function getOfficialSiteMusicTrackSearchCache(track) {
         if (!track) return { text: '', full: '', initials: '' };
-        if (track._searchCache) return track._searchCache;
+        const pinyinReady = hasOfficialSiteMusicPinyinTool();
+        if (track._searchCache && track._searchCache.pinyinReady === pinyinReady) return track._searchCache;
 
         const fields = [
             track.title,
@@ -541,7 +645,8 @@
             full: pinyinParts.map((item) => item.full).join(' '),
             compactFull: pinyinParts.map((item) => item.full).join(''),
             initials: pinyinParts.map((item) => item.initials).join(' '),
-            compactInitials: pinyinParts.map((item) => item.initials).join('')
+            compactInitials: pinyinParts.map((item) => item.initials).join(''),
+            pinyinReady
         };
         return track._searchCache;
     }
@@ -663,6 +768,14 @@
             .sort((a, b) => b.score - a.score);
 
         return [...new Set(scored.map((item) => item.path))];
+    }
+
+    function buildDirectMusicLyricPaths(meta = {}) {
+        const group = getMusicGroupCandidates(meta)[0];
+        if (!group || !meta.歌曲名) return [];
+        return buildMusicLyricNameVariants(meta.歌曲名)
+            .map((title) => title && `${group}/${group} - ${title}.lrc`)
+            .filter(Boolean);
     }
 
     function getNextPlayMode(mode) {
@@ -1427,6 +1540,17 @@
         }, 2000);
     }
 
+    function bindOfficialSiteLyricsUserScroll(lyricsScroll) {
+        if (!lyricsScroll || state.lyricsScrollListenersBound) return;
+        state.lyricsScrollListenersBound = true;
+        lyricsScroll.addEventListener('wheel', handleOfficialSiteLyricsUserScroll, { passive: true });
+        lyricsScroll.addEventListener('touchstart', handleOfficialSiteLyricsUserScroll, { passive: true });
+        lyricsScroll.addEventListener('touchmove', handleOfficialSiteLyricsUserScroll, { passive: true });
+        lyricsScroll.addEventListener('scroll', () => {
+            if (state.lyricsUserScrolling) handleOfficialSiteLyricsUserScroll();
+        }, { passive: true });
+    }
+
     function seekOfficialSiteMusicLyricLine(index) {
         const entry = state.currentLyrics[index];
         const audio = $('official-site-music-audio');
@@ -1477,6 +1601,9 @@
         }
 
         const urls = [];
+        buildDirectMusicLyricPaths(state.currentLyricMeta).forEach((path) => {
+            urls.push(`${MUSIC_LYRICS_BASE_URL}/${encodeMusicLyricPath(path)}`);
+        });
         try {
             const index = await fetchMusicLyricsIndex();
             if (requestId !== state.lyricsRequestId) return;
@@ -1754,6 +1881,17 @@
         setEmpty('');
 
         try {
+            const cache = readOfficialSiteMusicTracksCache();
+            if (!options.force && isOfficialSiteMusicTracksCacheFresh(cache) && cache.tracks.length) {
+                state.allTracks = cache.tracks;
+                if (!isOfficialSiteMusicWebRuntime()) {
+                    state.allTracks.forEach(applyCachedOfficialSiteTrackDuration);
+                }
+                state.isLoaded = true;
+                restoreOfficialSiteMusicPlayerState();
+                return;
+            }
+
             const results = await Promise.all(GROUPS.map(async (group) => {
                 const payload = await loadOfficialPayload(group);
                 return buildTracks(group, payload.list, payload.recordsMap, payload.songRecordMap);
@@ -1765,10 +1903,15 @@
                 console.warn('[official-site-music] R2 performance music skipped', error);
             }
             state.allTracks = results.flat().concat(r2Tracks);
+            if (!isOfficialSiteMusicWebRuntime()) {
+                state.allTracks.forEach(applyCachedOfficialSiteTrackDuration);
+            }
             state.isLoaded = true;
             restoreOfficialSiteMusicPlayerState();
             if (state.allTracks.length === 0) {
                 setStatus('未读取到曲目');
+            } else {
+                saveOfficialSiteMusicTracksCache(state.allTracks);
             }
         } catch (error) {
             console.error('[official-site-music] load failed', error);
@@ -2068,6 +2211,7 @@
         audio.addEventListener('loadedmetadata', () => {
             syncOfficialSiteProgressAnchor();
             updatePlayerProgress();
+            updateCurrentTrackDurationFromAudio();
             updateOfficialSiteMediaSessionPosition();
             saveOfficialSiteMusicPlayerState();
         });
@@ -2079,6 +2223,7 @@
         audio.addEventListener('durationchange', () => {
             syncOfficialSiteProgressAnchor();
             updatePlayerProgress();
+            updateCurrentTrackDurationFromAudio();
             updateOfficialSiteMediaSessionPosition();
         });
         audio.addEventListener('waiting', () => {
@@ -2141,13 +2286,13 @@
                 updateVolumeUI();
             }, { passive: false });
         }
-        if (lyricsScroll) {
-            lyricsScroll.addEventListener('wheel', handleOfficialSiteLyricsUserScroll, { passive: true });
-        }
+        bindOfficialSiteLyricsUserScroll(lyricsScroll);
     }
 
     function initWhenReady() {
         state.favoriteTrackKeys = readOfficialSiteMusicFavorites();
+        state.durationCache = isOfficialSiteMusicWebRuntime() ? new Map() : readOfficialSiteMusicDurationCache();
+        ensureOfficialSiteMusicPinyinReady();
         const savedState = readOfficialSiteMusicPlayerState();
         if (PLAYER_MODE_ORDER.includes(savedState.playMode)) {
             state.playMode = savedState.playMode;

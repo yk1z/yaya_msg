@@ -250,6 +250,7 @@ async function handleDownloadRequest(request, env, url) {
 const R2_MUSIC_PREFIXES = ['SNH48/', 'GNZ48/', 'BEJ48/', 'CKG48/', 'CGT48/', 'SHY48/'];
 const R2_AUDIO_EXTENSIONS = new Set(['mp3', 'm4a', 'aac', 'wav', 'flac', 'ogg', 'opus']);
 const R2_IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp']);
+const R2_MUSIC_IMAGE_CACHE_SECONDS = 30 * 24 * 60 * 60;
 
 function getR2ObjectExtension(key) {
     const file = String(key || '').split('/').pop() || '';
@@ -435,7 +436,9 @@ async function handleR2MusicObjectRequest(request, env, url) {
     object.writeHttpMetadata(headers);
     headers.set('etag', object.httpEtag);
     headers.set('Accept-Ranges', 'bytes');
-    headers.set('Cache-Control', 'public, max-age=3600');
+    headers.set('Cache-Control', R2_IMAGE_EXTENSIONS.has(ext)
+        ? `public, max-age=${R2_MUSIC_IMAGE_CACHE_SECONDS}`
+        : 'no-store');
     headers.set('Content-Type', getR2MusicContentType(key, headers.get('Content-Type') || ''));
     headers.set('Content-Disposition', `inline; filename="${encodeURIComponent(key.split('/').pop() || 'music')}"`);
     if (object.range) {

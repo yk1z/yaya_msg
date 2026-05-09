@@ -22,6 +22,12 @@
             'loop-one': '单曲',
             'shuffle': '随机'
         };
+        const VIDEO_LIBRARY_CACHE_KEY = 'yaya_official_video_library_cache_v1';
+        const VIDEO_LIBRARY_CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
+        const AUDIO_PROGRAM_LIST_CACHE_KEY = 'yaya_audio_program_list_cache_v1';
+        const AUDIO_PROGRAM_LIST_CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
+        const MEDIA_PLAY_URL_CACHE_KEY = 'yaya_media_play_url_cache_v1';
+        const MEDIA_PLAY_URL_CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
 
         function readStringSetting(key, fallbackValue = '') {
             if (typeof window.readStoredStringSetting === 'function') {
@@ -333,6 +339,125 @@
             });
         }
 
+        function getAudioProgramCache() {
+            try {
+                const parsed = JSON.parse(readStringSetting(AUDIO_PROGRAM_LIST_CACHE_KEY, '{}') || '{}');
+                return parsed && typeof parsed === 'object'
+                    ? {
+                        updatedAt: Number(parsed.updatedAt) || 0,
+                        items: Array.isArray(parsed.items) ? parsed.items : []
+                    }
+                    : { updatedAt: 0, items: [] };
+            } catch (_) {
+                return { updatedAt: 0, items: [] };
+            }
+        }
+
+        function setAudioProgramCache(items) {
+            writeStringSetting(AUDIO_PROGRAM_LIST_CACHE_KEY, JSON.stringify({
+                updatedAt: Date.now(),
+                items: Array.isArray(items) ? items : []
+            }));
+        }
+
+        function isAudioProgramCacheFresh(cache = getAudioProgramCache()) {
+            return cache.updatedAt && Date.now() - cache.updatedAt < AUDIO_PROGRAM_LIST_CACHE_TTL;
+        }
+
+        function readMediaPlayUrlCache() {
+            try {
+                const parsed = JSON.parse(readStringSetting(MEDIA_PLAY_URL_CACHE_KEY, '{}') || '{}');
+                return parsed && typeof parsed === 'object' ? parsed : {};
+            } catch (_) {
+                return {};
+            }
+        }
+
+        function getCachedMediaPlayUrl(type, id) {
+            const key = `${type}:${id}`;
+            const entry = readMediaPlayUrlCache()[key];
+            if (!entry || !entry.url || !entry.updatedAt) return '';
+            return Date.now() - Number(entry.updatedAt) < MEDIA_PLAY_URL_CACHE_TTL ? String(entry.url) : '';
+        }
+
+        function setCachedMediaPlayUrl(type, id, url) {
+            if (!url) return;
+            const cache = readMediaPlayUrlCache();
+            cache[`${type}:${id}`] = {
+                url,
+                updatedAt: Date.now()
+            };
+            writeStringSetting(MEDIA_PLAY_URL_CACHE_KEY, JSON.stringify(cache));
+        }
+
+        function ensureAudioProgramTableHead(container) {
+            if (!container || container.querySelector('.audio-program-table-head')) return;
+            const tableHead = document.createElement('div');
+            tableHead.className = 'audio-program-table-head';
+            tableHead.innerHTML = `
+                                <span>标题</span>
+                                <span>节目</span>
+                                <span>日期</span>
+                            `;
+            container.appendChild(tableHead);
+        }
+
+        function appendAudioProgramRow(container, item) {
+            if (!container || !item) return;
+            const coverUrl = item.coverUrl || (item.thumbPath ? `https://source.48.cn${item.thumbPath}` : '');
+            const dateStr = item.dateStr || formatFullTime(item.ctime).split(' ')[0];
+            const playlistItem = {
+                talkId: item.talkId,
+                title: item.title,
+                coverUrl,
+                subTitle: item.subTitle || item.guest || '口袋电台',
+                dateStr
+            };
+            if (!audioProgramPlaylist.some(existing => String(existing.talkId) === String(item.talkId))) {
+                audioProgramPlaylist.push(playlistItem);
+            }
+
+            const realSubtitle = item.subTitle || '口袋电台';
+            const guestText = item.guest || '';
+            const card = document.createElement('button');
+            card.type = 'button';
+            card.className = 'audio-program-row';
+            card.dataset.id = item.talkId;
+            card.innerHTML = `
+                                <span class="audio-program-title-cell">
+                                    <span class="audio-program-cover${coverUrl ? '' : ' is-empty'}">
+                                        ${coverUrl ? `<img src="${escapeMediaHtml(coverUrl)}" loading="lazy" alt="">` : '电台'}
+                                    </span>
+                                    <span class="audio-program-title-group">
+                                        <span class="audio-program-title">${escapeMediaHtml(item.title || '未命名节目')}</span>
+                                        <span class="audio-program-subtitle">${escapeMediaHtml(guestText || realSubtitle)}</span>
+                                    </span>
+                                </span>
+                                <span class="audio-program-table-text">${escapeMediaHtml(realSubtitle)}</span>
+                                <span class="audio-program-table-date">${escapeMediaHtml(dateStr)}</span>
+                            `;
+
+            card.onclick = () => playAudioProgram(item.talkId);
+            container.appendChild(card);
+        }
+
+        function renderAudioProgramsFromItems(items) {
+            const container = document.getElementById('audio-programs-list');
+            if (!container) return false;
+            container.innerHTML = '';
+            audioProgramPlaylist = [];
+            if (!Array.isArray(items) || !items.length) {
+                container.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;">暂无节目</div>';
+                renderAudioProgramQueue();
+                return false;
+            }
+            ensureAudioProgramTableHead(container);
+            items.forEach(item => appendAudioProgramRow(container, item));
+            renderAudioProgramQueue();
+            handleAudioSearch(document.getElementById('audio-inner-search')?.value || '');
+            return true;
+        }
+
         function renderMusicQueue() {
             const listEl = document.getElementById('music-player-queue-list');
             const countEl = document.getElementById('music-player-queue-count');
@@ -616,12 +741,20 @@
             const statusEl = document.getElementById('audio-programs-status');
 
             if (startCtime === 0) {
+                const cache = getAudioProgramCache();
+                if (isAudioProgramCacheFresh(cache) && renderAudioProgramsFromItems(cache.items)) {
+                    if (statusEl) statusEl.innerText = ``;
+                    isAudioLoading = false;
+                    return;
+                }
                 container.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;">正在连接服务器...</div>';
             }
 
             let currentCtime = startCtime;
             let totalCount = 0;
             let hasMore = true;
+            const fetchedItems = [];
+            let fetchedAllItems = false;
 
             try {
                 if (startCtime === 0) {
@@ -643,6 +776,7 @@
 
                         if (data.length === 0) {
                             hasMore = false;
+                            fetchedAllItems = true;
                             if (totalCount === 0) {
                                 container.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;">暂无节目</div>';
                             }
@@ -650,54 +784,11 @@
                         }
 
                         totalCount += data.length;
-
-                        if (!container.querySelector('.audio-program-table-head')) {
-                            const tableHead = document.createElement('div');
-                            tableHead.className = 'audio-program-table-head';
-                            tableHead.innerHTML = `
-                                <span>标题</span>
-                                <span>节目</span>
-                                <span>日期</span>
-                            `;
-                            container.appendChild(tableHead);
-                        }
+                        fetchedItems.push(...data);
+                        ensureAudioProgramTableHead(container);
 
                         data.forEach(item => {
-                            const coverUrl = item.thumbPath ? `https://source.48.cn${item.thumbPath}` : '';
-                            const dateStr = formatFullTime(item.ctime).split(' ')[0];
-                            const playlistItem = {
-                                talkId: item.talkId,
-                                title: item.title,
-                                coverUrl,
-                                subTitle: item.subTitle || item.guest || '口袋电台',
-                                dateStr
-                            };
-                            if (!audioProgramPlaylist.some(existing => String(existing.talkId) === String(item.talkId))) {
-                                audioProgramPlaylist.push(playlistItem);
-                            }
-
-                            const realSubtitle = item.subTitle || '口袋电台';
-                            const guestText = item.guest || '';
-                            const card = document.createElement('button');
-                            card.type = 'button';
-                            card.className = 'audio-program-row';
-                            card.dataset.id = item.talkId;
-                            card.innerHTML = `
-                                <span class="audio-program-title-cell">
-                                    <span class="audio-program-cover${coverUrl ? '' : ' is-empty'}">
-                                        ${coverUrl ? `<img src="${escapeMediaHtml(coverUrl)}" loading="lazy" alt="">` : '电台'}
-                                    </span>
-                                    <span class="audio-program-title-group">
-                                        <span class="audio-program-title">${escapeMediaHtml(item.title || '未命名节目')}</span>
-                                        <span class="audio-program-subtitle">${escapeMediaHtml(guestText || realSubtitle)}</span>
-                                    </span>
-                                </span>
-                                <span class="audio-program-table-text">${escapeMediaHtml(realSubtitle)}</span>
-                                <span class="audio-program-table-date">${escapeMediaHtml(dateStr)}</span>
-                            `;
-
-                            card.onclick = () => playAudioProgram(item.talkId);
-                            container.appendChild(card);
+                            appendAudioProgramRow(container, item);
                         });
                         renderAudioProgramQueue();
                         currentCtime = data[data.length - 1].ctime;
@@ -725,6 +816,9 @@
                 errorMsg.innerText = `请求出错: ${e.message}`;
                 container.appendChild(errorMsg);
             } finally {
+                if (startCtime === 0 && fetchedItems.length) {
+                    if (fetchedAllItems) setAudioProgramCache(fetchedItems);
+                }
                 isAudioLoading = false;
                 if (statusEl) statusEl.innerText = ``;
             }
@@ -743,13 +837,24 @@
                     subTitle = playlistItem.subTitle;
                 }
 
-                const res = await fetchPocketAPI('/media/api/media/v1/talk', JSON.stringify({ resId: talkId.toString() }));
-                if (requestId !== currentAudioPlayRequestId) return;
-                if (!isPlaybackViewContextActive(playContext, 'audio-programs')) return;
+                let filePath = getCachedMediaPlayUrl('audio-program', talkId);
+                if (!filePath) {
+                    const res = await fetchPocketAPI('/media/api/media/v1/talk', JSON.stringify({ resId: talkId.toString() }));
+                    if (requestId !== currentAudioPlayRequestId) return;
+                    if (!isPlaybackViewContextActive(playContext, 'audio-programs')) return;
+                    if (res && res.success && res.content) {
+                        filePath = (res.content.data && res.content.data.filePath) || res.content.filePath;
+                        if (filePath) setCachedMediaPlayUrl('audio-program', talkId, filePath);
+                    } else {
+                        showToast('获取音频详情失败');
+                        return;
+                    }
+                } else {
+                    if (requestId !== currentAudioPlayRequestId) return;
+                    if (!isPlaybackViewContextActive(playContext, 'audio-programs')) return;
+                }
 
-                if (res && res.success && res.content) {
-                    const filePath = (res.content.data && res.content.data.filePath) || res.content.filePath;
-                    if (!filePath) return showToast('❌ 未找到该节目的音频文件');
+                if (filePath) {
                     currentAudioProgramTalkId = talkId;
                     updateAudioProgramRows();
                     updateAudioProgramMediaSessionMetadata({
@@ -867,7 +972,7 @@
                     }
 
                 } else {
-                    showToast('获取音频详情失败');
+                    showToast('❌ 未找到该节目的音频文件');
                 }
             } catch (e) {
                 showToast('获取详情出错: ' + e.message);
@@ -1664,14 +1769,25 @@
                     thumbPath = playlistItem.thumbPath;
                 }
 
-                const res = await fetchPocketAPI('/media/api/media/v1/music', JSON.stringify({ resId: String(musicId) }));
-                if (requestId !== currentMusicPlayRequestId) return;
-                if (!isPlaybackViewContextActive(playContext, 'music-library')) return;
-                if (res && res.success && res.content) {
-                    const data = res.content.data || res.content;
-                    const path = data.filePath || data.musicPath || data.playStreamPath || data.audioPath || data.url;
+                let path = getCachedMediaPlayUrl('music', musicId);
+                if (!path) {
+                    const res = await fetchPocketAPI('/media/api/media/v1/music', JSON.stringify({ resId: String(musicId) }));
+                    if (requestId !== currentMusicPlayRequestId) return;
+                    if (!isPlaybackViewContextActive(playContext, 'music-library')) return;
+                    if (res && res.success && res.content) {
+                        const data = res.content.data || res.content;
+                        path = data.filePath || data.musicPath || data.playStreamPath || data.audioPath || data.url;
+                        if (path) setCachedMediaPlayUrl('music', musicId, path);
+                    } else {
+                        showToast('无法解析音乐地址');
+                        return;
+                    }
+                } else {
+                    if (requestId !== currentMusicPlayRequestId) return;
+                    if (!isPlaybackViewContextActive(playContext, 'music-library')) return;
+                }
 
-                    if (!path) return showToast('播放失败：API未返回音频地址');
+                if (path) {
                     const fullUrl = path.startsWith('http') ? path : `https://mp4.48.cn${path}`;
 
                     const audioEl = document.getElementById('music-native-audio');
@@ -1769,7 +1885,7 @@
                         });
                     }
                 } else {
-                    showToast('无法解析音乐地址');
+                    showToast('播放失败：API未返回音频地址');
                 }
             } catch (e) {
                 showToast('获取音乐失败');
@@ -1791,8 +1907,148 @@
         let isVideoLoading = false;
         let videoCurrentTypeId = 0;
         let isCategoriesRendered = false;
+        let videoLibraryCache = null;
 
         let isVideoAutoLoading = false;
+
+        function getVideoCacheTypeKey(typeId = videoCurrentTypeId) {
+            return String(Number(typeId) || 0);
+        }
+
+        function readVideoLibraryCache() {
+            if (videoLibraryCache) return videoLibraryCache;
+            try {
+                const parsed = JSON.parse(readStringSetting(VIDEO_LIBRARY_CACHE_KEY, '{}') || '{}');
+                videoLibraryCache = parsed && typeof parsed === 'object'
+                    ? {
+                        updatedAt: Number(parsed.updatedAt) || 0,
+                        categories: Array.isArray(parsed.categories) ? parsed.categories : [],
+                        types: parsed.types && typeof parsed.types === 'object' ? parsed.types : {}
+                    }
+                    : { updatedAt: 0, categories: [], types: {} };
+            } catch (_) {
+                videoLibraryCache = { updatedAt: 0, categories: [], types: {} };
+            }
+            return videoLibraryCache;
+        }
+
+        function writeVideoLibraryCache() {
+            if (!videoLibraryCache) return;
+            writeStringSetting(VIDEO_LIBRARY_CACHE_KEY, JSON.stringify(videoLibraryCache));
+        }
+
+        function isVideoLibraryCacheFresh(cache = readVideoLibraryCache()) {
+            return cache.updatedAt && Date.now() - cache.updatedAt < VIDEO_LIBRARY_CACHE_TTL;
+        }
+
+        function renderVideoCategories(categories) {
+            const categoryBar = document.getElementById('video-category-bar');
+            if (!categoryBar || !Array.isArray(categories) || !categories.length) return;
+            categoryBar.innerHTML = '';
+            categories.forEach(cat => {
+                const tag = document.createElement('div');
+                tag.className = `video-tag ${cat.typeId === videoCurrentTypeId ? 'active' : ''}`;
+                tag.innerText = cat.typeName;
+                tag.dataset.id = cat.typeId;
+                tag.onclick = () => selectVideoCategory(cat.typeId);
+                categoryBar.appendChild(tag);
+            });
+            isCategoriesRendered = true;
+        }
+
+        function ensureVideoLoadingTip(grid) {
+            let loadingTip = document.getElementById('video-loading-tip');
+            if (!loadingTip) {
+                loadingTip = document.createElement('div');
+                loadingTip.id = 'video-loading-tip';
+                loadingTip.style.cssText = 'grid-column: 1 / -1; text-align: center; padding: 20px; color: var(--text-sub); font-size: 13px;';
+                grid.appendChild(loadingTip);
+            }
+            return loadingTip;
+        }
+
+        function renderVideoCard(item, loadingTip) {
+            if (!item || !loadingTip?.parentElement) return;
+            const grid = loadingTip.parentElement;
+            const coverUrl = item.thumbPath ? `https://source.48.cn${item.thumbPath}` : '';
+            const dateStr = formatFullTime(item.ctime).split(' ')[0];
+            const card = document.createElement('div');
+
+            card.style.cssText = `
+                                background: var(--input-bg);
+                                border-radius: 12px;
+                                overflow: hidden;
+                                border: 1px solid var(--border);
+                                cursor: pointer;
+                                transition: transform 0.3s ease, border-color 0.3s ease;
+                                transform: translateZ(0);
+                            `;
+
+            card.onmouseover = () => { card.style.transform = 'translateY(-5px)'; card.style.borderColor = 'var(--primary)'; };
+            card.onmouseout = () => { card.style.transform = 'translateY(0)'; card.style.borderColor = 'var(--border)'; };
+
+            card.innerHTML = `
+    <div style="width: 100%; aspect-ratio: 16 / 9; overflow: hidden; position: relative; background: #111; border-radius: 6px;">
+        <img src="${coverUrl}" loading="lazy" decoding="async" style="width: 100%; height: 100%; object-fit: cover; display: block;">
+
+        <div style="position: absolute; bottom: 4px; right: 4px; background: rgba(0,0,0,0.6); color: white; font-size: 9px; padding: 1px 4px; border-radius: 3px; backdrop-filter: blur(2px);">
+            ${item.typeName || '视频'}
+        </div>
+    </div>
+
+    <div style="padding: 8px 8px 6px 8px;">
+        <div style="font-weight: 600; font-size: 12.5px; color: var(--text); margin-bottom: 6px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.3; height: 32px;">
+            ${escapeMediaHtml(item.title || '')}
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--text-sub); opacity: 0.8;">
+            <span style="color: #fa8c16; font-weight: 500;">▶ ${item.play || 0}</span>
+            <span>${dateStr}</span>
+        </div>
+    </div>
+`;
+            card.onclick = () => playOfficialVideo(item.videoId, item.title, item.subTitle);
+            grid.insertBefore(card, loadingTip);
+        }
+
+        function upsertVideoCacheItems(typeId, items, complete = false) {
+            const cache = readVideoLibraryCache();
+            const key = getVideoCacheTypeKey(typeId);
+            const bucket = cache.types[key] || { items: [], complete: false, nextCtime: 0 };
+            const byId = new Map((bucket.items || []).map(item => [String(item.videoId), item]));
+            (items || []).forEach(item => {
+                if (item && item.videoId) byId.set(String(item.videoId), item);
+            });
+            const mergedItems = [...byId.values()].sort((a, b) => (Number(b.ctime) || 0) - (Number(a.ctime) || 0));
+            cache.types[key] = {
+                items: mergedItems,
+                complete: Boolean(complete || bucket.complete),
+                nextCtime: mergedItems.length ? mergedItems[mergedItems.length - 1].ctime : 0
+            };
+            cache.updatedAt = Date.now();
+            writeVideoLibraryCache();
+        }
+
+        function renderVideoLibraryFromCache(typeId = videoCurrentTypeId) {
+            const cache = readVideoLibraryCache();
+            const bucket = cache.types[getVideoCacheTypeKey(typeId)];
+            if (!isVideoLibraryCacheFresh(cache) || !bucket || !Array.isArray(bucket.items) || !bucket.items.length || !bucket.complete) {
+                return false;
+            }
+
+            const grid = document.getElementById('video-list-grid');
+            if (!grid) return false;
+            grid.innerHTML = '';
+            renderVideoCategories(cache.categories);
+            const loadingTip = ensureVideoLoadingTip(grid);
+            loadingTip.style.display = 'none';
+            loadingTip.innerText = '— 已经到底啦 —';
+            bucket.items.forEach(item => renderVideoCard(item, loadingTip));
+            videoNextCtime = bucket.nextCtime || 0;
+            videoHasMore = false;
+            handleVideoSearch(document.getElementById('video-inner-search')?.value || '');
+            return true;
+        }
 
         async function fetchAllVideoLibrary() {
             if (isVideoAutoLoading) return;
@@ -1801,6 +2057,10 @@
             const grid = document.getElementById('video-list-grid');
 
             if (!grid || grid.innerHTML.trim() === '') {
+                if (renderVideoLibraryFromCache(videoCurrentTypeId)) {
+                    isVideoAutoLoading = false;
+                    return;
+                }
                 await loadVideoLibrary(true);
             }
 
@@ -1834,7 +2094,10 @@
 
             isVideoLoading = true;
             const grid = document.getElementById('video-list-grid');
-            const categoryBar = document.getElementById('video-category-bar');
+            if (!grid) {
+                isVideoLoading = false;
+                return;
+            }
 
             if (isNew) {
                 videoNextCtime = 0;
@@ -1844,13 +2107,7 @@
                 if (container) container.scrollTop = 0;
             }
 
-            let loadingTip = document.getElementById('video-loading-tip');
-            if (!loadingTip) {
-                loadingTip = document.createElement('div');
-                loadingTip.id = 'video-loading-tip';
-                loadingTip.style.cssText = 'grid-column: 1 / -1; text-align: center; padding: 20px; color: var(--text-sub); font-size: 13px;';
-                grid.appendChild(loadingTip);
-            }
+            let loadingTip = ensureVideoLoadingTip(grid);
 
             loadingTip.style.display = 'none';
             loadingTip.innerText = '';
@@ -1864,17 +2121,12 @@
                 }));
 
                 if (res && res.success && res.content) {
-                    if (!isCategoriesRendered && res.content.type && categoryBar) {
-                        categoryBar.innerHTML = '';
-                        res.content.type.forEach(cat => {
-                            const tag = document.createElement('div');
-                            tag.className = `video-tag ${cat.typeId === videoCurrentTypeId ? 'active' : ''}`;
-                            tag.innerText = cat.typeName;
-                            tag.dataset.id = cat.typeId;
-                            tag.onclick = () => selectVideoCategory(cat.typeId);
-                            categoryBar.appendChild(tag);
-                        });
-                        isCategoriesRendered = true;
+                    if (!isCategoriesRendered && res.content.type) {
+                        renderVideoCategories(res.content.type);
+                        const cache = readVideoLibraryCache();
+                        cache.categories = res.content.type;
+                        cache.updatedAt = Date.now();
+                        writeVideoLibraryCache();
                     }
 
                     const data = res.content.data || [];
@@ -1882,47 +2134,10 @@
                     if (data.length === 0) {
                         videoHasMore = false;
                         loadingTip.innerText = '— 已经到底啦 —';
+                        upsertVideoCacheItems(videoCurrentTypeId, [], true);
                     } else {
                         data.forEach(item => {
-                            const coverUrl = item.thumbPath ? `https://source.48.cn${item.thumbPath}` : '';
-                            const dateStr = formatFullTime(item.ctime).split(' ')[0];
-                            const card = document.createElement('div');
-
-                            card.style.cssText = `
-                                background: var(--input-bg); 
-                                border-radius: 12px; 
-                                overflow: hidden; 
-                                border: 1px solid var(--border); 
-                                cursor: pointer; 
-                                transition: transform 0.3s ease, border-color 0.3s ease;
-                                transform: translateZ(0);
-                            `;
-
-                            card.onmouseover = () => { card.style.transform = 'translateY(-5px)'; card.style.borderColor = 'var(--primary)'; };
-                            card.onmouseout = () => { card.style.transform = 'translateY(0)'; card.style.borderColor = 'var(--border)'; };
-
-                            card.innerHTML = `
-    <div style="width: 100%; aspect-ratio: 16 / 9; overflow: hidden; position: relative; background: #111; border-radius: 6px;">
-        <img src="${coverUrl}" loading="lazy" decoding="async" style="width: 100%; height: 100%; object-fit: cover; display: block;">
-        
-        <div style="position: absolute; bottom: 4px; right: 4px; background: rgba(0,0,0,0.6); color: white; font-size: 9px; padding: 1px 4px; border-radius: 3px; backdrop-filter: blur(2px);">
-            ${item.typeName || '视频'}
-        </div>
-    </div>
-
-    <div style="padding: 8px 8px 6px 8px;">
-        <div style="font-weight: 600; font-size: 12.5px; color: var(--text); margin-bottom: 6px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.3; height: 32px;">
-            ${item.title}
-        </div>
-        
-        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--text-sub); opacity: 0.8;">
-            <span style="color: #fa8c16; font-weight: 500;">▶ ${item.play || 0}</span>
-            <span>${dateStr}</span>
-        </div>
-    </div>
-`;
-                            card.onclick = () => playOfficialVideo(item.videoId, item.title, item.subTitle);
-                            grid.insertBefore(card, loadingTip);
+                            renderVideoCard(item, loadingTip);
                             const vSearchInput = document.getElementById('video-inner-search');
                             if (vSearchInput && vSearchInput.value.trim() !== '') {
                                 handleVideoSearch(vSearchInput.value);
@@ -1930,10 +2145,12 @@
                         });
 
                         videoNextCtime = data[data.length - 1].ctime;
+                        const completed = data.length < 20;
                         if (data.length < 20) {
                             videoHasMore = false;
                             loadingTip.innerText = '— 已经到底啦 —';
                         }
+                        upsertVideoCacheItems(videoCurrentTypeId, data, completed);
                     }
                 }
             } catch (e) {

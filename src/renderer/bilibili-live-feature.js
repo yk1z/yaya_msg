@@ -765,6 +765,9 @@
             if (typeof setDp === 'function') {
                 setDp(bilibiliDp);
             }
+            if (typeof window.enhanceYayaDPlayerControls === 'function') {
+                window.enhanceYayaDPlayerControls(bilibiliDp);
+            }
             if (typeof setArt === 'function') {
                 setArt({
                     get currentTime() {
