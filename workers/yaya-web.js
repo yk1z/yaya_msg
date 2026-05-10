@@ -77,10 +77,18 @@ export default {
         }
 
         if (url.pathname === '/api/ipc') {
+            const apiBackend = getApiBackend(env);
+            if (apiBackend && await shouldProxyIpcToBackend(request)) {
+                return proxyApiRequest(request, apiBackend);
+            }
             return handleIpc(request, env);
         }
 
         const apiBackend = getApiBackend(env);
+        if (apiBackend && isPocketBackendApiPath(url.pathname)) {
+            return proxyApiRequest(request, apiBackend);
+        }
+
         if (apiBackend && url.pathname.startsWith('/api/')) {
             return proxyApiRequest(request, apiBackend);
         }
@@ -199,6 +207,25 @@ function getApiBackend(env) {
     }
     const value = String(DEFAULT_API_BACKEND || '').trim().replace(/\/+$/, '');
     return value || '';
+}
+
+function isPocketBackendApiPath(pathname) {
+    return pathname === '/api/pocket'
+        || pathname === '/api/text-proxy';
+}
+
+async function shouldProxyIpcToBackend(request) {
+    if (request.method !== 'POST') return false;
+    try {
+        const body = await request.clone().json();
+        return new Set([
+            'login-send-sms',
+            'login-by-code',
+            'login-check-token'
+        ]).has(String(body?.channel || ''));
+    } catch (error) {
+        return false;
+    }
 }
 
 function proxyApiRequest(request, apiBackend) {
