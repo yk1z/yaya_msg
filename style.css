@@ -1825,6 +1825,33 @@ body.topbar-page-title-enabled #view-private-messages .private-messages-layout {
     min-height: 960px;
 }
 
+@media (max-width: 900px) {
+    #view-database {
+        padding: 12px !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        scrollbar-gutter: auto;
+    }
+
+    #view-database .list-container,
+    #view-database .database-view-shell,
+    #view-database .database-frame-shell,
+    #view-database .database-root {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+    }
+
+    #view-database .database-view-shell {
+        min-height: 100dvh;
+    }
+
+    #view-database .database-root {
+        min-height: auto;
+    }
+}
+
 .database-loading,
 .database-error {
     min-height: 420px;
@@ -3008,6 +3035,45 @@ a {
     padding: 0;
     overflow-y: auto;
     flex: 1;
+}
+
+.live-rank-modal-info {
+    padding: 12px 20px 14px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(128, 128, 128, 0.05);
+}
+
+.live-rank-info-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.live-rank-info-chip {
+    min-width: 0;
+    max-width: 100%;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 9px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--input-bg);
+    color: var(--text);
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.live-rank-info-key {
+    color: var(--text-sub);
+    flex-shrink: 0;
+}
+
+.live-rank-info-value {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .close-btn {
@@ -7354,12 +7420,18 @@ html[data-theme="light"] .flip-seven-day-countdown.is-urgent {
         white-space: nowrap !important;
     }
 
-    #live-player-view > div:first-child > div:first-child > button {
+    #live-player-view .player-top-actions .btn {
         width: auto !important;
         min-width: 72px !important;
         height: 40px !important;
         padding: 0 10px !important;
         white-space: nowrap !important;
+    }
+
+    #live-player-view .player-top-actions {
+        flex-direction: column-reverse !important;
+        align-items: stretch !important;
+        gap: 8px !important;
     }
 
     #current-openlive-members-wrap {
@@ -7833,7 +7905,8 @@ html[data-theme="light"] .flip-seven-day-countdown.is-urgent {
         grid-template-columns: 1fr !important;
     }
 
-    #live-player-view > div:first-child > div:first-child > button {
+    #live-player-view .player-top-actions,
+    #live-player-view .player-top-actions .btn {
         width: 100% !important;
     }
 

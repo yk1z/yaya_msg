@@ -164,6 +164,132 @@
             display: none !important;
         }
 
+        @media (max-width: 640px) {
+            .db-app {
+                width: 100%;
+                max-width: 100%;
+                overflow-x: hidden;
+                padding-bottom: max(96px, env(safe-area-inset-bottom));
+            }
+
+            .db-page-shell {
+                width: 100%;
+                max-width: 100% !important;
+                min-width: 0;
+                padding-left: 12px !important;
+                padding-right: 12px !important;
+            }
+
+            .db-app .db-header {
+                margin-bottom: 12px;
+            }
+
+            .db-tabs-shell {
+                width: 100%;
+                min-width: 0;
+                padding: 8px;
+                border-radius: 14px;
+                overflow: hidden;
+            }
+
+            .db-tabs-shell>div {
+                display: grid !important;
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                width: 100% !important;
+                min-width: 0;
+                gap: 6px !important;
+            }
+
+            .db-tabs-shell button {
+                width: 100% !important;
+                min-width: 0;
+                padding: 8px 6px !important;
+                font-size: 13px !important;
+                border-radius: 10px;
+            }
+
+            .db-tabs-shell button>div {
+                gap: 5px;
+            }
+
+            .db-tabs-shell svg {
+                width: 14px;
+                height: 14px;
+            }
+
+            .db-tabs-shell .rounded-full {
+                padding-left: 6px !important;
+                padding-right: 6px !important;
+            }
+
+            .db-app main.db-page-shell {
+                padding-top: 0 !important;
+                padding-bottom: 24px !important;
+            }
+
+            .db-app .grid {
+                min-width: 0;
+            }
+
+            .db-app .grid.grid-cols-1.md\:grid-cols-3 {
+                gap: 10px !important;
+                margin-bottom: 12px !important;
+            }
+
+            .db-app .grid.grid-cols-1.md\:grid-cols-3>div {
+                padding: 12px !important;
+                border-radius: 14px !important;
+            }
+
+            .db-app .grid.grid-cols-1.md\:grid-cols-3>div>div:first-child {
+                padding: 10px !important;
+            }
+
+            .db-app .grid.grid-cols-1.md\:grid-cols-3 h3 {
+                font-size: 24px !important;
+                line-height: 1.1;
+            }
+
+            .db-app .grid.grid-cols-1.md\:grid-cols-3 p {
+                font-size: 13px !important;
+            }
+
+            .db-app input,
+            .db-app button {
+                min-width: 0;
+            }
+
+            .db-app input[type="text"] {
+                height: 44px;
+                padding-top: 0 !important;
+                padding-bottom: 0 !important;
+                font-size: 14px !important;
+            }
+
+            .db-app .flex.flex-col.lg\:flex-row {
+                gap: 10px !important;
+            }
+
+            .db-app .flex.flex-col.sm\:flex-row {
+                width: 100%;
+                gap: 8px !important;
+            }
+
+            .db-app .relative.w-full.sm\:w-auto.min-w-\[120px\] {
+                min-width: 0 !important;
+                width: 100% !important;
+            }
+
+            .db-app .bg-gray-100.p-1.rounded-full.flex {
+                width: 100% !important;
+            }
+
+            .db-app .bg-gray-100.p-1.rounded-full.flex button {
+                padding-left: 10px !important;
+                padding-right: 10px !important;
+            }
+        }
+
         .custom-scrollbar::-webkit-scrollbar {
             width: 6px;
         }
@@ -243,6 +369,7 @@
     <script type="text/babel" data-type="module">
         import React, { useState, useMemo, useRef, useEffect } from 'react';
         import { createRoot } from 'react-dom/client';
+        import { pinyin } from 'https://esm.sh/pinyin-pro@3.24.2';
         import { Search, Users, Filter, Upload, Heart, MapPin, Calendar, Hash, X, ChevronRight, Layers, Flag, CheckCircle2, ChevronDown, Check, Cake, Trophy, FileText, Clock, ArrowUpCircle, LogOut, GraduationCap, Copy, Moon, Sun, List, UserSquare2, Sparkles, TrendingUp, TrendingDown, Minus, Music, Disc, AlertCircle, Mic2, Loader2, ExternalLink, ClipboardCopy, Star, Ruler, Droplet, UserCircle, CalendarDays, Activity } from 'lucide-react';
         const DEMO_DATA = [];
         const DATABASE_UI_STATE_KEY = 'yaya_database_ui_state_v1';
@@ -545,6 +672,40 @@
                 .filter(Boolean)
                 .map(part => part[0]?.toLowerCase() || '')
                 .join('');
+        };
+
+        const getSearchPinyin = (value) => {
+            const text = String(value || '').trim();
+            if (!text) return '';
+            try {
+                return pinyin(text, { toneType: 'none' }).toLowerCase();
+            } catch (error) {
+                return '';
+            }
+        };
+
+        const normalizeSearchToken = (value) => String(value || '').toLowerCase().replace(/[\s_-]+/g, '');
+
+        const matchesTextSearch = (fields, searchText) => {
+            const normalizedSearch = normalizeSearchToken(searchText);
+            const rawSearch = String(searchText || '').toLowerCase().trim();
+            if (!normalizedSearch) return true;
+
+            return fields.some((field) => {
+                const rawText = String(field || '');
+                if (!rawText) return false;
+
+                const lowerText = rawText.toLowerCase();
+                const normalizedText = normalizeSearchToken(rawText);
+                if (lowerText.includes(rawSearch) || normalizedText.includes(normalizedSearch)) return true;
+
+                const pinyinText = getSearchPinyin(rawText);
+                if (!pinyinText) return false;
+
+                return pinyinText.includes(rawSearch)
+                    || normalizeSearchToken(pinyinText).includes(normalizedSearch)
+                    || getPinyinInitials(pinyinText).includes(normalizedSearch);
+            });
         };
 
         const StageCard = ({ data, index }) => {
@@ -1570,10 +1731,12 @@
                 let filtered = [];
                 if (electionSearch.trim()) {
                     isSearch = true;
-                    filtered = zxData.filter(item =>
-                        item.成员?.includes(electionSearch) ||
-                        item.队伍?.includes(electionSearch)
-                    );
+                    filtered = zxData.filter(item => matchesTextSearch([
+                        item.成员,
+                        item.队伍,
+                        item.分团,
+                        item.名称
+                    ], electionSearch));
                     name = `搜索 "${electionSearch}" 的结果`;
                 } else {
                     filtered = zxData.filter(item => {
@@ -1615,7 +1778,11 @@
 
             const filteredStages = useMemo(() => {
                 const filtered = stagesData.filter(stage => {
-                    const matchesSearch = stage.名称?.toLowerCase().includes(stageSearch.toLowerCase());
+                    const matchesSearch = matchesTextSearch([
+                        stage.名称,
+                        stage.队伍,
+                        stage.分团
+                    ], stageSearch);
                     const matchesGroup = stageGroupFilter === 'ALL' || stage.分团 === stageGroupFilter;
                     const matchesTeam = stageTeamFilter === 'ALL' || stage.队伍 === stageTeamFilter;
                     return matchesSearch && matchesGroup && matchesTeam;
@@ -1628,7 +1795,12 @@
 
             const processedAlbums = useMemo(() => {
                 const filtered = fxzpData.filter(item => {
-                    const matchesSearch = (item.专辑 || item.歌曲名)?.toLowerCase().includes(albumSearch.toLowerCase());
+                    const matchesSearch = matchesTextSearch([
+                        item.专辑,
+                        item.歌曲名,
+                        item.分团,
+                        item.类型
+                    ], albumSearch);
                     const matchesGroup = albumGroupFilter === 'ALL' || item.分团 === albumGroupFilter;
                     const matchesType = albumTypeFilter === 'ALL' || item.类型 === albumTypeFilter;
                     return matchesSearch && matchesGroup && matchesType;
@@ -1685,7 +1857,6 @@
                                     <div className="flex items-center justify-center gap-2">
                                         <UserSquare2 className="w-4 h-4" />
                                         成员图鉴
-                                        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-500 dark:bg-gray-800 dark:text-gray-400">{members.length || '--'}</span>
                                     </div>
                                 </button>
                                 <button
@@ -1698,7 +1869,6 @@
                                     <div className="flex items-center justify-center gap-2">
                                         <Trophy className="w-4 h-4" />
                                         总选记录
-                                        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-500 dark:bg-gray-800 dark:text-gray-400">{zxData.length || '--'}</span>
                                     </div>
                                 </button>
                                 <button
@@ -1711,7 +1881,6 @@
                                     <div className="flex items-center justify-center gap-2">
                                         <Music className="w-4 h-4" />
                                         公演数据
-                                        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-500 dark:bg-gray-800 dark:text-gray-400">{stagesData.length || '--'}</span>
                                     </div>
                                 </button>
                                 <button
@@ -1724,7 +1893,6 @@
                                     <div className="flex items-center justify-center gap-2">
                                         <Disc className="w-4 h-4" />
                                         发行作品
-                                        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-500 dark:bg-gray-800 dark:text-gray-400">{fxzpData.length || '--'}</span>
                                     </div>
                                 </button>
                             </div>
@@ -1849,7 +2017,7 @@
                                             </div>
                                             <input
                                                 type="text"
-                                                placeholder="搜索成员姓名..."
+                                                placeholder="搜索成员姓名、拼音或首字母..."
                                                 className="w-full pl-10 pr-4 py-3 bg-gray-100 border-transparent text-gray-900 rounded-full focus:bg-white focus:ring-2 focus:ring-pink-300 focus:border-transparent focus:shadow-md outline-none transition-all duration-300 ease-in-out placeholder-gray-500 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 dark:focus:bg-gray-750 dark:focus:ring-pink-500"
                                                 value={electionSearch}
                                                 onChange={(e) => setElectionSearch(e.target.value)}
@@ -1937,7 +2105,7 @@
                                             </div>
                                             <input
                                                 type="text"
-                                                placeholder="搜索公演名称..."
+                                                placeholder="搜索公演名称、拼音或首字母..."
                                                 className="w-full pl-10 pr-4 py-3 bg-gray-100 border-transparent text-gray-900 rounded-full focus:bg-white focus:ring-2 focus:ring-pink-300 focus:border-transparent focus:shadow-md outline-none transition-all duration-300 ease-in-out placeholder-gray-500 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 dark:focus:bg-gray-750 dark:focus:ring-pink-500"
                                                 value={stageSearch}
                                                 onChange={(e) => setStageSearch(e.target.value)}
@@ -2005,7 +2173,7 @@
                                             </div>
                                             <input
                                                 type="text"
-                                                placeholder="搜索专辑或歌曲..."
+                                                placeholder="搜索专辑、歌曲、拼音或首字母..."
                                                 className="w-full pl-10 pr-4 py-3 bg-gray-100 border-transparent text-gray-900 rounded-full focus:bg-white focus:ring-2 focus:ring-pink-300 focus:border-transparent focus:shadow-md outline-none transition-all duration-300 ease-in-out placeholder-gray-500 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 dark:focus:bg-gray-750 dark:focus:ring-pink-500"
                                                 value={albumSearch}
                                                 onChange={(e) => setAlbumSearch(e.target.value)}

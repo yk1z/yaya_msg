@@ -149,12 +149,92 @@
             }
         }
 
-        async function fetchLiveRank(liveIdParam) {
+        function openLiveRankPanel() {
+            const modal = document.getElementById('liveRankModal');
+            const list = document.getElementById('live-rank-modal-list');
+
+            if (modal) modal.style.display = 'flex';
+            updateLiveRankModalInfo();
+            if (list) {
+                list.innerHTML = '<div class="empty-state">正在加载贡献榜...</div>';
+                list.scrollTop = 0;
+            }
+            return fetchLiveRank(null, 'live-rank-modal-list');
+        }
+
+        function closeLiveRankModal() {
+            const modal = document.getElementById('liveRankModal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function formatLiveRankModalTime(rawTime) {
+            if (!rawTime) return '';
+            const timeNum = Number(rawTime);
+            if (Number.isNaN(timeNum)) return String(rawTime);
+            const date = new Date(timeNum);
+            const pad = value => String(value).padStart(2, '0');
+            return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+        }
+
+        function escapeLiveRankText(value) {
+            return String(value ?? '').replace(/[&<>"']/g, char => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            }[char]));
+        }
+
+        function formatRankMoney(value) {
+            const num = Number(value);
+            if (!Number.isFinite(num)) return '';
+            return String(num);
+        }
+
+        function updateLiveRankModalInfo(totalContribution = null) {
+            const infoEl = document.getElementById('live-rank-modal-info');
+            if (!infoEl) return;
+
+            const currentPlayingItem = typeof getCurrentPlayingItem === 'function' ? getCurrentPlayingItem() : null;
+            if (!currentPlayingItem) {
+                infoEl.innerHTML = `
+                    <div class="live-rank-info-grid">
+                        <span class="live-rank-info-chip">--</span>
+                    </div>
+                `;
+                return;
+            }
+
+            const memberName = currentPlayingItem.userInfo?.nickname
+                || currentPlayingItem.userInfo?.userName
+                || currentPlayingItem.nickname
+                || '未知成员';
+            const timeText = formatLiveRankModalTime(currentPlayingItem.startTime || currentPlayingItem.ctime);
+            const items = [
+                { label: '成员', value: memberName },
+                { label: '时间', value: timeText },
+                { label: '总贡献值', value: formatRankMoney(totalContribution) }
+            ].filter(item => item.value);
+
+            infoEl.innerHTML = `
+                <div class="live-rank-info-grid">
+                    ${items.map(item => `
+                        <span class="live-rank-info-chip" title="${escapeLiveRankText(item.label)}: ${escapeLiveRankText(item.value)}">
+                            <span class="live-rank-info-key">${escapeLiveRankText(item.label)}</span>
+                            <span class="live-rank-info-value">${escapeLiveRankText(item.value)}</span>
+                        </span>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        async function fetchLiveRank(liveIdParam, targetContainerId = 'live-rank-list') {
             const currentPlayingItem = typeof getCurrentPlayingItem === 'function' ? getCurrentPlayingItem() : null;
             const liveId = liveIdParam || (currentPlayingItem ? currentPlayingItem.liveId : null);
             if (!liveId) return;
 
-            const listContainer = document.getElementById('live-rank-list');
+            const listContainer = document.getElementById(targetContainerId);
             if (!listContainer) return;
 
             listContainer.innerHTML = '<div style="text-align: center; color: var(--text-sub); font-size: 12px; padding: 20px;"><div class="spinner" style="width:20px;height:20px;margin:0 auto 10px;"></div>正在加载数据...</div>';
@@ -168,6 +248,10 @@
 
                 if (res.success && res.content && res.content.data) {
                     const rankData = res.content.data;
+                    if (targetContainerId === 'live-rank-modal-list') {
+                        const totalContribution = rankData.reduce((sum, item) => sum + (Number(item.money) || 0), 0);
+                        updateLiveRankModalInfo(totalContribution);
+                    }
 
                     if (rankData.length === 0) {
                         listContainer.innerHTML = '<div style="text-align: center; color: var(--text-sub); font-size: 12px; padding: 15px;">本场暂无贡献数据</div>';
@@ -186,13 +270,22 @@
                                 : `https://source.48.cn${item.user.userAvatar}`;
                         }
                         const userName = item.user ? item.user.userName : '未知用户';
+                        const userId = item.user
+                            ? (item.user.userId || item.user.id || item.user.uid || item.user.accountId || '')
+                            : (item.userId || item.id || item.uid || item.accountId || '');
+                        const userIdText = userId ? `ID: ${userId}` : 'ID: --';
 
                         html += `
                 <div style="display: flex; align-items: center; padding: 10px 8px; border-bottom: 1px solid rgba(128,128,128,0.1); transition: background 0.2s; cursor: default;" onmouseover="this.style.background='var(--chip-hover)'" onmouseout="this.style.background='transparent'">
                     <div class="rank-num ${rankClass}" style="width: 24px; height: 24px; min-width: 24px; font-size: 11px; margin-right: 12px; margin-bottom: 0;">${index + 1}</div>
                     <img src="${avatar}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; margin-right: 12px; border: 1px solid rgba(0,0,0,0.05); flex-shrink: 0;">
-                    <div style="flex: 1; font-size: 13px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: ${isTop3 ? 'bold' : '500'};">
-                        ${userName}
+                    <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;">
+                        <div style="font-size: 13px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: ${isTop3 ? 'bold' : '500'};">
+                            ${userName}
+                        </div>
+                        <div style="font-size: 11px; color: var(--text-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            ${userIdText}
+                        </div>
                     </div>
                     <div style="font-size: 14px; color: #fa8c16; font-weight: bold; margin-left: 10px; flex-shrink: 0; text-shadow: 0 0 10px rgba(250, 140, 22, 0.1);">
                         ${item.money} <span style="font-size: 11px; color: var(--text-sub); font-weight: normal; opacity: 0.6; margin-left: 2px;">贡献值</span>
@@ -464,9 +557,11 @@
         }
 
         return {
+            closeLiveRankModal,
             closeLiveAnnouncement,
             executeClip,
             fetchLiveRank,
+            openLiveRankPanel,
             refreshLiveAnnouncement,
             resetClipTool,
             setClipEnd,

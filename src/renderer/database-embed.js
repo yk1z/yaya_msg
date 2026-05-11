@@ -1,17 +1,33 @@
 (function initDatabaseEmbed() {
     const DATABASE_TEMPLATE_PATH = 'src/renderer/database/index.html';
     const WEB_DATABASE_TEMPLATE_PATH = '/database-template.txt';
+    const WEB_DATABASE_RUNTIME_PATH = '/src/renderer/database/runtime.js';
     const TAILWIND_URL = 'https://cdn.tailwindcss.com';
     const BABEL_URL = 'https://unpkg.com/@babel/standalone/babel.min.js';
     const REACT_URL = 'https://esm.sh/react@18.2.0';
     const REACT_DOM_URL = 'https://esm.sh/react-dom@18.2.0/client';
     const LUCIDE_URL = 'https://esm.sh/lucide-react@0.292.0';
+    const EMBED_SCRIPT_SRC = document.currentScript && document.currentScript.src ? document.currentScript.src : '';
 
     let runtimePromise = null;
     let mountPromise = null;
 
     function getDatabaseHost() {
         return document.getElementById('database-root');
+    }
+
+    function isWebRuntime() {
+        return !!(window.desktop && window.desktop.platform === 'web');
+    }
+
+    function getWebDatabaseRuntimeUrl() {
+        let version = '';
+        try {
+            version = new URL(EMBED_SCRIPT_SRC).searchParams.get('v') || '';
+        } catch (error) { }
+        return version
+            ? `${WEB_DATABASE_RUNTIME_PATH}?v=${encodeURIComponent(version)}`
+            : WEB_DATABASE_RUNTIME_PATH;
     }
 
     function setDatabaseState(html, className) {
@@ -79,7 +95,7 @@
             if (!document.getElementById('database-tailwind-runtime')) {
                 await loadExternalScript(TAILWIND_URL, 'database-tailwind-runtime');
             }
-            if (!window.Babel && !document.getElementById('database-babel-runtime')) {
+            if (!isWebRuntime() && !window.Babel && !document.getElementById('database-babel-runtime')) {
                 await loadExternalScript(BABEL_URL, 'database-babel-runtime');
             }
         })();
@@ -152,6 +168,13 @@
 
                 injectDatabaseStyles(doc);
                 await ensureRuntime();
+
+                if (isWebRuntime()) {
+                    host.innerHTML = '';
+                    await import(getWebDatabaseRuntimeUrl());
+                    host.dataset.databaseMounted = 'true';
+                    return;
+                }
 
                 const transformed = window.Babel.transform(
                     rewriteDatabaseSource(appScript.textContent || ''),

@@ -92,6 +92,8 @@
         let fetchAllOpenLive;
         let openOpenLiveInPotPlayer;
         let destroyPlayers;
+        let currentPlayingAudio = null;
+        let currentPlayingVideo = null;
         let handleProfileSearch;
         let selectProfileMember;
         let loadStarProfile;
@@ -151,6 +153,8 @@
         let executeClip;
         let forceReloadFlips;
         let fetchLiveRank;
+        let openLiveRankPanel;
+        let closeLiveRankModal;
         let fetchDanmuNative;
         let handleFlipSendSearch;
         let handleDownloadDanmu;
@@ -613,12 +617,12 @@
             }
 
             if (nextViewName !== 'bilibili-live') {
-                destroyBilibiliLivePlayer(false);
-                stopBilibiliLiveStatusPolling();
+                if (typeof destroyBilibiliLivePlayer === 'function') destroyBilibiliLivePlayer(false);
+                if (typeof stopBilibiliLiveStatusPolling === 'function') stopBilibiliLiveStatusPolling();
             }
 
             if (nextViewName !== 'private-messages') {
-                stopPrivateMessagePolling();
+                if (typeof stopPrivateMessagePolling === 'function') stopPrivateMessagePolling();
             }
 
             if (nextViewName !== 'followed-rooms') {
@@ -667,6 +671,12 @@
         function hideAllPrimaryViews() {
             getPrimaryViewElements().forEach(viewEl => {
                 viewEl.style.display = 'none';
+            });
+        }
+
+        function closeAllModalOverlays() {
+            document.querySelectorAll('.modal-overlay').forEach(modalEl => {
+                modalEl.style.display = 'none';
             });
         }
 
@@ -989,6 +999,7 @@
                     return;
                 }
 
+                closeAllModalOverlays();
                 mediaPlaybackViewToken += 1;
                 currentViewName = viewName;
                 currentViewMode = mode;
@@ -1022,7 +1033,7 @@
 
                 hideAllPrimaryViews();
 
-                destroyPlayers();
+                if (typeof destroyPlayers === 'function') destroyPlayers();
                 stopPlaybackOnViewChange(viewName);
 
                 if (window.vodState) window.vodState.isSearchActive = false;
@@ -1948,8 +1959,6 @@
         let filterType = 'all';
         let userStats = [];
         let availableYears = new Set();
-        let currentPlayingAudio = null;
-        let currentPlayingVideo = null;
         let isRenderingBatch = false;
         let batchRenderScheduled = false;
         let isMessageDataScanRunning = false;
@@ -2406,8 +2415,10 @@
 
         ({
             closeLiveAnnouncement,
+            closeLiveRankModal,
             executeClip,
             fetchLiveRank,
+            openLiveRankPanel,
             refreshLiveAnnouncement,
             resetClipTool,
             setClipEnd,
@@ -2429,8 +2440,10 @@
             ipcRenderer
         }));
         window.closeLiveAnnouncement = closeLiveAnnouncement;
+        window.closeLiveRankModal = closeLiveRankModal;
         window.executeClip = executeClip;
         window.fetchLiveRank = fetchLiveRank;
+        window.openLiveRankPanel = openLiveRankPanel;
         window.refreshLiveAnnouncement = refreshLiveAnnouncement;
         window.resetClipTool = resetClipTool;
         window.setClipEnd = setClipEnd;
@@ -3375,11 +3388,13 @@
         let returnToOpenLive = false;
 
         function backToLiveList() {
+            closeAllModalOverlays();
+
             if (returnToOpenLive) {
                 const dmWrapper = document.getElementById('danmu-timeline-wrapper');
                 if (dmWrapper) dmWrapper.style.display = 'none';
                 livePlayerView.style.display = 'none';
-                destroyPlayers();
+                if (typeof destroyPlayers === 'function') destroyPlayers();
                 returnToOpenLive = false;
                 switchView('openlive');
                 return;
@@ -3388,7 +3403,7 @@
             livePlayerView.style.display = 'none';
             document.getElementById('media-list-area').style.display = 'block';
 
-            destroyPlayers();
+            if (typeof destroyPlayers === 'function') destroyPlayers();
             if (currentMode === 'live' && typeof window.syncWebLiveListRoute === 'function') {
                 window.syncWebLiveListRoute();
             } else if (currentMode === 'vod' && typeof window.syncWebVodListRoute === 'function') {
@@ -5729,6 +5744,7 @@
                 if (modalId === 'danmuAnalysisModal' && typeof closeDanmuAnalysis === 'function') closeDanmuAnalysis();
                 if (modalId === 'speechAnalysisModal' && typeof closeSpeechAnalysis === 'function') closeSpeechAnalysis();
                 if (modalId === 'giftAnalysisModal' && typeof closeGiftAnalysis === 'function') closeGiftAnalysis();
+                if (modalId === 'liveRankModal' && typeof closeLiveRankModal === 'function') closeLiveRankModal();
                 if (modalId === 'flipAnalysisModal' && typeof closeFlipAnalysis === 'function') closeFlipAnalysis();
                 if (modalId === 'contextModal' && typeof closeContextModal === 'function') closeContextModal();
             }
@@ -5743,6 +5759,7 @@
                 { id: 'danmuAnalysisModal', close: () => typeof closeDanmuAnalysis === 'function' && closeDanmuAnalysis() },
                 { id: 'speechAnalysisModal', close: () => typeof closeSpeechAnalysis === 'function' && closeSpeechAnalysis() },
                 { id: 'giftAnalysisModal', close: () => typeof closeGiftAnalysis === 'function' && closeGiftAnalysis() },
+                { id: 'liveRankModal', close: () => typeof closeLiveRankModal === 'function' && closeLiveRankModal() },
                 { id: 'flipAnalysisModal', close: () => typeof closeFlipAnalysis === 'function' && closeFlipAnalysis() },
                 { id: 'global-announcement-modal', close: () => typeof closeAnnouncement === 'function' && closeAnnouncement() }
             ];

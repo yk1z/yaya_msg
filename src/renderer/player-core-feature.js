@@ -405,11 +405,15 @@
             const playerView = document.getElementById('live-player-view');
             const comboWrapper = document.getElementById('player-combo-wrapper');
             const playerArea = document.getElementById('live-player-area');
+            const playerRankButton = document.getElementById('btn-player-rank');
 
             if (mediaListArea) mediaListArea.style.display = 'none';
             if (vodPaginationControls) vodPaginationControls.style.display = 'none';
             if (mediaListControls) mediaListControls.style.display = 'none';
             if (playerView) playerView.style.display = 'flex';
+            if (playerRankButton) {
+                playerRankButton.style.display = mode === 'vod' ? 'inline-flex' : 'none';
+            }
 
             updatePlayerMeta(item);
             syncMediaDeepLink(item, mode);

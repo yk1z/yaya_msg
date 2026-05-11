@@ -741,8 +741,13 @@
                                         style="font-weight: bold; color: var(--text); font-size: 14px;"></span>
                                 </div>
                             </div>
-                            <button class="btn btn-secondary" onclick="backToLiveList()"
-                                style="height: 32px; font-size: 13px; flex-shrink: 0;">返回列表</button>
+                            <div class="player-top-actions"
+                                style="display: flex; align-items: center; gap: 10px; flex-shrink: 0;">
+                                <button id="btn-player-rank" class="btn btn-secondary" onclick="openLiveRankPanel()"
+                                    style="display: none; height: 36px; min-width: 74px; padding: 0 14px; font-size: 14px; flex-shrink: 0;">贡献榜</button>
+                                <button class="btn btn-secondary" onclick="backToLiveList()"
+                                    style="height: 36px; min-width: 86px; padding: 0 14px; font-size: 14px; flex-shrink: 0;">返回列表</button>
+                            </div>
                         </div>
 
                         <div id="current-openlive-members-wrap"
@@ -2650,6 +2655,22 @@
             </div>
             <div class="modal-body" id="giftAnalysisList">
                 <div class="empty-state">正在计算...</div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="liveRankModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title">本场贡献榜</span>
+                <span class="close-btn" onclick="closeLiveRankModal()">×</span>
+            </div>
+            <div id="live-rank-modal-info" class="live-rank-modal-info">
+                <div class="live-rank-info-grid">
+                    <span class="live-rank-info-chip">--</span>
+                </div>
+            </div>
+            <div class="modal-body" id="live-rank-modal-list">
+                <div class="empty-state">正在加载...</div>
             </div>
         </div>
     </div>
