@@ -23,10 +23,10 @@
         music: { view: 'official-site-music', mode: null, title: '音乐' },
         'official-site-music': { view: 'official-site-music', mode: null, title: '音乐' },
         audio: { view: 'audio-programs', mode: null, title: '电台' },
-        profile: { view: 'profile', mode: null, title: '档案' },
+        profile: { view: 'profile', mode: null, title: '成员档案' },
         database: { view: 'database', mode: null, title: '数据库' },
         melee: { view: 'melee-rank', mode: null, title: '鸡腿榜' },
-        trip: { view: 'trip', mode: null, title: '行程' },
+        trip: { view: 'trip', mode: null, title: '成员行程' },
         login: { view: 'login', mode: null, title: '账号登录' },
         settings: { view: 'settings', mode: null, title: '软件设置' },
         voice: { view: 'room-radio', mode: null, title: '房间上麦' }
