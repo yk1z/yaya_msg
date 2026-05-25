@@ -44,6 +44,22 @@ function registerPocketIpc() {
     ipcMain.handle('fetch-last-messages', (event, payload) => pocketService.fetchLastMessages(payload));
     ipcMain.handle('follow-member', (event, payload) => pocketService.followMember(payload));
     ipcMain.handle('unfollow-member', (event, payload) => pocketService.unfollowMember(payload));
+    ipcMain.handle('fetch-live-list', (event, payload) => pocketService.fetchLiveList(payload));
+    ipcMain.handle('fetch-live-one', (event, payload) => pocketService.fetchLiveOne(payload));
+    ipcMain.handle('fetch-live-result', (event, payload) => pocketService.fetchLiveResult(payload));
+    ipcMain.handle('fetch-trip-list', (event, payload) => pocketService.fetchTripList(payload));
+    ipcMain.handle('fetch-album-list', (event, payload) => pocketService.fetchAlbumList(payload));
+    ipcMain.handle('fetch-melee-week-rank', (event, payload) => pocketService.fetchMeleeWeekRank(payload));
+    ipcMain.handle('fetch-melee-rank-page', (event, payload) => pocketService.fetchMeleeRankPage(payload));
+    ipcMain.handle('fetch-melee-year-rank-page', (event, payload) => pocketService.fetchMeleeYearRankPage(payload));
+    ipcMain.handle('fetch-person-melee-rank-page', (event, payload) => pocketService.fetchPersonMeleeRankPage(payload));
+    ipcMain.handle('fetch-post-image-list', (event, payload) => pocketService.fetchPostImageList(payload));
+    ipcMain.handle('fetch-chatroom-homeowner-messages', (event, payload) => pocketService.fetchChatroomHomeownerMessages(payload));
+    ipcMain.handle('fetch-member-weibo', (event, payload) => pocketService.fetchMemberWeiboMessages(payload));
+    ipcMain.handle('fetch-member-dynamic', (event, payload) => pocketService.fetchMemberDynamicMessages(payload));
+    ipcMain.handle('fetch-conversation-page', (event, payload) => pocketService.fetchConversationPage(payload));
+    ipcMain.handle('fetch-user-home-info', (event, payload) => pocketService.fetchUserHomeInfo(payload));
+    ipcMain.handle('fetch-flip-custom-index-v1', (event, payload) => pocketService.fetchFlipCustomIndexV1(payload));
 }
 
 module.exports = {

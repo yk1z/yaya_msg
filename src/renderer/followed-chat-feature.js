@@ -553,17 +553,6 @@
                     const content = res.data.content;
                     let list = content.messageList || content.message || [];
 
-                    list = list.filter(m => {
-                        let sid = m.senderUserId || m.senderId || m.uid;
-                        if (!sid && m.extInfo) {
-                            try {
-                                const ext = typeof m.extInfo === 'string' ? JSON.parse(m.extInfo) : m.extInfo;
-                                if (ext.user) sid = ext.user.userId || ext.user.id;
-                            } catch (e) { }
-                        }
-                        return String(sid) !== '121569667';
-                    });
-
                     if (!isAutoRefresh && !isLoadMore) {
                         activeFollowedNextTime = content.nextTime;
                         if (list.length === 0) activeFollowedNextTime = 0;
@@ -599,6 +588,7 @@
                         let txt = '[不支持的消息格式]';
                         let isMember = false;
                         let displayName = m.senderName || '未知用户';
+                        let senderId = m.senderUserId || m.senderId || m.uid || '';
                         let avatarUrl = './icon.png';
                         let body = m.bodys || m.msgContent || '';
                         let extraHtml = '';
@@ -614,6 +604,7 @@
                                 const ext = typeof safeExtInfo === 'string' ? JSON.parse(safeExtInfo) : safeExtInfo;
                                 if (ext && ext.user) {
                                     if (ext.user.roleId > 1) isMember = true;
+                                    if (!senderId) senderId = ext.user.userId || ext.user.id || '';
                                     if (ext.user.nickName) displayName = ext.user.nickName;
                                     if (ext.user.avatar) {
                                         avatarUrl = ext.user.avatar.startsWith('http') ? ext.user.avatar : `https://source.48.cn${ext.user.avatar}`;
@@ -796,7 +787,9 @@
 
                         const timeStr = fallbackTimeStr;
 
-                        const nameColorVar = isMember ? 'var(--msg-name-member)' : 'var(--msg-name-fan)';
+                        const nameColorVar = String(senderId) === '121569667'
+                            ? '#056de8'
+                            : (isMember ? 'var(--msg-name-member)' : 'var(--msg-name-fan)');
 
                         return `
     <div class="msg-item" data-msgid="${msgId}" style="display: flex; padding: 8px 0; border-bottom: 1px solid var(--border);">

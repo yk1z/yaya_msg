@@ -106,6 +106,16 @@
         let handleRoomAlbumSearch;
         let selectRoomAlbumMember;
         let fetchRoomAlbum;
+        let handleMemberDynamicSearch;
+        let selectMemberDynamicMember;
+        let fetchMemberDynamic;
+        let handleMemberWeiboSearch;
+        let selectMemberWeiboMember;
+        let fetchAllMemberWeibo;
+        let fetchMemberWeibo;
+        let handleTripSearch;
+        let selectTripMember;
+        let fetchTripList;
         let handleRoomRadioSearch;
         let selectRoomRadioMember;
         let connectRoomRadio;
@@ -527,6 +537,14 @@
             }
         }
 
+        function resetMessageRenderState() {
+            messageRenderToken += 1;
+            renderedCount = 0;
+            isRenderingBatch = false;
+            batchRenderScheduled = false;
+            if (loadingMoreDiv) loadingMoreDiv.style.display = 'none';
+        }
+
         function toggleSidebar() {
             if (currentViewName !== 'home') {
                 switchView('home');
@@ -648,6 +666,7 @@
                 document.getElementById('view-media'),
                 document.getElementById('view-downloads'),
                 document.getElementById('view-database'),
+                document.getElementById('view-melee-rank'),
                 document.getElementById('view-official-site-music'),
                 document.getElementById('view-login'),
                 document.getElementById('view-fetch'),
@@ -660,6 +679,9 @@
                 document.getElementById('view-settings'),
                 document.getElementById('view-photos'),
                 document.getElementById('view-room-album'),
+                document.getElementById('view-member-dynamic'),
+                document.getElementById('view-member-weibo'),
+                document.getElementById('view-trip'),
                 document.getElementById('view-room-radio'),
                 document.getElementById('view-audio-programs'),
                 document.getElementById('view-video-library'),
@@ -727,6 +749,9 @@
             'openlive',
             'photos',
             'room-album',
+            'member-dynamic',
+            'member-weibo',
+            'trip',
             'room-radio',
             'private-messages',
             'followed-rooms'
@@ -937,9 +962,48 @@
 
         window.getAppToken = getCurrentAppToken;
 
+        function isCurrentAppLoggedIn() {
+            if (!getCurrentAppToken()) return false;
+
+            if (typeof currentPocketUserId !== 'undefined'
+                && String(currentPocketUserId || '').trim()) {
+                return true;
+            }
+
+            const loggedInPanel = document.getElementById('panel-logged-in');
+            if (!loggedInPanel) return false;
+            const inlineDisplay = loggedInPanel.style && loggedInPanel.style.display;
+            const computedDisplay = window.getComputedStyle
+                ? window.getComputedStyle(loggedInPanel).display
+                : inlineDisplay;
+            return inlineDisplay !== 'none' && computedDisplay !== 'none';
+        }
+
+        function scheduleStoredTokenValidation() {
+            if (!getCurrentAppToken()) return;
+            if (isCurrentAppLoggedIn()) return;
+            if (window.__yayaAuthCheckInFlight) return;
+            if (typeof checkToken !== 'function') return;
+
+            window.__yayaAuthCheckInFlight = true;
+            setTimeout(() => {
+                Promise.resolve(checkToken())
+                    .catch((error) => {
+                        console.warn('自动验证登录状态失败:', error);
+                    })
+                    .finally(() => {
+                        window.__yayaAuthCheckInFlight = false;
+                    });
+            }, 0);
+        }
+
         function ensureLoginBeforeSwitchView(viewName) {
             if (!LOGIN_REQUIRED_VIEWS.has(viewName)) return true;
-            if (getCurrentAppToken()) return true;
+            if (isCurrentAppLoggedIn()) return true;
+            if (getCurrentAppToken()) {
+                scheduleStoredTokenValidation();
+                return true;
+            }
 
             if (typeof showToast === 'function') {
                 showToast('请先登录账号');
@@ -952,18 +1016,22 @@
             messages: '消息检索',
             downloads: '下载管理',
             database: '数据库',
+            'melee-rank': '鸡腿榜',
             'official-site-music': '音乐',
             login: '账号设置',
             fetch: '抓取消息',
             'private-messages': '私信列表',
             'bilibili-live': 'B站直播',
             flip: '翻牌记录',
-            profile: '成员档案',
+            profile: '档案',
             openlive: '公演记录',
             'send-flip': '翻牌提问',
             settings: '软件设置',
             photos: '个人相册',
             'room-album': '房间相册',
+            'member-dynamic': '成员动态',
+            'member-weibo': '成员微博',
+            trip: '行程',
             'room-radio': '房间上麦',
             'audio-programs': '电台',
             'video-library': '视频',
@@ -1013,6 +1081,7 @@
                 const mediaView = document.getElementById('view-media');
                 const downloadsView = document.getElementById('view-downloads');
                 const databaseView = document.getElementById('view-database');
+                const meleeRankView = document.getElementById('view-melee-rank');
                 const officialSiteMusicView = document.getElementById('view-official-site-music');
                 const loginView = document.getElementById('view-login');
                 const fetchView = document.getElementById('view-fetch');
@@ -1025,6 +1094,9 @@
                 const settingsView = document.getElementById('view-settings');
                 const photosView = document.getElementById('view-photos');
                 const roomAlbumView = document.getElementById('view-room-album');
+                const memberDynamicView = document.getElementById('view-member-dynamic');
+                const memberWeiboView = document.getElementById('view-member-weibo');
+                const tripView = document.getElementById('view-trip');
                 const roomRadioView = document.getElementById('view-room-radio');
                 const audioProgramsView = document.getElementById('view-audio-programs');
                 const videoLibraryView = document.getElementById('view-video-library');
@@ -1109,6 +1181,15 @@
                     if (databaseView) databaseView.style.display = 'block';
                     if (typeof window.mountDatabaseView === 'function') {
                         window.mountDatabaseView();
+                    }
+
+                } else if (viewName === 'melee-rank') {
+                    setGlobalSidebarVisible(false);
+                    setSidebarHomeMode(false);
+                    toggleSidebarMode('login');
+                    if (meleeRankView) meleeRankView.style.display = 'block';
+                    if (typeof window.initMeleeRankDataPage === 'function') {
+                        window.initMeleeRankDataPage();
                     }
 
                 } else if (viewName === 'official-site-music') {
@@ -1241,6 +1322,24 @@
                     setSidebarHomeMode(false);
                     toggleSidebarMode('login');
                     if (roomAlbumView) roomAlbumView.style.display = 'block';
+
+                } else if (viewName === 'member-dynamic') {
+                    setGlobalSidebarVisible(false);
+                    setSidebarHomeMode(false);
+                    toggleSidebarMode('login');
+                    if (memberDynamicView) memberDynamicView.style.display = 'block';
+
+                } else if (viewName === 'member-weibo') {
+                    setGlobalSidebarVisible(false);
+                    setSidebarHomeMode(false);
+                    toggleSidebarMode('login');
+                    if (memberWeiboView) memberWeiboView.style.display = 'block';
+
+                } else if (viewName === 'trip') {
+                    setGlobalSidebarVisible(false);
+                    setSidebarHomeMode(false);
+                    toggleSidebarMode('login');
+                    if (tripView) tripView.style.display = 'block';
 
                 } else if (viewName === 'openlive') {
                     setGlobalSidebarVisible(false);
@@ -1961,6 +2060,7 @@
         let availableYears = new Set();
         let isRenderingBatch = false;
         let batchRenderScheduled = false;
+        let messageRenderToken = 0;
         let isMessageDataScanRunning = false;
         let pendingMessageDataScanMode = null;
         let currentSortOrder = readStoredStringSetting('msg_sort_order', 'desc');
@@ -2580,6 +2680,83 @@
         window.fetchRoomAlbum = fetchRoomAlbum;
 
         ({
+            handleMemberDynamicSearch,
+            selectMemberDynamicMember,
+            fetchMemberDynamic
+        } = window.YayaRendererFeatures.createMemberDynamicFeature({
+            getAppToken: () => getCurrentAppToken(),
+            getMemberData: () => window.memberData || [],
+            getMemberDataLoaded: () => !!window.isMemberDataLoaded,
+            loadMemberData,
+            getPinyinInitials,
+            memberSortLogic,
+            getTeamStyle: (...args) => {
+                if (typeof getTeamStyle === 'function') return getTeamStyle(...args);
+                if (typeof window.getTeamStyle === 'function') return window.getTeamStyle(...args);
+                return '';
+            },
+            getOptimizedThumbUrl,
+            ipcRenderer,
+            showToast: (...args) => showToast(...args),
+            openImageModal
+        }));
+        window.handleMemberDynamicSearch = handleMemberDynamicSearch;
+        window.selectMemberDynamicMember = selectMemberDynamicMember;
+        window.fetchMemberDynamic = fetchMemberDynamic;
+
+        ({
+            handleMemberWeiboSearch,
+            selectMemberWeiboMember,
+            fetchAllMemberWeibo,
+            fetchMemberWeibo
+        } = window.YayaRendererFeatures.createMemberWeiboFeature({
+            getAppToken: () => getCurrentAppToken(),
+            getMemberData: () => window.memberData || [],
+            getMemberDataLoaded: () => !!window.isMemberDataLoaded,
+            loadMemberData,
+            getPinyinInitials,
+            memberSortLogic,
+            getTeamStyle: (...args) => {
+                if (typeof getTeamStyle === 'function') return getTeamStyle(...args);
+                if (typeof window.getTeamStyle === 'function') return window.getTeamStyle(...args);
+                return '';
+            },
+            getOptimizedThumbUrl,
+            ipcRenderer,
+            showToast: (...args) => showToast(...args),
+            openExternal,
+            openImageModal
+        }));
+        window.handleMemberWeiboSearch = handleMemberWeiboSearch;
+        window.selectMemberWeiboMember = selectMemberWeiboMember;
+        window.fetchAllMemberWeibo = fetchAllMemberWeibo;
+        window.fetchMemberWeibo = fetchMemberWeibo;
+
+        ({
+            handleTripSearch,
+            selectTripMember,
+            fetchTripList
+        } = window.YayaRendererFeatures.createTripFeature({
+            getAppToken: () => getCurrentAppToken(),
+            getMemberData: () => window.memberData || [],
+            getMemberDataLoaded: () => !!window.isMemberDataLoaded,
+            loadMemberData,
+            getPinyinInitials,
+            memberSortLogic,
+            getTeamStyle: (...args) => {
+                if (typeof getTeamStyle === 'function') return getTeamStyle(...args);
+                if (typeof window.getTeamStyle === 'function') return window.getTeamStyle(...args);
+                return '';
+            },
+            ipcRenderer,
+            showToast: (...args) => showToast(...args),
+            openExternal
+        }));
+        window.handleTripSearch = handleTripSearch;
+        window.selectTripMember = selectTripMember;
+        window.fetchTripList = fetchTripList;
+
+        ({
             handleRoomRadioSearch,
             selectRoomRadioMember,
             connectRoomRadio,
@@ -2845,6 +3022,39 @@
         }
 
         const CACHE_FILE = storagePaths.cacheFile;
+        const USE_DIRECT_JSONL_READ = true;
+
+        function hasJsonlMessageFiles(dirPath) {
+            if (!USE_DIRECT_JSONL_READ || !fs || typeof fs.existsSync !== 'function' || !fs.existsSync(dirPath)) {
+                return false;
+            }
+
+            try {
+                const items = fs.readdirSync(dirPath, { withFileTypes: true });
+                for (const item of items) {
+                    const fullPath = path.join(dirPath, item.name);
+                    if (item.isDirectory()) {
+                        if (hasJsonlMessageFiles(fullPath)) return true;
+                    } else if (item.isFile() && /\.jsonl$/i.test(item.name)) {
+                        return true;
+                    }
+                }
+            } catch (error) {
+                console.warn('检测 JSONL 数据失败:', error);
+            }
+
+            return false;
+        }
+
+        function removeMessageCacheFile() {
+            try {
+                if (fs && typeof fs.existsSync === 'function' && fs.existsSync(CACHE_FILE)) {
+                    fs.unlinkSync(CACHE_FILE);
+                }
+            } catch (error) {
+                console.warn('删除消息缓存失败:', error);
+            }
+        }
 
         function saveCacheOptimized(data) {
             return new Promise((resolve, reject) => {
@@ -2984,6 +3194,11 @@
                     initUIWithData();
                     statusMsg.textContent = "网页版已就绪";
                     outputList.innerHTML = '<div class="placeholder-tip"><h3>网页版已启动</h3><p>本地历史 HTML 扫描仅桌面版支持；网页版可继续使用登录、抓取、房间、相册、翻牌等在线功能。</p></div>';
+                } else if (hasJsonlMessageFiles(FIXED_PATH)) {
+                    removeMessageCacheFile();
+                    setMessageIndexLoadingState(true, '正在直读 JSONL', '检测到本地 JSONL 数据，跳过缓存');
+                    statusMsg.textContent = "正在直读 JSONL 数据...";
+                    scanFiles();
                 } else if (fs.existsSync(CACHE_FILE)) {
                     setMessageIndexLoadingState(true, '正在读取缓存', '解析本地历史数据');
                     statusMsg.textContent = "🚀 正在流式读取缓存...";
@@ -3074,7 +3289,10 @@
                 'view-open-live',
                 'view-profile',
                 'view-fetch',
-                'view-send-flip'
+                'view-send-flip',
+                'view-trip',
+                'view-member-dynamic',
+                'view-member-weibo'
             ];
 
             scrollableViews.forEach(id => {
@@ -3094,7 +3312,10 @@
                 'view-open-live',
                 'view-profile',
                 'view-fetch',
-                'view-send-flip'
+                'view-send-flip',
+                'view-trip',
+                'view-member-dynamic',
+                'view-member-weibo'
             ];
 
             scrollableViews.forEach(id => {
@@ -3118,6 +3339,8 @@
         window.forceReloadData = function () {
             setMessageIndexLoadingState(true, '正在准备更新', '检查文件变动');
 
+            currentFilteredPosts = [];
+            resetMessageRenderState();
             outputList.innerHTML = '<div class="placeholder-tip"><h3>🔄 正在增量更新...</h3><p>正在比对文件变动，请稍候。</p></div>';
             statusMsg.textContent = "正在分析新文件...";
 
@@ -3201,7 +3424,7 @@
                             const files = fs.readdirSync(dir, { withFileTypes: true });
                             files.forEach(f => {
                                 if (f.isDirectory()) gatherPaths(path.join(dir, f.name));
-                                else if (f.isFile() && f.name.endsWith('.html')) {
+                                else if (f.isFile() && isMessageDataFile(f.name)) {
                                     realFilesOnDisk.add(path.join(dir, f.name));
                                 }
                             });
@@ -3241,7 +3464,7 @@
                 for (const item of items) {
                     if (item.isDirectory()) {
                         await gatherFilesAsync(path.join(dirPath, item.name), item.name);
-                    } else if (item.isFile() && item.name.endsWith('.html')) {
+                    } else if (item.isFile() && isMessageDataFile(item.name)) {
                         fileQueue.push({
                             fullPath: path.join(dirPath, item.name),
                             fileName: item.name,
@@ -3266,7 +3489,7 @@
                             skippedCount++;
                         } else {
                             const text = await fs.promises.readFile(fileObj.fullPath, 'utf-8');
-                            const parsed = parseHtmlContent(text, fileObj.fileName, fileObj.group).map(post => ({
+                            const parsed = parseMessageDataContent(text, fileObj.fileName, fileObj.group).map(post => ({
                                 ...post,
                                 sourcePath: fileObj.fullPath,
                                 sourceFile: fileObj.fileName
@@ -3301,6 +3524,8 @@
 
                 if (allPosts.length === 0) {
                     setMessageIndexLoadingState(false);
+                    currentFilteredPosts = [];
+                    resetMessageRenderState();
                     outputList.innerHTML = '<div class="placeholder-tip"><h3>📂 没有找到数据</h3><p>请点击 抓取消息 按钮抓取成员房间消息。</p></div>';
                     if (fs.existsSync(CACHE_FILE)) try { fs.unlinkSync(CACHE_FILE); } catch (e) { }
                     saveManifest();
@@ -3315,7 +3540,7 @@
                 for (let i = allPosts.length - 1; i >= 0; i--) {
                     const post = allPosts[i];
                     const uniqueKey = post.exportKey
-                        ? `${post.sourcePath || post.groupName || ''}_${post.exportKey}`
+                        ? `export_${post.exportKey}`
                         : `${post.sourcePath || ''}_${post.timeStr}_${post.nameStr}_${(post.text || '').substring(0, 80)}`;
                     if (!uniqueMap.has(uniqueKey)) {
                         uniqueMap.set(uniqueKey, true);
@@ -3329,6 +3554,19 @@
                 allPosts.forEach((post, index) => {
                     post.originalIndex = index;
                 });
+
+                const containsJsonlData = fileQueue.some(fileObj => /\.jsonl$/i.test(fileObj.fileName));
+                if (USE_DIRECT_JSONL_READ && containsJsonlData) {
+                    removeMessageCacheFile();
+                    saveManifest();
+                    const msg = isIncremental
+                        ? `✅ 更新: 新增 ${newParsedCount} 个文件，JSONL 已直读`
+                        : `✅ 直读完成: 共 ${allPosts.length} 条`;
+                    statusMsg.textContent = msg;
+
+                    initUIWithData();
+                    return;
+                }
 
                 statusMsg.textContent = "💾 正在保存缓存...";
 
@@ -4154,7 +4392,28 @@
                 if (keyword) {
                     const name = (item.userInfo ? item.userInfo.nickname : '').toLowerCase();
                     const title = (item.title || item.liveTitle || '').toLowerCase();
-                    if (!name.includes(keyword) && !title.includes(keyword)) {
+                    const memberId = String(item.userInfo ? (item.userInfo.userId || item.userInfo.id || '') : (item.userId || item.id || ''));
+                    const member = Array.isArray(memberData)
+                        ? memberData.find(m => {
+                            const ids = [m.id, m.userId, m.ownerId].map(value => String(value || ''));
+                            const names = [m.ownerName, m.name, m.nickname, m.nickName].map(value => String(value || '').toLowerCase());
+                            return (memberId && ids.includes(memberId)) || (name && names.includes(name));
+                        })
+                        : null;
+                    const pinyin = String(member?.pinyin || '').toLowerCase();
+                    const initials = typeof getPinyinInitials === 'function'
+                        ? getPinyinInitials(pinyin).toLowerCase()
+                        : '';
+                    const searchText = [
+                        name,
+                        title,
+                        pinyin,
+                        initials,
+                        String(member?.ownerName || '').toLowerCase(),
+                        String(member?.team || member?.groupName || '').toLowerCase()
+                    ].join(' ');
+
+                    if (!searchText.includes(keyword)) {
                         matchKeyword = false;
                     }
                 }
@@ -4290,6 +4549,124 @@
                 .replace(/^\s+|\s+$/g, '');
         }
 
+        function isMessageDataFile(fileName) {
+            return /\.(html|jsonl|json)$/i.test(String(fileName || ''));
+        }
+
+        function parseMessageDataContent(fileContent, fileName, groupName) {
+            if (/\.html$/i.test(String(fileName || ''))) {
+                return parseHtmlContent(fileContent, fileName, groupName);
+            }
+
+            return parseJsonMessageContent(fileContent, fileName, groupName);
+        }
+
+        function formatJsonRecordTime(record) {
+            const timeStr = String(record.timeStr || record.time || '').trim();
+            if (timeStr) return timeStr;
+
+            const sortTime = Number(record.sortTime || record.msgTime || 0);
+            const date = new Date(sortTime || Date.now());
+            if (Number.isNaN(date.getTime())) return '';
+            const pad = (value) => String(value).padStart(2, '0');
+            return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+        }
+
+        function jsonRecordToHtmlRow(record) {
+            if (!record || typeof record !== 'object') return '';
+
+            const avatarUrl = String(record.avatarUrl || record.avatar || '').trim();
+            const avatarHtml = record.avatarHtml
+                || (avatarUrl ? `<img class="avatar avatar-5 mr-2" src="${escapeHtml(avatarUrl)}" loading="lazy">` : '');
+            const nameStr = String(record.nameStr || record.nickName || record.nickname || record.senderName || 'Unknown');
+            const userId = record.userId == null ? '' : String(record.userId);
+            const roleId = record.roleId == null ? '' : String(record.roleId);
+            let contentHtml = String(record.contentHtml || '').trim()
+                || `<p class="mb-2 template-pre">${escapeHtml(String(record.text || record.content || ''))}</p>`;
+            const contentSeed = `${record.msgType || ''} ${contentHtml} ${record.text || ''}`;
+            const recordLooksFlip = /FLIPCARD/i.test(String(record.msgType || ''))
+                || /翻牌问题[:：]/.test(contentSeed);
+            if (recordLooksFlip && !/回答[:：]/.test(contentHtml)) {
+                contentHtml += '<p class="mb-2"><strong>回答：</strong></p>';
+            }
+            const timeStr = formatJsonRecordTime(record);
+            const exportKey = String(record.exportKey || record.key || record.fetchKey || '');
+
+            return `
+                <li class="Box-row" data-export-key="${escapeHtml(exportKey)}">
+                    <div class="mb-2">
+                        ${avatarHtml}
+                        <span data-userid="${escapeHtml(userId)}" data-roleid="${escapeHtml(roleId)}">${escapeHtml(nameStr)}</span>
+                    </div>
+                    ${contentHtml}
+                    <time class="d-block">${escapeHtml(timeStr)}</time>
+                </li>
+            `;
+        }
+
+        function parseJsonMessageContent(fileContent, fileName, groupName) {
+            const text = String(fileContent || '').trim();
+            if (!text) return [];
+
+            const records = [];
+            if (/\.json$/i.test(String(fileName || ''))) {
+                try {
+                    const payload = JSON.parse(text);
+                    if (Array.isArray(payload)) {
+                        records.push(...payload);
+                    } else if (payload && Array.isArray(payload.messages)) {
+                        records.push(...payload.messages);
+                    } else if (payload && Array.isArray(payload.entries)) {
+                        records.push(...payload.entries);
+                    } else if (payload) {
+                        records.push(payload);
+                    }
+                } catch (error) {
+                    console.error('JSON 消息文件解析失败:', fileName, error);
+                }
+            } else {
+                const lines = text.split(/\r?\n/);
+                for (const line of lines) {
+                    const trimmed = line.trim();
+                    if (!trimmed) continue;
+                    try {
+                        records.push(JSON.parse(trimmed));
+                    } catch (error) {
+                    }
+                }
+            }
+
+            const validRecords = records.filter(record => record && typeof record === 'object');
+            if (!validRecords.length) return [];
+
+            const syntheticHtml = `<ul>${validRecords.map(jsonRecordToHtmlRow).join('\n')}</ul>`;
+            const parsedPosts = parseHtmlContent(syntheticHtml, fileName, groupName);
+
+            return parsedPosts.map((post, index) => {
+                const record = validRecords[index] || {};
+                const contentSeed = `${record.msgType || ''} ${record.contentHtml || ''} ${record.text || ''}`;
+                const recordLooksFlip = /FLIPCARD/i.test(String(record.msgType || ''))
+                    || /翻牌问题[:：]/.test(contentSeed);
+                const recordLooksExpress = /EXPRESS/i.test(String(record.msgType || ''))
+                    || /template-image-express-image/.test(contentSeed)
+                    || /\[表情\]/.test(contentSeed);
+
+                return {
+                    ...post,
+                    groupName: String(record.groupName || post.groupName || groupName || ''),
+                    hasImg: post.hasImg || (record.hasImg === true && !recordLooksExpress),
+                    hasVideo: post.hasVideo || record.hasVideo === true || !!record.videoUrl,
+                    hasAudio: post.hasAudio || record.hasAudio === true || !!record.audioUrl,
+                    audioUrl: post.audioUrl || String(record.audioUrl || ''),
+                    videoUrl: post.videoUrl || String(record.videoUrl || ''),
+                    isReply: post.isReply || recordLooksFlip,
+                    liveId: post.liveId || (record.liveId ? String(record.liveId) : null),
+                    isLiveText: post.isLiveText || record.isLiveText === true,
+                    liveTitle: post.liveTitle || String(record.liveTitle || '')
+                };
+            });
+        }
+
         function parseHtmlContent(htmlString, fileName, groupName) {
             const parser = new DOMParser();
             const doc = parser.parseFromString(htmlString, 'text/html');
@@ -4299,6 +4676,7 @@
                 const exportKey = row.getAttribute('data-export-key') || '';
                 const timeEl = row.querySelector('time');
                 const timeStr = timeEl ? timeEl.innerText.trim() : '';
+                const originalRowHtml = row.innerHTML;
                 const cleanRow = row.cloneNode(true);
                 cleanRow.querySelectorAll('.template-media').forEach(el => el.classList.remove('template-media'));
                 cleanRow.querySelectorAll('audio').forEach(el => el.remove());
@@ -4335,8 +4713,22 @@
                         }
                     }
                 });
+                row.querySelectorAll('a').forEach(link => {
+                    const href = link.href || link.getAttribute('href') || '';
+                    if (!href) return;
+                    if (!audioUrl && /\.(mp3|aac|m4a)(?:$|\?)/i.test(href)) audioUrl = href;
+                    if (!videoUrl && /\.(mp4|mov)(?:$|\?)/i.test(href)) videoUrl = href;
+                });
                 cleanRow.querySelectorAll('div, p').forEach(node => {
-                    if (/^(图片|视频|音频|语音)[\s\u00A0]*[-–—][\s\u00A0]*http/i.test(node.innerText.trim())) node.remove();
+                    const nodeText = node.innerText.trim();
+                    const hasMediaLink = Array.from(node.querySelectorAll('a')).some(link => {
+                        const href = link.href || link.getAttribute('href') || '';
+                        return /\.(mp3|aac|m4a|mp4|mov)(?:$|\?)/i.test(href);
+                    });
+                    if (/^(图片|视频|音频|语音)[\s\u00A0]*[-–—][\s\u00A0]*http/i.test(nodeText)) node.remove();
+                    if (/^回答[:：]/.test(nodeText) && hasMediaLink) {
+                        node.innerHTML = '<strong>回答：</strong>';
+                    }
                 });
                 const textLiveMatch = cleanRow.innerText.trim().match(/(?:^|\s)直播(?:通知)?[\s\u00A0]*[-–—:：~]\s*([^\r\n]*)/i);
                 if (!liveId && textLiveMatch) {
@@ -4411,10 +4803,11 @@
                 }
 
                 let rowHtml = cleanRow.innerHTML;
-                const isFlip = rowHtml.includes('翻牌问题：') && rowHtml.includes('回答：');
+                const isFlip = originalRowHtml.includes('翻牌问题：') && originalRowHtml.includes('回答：');
                 if (isFlip) {
                     rowHtml = rowHtml.replace(/翻牌问题：/g, '<span class="flip-label question-tag">翻牌提问</span>');
                     rowHtml = rowHtml.replace(/回答：/g, '<br><span class="flip-label answer-tag">成员回答</span>');
+                    cleanRow.innerHTML = rowHtml;
                     if (cleanRow.querySelector('blockquote')) cleanRow.querySelector('blockquote').classList.add('flip-message-quote');
                 }
 
@@ -4447,8 +4840,8 @@
                     dateFull,
                     exportKey,
                     hasImg: !!row.querySelector('img.template-media'),
-                    hasVideo: row.innerText.includes('视频') && (row.innerText.includes('http') || !!cleanRow.querySelector('video')),
-                    hasAudio: !!audioUrl || row.innerText.includes('音频'),
+                    hasVideo: !!videoUrl || !!cleanRow.querySelector('video') || (row.innerText.includes('视频') && row.innerText.includes('http')),
+                    hasAudio: !!audioUrl || !!row.querySelector('audio') || row.innerText.includes('音频'),
                     audioUrl,
                     videoUrl,
                     isReply: isFlip,
@@ -4463,11 +4856,40 @@
 
         function scheduleNextBatch() {
             if (batchRenderScheduled || isRenderingBatch) return;
+            const renderToken = messageRenderToken;
             batchRenderScheduled = true;
             window.requestAnimationFrame(() => {
                 batchRenderScheduled = false;
-                renderNextBatch();
+                if (renderToken !== messageRenderToken) return;
+                renderNextBatch(renderToken);
             });
+        }
+
+        async function playLiveOrArchiveFromMessage(liveId, nickname, timeStr, title) {
+            if (!liveId) return;
+
+            try {
+                const res = await fetchPocketAPI('/live/api/v1/live/getLiveList', JSON.stringify({
+                    debug: true,
+                    next: 0,
+                    groupId: 0,
+                    record: false
+                }));
+                const liveList = Array.isArray(res?.content?.liveList) ? res.content.liveList : [];
+                const matchedLive = liveList.find(item => String(item.liveId) === String(liveId));
+
+                if (matchedLive && typeof playLiveStream === 'function') {
+                    switchView('media', 'live');
+                    setTimeout(() => {
+                        playLiveStream(matchedLive, 'live');
+                    }, 300);
+                    return;
+                }
+            } catch (error) {
+                console.warn('[消息检索] 判断直播状态失败，回退到回放:', error);
+            }
+
+            playArchiveFromMessage(liveId, nickname, timeStr, title);
         }
 
         function createMessageListRow(post) {
@@ -4633,7 +5055,7 @@
                 `;
                 card.onclick = (e) => {
                     e.stopPropagation();
-                    playArchiveFromMessage(post.liveId, displayName, post.timeStr, displayTitle);
+                    playLiveOrArchiveFromMessage(post.liveId, displayName, post.timeStr, displayTitle);
                 };
 
                 content.appendChild(card);
@@ -4660,7 +5082,8 @@
         }
 
 
-        function renderNextBatch() {
+        function renderNextBatch(renderToken = messageRenderToken) {
+            if (renderToken !== messageRenderToken) return;
             if (isRenderingBatch) return;
             if (renderedCount >= currentFilteredPosts.length) {
                 loadingMoreDiv.style.display = 'none';
@@ -4674,6 +5097,11 @@
             nextBatch.forEach(post => {
                 fragment.appendChild(createMessageListRow(post));
             });
+            if (renderToken !== messageRenderToken) {
+                isRenderingBatch = false;
+                loadingMoreDiv.style.display = 'none';
+                return;
+            }
             outputList.appendChild(fragment);
             renderedCount += nextBatch.length;
             isRenderingBatch = false;
@@ -4943,9 +5371,9 @@
                 }
 
                 let matchType = true;
-                if (filterType === 'image') matchType = post.hasImg;
-                else if (filterType === 'video') matchType = post.hasVideo;
-                else if (filterType === 'audio') matchType = post.hasAudio;
+                if (filterType === 'image') matchType = !post.isReply && post.hasImg;
+                else if (filterType === 'video') matchType = !post.isReply && post.hasVideo;
+                else if (filterType === 'audio') matchType = !post.isReply && post.hasAudio;
                 else if (filterType === 'reply') matchType = post.isReply;
                 else if (filterType === 'live-record') matchType = (post.liveId || post.isLiveText);
                 else if (filterType === 'text') matchType = !post.hasImg && !post.hasVideo && !post.hasAudio && !post.liveId && !post.isLiveText && !post.isReply;
@@ -4969,9 +5397,7 @@
             });
 
             outputList.innerHTML = '';
-            renderedCount = 0;
-            isRenderingBatch = false;
-            batchRenderScheduled = false;
+            resetMessageRenderState();
             if (isMessageViewVisible()) {
                 scheduleNextBatch();
             }
@@ -5087,7 +5513,7 @@
 
                     card.onclick = (e) => {
                         e.stopPropagation();
-                        playArchiveFromMessage(post.liveId, displayName, post.timeStr, displayTitle);
+                        playLiveOrArchiveFromMessage(post.liveId, displayName, post.timeStr, displayTitle);
                     };
 
                     content.appendChild(card);
@@ -5210,6 +5636,11 @@
             return token ? `token:${getSimpleCacheHash(token)}` : '';
         }
 
+        function getCurrentFlipTokenCacheKey() {
+            const token = getCurrentAppToken();
+            return token ? `token:${getSimpleCacheHash(token)}` : '';
+        }
+
         function getFlipHistoryCacheApi() {
             return window.desktop && window.desktop.appCache ? window.desktop.appCache : null;
         }
@@ -5239,21 +5670,51 @@
             if (!userKey) return [];
             const cache = readFlipHistoryCache();
             const entry = cache.accounts && cache.accounts[userKey];
-            return entry && Array.isArray(entry.items) ? entry.items : [];
+            if (entry && Array.isArray(entry.items)) {
+                return entry.items;
+            }
+
+            const aliases = cache.aliases && typeof cache.aliases === 'object' && !Array.isArray(cache.aliases)
+                ? cache.aliases
+                : {};
+            const aliasedKey = aliases[userKey];
+            const aliasedEntry = aliasedKey && cache.accounts && cache.accounts[aliasedKey];
+            if (aliasedEntry && Array.isArray(aliasedEntry.items)) {
+                return aliasedEntry.items;
+            }
+
+            const accountKeys = cache.accounts && typeof cache.accounts === 'object' && !Array.isArray(cache.accounts)
+                ? Object.keys(cache.accounts)
+                : [];
+            if (userKey.startsWith('token:') && accountKeys.length === 1) {
+                const onlyEntry = cache.accounts[accountKeys[0]];
+                return onlyEntry && Array.isArray(onlyEntry.items) ? onlyEntry.items : [];
+            }
+
+            return [];
         }
 
         function saveFlipDataForCurrentAccount(items) {
             const userKey = getCurrentFlipCacheUserKey();
             if (!userKey || !Array.isArray(items)) return;
+            const tokenKey = getCurrentFlipTokenCacheKey();
 
             const cache = readFlipHistoryCache();
             const accounts = cache.accounts && typeof cache.accounts === 'object' && !Array.isArray(cache.accounts)
                 ? cache.accounts
                 : {};
+            const aliases = cache.aliases && typeof cache.aliases === 'object' && !Array.isArray(cache.aliases)
+                ? cache.aliases
+                : {};
+
             accounts[userKey] = {
                 updatedAt: Date.now(),
                 items
             };
+            if (tokenKey && tokenKey !== userKey && userKey.startsWith('user:')) {
+                aliases[tokenKey] = userKey;
+                delete accounts[tokenKey];
+            }
 
             const orderedKeys = Object.keys(accounts)
                 .sort((a, b) => Number(accounts[b]?.updatedAt || 0) - Number(accounts[a]?.updatedAt || 0));
@@ -5262,7 +5723,8 @@
             writeFlipHistoryCache({
                 version: 1,
                 updatedAt: Date.now(),
-                accounts
+                accounts,
+                aliases
             });
         }
 

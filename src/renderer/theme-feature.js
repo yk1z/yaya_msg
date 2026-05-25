@@ -56,8 +56,8 @@
         }
 
         function updateThemeBtn(theme) {
-            const compactLabel = theme === 'dark' ? '🌙 模式' : '🌞 模式';
-            const settingsLabel = theme === 'dark' ? '切换到浅色模式' : '切换到深色模式';
+            const compactLabel = theme === 'dark' ? '🌙 深色模式' : '🌞 浅色模式';
+            const settingsLabel = theme === 'dark' ? '深色模式' : '浅色模式';
             document.querySelectorAll('[data-theme-toggle-label]').forEach(buttonEl => {
                 const variant = buttonEl.getAttribute('data-theme-toggle-label');
                 buttonEl.textContent = variant === 'settings' ? settingsLabel : compactLabel;

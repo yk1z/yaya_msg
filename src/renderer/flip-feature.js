@@ -220,8 +220,14 @@
             } else if (item.status === 2) {
                 statusHtml = `<span style="color:#52c41a; border-color:#52c41a; ${tagStyle}">已翻牌</span>`;
                 actionBtnHtml = `<span class="btn-text-gray" onclick="executeDeleteFlip('${item.questionId}', false)">删除</span>`;
-            } else {
+            } else if (item.status === 3) {
                 statusHtml = `<span style="color:#ff4d4f; border-color:#ff4d4f; ${tagStyle}">已退款</span>`;
+                actionBtnHtml = `<span class="btn-text-gray" onclick="executeDeleteFlip('${item.questionId}', false)">删除</span>`;
+            } else if (item.status === 5) {
+                statusHtml = `<span style="color:#1890ff; border-color:#1890ff; ${tagStyle}">翻牌中</span>`;
+                actionBtnHtml = `<span class="btn-text-danger" onclick="executeDeleteFlip('${item.questionId}', true)">撤回</span>`;
+            } else {
+                statusHtml = `<span style="color:#8c8c8c; border-color:#8c8c8c; ${tagStyle}">状态${item.status}</span>`;
                 actionBtnHtml = `<span class="btn-text-gray" onclick="executeDeleteFlip('${item.questionId}', false)">删除</span>`;
             }
 
@@ -912,16 +918,23 @@
                 if (typeof setIsFetchingFlips === 'function') {
                     setIsFetchingFlips(false);
                 }
-                renderLocalPage(background && typeof getCurrentFlipPage === 'function' ? getCurrentFlipPage() : 0);
+                renderLocalPage(
+                    background && typeof getCurrentFlipPage === 'function' ? getCurrentFlipPage() : 0,
+                    { preserveScroll: background }
+                );
             }
         }
 
-        function renderLocalPage(pageIndex) {
+        function renderLocalPage(pageIndex, options = {}) {
             const container = document.getElementById('flip-list-container');
             const statusText = document.getElementById('flip-status-text');
             const pagination = document.querySelector('#view-flip .pagination-container');
 
             if (!container || !statusText) return;
+
+            const viewFlip = document.getElementById('view-flip');
+            const shouldPreserveScroll = !!options.preserveScroll;
+            const previousScrollTop = viewFlip ? viewFlip.scrollTop : 0;
 
             const currentFlipSort = typeof getCurrentFlipSort === 'function' ? getCurrentFlipSort() : null;
             const currentSearchKeyword = typeof getCurrentSearchKeyword === 'function' ? getCurrentSearchKeyword() : '';
@@ -1021,8 +1034,14 @@
                 startFlipSevenDayCountdownTimer();
             }
 
-            const viewFlip = document.getElementById('view-flip');
-            if (viewFlip) viewFlip.scrollTop = 0;
+            if (viewFlip) {
+                if (shouldPreserveScroll) {
+                    const maxScrollTop = Math.max(0, viewFlip.scrollHeight - viewFlip.clientHeight);
+                    viewFlip.scrollTop = Math.min(previousScrollTop, maxScrollTop);
+                } else {
+                    viewFlip.scrollTop = 0;
+                }
+            }
 
             if (pagination) {
                 pagination.style.display = 'flex';

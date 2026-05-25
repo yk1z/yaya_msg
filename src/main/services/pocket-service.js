@@ -83,6 +83,23 @@ function createCheckinHeaders(token, pa) {
     return headers;
 }
 
+function createWeiboHeaders(token, pa) {
+    const headers = createModernHeaders(token, pa);
+    headers.appInfo = JSON.stringify({
+        vendor: 'apple',
+        deviceId: '7B93DFD0-472F-4736-A628-E85FAE086487',
+        appVersion: '7.1.38',
+        appBuild: '26042402',
+        osVersion: '26.5.0',
+        osType: 'ios',
+        deviceName: 'iPhone17,1',
+        os: 'ios'
+    });
+    headers['User-Agent'] = 'PocketFans201807/7.1.38 (iPhone; iOS 26.5; Scale/3.00)';
+    headers['P-Sign-Type'] = 'V0';
+    return headers;
+}
+
 function createPfileHeaders(token, pa) {
     const headers = createModernHeaders(token, pa);
     delete headers['Content-Type'];
@@ -145,7 +162,58 @@ function missingToken() {
 }
 
 function apiError(response, fallback = 'API 错误') {
-    return { success: false, msg: response && response.data ? response.data.message : fallback };
+    const data = response && response.data;
+    const message = data && (
+        data.message
+        || data.msg
+        || data.error
+        || data.errMsg
+        || data.errmsg
+    );
+    const status = data && (data.status || data.code || data.errCode);
+    return {
+        success: false,
+        msg: message || (status ? `${fallback} (${status})` : fallback),
+        data
+    };
+}
+
+async function postPocketContent(url, payload, options = {}) {
+    const {
+        token,
+        pa,
+        headersFactory = createHeaders,
+        errorMessage = 'API 错误',
+        largeNumbers = false
+    } = options;
+
+    try {
+        const config = { headers: headersFactory(token, pa) };
+        if (largeNumbers) {
+            config.transformResponse = [transformLargeNumberResponse];
+        }
+
+        const response = await axios.post(url, payload || {}, config);
+        if (response.status === 200 && response.data && (response.data.status === 200 || response.data.success)) {
+            return { success: true, content: response.data.content, data: response.data };
+        }
+
+        return apiError(response, errorMessage);
+    } catch (error) {
+        const data = error && error.response && error.response.data;
+        const message = data && (
+            data.message
+            || data.msg
+            || data.error
+            || data.errMsg
+            || data.errmsg
+        );
+        return {
+            success: false,
+            msg: message || (error && error.message) || errorMessage,
+            data
+        };
+    }
 }
 
 async function resolveServerId(channelId, headers, warningMessage) {
@@ -1464,6 +1532,203 @@ async function unfollowMember({ token, pa, memberId }) {
     }
 }
 
+async function fetchLiveList({ token, pa, groupId = 0, next = 0, record = false, debug = false }) {
+    return postPocketContent(
+        'https://pocketapi.48.cn/live/api/v1/live/getLiveList',
+        {
+            groupId: Number(groupId) || 0,
+            debug: !!debug,
+            next: Number(next) || 0,
+            record: !!record
+        },
+        { token, pa, errorMessage: '获取直播列表失败' }
+    );
+}
+
+async function fetchLiveOne({ token, pa, liveId }) {
+    return postPocketContent(
+        'https://pocketapi.48.cn/live/api/v1/live/getLiveOne',
+        { liveId: String(liveId || '') },
+        { token, pa, errorMessage: '获取直播详情失败' }
+    );
+}
+
+async function fetchLiveResult({ token, pa, liveId }) {
+    return postPocketContent(
+        'https://pocketapi.48.cn/live/api/v1/live/result',
+        { liveId: String(liveId || '') },
+        { token, pa, errorMessage: '获取直播结果失败' }
+    );
+}
+
+async function fetchTripList({ token, pa, groupId = 0, memberId = '', userId = '', lastTime = '0', isMore = false }) {
+    const payload = {
+        lastTime: String(lastTime || '0'),
+        groupId: Number(groupId) || 0,
+        isMore: !!isMore
+    };
+    if (memberId !== undefined && memberId !== null && memberId !== '') {
+        payload.memberId = String(memberId);
+    }
+    if (userId !== undefined && userId !== null && userId !== '') {
+        payload.userId = String(userId);
+    }
+
+    return postPocketContent(
+        'https://pocketapi.48.cn/trip/api/trip/v1/list',
+        payload,
+        { token, pa, errorMessage: '获取行程失败' }
+    );
+}
+
+async function fetchAlbumList({ token, pa, ctime = 0, groupId = 0, limit = 20 }) {
+    return postPocketContent(
+        'https://pocketapi.48.cn/media/api/media/v1/album/list',
+        {
+            ctime: Number(ctime) || 0,
+            groupId: Number(groupId) || 0,
+            limit: Number(limit) || 20
+        },
+        { token, pa, errorMessage: '获取专辑列表失败' }
+    );
+}
+
+async function fetchMeleeWeekRank({ token, pa, rankId, nextId }) {
+    const payload = { rankId: Number(rankId) || 0 };
+    if (nextId !== undefined && nextId !== null && nextId !== '') {
+        payload.nextId = nextId;
+    }
+
+    return postPocketContent(
+        'https://pocketapi.48.cn/gift/api/v1/melee/rank/getMeleeWeekRank',
+        payload,
+        { token, pa, errorMessage: '获取乱斗周榜失败', largeNumbers: true }
+    );
+}
+
+async function fetchMeleeRankPage({ token, pa, rankId, nextId }) {
+    const payload = { rankid: Number(rankId) || 0 };
+    if (nextId !== undefined && nextId !== null && nextId !== '') {
+        payload.nextId = nextId;
+    }
+
+    return postPocketContent(
+        'https://pocketapi.48.cn/gift/api/v1/melee/rank/getMeleeRankPage',
+        payload,
+        { token, pa, errorMessage: '获取乱斗榜单失败', largeNumbers: true }
+    );
+}
+
+async function fetchMeleeYearRankPage({ token, pa, rankId, nextId }) {
+    const payload = {};
+    if (rankId !== undefined && rankId !== null && rankId !== '') {
+        payload.rankid = Number(rankId) || 0;
+    }
+    if (nextId !== undefined && nextId !== null && nextId !== '') {
+        payload.nextId = nextId;
+    }
+
+    return postPocketContent(
+        'https://pocketapi.48.cn/gift/api/v1/melee/rank/getMeleeYearRankPage',
+        payload,
+        { token, pa, errorMessage: '获取乱斗年榜失败', largeNumbers: true }
+    );
+}
+
+async function fetchPersonMeleeRankPage({ token, pa, resId }) {
+    return postPocketContent(
+        'https://pocketapi.48.cn/gift/api/v1/melee/rank/getPersonMeleeRankPage',
+        { resId: Number(resId) || 0 },
+        { token, pa, errorMessage: '获取成员鸡腿贡献榜失败', largeNumbers: true }
+    );
+}
+
+async function fetchPostImageList({ token, pa, userId, nextTime = 0 }) {
+    return postPocketContent(
+        'https://pocketapi.48.cn/posts/api/v1/posts/img/list',
+        {
+            userId: String(userId || ''),
+            nextTime: Number(nextTime) || 0
+        },
+        { token, pa, errorMessage: '获取成员图片动态失败' }
+    );
+}
+
+async function fetchChatroomHomeownerMessages({ token, pa, roomId, ownerId, nextTime = 0, needTop1Msg = false }) {
+    return postPocketContent(
+        'https://pocketapi.48.cn/im/api/v1/chatroom/msg/list/homeowner',
+        {
+            needTop1Msg: String(!!needTop1Msg),
+            roomId: String(roomId || ''),
+            ownerId: String(ownerId || ''),
+            nextTime: String(nextTime || 0)
+        },
+        { token, pa, errorMessage: '获取成员房间消息失败' }
+    );
+}
+
+async function fetchMemberWeiboMessages({ token, pa, ownerId, nextTime = 0, roomId = '' }) {
+    return postPocketContent(
+        'https://pocketapi.48.cn/im/api/v1/chatroom/msg/list/aim/type',
+        {
+            extMsgType: 'WEI_BO',
+            roomId: String(roomId || ''),
+            ownerId: String(ownerId || ''),
+            nextTime: Number(nextTime) || 0
+        },
+        { token, pa, headersFactory: createWeiboHeaders, errorMessage: '获取成员微博失败' }
+    );
+}
+
+async function fetchMemberDynamicMessages({ token, pa, ownerId, nextTime = 0, roomId = '' }) {
+    return postPocketContent(
+        'https://pocketapi.48.cn/im/api/v1/chatroom/msg/list/aim/type',
+        {
+            extMsgType: 'POST_INFO',
+            roomId: String(roomId || ''),
+            ownerId: String(ownerId || ''),
+            nextTime: Number(nextTime) || 0
+        },
+        { token, pa, headersFactory: createWeiboHeaders, errorMessage: '获取成员动态失败' }
+    );
+}
+
+async function fetchConversationPage({ token, pa, nextTime = 0, limit = 20 }) {
+    if (!token) {
+        return missingToken();
+    }
+
+    return postPocketContent(
+        'https://pocketapi.48.cn/im/api/v1/conversation/page',
+        {
+            nextTime: Number(nextTime) || 0,
+            limit: Number(limit) || 20
+        },
+        { token, pa, headersFactory: createModernHeaders, errorMessage: '获取会话列表失败' }
+    );
+}
+
+async function fetchUserHomeInfo({ token, pa, userId }) {
+    const payload = {};
+    if (userId !== undefined && userId !== null && userId !== '') {
+        payload.userId = String(userId);
+    }
+
+    return postPocketContent(
+        'https://pocketapi.48.cn/user/api/v1/user/info/home',
+        payload,
+        { token, pa, headersFactory: createModernHeaders, errorMessage: '获取用户主页信息失败' }
+    );
+}
+
+async function fetchFlipCustomIndexV1({ token, pa, memberId }) {
+    return postPocketContent(
+        'https://pocketapi.48.cn/idolanswer/api/idolanswer/v1/custom/index',
+        { memberId: String(memberId || '') },
+        { token, pa, errorMessage: '获取翻牌配置失败' }
+    );
+}
+
 module.exports = {
     loginSendSms,
     loginByCode,
@@ -1506,5 +1771,21 @@ module.exports = {
     fetchFriendsIds,
     fetchLastMessages,
     followMember,
-    unfollowMember
+    unfollowMember,
+    fetchLiveList,
+    fetchLiveOne,
+    fetchLiveResult,
+    fetchTripList,
+    fetchAlbumList,
+    fetchMeleeWeekRank,
+    fetchMeleeRankPage,
+    fetchMeleeYearRankPage,
+    fetchPersonMeleeRankPage,
+    fetchPostImageList,
+    fetchChatroomHomeownerMessages,
+    fetchMemberWeiboMessages,
+    fetchMemberDynamicMessages,
+    fetchConversationPage,
+    fetchUserHomeInfo,
+    fetchFlipCustomIndexV1
 };

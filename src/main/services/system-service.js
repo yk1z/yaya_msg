@@ -3,9 +3,13 @@ const path = require('path');
 const crypto = require('crypto');
 const { spawn } = require('child_process');
 const { execFileSync } = require('child_process');
+const { pathToFileURL } = require('url');
 const axios = require('axios');
-const { dialog, session, shell } = require('electron');
+const { dialog, nativeImage, session, shell } = require('electron');
 const { ensureStoragePaths } = require('../../common/storage-paths');
+
+const IMAGE_THUMB_CACHE_LIMIT_BYTES = 500 * 1024 * 1024;
+const imageThumbInflight = new Map();
 
 function escapeScriptJson(jsonText) {
     return jsonText.replace(/<\/script/gi, '<\\/script');
@@ -109,6 +113,183 @@ function normalizeIncomingEntries(entries) {
         }));
 }
 
+function safeFileName(value, fallback = '未命名成员') {
+    return String(value || fallback).replace(/[\\/:*?"<>|]/g, '_').trim() || fallback;
+}
+
+function normalizeImageContentType(value) {
+    const contentType = String(value || '').split(';')[0].trim().toLowerCase();
+    return /^image\/[a-z0-9.+-]+$/.test(contentType) ? contentType : 'image/jpeg';
+}
+
+async function fetchRemoteImageDataUrl({ url } = {}) {
+    const remoteUrl = String(url || '').trim();
+    if (!/^https?:\/\//i.test(remoteUrl)) {
+        return { success: false, msg: '图片地址无效' };
+    }
+
+    try {
+        const response = await axios.get(remoteUrl, {
+            responseType: 'arraybuffer',
+            timeout: 20000,
+            maxContentLength: 30 * 1024 * 1024,
+            headers: {
+                Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+                Referer: 'https://h5.48.cn/',
+                'User-Agent': 'Mozilla/5.0'
+            }
+        });
+
+        const contentType = normalizeImageContentType(response.headers?.['content-type']);
+        const body = Buffer.from(response.data || []);
+        if (!body.length) {
+            return { success: false, msg: '图片内容为空' };
+        }
+
+        return {
+            success: true,
+            dataUrl: `data:${contentType};base64,${body.toString('base64')}`
+        };
+    } catch (error) {
+        return {
+            success: false,
+            msg: error.message || '图片加载失败'
+        };
+    }
+}
+
+function normalizeThumbnailWidth(value) {
+    const width = Number(value) || 520;
+    return Math.max(160, Math.min(900, Math.round(width)));
+}
+
+function getImageThumbnailCachePath(url, width) {
+    const { internalDataDir } = ensureStoragePaths();
+    const cacheDir = path.join(internalDataDir, 'image-thumb-cache');
+    const key = crypto.createHash('sha1').update(`${width}:${url}`).digest('hex');
+    return {
+        cacheDir,
+        filePath: path.join(cacheDir, `${key}.jpg`)
+    };
+}
+
+function readCachedThumbnail(filePath) {
+    try {
+        if (fs.existsSync(filePath) && fs.statSync(filePath).size > 128) {
+            return {
+                success: true,
+                cached: true,
+                url: pathToFileURL(filePath).href
+            };
+        }
+    } catch (error) {
+    }
+
+    return null;
+}
+
+function cleanupImageThumbnailCache(cacheDir) {
+    try {
+        if (!fs.existsSync(cacheDir)) return;
+
+        const entries = fs.readdirSync(cacheDir)
+            .filter(name => /\.jpg$/i.test(name))
+            .map((name) => {
+                const filePath = path.join(cacheDir, name);
+                const stat = fs.statSync(filePath);
+                return { filePath, size: stat.size, mtimeMs: stat.mtimeMs };
+            });
+
+        let totalSize = entries.reduce((sum, entry) => sum + entry.size, 0);
+        if (totalSize <= IMAGE_THUMB_CACHE_LIMIT_BYTES) return;
+
+        entries.sort((left, right) => left.mtimeMs - right.mtimeMs);
+        for (const entry of entries) {
+            if (totalSize <= IMAGE_THUMB_CACHE_LIMIT_BYTES) break;
+            try {
+                fs.unlinkSync(entry.filePath);
+                totalSize -= entry.size;
+            } catch (error) {
+            }
+        }
+    } catch (error) {
+    }
+}
+
+async function createCachedImageThumbnail({ url, width } = {}) {
+    const remoteUrl = String(url || '').trim();
+    const targetWidth = normalizeThumbnailWidth(width);
+
+    if (!/^https?:\/\//i.test(remoteUrl)) {
+        return { success: false, msg: '图片地址无效' };
+    }
+
+    const { cacheDir, filePath } = getImageThumbnailCachePath(remoteUrl, targetWidth);
+    const cached = readCachedThumbnail(filePath);
+    if (cached) return cached;
+
+    const cacheKey = `${targetWidth}:${remoteUrl}`;
+    if (imageThumbInflight.has(cacheKey)) {
+        return imageThumbInflight.get(cacheKey);
+    }
+
+    const promise = (async () => {
+        fs.mkdirSync(cacheDir, { recursive: true });
+
+        const response = await axios.get(remoteUrl, {
+            responseType: 'arraybuffer',
+            timeout: 20000,
+            maxContentLength: 30 * 1024 * 1024,
+            headers: {
+                Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+                Referer: 'https://h5.48.cn/',
+                'User-Agent': 'Mozilla/5.0'
+            }
+        });
+
+        const image = nativeImage.createFromBuffer(Buffer.from(response.data || []));
+        if (image.isEmpty()) {
+            return { success: false, msg: '图片解码失败' };
+        }
+
+        const size = image.getSize();
+        const resizeWidth = Math.min(targetWidth, size.width || targetWidth);
+        const resized = image.resize({ width: resizeWidth, quality: 'good' });
+        const bytes = resized.toJPEG(78);
+        if (!bytes || bytes.length <= 128) {
+            return { success: false, msg: '缩略图生成失败' };
+        }
+
+        const tempPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+        fs.writeFileSync(tempPath, bytes);
+        try {
+            fs.renameSync(tempPath, filePath);
+        } catch (error) {
+            if (fs.existsSync(filePath)) {
+                fs.unlinkSync(tempPath);
+            } else {
+                throw error;
+            }
+        }
+
+        cleanupImageThumbnailCache(cacheDir);
+
+        return {
+            success: true,
+            cached: false,
+            url: pathToFileURL(filePath).href
+        };
+    })().catch((error) => ({
+        success: false,
+        msg: error.message || '缩略图缓存失败'
+    })).finally(() => {
+        imageThumbInflight.delete(cacheKey);
+    });
+
+    imageThumbInflight.set(cacheKey, promise);
+    return promise;
+}
+
 function mergeEntries(existingEntries, incomingEntries) {
     const mergedMap = new Map();
 
@@ -135,17 +316,19 @@ function mergeEntries(existingEntries, incomingEntries) {
     return { mergedEntries, addedCount };
 }
 
-function saveExportHtml({ memberName, title, styleValue, entries }) {
+function saveExportHtml({ memberName, fileName, title, styleValue, entries }) {
     try {
         const { htmlDir: baseDir } = ensureStoragePaths();
-        const safeMemberName = String(memberName || '').replace(/[\\/:*?"<>|]/g, '_');
+        const safeMemberName = safeFileName(memberName, '未命名成员');
         const memberDir = path.join(baseDir, safeMemberName);
 
         if (!fs.existsSync(memberDir)) {
             fs.mkdirSync(memberDir, { recursive: true });
         }
 
-        const filePath = path.join(memberDir, 'yaya_export.html');
+        const safeHtmlFileName = safeFileName(fileName || 'yaya_export.html', 'yaya_export.html')
+            .replace(/\.html$/i, '') + '.html';
+        const filePath = path.join(memberDir, safeHtmlFileName);
         const existingEntries = loadExistingEntries(filePath);
         const incomingEntries = normalizeIncomingEntries(entries);
         const { mergedEntries, addedCount } = mergeEntries(existingEntries, incomingEntries);
@@ -468,6 +651,8 @@ module.exports = {
     saveExportHtml,
     openDirectoryDialog,
     openMessageDataFolder,
+    fetchRemoteImageDataUrl,
+    createCachedImageThumbnail,
     checkIpInfo,
     checkIpDomestic,
     checkIpForeign,

@@ -5,14 +5,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self' file: https: data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net https://unpkg.com https://cdn.tailwindcss.com https://esm.sh; style-src 'self' 'unsafe-inline' https:; img-src 'self' file: https: data: blob:; media-src 'self' file: https: http: data: blob:; connect-src 'self' file: https: http: ws: wss: data: blob:; font-src 'self' https: data:;">
-    <title>牙牙消息 v2.4</title>
+        content="default-src 'self' file: https: data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net https://unpkg.com https://cdn.tailwindcss.com https://esm.sh https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https:; img-src 'self' file: https: data: blob:; media-src 'self' file: https: http: data: blob:; connect-src 'self' file: https: http: ws: wss: data: blob:; font-src 'self' https: data:;">
+    <title>牙牙消息 v2.5</title>
     <link rel="icon" href="./icon.png" type="image/x-icon">
 
     <link rel="stylesheet" href="style.css">
 
     <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.4.0/dist/hls.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.6.16/dist/hls.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/artplayer/dist/artplayer.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/artplayer-plugin-danmuku/dist/artplayer-plugin-danmuku.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dplayer/dist/DPlayer.min.js"></script>
@@ -49,7 +49,7 @@
                 </svg>
             </div>
             <img src="./icon.png" class="title-logo">
-            <span>牙牙消息 v2.4</span>
+            <span>牙牙消息 v2.5</span>
         </div>
         <div id="topbar-page-title" class="title-bar-center-title" aria-live="polite"></div>
         <div class="window-controls">
@@ -367,7 +367,7 @@
 
                         <div class="home-panel home-panel-pocket">
                             <div class="home-panel-title">口袋</div>
-                            <div class="home-panel-subtitle">关注的口袋房间、私信列表、房间相册、成员参与的公演记录</div>
+                            <div class="home-panel-subtitle">关注的口袋房间、私信列表、房间相册、成员动态</div>
                             <div class="home-panel-actions home-card-grid">
                                 <button class="home-card home-card-primary" onclick="switchView('followed-rooms')">
                                     <span class="home-card-title">房间</span>
@@ -381,9 +381,40 @@
                                     <span class="home-card-title">相册</span>
                                     <span class="home-card-desc">按房间查看图片</span>
                                 </button>
+                                <button class="home-card" onclick="switchView('member-dynamic')">
+                                    <span class="home-card-title">动态</span>
+                                    <span class="home-card-desc">查看成员口袋动态</span>
+                                </button>
+                                <button class="home-card" onclick="switchView('member-weibo')">
+                                    <span class="home-card-title">微博</span>
+                                    <span class="home-card-desc">查看成员微博动态</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="home-panel home-panel-data">
+                            <div class="home-panel-title">数据</div>
+                            <div class="home-panel-subtitle">档案、行程、公演记录、鸡腿榜、数据库</div>
+                            <div class="home-panel-actions home-card-grid">
+                                <button class="home-card" onclick="switchView('profile')">
+                                    <span class="home-card-title">档案</span>
+                                    <span class="home-card-desc">成员资料与细节</span>
+                                </button>
+                                <button class="home-card" onclick="switchView('trip')">
+                                    <span class="home-card-title">行程</span>
+                                    <span class="home-card-desc">查看公演与活动安排</span>
+                                </button>
                                 <button class="home-card" onclick="switchView('openlive')">
-                                    <span class="home-card-title">公演记录</span>
+                                    <span class="home-card-title">公演</span>
                                     <span class="home-card-desc">查看公演与活动记录</span>
+                                </button>
+                                <button class="home-card" onclick="switchView('melee-rank')">
+                                    <span class="home-card-title">鸡腿榜</span>
+                                    <span class="home-card-desc">查询乱斗周榜</span>
+                                </button>
+                                <button class="home-card" onclick="switchView('database')">
+                                    <span class="home-card-title">数据库</span>
+                                    <span class="home-card-desc">查看附属数据</span>
                                 </button>
                             </div>
                         </div>
@@ -422,21 +453,6 @@
                                 <button class="home-card" onclick="switchView('audio-programs')">
                                     <span class="home-card-title">电台</span>
                                     <span class="home-card-desc">播放音频节目</span>
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="home-panel home-panel-data">
-                            <div class="home-panel-title">数据</div>
-                            <div class="home-panel-subtitle">成员档案、数据库</div>
-                            <div class="home-panel-actions home-card-grid">
-                                <button class="home-card" onclick="switchView('profile')">
-                                    <span class="home-card-title">成员档案</span>
-                                    <span class="home-card-desc">成员资料与细节</span>
-                                </button>
-                                <button class="home-card" onclick="switchView('database')">
-                                    <span class="home-card-title">数据库</span>
-                                    <span class="home-card-desc">查看附属数据</span>
                                 </button>
                             </div>
                         </div>
@@ -652,7 +668,7 @@
 
                     <div style="flex: 1; min-width: 200px;">
                         <input type="text" id="live-search-input" class="input-control" style="width: 100%;"
-                            placeholder="成员名 / 房间标题" oninput="handleLiveFilter()">
+                            placeholder="成员名 / 拼音 / 房间标题" oninput="handleLiveFilter()">
                     </div>
 
                     <button class="btn btn-secondary" onclick="fetchLiveList()"
@@ -1212,6 +1228,40 @@
                 </div>
             </div>
 
+            <div id="view-melee-rank"
+                style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
+                <div class="list-container melee-rank-page">
+                    <div class="page-header" style="margin-bottom:0;">
+                        <div>
+                            <h2 class="page-title">鸡腿榜</h2>
+                        </div>
+                    </div>
+                    <div class="melee-rank-panel">
+                        <div class="melee-rank-toolbar">
+                            <div class="search-wrapper melee-rank-search-wrap">
+                                <label
+                                    style="font-size: 12px; color: var(--text-sub); display:block; margin-bottom:5px;">搜索成员</label>
+                                <input type="hidden" id="melee-rank-member-id">
+                                <input type="text" id="melee-rank-member-input" class="input-control"
+                                    placeholder="请输入成员名" oninput="handleMeleeRankMemberInput(this.value)"
+                                    onfocus="handleMeleeRankMemberInput(this.value)">
+                                <div id="melee-rank-suggestions" class="suggestion-box melee-rank-suggestions"></div>
+                            </div>
+                            <div class="melee-rank-actions">
+                                <button class="btn btn-primary" id="btn-query-melee-rank"
+                                    onclick="queryMeleeRankCurrentMode()">查询</button>
+                                <button class="btn btn-secondary melee-rank-mode-btn" id="btn-query-person-melee-rank"
+                                    onclick="toggleMeleeRankMode()">总榜</button>
+                            </div>
+                        </div>
+                        <div class="melee-rank-meta" id="melee-rank-meta">读取历史周榜中...</div>
+                    </div>
+                    <div class="melee-rank-results-shell" id="melee-rank-result">
+                        <div class="empty-state">请选择成员后查询</div>
+                    </div>
+                </div>
+            </div>
+
             <div id="view-official-site-music" class="main-content"
                 style="height: 100%; display: none; flex-direction: column; padding: 20px 0 0 0; box-sizing: border-box; background: transparent;">
                 <div class="list-container official-site-music-view-shell">
@@ -1353,7 +1403,7 @@
                                     <span id="official-site-music-volume-icon" title="静音/恢复"
                                         onclick="toggleOfficialSiteMusicMute()"></span>
                                     <input type="range" id="official-site-music-volume-bar" min="0" max="1" step="0.01"
-                                        value="1" class="premium-slider" oninput="setOfficialSiteMusicVolume(this.value)">
+                                        value="0.43" class="premium-slider" oninput="setOfficialSiteMusicVolume(this.value)">
                                 </div>
                             </div>
                         </div>
@@ -2316,6 +2366,90 @@
                         </div>
                     </div>
 
+                    <div id="view-member-weibo"
+                        style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
+                        <div class="list-container">
+                            <div class="page-header">
+                                <h2 class="page-title">成员微博</h2>
+                                <span id="member-weibo-status" style="display: none;"></span>
+                            </div>
+
+                            <div class="Box-row" style="z-index: 100; position: relative;">
+                                <div class="search-wrapper">
+                                    <label
+                                        style="font-size: 12px; color: var(--text-sub); display:block; margin-bottom:5px;">搜索成员</label>
+                                    <input type="hidden" id="member-weibo-member-id">
+                                    <input type="text" id="member-weibo-member-input" class="input-control"
+                                        placeholder="请输入成员名" oninput="handleMemberWeiboSearch(this.value)"
+                                        onfocus="handleMemberWeiboSearch(this.value)">
+                                    <div id="member-weibo-search-results" class="suggestion-box"></div>
+                                </div>
+                                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                                    <button id="btn-member-weibo-query" class="btn btn-primary" style="flex: 1;"
+                                        onclick="fetchMemberWeibo(false)">查询最新</button>
+                                    <button id="btn-member-weibo-all" class="btn btn-secondary" style="flex: 1;"
+                                        onclick="fetchAllMemberWeibo()">加载全部</button>
+                                </div>
+                            </div>
+
+                            <div id="member-weibo-result-container" style="margin-top: 20px;"></div>
+                        </div>
+                    </div>
+
+                    <div id="view-member-dynamic"
+                        style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
+                        <div class="list-container">
+                            <div class="page-header">
+                                <h2 class="page-title">成员动态</h2>
+                            </div>
+
+                            <div class="Box-row" style="z-index: 100; position: relative;">
+                                <div class="search-wrapper">
+                                    <label
+                                        style="font-size: 12px; color: var(--text-sub); display:block; margin-bottom:5px;">搜索成员</label>
+                                    <input type="hidden" id="member-dynamic-member-id">
+                                    <input type="text" id="member-dynamic-member-input" class="input-control"
+                                        placeholder="请输入成员名" oninput="handleMemberDynamicSearch(this.value)"
+                                        onfocus="handleMemberDynamicSearch(this.value)">
+                                    <div id="member-dynamic-search-results" class="suggestion-box"></div>
+                                </div>
+                                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                                    <button id="btn-member-dynamic-query" class="btn btn-primary" style="flex: 1;"
+                                        onclick="fetchMemberDynamic()">查询</button>
+                                </div>
+                            </div>
+
+                            <div id="member-dynamic-result-container" style="margin-top: 20px;"></div>
+                        </div>
+                    </div>
+
+                    <div id="view-trip"
+                        style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
+                        <div class="list-container">
+                            <div class="page-header">
+                                <h2 class="page-title">行程</h2>
+                            </div>
+
+                            <div class="Box-row" style="z-index: 100; position: relative;">
+                                <div class="search-wrapper">
+                                    <label
+                                        style="font-size: 12px; color: var(--text-sub); display:block; margin-bottom:5px;">搜索成员（可选）</label>
+                                    <input type="hidden" id="trip-member-id">
+                                    <input type="text" id="trip-member-input" class="input-control"
+                                        placeholder="留空查看全部行程" oninput="handleTripSearch(this.value)"
+                                        onfocus="handleTripSearch(this.value)">
+                                    <div id="trip-search-results" class="suggestion-box"></div>
+                                </div>
+                                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                                    <button id="btn-trip-query" class="btn btn-primary" style="flex: 1;"
+                                        onclick="fetchTripList()">查询</button>
+                                </div>
+                            </div>
+
+                            <div id="trip-result-container" class="trip-list" style="margin-top: 20px;"></div>
+                        </div>
+                    </div>
+
                     <div id="view-photos"
                         style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
                         <div class="list-container">
@@ -2699,11 +2833,15 @@
     <script src="./src/renderer/member-photos-feature.js"></script>
     <script src="./src/renderer/profile-feature.js"></script>
     <script src="./src/renderer/room-album-feature.js"></script>
+    <script src="./src/renderer/member-dynamic-feature.js"></script>
+    <script src="./src/renderer/member-weibo-feature.js"></script>
+    <script src="./src/renderer/trip-feature.js"></script>
     <script src="./src/renderer/room-radio-feature.js"></script>
     <script src="./src/renderer/nim-chatroom-feature.js"></script>
     <script src="./src/renderer/danmu-timeline-feature.js"></script>
     <script src="./src/renderer/analysis-feature.js"></script>
     <script src="./src/renderer/flip-analysis-feature.js"></script>
+    <script src="./src/renderer/melee-rank-feature.js"></script>
     <script src="./src/renderer/flip-feature.js"></script>
     <script src="./src/renderer/live-gift-feature.js"></script>
     <script src="./src/renderer/live-tools-feature.js"></script>

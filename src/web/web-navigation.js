@@ -13,6 +13,8 @@
         'followed-rooms': { view: 'followed-rooms', mode: null, title: '口袋房间' },
         message: { view: 'private-messages', mode: null, title: '私信列表' },
         img: { view: 'room-album', mode: null, title: '房间相册' },
+        dynamic: { view: 'member-dynamic', mode: null, title: '成员动态' },
+        weibo: { view: 'member-weibo', mode: null, title: '成员微博' },
         openlive: { view: 'openlive', mode: null, title: '公演记录' },
         'send-flip': { view: 'send-flip', mode: null, title: '翻牌提问' },
         flip: { view: 'flip', mode: null, title: '翻牌记录' },
@@ -21,8 +23,10 @@
         music: { view: 'official-site-music', mode: null, title: '音乐' },
         'official-site-music': { view: 'official-site-music', mode: null, title: '音乐' },
         audio: { view: 'audio-programs', mode: null, title: '电台' },
-        profile: { view: 'profile', mode: null, title: '成员档案' },
+        profile: { view: 'profile', mode: null, title: '档案' },
         database: { view: 'database', mode: null, title: '数据库' },
+        melee: { view: 'melee-rank', mode: null, title: '鸡腿榜' },
+        trip: { view: 'trip', mode: null, title: '行程' },
         login: { view: 'login', mode: null, title: '账号登录' },
         settings: { view: 'settings', mode: null, title: '软件设置' },
         voice: { view: 'room-radio', mode: null, title: '房间上麦' }
@@ -41,11 +45,15 @@
     viewToSlug.set(getViewKey('media', 'meet-vod'), 'meet48-vod');
     viewToSlug.set(getViewKey('private-messages', null), 'message');
     viewToSlug.set(getViewKey('room-album', null), 'img');
+    viewToSlug.set(getViewKey('member-dynamic', null), 'dynamic');
+    viewToSlug.set(getViewKey('member-weibo', null), 'weibo');
     viewToSlug.set(getViewKey('photos', null), 'nft');
     viewToSlug.set(getViewKey('video-library', null), 'video');
     viewToSlug.set(getViewKey('audio-programs', null), 'audio');
     viewToSlug.set(getViewKey('room-radio', null), 'voice');
     viewToSlug.set(getViewKey('official-site-music', null), 'music');
+    viewToSlug.set(getViewKey('melee-rank', null), 'melee');
+    viewToSlug.set(getViewKey('trip', null), 'trip');
 
     let applyingRoute = false;
 
@@ -59,13 +67,20 @@
         return slug && routeMap[slug] ? routeMap[slug].title : '';
     }
 
-    function normalizeHash() {
-        const raw = String(window.location.hash || '').replace(/^#\/?/, '').trim();
-        return raw.split('?')[0].split('&')[0] || 'home';
+    function normalizeRouteSlug() {
+        const hashRoute = String(window.location.hash || '').replace(/^#\/?/, '').trim()
+            .split('?')[0]
+            .split('&')[0];
+        if (hashRoute) return hashRoute;
+
+        const pathRoute = decodeURIComponent(String(window.location.pathname || '/'))
+            .replace(/^\/+|\/+$/g, '')
+            .split('/')[0];
+        return pathRoute && pathRoute !== 'index.html' ? pathRoute : 'home';
     }
 
     function getCurrentRoute() {
-        const slug = normalizeHash();
+        const slug = normalizeRouteSlug();
         return routeMap[slug] || routeMap.home;
     }
 
@@ -79,13 +94,14 @@
         const title = getRouteTitle(viewName, mode);
         const key = getViewKey(viewName, mode);
         const slug = title ? (viewToSlug.get(key) || viewName) : 'home';
-        const nextHash = slug === 'home' ? '#/' : `#/${slug}`;
-        if (window.location.hash === nextHash) return;
+        const nextPath = slug === 'home' ? '/' : `/${encodeURIComponent(slug)}`;
+        const currentPath = window.location.pathname.replace(/\/+$/, '') || '/';
+        if (currentPath === nextPath && !window.location.hash) return;
 
         if (replace) {
-            history.replaceState({ viewName, mode }, '', nextHash);
+            history.replaceState({ viewName, mode }, '', nextPath);
         } else {
-            history.pushState({ viewName, mode }, '', nextHash);
+            history.pushState({ viewName, mode }, '', nextPath);
         }
     }
 

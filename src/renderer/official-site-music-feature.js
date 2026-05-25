@@ -8,8 +8,10 @@
     const FAVORITES_STORAGE_KEY = 'yaya_official_site_music_favorites';
     const PLAYER_STATE_STORAGE_KEY = 'yaya_official_site_music_player_state';
     const DURATION_STORAGE_KEY = 'yaya_official_site_music_durations';
-    const TRACKS_CACHE_STORAGE_KEY = 'yaya_official_site_music_tracks_cache_v1';
+    const TRACKS_CACHE_STORAGE_KEY = 'yaya_official_site_music_tracks_cache_v2';
+    const VOLUME_STORAGE_KEY = 'yaya_music_volume_v2';
     const TRACKS_CACHE_TTL = 24 * 60 * 60 * 1000;
+    const DEFAULT_MUSIC_VOLUME = 0.43;
     const GROUPS = [
         { key: 'SNH', label: 'SNH48', script: 'json_data_snh.js', listVar: 'ix_mp3list_snh', recordsVar: 'records_snh', songsVar: 'ix_songs_snh' },
         { key: 'GNZ', label: 'GNZ48', script: 'json_data_gnz.js', listVar: 'ix_mp3list_gnz', recordsVar: 'records_gnz', songsVar: 'ix_songs_gnz' },
@@ -226,6 +228,18 @@
         return value;
     }
 
+    function clampOfficialSiteMusicVolume(value, fallback = DEFAULT_MUSIC_VOLUME) {
+        const volume = Number(value);
+        return Number.isFinite(volume) ? Math.max(0, Math.min(1, volume)) : fallback;
+    }
+
+    function readExplicitOfficialSiteMusicVolume() {
+        const savedVolume = readStringSetting(VOLUME_STORAGE_KEY, '');
+        if (savedVolume === '') return null;
+        const volume = Number(savedVolume);
+        return Number.isFinite(volume) ? Math.max(0, Math.min(1, volume)) : null;
+    }
+
     function isOfficialSiteMusicWebRuntime() {
         return Boolean(
             window.desktop?.platform === 'web' ||
@@ -339,10 +353,21 @@
     function saveOfficialSiteMusicPlayerState(options = {}) {
         const audio = $('official-site-music-audio');
         const track = getCurrentOfficialSiteTrack();
-        const existingState = track ? {} : readOfficialSiteMusicPlayerState();
-        const currentTime = Number.isFinite(Number(options.currentTime))
+        const existingState = readOfficialSiteMusicPlayerState();
+        const hasExplicitCurrentTime = Number.isFinite(Number(options.currentTime));
+        let currentTime = hasExplicitCurrentTime
             ? Number(options.currentTime)
             : (track && audio && Number.isFinite(audio.currentTime) ? audio.currentTime : Number(existingState.currentTime) || 0);
+        const savedTrackKey = String(existingState.trackKey || existingState.mp3 || '').trim();
+        const savedTrackId = String(existingState.trackId || '').trim();
+        const isSameSavedTrack = track && (
+            (savedTrackKey && (getOfficialSiteTrackFavoriteKey(track) === savedTrackKey || track.mp3 === savedTrackKey)) ||
+            (savedTrackId && track.id === savedTrackId)
+        );
+        const existingCurrentTime = Math.max(0, Number(existingState.currentTime) || 0);
+        if (!hasExplicitCurrentTime && isSameSavedTrack && currentTime <= 0 && existingCurrentTime > 0 && !audio?.ended) {
+            currentTime = existingCurrentTime;
+        }
         const wasPlaying = typeof options.wasPlaying === 'boolean'
             ? options.wasPlaying
             : (track ? Boolean(state.suspendedPlaybackIntent || (audio && !audio.paused && !audio.ended)) : Boolean(existingState.wasPlaying));
@@ -354,7 +379,7 @@
             currentTime: Math.max(0, currentTime || 0),
             wasPlaying,
             playMode: PLAYER_MODE_ORDER.includes(state.playMode) ? state.playMode : 'sequence',
-            volume: audio ? audio.volume : 1,
+            volume: audio ? audio.volume : DEFAULT_MUSIC_VOLUME,
             muted: audio ? Boolean(audio.muted) : false,
             updatedAt: Date.now()
         };
@@ -374,6 +399,14 @@
             state.playerStateSaveTimer = null;
             saveOfficialSiteMusicPlayerState();
         }, Math.max(250, 2000 - elapsed));
+    }
+
+    function flushOfficialSiteMusicPlayerState(options = {}) {
+        if (state.playerStateSaveTimer) {
+            clearTimeout(state.playerStateSaveTimer);
+            state.playerStateSaveTimer = null;
+        }
+        saveOfficialSiteMusicPlayerState(options);
     }
 
     function getCurrentOfficialSiteTrack() {
@@ -871,9 +904,10 @@
     }
 
     async function fetchOfficialScriptText(url) {
+        const freshUrl = `${url}${url.includes('?') ? '&' : '?'}adv=${Date.now()}`;
         if (typeof fetch === 'function') {
             try {
-                const response = await fetch(url);
+                const response = await fetch(freshUrl, { cache: 'no-store' });
                 if (response.ok) {
                     return response.text();
                 }
@@ -881,7 +915,7 @@
                 console.warn('[official-site-music] browser fetch failed, fallback to node https', error);
             }
         }
-        return requestOfficialTextWithNode(url);
+        return requestOfficialTextWithNode(freshUrl);
     }
 
     function extractAssignedValue(scriptText, variableName) {
@@ -1675,9 +1709,8 @@
             state.playMode = savedState.playMode;
             updatePlayModeButton();
         }
-        if (Number.isFinite(Number(savedState.volume))) {
-            audio.volume = Math.max(0, Math.min(1, Number(savedState.volume)));
-        }
+        const explicitVolume = readExplicitOfficialSiteMusicVolume();
+        audio.volume = explicitVolume === null ? DEFAULT_MUSIC_VOLUME : explicitVolume;
         audio.muted = Boolean(savedState.muted);
         if (audio.volume > 0) state.previousVolume = audio.volume;
         updateVolumeUI();
@@ -1690,20 +1723,21 @@
         updateCurrentTrackDisplay(track);
         updateActiveTrack();
         syncOfficialSiteProgressAnchor();
-        updatePlayerProgress();
+        updatePlayerProgress(false, resumeTime);
 
         const applyTimeAndMaybePlay = () => {
+            const targetTime = resumeTime;
             try {
                 if (Number.isFinite(audio.duration) && audio.duration > 0) {
-                    audio.currentTime = Math.min(resumeTime, Math.max(0, audio.duration - 0.2));
+                    audio.currentTime = Math.min(targetTime, Math.max(0, audio.duration - 0.2));
                 } else {
-                    audio.currentTime = resumeTime;
+                    audio.currentTime = targetTime;
                 }
             } catch (_) { }
             syncOfficialSiteProgressAnchor();
             updatePlayerProgress();
             state.suspendedPlaybackIntent = false;
-            saveOfficialSiteMusicPlayerState({ currentTime: resumeTime, wasPlaying: false });
+            saveOfficialSiteMusicPlayerState({ currentTime: targetTime, wasPlaying: false });
             updatePlayerButton();
         };
 
@@ -1728,17 +1762,18 @@
 
         const resumeTime = Math.max(0, Number(savedState.currentTime) || 0);
         const applyResume = () => {
+            const targetTime = resumeTime;
             try {
                 if (Number.isFinite(audio.duration) && audio.duration > 0) {
-                    audio.currentTime = Math.min(resumeTime, Math.max(0, audio.duration - 0.2));
+                    audio.currentTime = Math.min(targetTime, Math.max(0, audio.duration - 0.2));
                 } else {
-                    audio.currentTime = resumeTime;
+                    audio.currentTime = targetTime;
                 }
             } catch (_) { }
             syncOfficialSiteProgressAnchor();
             updatePlayerProgress();
             state.suspendedPlaybackIntent = false;
-            saveOfficialSiteMusicPlayerState({ currentTime: resumeTime, wasPlaying: false });
+            saveOfficialSiteMusicPlayerState({ currentTime: targetTime, wasPlaying: false });
             updatePlayerButton();
         };
 
@@ -1931,16 +1966,34 @@
         const audio = $('official-site-music-audio');
         if (!track || !audio) return;
 
+        const sameTrack = state.currentTrackId === track.id && Boolean(audio.src || audio.currentSrc);
         state.currentTrackId = track.id;
-        audio.src = track.mp3;
+        if (!sameTrack) {
+            audio.src = track.mp3;
+        }
         syncOfficialSiteProgressAnchor();
-        updatePlayerProgress();
+        updatePlayerProgress(false, 0);
         updateOfficialSiteMediaSessionMetadata(track);
-        saveOfficialSiteMusicPlayerState({ currentTime: 0, wasPlaying: true });
-        audio.play().catch((error) => {
-            console.warn('[official-site-music] play blocked', error);
-            showOfficialMusicToast('播放失败，请稍后重试');
-        }).finally(updatePlayerButton);
+
+        const playFromStart = () => {
+            try {
+                audio.currentTime = 0;
+            } catch (_) { }
+            syncOfficialSiteProgressAnchor();
+            updatePlayerProgress();
+            saveOfficialSiteMusicPlayerState({ currentTime: 0, wasPlaying: true });
+            audio.play().catch((error) => {
+                console.warn('[official-site-music] play blocked', error);
+                showOfficialMusicToast('播放失败，请稍后重试');
+            }).finally(updatePlayerButton);
+        };
+
+        if (audio.readyState < 1) {
+            audio.addEventListener('loadedmetadata', playFromStart, { once: true });
+            audio.load();
+        } else {
+            playFromStart();
+        }
 
         updateCurrentTrackDisplay(track);
         updateActiveTrack();
@@ -2052,11 +2105,10 @@
     function setOfficialSiteMusicVolume(value) {
         const audio = $('official-site-music-audio');
         if (!audio) return;
-        const volume = Math.max(0, Math.min(1, Number(value)));
-        audio.volume = Number.isFinite(volume) ? volume : 1;
+        audio.volume = clampOfficialSiteMusicVolume(value);
         audio.muted = audio.volume === 0;
         if (audio.volume > 0) state.previousVolume = audio.volume;
-        writeStringSetting('yaya_music_volume', String(audio.volume));
+        writeStringSetting(VOLUME_STORAGE_KEY, String(audio.volume));
         saveOfficialSiteMusicPlayerState();
         updateVolumeUI();
     }
@@ -2069,9 +2121,9 @@
             audio.muted = true;
         } else {
             audio.muted = false;
-            audio.volume = state.previousVolume || 1;
+            audio.volume = state.previousVolume || DEFAULT_MUSIC_VOLUME;
         }
-        writeStringSetting('yaya_music_volume', String(audio.volume));
+        writeStringSetting(VOLUME_STORAGE_KEY, String(audio.volume));
         saveOfficialSiteMusicPlayerState();
         updateVolumeUI();
     }
@@ -2177,13 +2229,9 @@
         const volumeBar = $('official-site-music-volume-bar');
         const progressBar = $('official-site-music-progress');
         const lyricsScroll = $('official-site-music-lyrics-scroll');
-        const savedVolume = readStringSetting('yaya_music_volume', '');
-        if (savedVolume !== '') {
-            const volume = parseFloat(savedVolume);
-            if (Number.isFinite(volume)) {
-                audio.volume = Math.max(0, Math.min(1, volume));
-            }
-        }
+        const explicitVolume = readExplicitOfficialSiteMusicVolume();
+        audio.volume = explicitVolume === null ? DEFAULT_MUSIC_VOLUME : explicitVolume;
+        if (audio.volume > 0) state.previousVolume = audio.volume;
         audio.addEventListener('play', () => {
             state.suspendedPlaybackIntent = false;
             syncOfficialSiteProgressAnchor();
@@ -2276,17 +2324,25 @@
         if (volumeBar) {
             volumeBar.addEventListener('wheel', (event) => {
                 event.preventDefault();
-                const step = event.deltaY < 0 ? 0.05 : -0.05;
+                const step = event.deltaY < 0 ? 0.03 : -0.03;
                 const nextVolume = Math.max(0, Math.min(1, (audio.muted ? 0 : audio.volume) + step));
                 audio.volume = nextVolume;
                 audio.muted = false;
                 volumeBar.value = String(nextVolume);
                 state.previousVolume = nextVolume || state.previousVolume;
-                writeStringSetting('yaya_music_volume', String(nextVolume));
+                writeStringSetting(VOLUME_STORAGE_KEY, String(nextVolume));
                 updateVolumeUI();
             }, { passive: false });
         }
         bindOfficialSiteLyricsUserScroll(lyricsScroll);
+    }
+
+    function persistOfficialSiteMusicPlayerStateForExit() {
+        const audio = $('official-site-music-audio');
+        if (!state.currentTrackId && !audio?.src && !state.suspendedPlaybackIntent) return;
+        flushOfficialSiteMusicPlayerState({
+            wasPlaying: state.suspendedPlaybackIntent || Boolean(audio && !audio.paused && !audio.ended)
+        });
     }
 
     function initWhenReady() {
@@ -2302,16 +2358,12 @@
         updateVolumeUI();
         updateOfficialSiteMusicLyricsButton();
         renderOfficialSiteMusic();
-        window.addEventListener('beforeunload', () => {
-            if (state.playerStateSaveTimer) {
-                clearTimeout(state.playerStateSaveTimer);
-                state.playerStateSaveTimer = null;
+        window.addEventListener('beforeunload', persistOfficialSiteMusicPlayerStateForExit);
+        window.addEventListener('pagehide', persistOfficialSiteMusicPlayerStateForExit);
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') {
+                persistOfficialSiteMusicPlayerStateForExit();
             }
-            const audio = $('official-site-music-audio');
-            if (!state.currentTrackId && !audio?.src && !state.suspendedPlaybackIntent) return;
-            saveOfficialSiteMusicPlayerState({
-                wasPlaying: state.suspendedPlaybackIntent || Boolean(audio && !audio.paused && !audio.ended)
-            });
         });
     }
 

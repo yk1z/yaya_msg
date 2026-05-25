@@ -223,6 +223,111 @@
             return '';
         }
 
+        function canUseNativeHls(video) {
+            if (!video || typeof video.canPlayType !== 'function') return false;
+            return Boolean(
+                video.canPlayType('application/vnd.apple.mpegurl') ||
+                video.canPlayType('application/x-mpegURL')
+            );
+        }
+
+        function attachStableHls(video, videoUrl, isLiveContent) {
+            let stallRecoverCount = 0;
+            let stallRecoverTimer = null;
+            let lastRecoverAt = 0;
+
+            const recoverFromStall = (reason = 'stalled') => {
+                if (!video || video.paused || video.ended) return;
+                const now = Date.now();
+                if (now - lastRecoverAt < 1200) return;
+                lastRecoverAt = now;
+                stallRecoverCount += 1;
+
+                try {
+                    hls.startLoad(Math.max(0, video.currentTime - 0.5));
+                } catch (error) {}
+
+                if (stallRecoverCount % 2 === 0) {
+                    try {
+                        hls.recoverMediaError();
+                    } catch (error) {}
+                }
+
+                if (stallRecoverCount >= 3 && Number.isFinite(video.currentTime)) {
+                    try {
+                        video.currentTime = Math.max(0, video.currentTime + 0.08);
+                    } catch (error) {}
+                }
+
+                console.warn(`[播放器] HLS ${reason}，尝试自动恢复 #${stallRecoverCount}`);
+            };
+
+            const scheduleStallRecovery = (reason) => {
+                clearTimeout(stallRecoverTimer);
+                stallRecoverTimer = setTimeout(() => {
+                    if (video && !video.paused && !video.ended && video.readyState < 3) {
+                        recoverFromStall(reason);
+                    }
+                }, 1800);
+            };
+
+            const clearStallRecovery = () => {
+                clearTimeout(stallRecoverTimer);
+                stallRecoverTimer = null;
+                stallRecoverCount = 0;
+            };
+
+            const hls = new window.Hls({
+                enableWorker: true,
+                lowLatencyMode: false,
+                startFragPrefetch: !isLiveContent,
+                backBufferLength: isLiveContent ? 15 : 90,
+                maxBufferLength: isLiveContent ? 30 : 300,
+                maxMaxBufferLength: isLiveContent ? 60 : 600,
+                maxBufferSize: 400 * 1000 * 1000,
+                manifestLoadingMaxRetry: 5,
+                manifestLoadingRetryDelay: 800,
+                levelLoadingMaxRetry: 5,
+                levelLoadingRetryDelay: 800,
+                fragLoadingMaxRetry: 8,
+                fragLoadingRetryDelay: 800,
+                fragLoadingMaxRetryTimeout: 8000
+            });
+
+            if (window.Hls.Events && window.Hls.ErrorTypes) {
+                hls.on(window.Hls.Events.ERROR, (_event, data) => {
+                    if (!data) return;
+
+                    if (!data.fatal) {
+                        if (data.details === 'bufferStalledError' || data.details === 'bufferNudgeOnStall') {
+                            scheduleStallRecovery(data.details);
+                        }
+                        return;
+                    }
+
+                    if (data.type === window.Hls.ErrorTypes.NETWORK_ERROR) {
+                        hls.startLoad();
+                    } else if (data.type === window.Hls.ErrorTypes.MEDIA_ERROR) {
+                        hls.recoverMediaError();
+                    } else {
+                        hls.destroy();
+                    }
+                });
+            }
+
+            video.preservesPitch = true;
+            video.mozPreservesPitch = true;
+            video.webkitPreservesPitch = true;
+            video.addEventListener('waiting', () => scheduleStallRecovery('waiting'));
+            video.addEventListener('stalled', () => scheduleStallRecovery('stalled'));
+            video.addEventListener('playing', clearStallRecovery);
+            video.addEventListener('canplay', clearStallRecovery);
+            hls.loadSource(videoUrl);
+            hls.attachMedia(video);
+            video.hls = hls;
+            return hls;
+        }
+
         function configurePlayerLayout(mode) {
             const splitLayout = document.getElementById('player-split-layout');
             const timelineWrapper = document.getElementById('danmu-timeline-wrapper');
@@ -807,11 +912,10 @@
                         }
                     },
                     m3u8: function (video, videoUrl) {
-                        if (window.Hls && window.Hls.isSupported()) {
-                            const hls = new window.Hls();
-                            hls.loadSource(videoUrl);
-                            hls.attachMedia(video);
-                            video.hls = hls;
+                        if (canUseNativeHls(video)) {
+                            video.src = videoUrl;
+                        } else if (window.Hls && window.Hls.isSupported()) {
+                            attachStableHls(video, videoUrl, isLiveContent);
                         } else {
                             video.src = videoUrl;
                         }

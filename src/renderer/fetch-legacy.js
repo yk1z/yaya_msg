@@ -17,6 +17,7 @@
         let accountProfileStatusTimer = null;
         let autoCheckinInFlight = false;
         let autoCheckinSettingsMigrated = false;
+        const WEB_ACCOUNT_PROFILE_CACHE_KEY = 'yaya_web_account_profile_v1';
 
         function getAppSettingsApi() {
             return window.desktop && window.desktop.appSettings ? window.desktop.appSettings : null;
@@ -259,6 +260,68 @@
             return raw.startsWith('/') ? `https://source.48.cn${raw}` : `https://source.48.cn/${raw}`;
         }
 
+        function isWebRuntimeForAccountUi() {
+            return !!(window.desktop && window.desktop.platform === 'web');
+        }
+
+        function readWebAccountProfileCache() {
+            if (!isWebRuntimeForAccountUi() || !readStoredToken()) return null;
+            try {
+                const cached = JSON.parse(localStorage.getItem(WEB_ACCOUNT_PROFILE_CACHE_KEY) || 'null');
+                return cached && typeof cached === 'object' && !Array.isArray(cached) ? cached : null;
+            } catch (error) {
+                return null;
+            }
+        }
+
+        function writeWebAccountProfileCache(profile = currentPocketProfile) {
+            if (!isWebRuntimeForAccountUi()) return;
+            const normalized = {
+                nickname: String(profile?.nickname || '').trim(),
+                avatar: String(profile?.avatar || '').trim(),
+                avatarUrl: String(profile?.avatarUrl || normalizeAccountAvatarUrl(profile?.avatar) || '').trim(),
+                updatedAt: Date.now()
+            };
+            if (!normalized.avatarUrl && !normalized.avatar) return;
+            localStorage.setItem(WEB_ACCOUNT_PROFILE_CACHE_KEY, JSON.stringify(normalized));
+        }
+
+        function clearWebAccountProfileCache() {
+            if (!isWebRuntimeForAccountUi()) return;
+            localStorage.removeItem(WEB_ACCOUNT_PROFILE_CACHE_KEY);
+        }
+
+        function syncWebAccountButton(profile = currentPocketProfile, loggedIn = !!currentPocketUserId) {
+            if (!isWebRuntimeForAccountUi()) return;
+            const button = document.getElementById('web-account-button');
+            const avatar = document.getElementById('web-account-avatar');
+            const label = document.getElementById('web-account-login-label');
+            if (!button || !avatar || !label) return;
+
+            if (!loggedIn) {
+                const cachedProfile = readWebAccountProfileCache();
+                if (cachedProfile) {
+                    profile = cachedProfile;
+                    loggedIn = true;
+                }
+            }
+
+            const nickname = String(profile?.nickname || '').trim();
+            const avatarUrl = profile?.avatarUrl || normalizeAccountAvatarUrl(profile?.avatar);
+            button.classList.toggle('is-logged-in', !!loggedIn);
+            button.setAttribute('aria-label', loggedIn ? `${nickname || '口袋用户'}，账号设置` : '登录账号');
+            button.title = loggedIn ? `${nickname || '口袋用户'} · 账号设置` : '登录账号';
+            label.textContent = '登录';
+            avatar.src = loggedIn ? (avatarUrl || './web-icon.png') : './web-icon.png';
+            if (loggedIn) writeWebAccountProfileCache(profile);
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => syncWebAccountButton(), { once: true });
+        } else {
+            syncWebAccountButton();
+        }
+
         function setAccountProfileEditStatus(message, type = 'muted') {
             const statusEl = document.getElementById('account-profile-edit-status');
             if (!statusEl) return;
@@ -458,6 +521,7 @@
                 currentPocketProfile.nickname = nickname;
                 const nameEl = document.getElementById('user-nickname');
                 if (nameEl) nameEl.innerText = nickname;
+                syncWebAccountButton(currentPocketProfile, true);
                 refreshAccountRenameCount();
                 setAccountProfileEditStatus('昵称已保存', 'success');
             } catch (error) {
@@ -515,6 +579,7 @@
                 const preview = document.getElementById('account-avatar-preview');
                 if (currentAvatarEl) currentAvatarEl.src = avatarUrl;
                 if (preview) preview.src = avatarUrl;
+                syncWebAccountButton(currentPocketProfile, true);
                 selectedAccountAvatarFile = null;
                 selectedAccountAvatarDataUrl = '';
                 const fileInput = document.getElementById('account-avatar-file');
@@ -1326,6 +1391,7 @@
                         avatar: currentAvatarRaw,
                         avatarUrl: currentAvatarUrl
                     };
+                    syncWebAccountButton(currentPocketProfile, true);
                     document.getElementById('user-nickname').innerText = safeName;
                     const idDisplay = document.getElementById('user-id-display');
                     if (idDisplay) idDisplay.innerText = `ID: ${userId}`;
@@ -1392,8 +1458,12 @@
                     });
 
                 } else {
+                    clearStoredToken();
+                    appToken = '';
                     currentPocketUserId = '';
                     currentPocketProfile = { nickname: '', avatar: '', avatarUrl: '' };
+                    clearWebAccountProfileCache();
+                    syncWebAccountButton(currentPocketProfile, false);
                     if (panelInput) panelInput.style.display = 'block';
                     if (panelSuccess) panelSuccess.style.display = 'none';
                     syncAutoCheckinUi();
@@ -1406,6 +1476,7 @@
                 console.error(e);
                 currentPocketUserId = '';
                 currentPocketProfile = { nickname: '', avatar: '', avatarUrl: '' };
+                syncWebAccountButton(currentPocketProfile, false);
                 if (panelInput) panelInput.style.display = 'block';
                 if (panelSuccess) panelSuccess.style.display = 'none';
                 syncAutoCheckinUi();
@@ -1484,6 +1555,8 @@
             appToken = '';
             currentPocketUserId = '';
             currentPocketProfile = { nickname: '', avatar: '', avatarUrl: '' };
+            clearWebAccountProfileCache();
+            syncWebAccountButton(currentPocketProfile, false);
             selectedAccountAvatarFile = null;
             selectedAccountAvatarDataUrl = '';
             if (typeof resetAccountScopedSessionState === 'function') {
@@ -1796,6 +1869,48 @@
             }
         }
 
+        function getFetchExportMemberMeta(memberName, channelId) {
+            const targetName = String(memberName || '').trim();
+            const targetChannelId = String(channelId || '').trim();
+            const members = (typeof memberData !== 'undefined' && Array.isArray(memberData))
+                ? memberData
+                : (Array.isArray(window.memberData) ? window.memberData : []);
+
+            const member = members.find(m => {
+                const names = [m.ownerName, m.name, m.nickname, m.nickName, m.memberName]
+                    .map(value => String(value || '').trim());
+                const channelIds = [
+                    m.channelId,
+                    m.roomId,
+                    m.channel_id,
+                    m.yklzId,
+                    m.smallRoomId,
+                    m.smallChannelId
+                ].map(value => String(value || '').trim());
+
+                return (targetChannelId && channelIds.includes(targetChannelId))
+                    || (targetName && names.includes(targetName));
+            });
+
+            const resolvedMemberName = String(
+                (member && (member.ownerName || member.name || member.nickname || member.nickName || member.memberName))
+                || targetName
+                || '未命名成员'
+            ).trim();
+            const groupName = String(
+                (member && (member.groupName || member.teamName || member.group || member.team))
+                || '未知分团'
+            ).trim();
+            const exportPrefix = `${groupName}-${resolvedMemberName}`;
+
+            return {
+                memberName: resolvedMemberName,
+                groupName,
+                exportPrefix,
+                channelId: targetChannelId || 'unknown'
+            };
+        }
+
         async function exportMsgsToHtml() {
             if (allFetchedMsgs.length === 0) return showToast('没有消息可导出');
             const fix48Url = (path) => {
@@ -2088,7 +2203,11 @@
                 });
             });
 
-            const memberName = currentSelectedMemberName || document.getElementById('member-search').value.trim() || '未命名成员';
+            const selectedMemberName = currentSelectedMemberName || document.getElementById('member-search').value.trim() || '未命名成员';
+            const selectedChannelId = currentFetchedChannelId || document.getElementById('tool-channel').value.trim();
+            const exportMeta = getFetchExportMemberMeta(selectedMemberName, selectedChannelId);
+            const exportFolderName = exportMeta.memberName;
+            const exportFileName = `${exportMeta.exportPrefix}-${exportMeta.channelId}.html`;
             const exportBtn = document.getElementById('btn-export-html');
             const originalBtnText = exportBtn.innerText;
             const box = document.getElementById('msg-result');
@@ -2100,7 +2219,8 @@
                 exportBtn.disabled = true;
 
                 const res = await window.ipcRenderer.invoke('save-export-html', {
-                    memberName: memberName,
+                    memberName: exportFolderName,
+                    fileName: exportFileName,
                     title: '口袋消息导出',
                     styleValue,
                     entries: exportEntries
@@ -2119,13 +2239,13 @@
                     );
                 }
 
-                const fileName = res.path ? window.desktop.path.basename(res.path) : 'yaya_export.html';
+                const displayPath = res.path || `${window.desktop.storagePaths.htmlDir}\\${exportFolderName}\\${exportFileName}`;
                 exportBtn.innerText = res.changed ? "导出成功" : "没有新增";
                 exportBtn.style.backgroundColor = res.changed ? "#28a745" : "#6c757d";
                 exportBtn.style.color = "white";
                 tip.innerText = res.changed
-                    ? `已新增 ${res.addedCount} 条，共 ${res.totalCount} 条: ${window.desktop.storagePaths.htmlDir}\\${memberName}\\${fileName}`
-                    : `没有新增消息，共 ${res.totalCount} 条: ${window.desktop.storagePaths.htmlDir}\\${memberName}\\${fileName}`;
+                    ? `已新增 ${res.addedCount} 条，共 ${res.totalCount} 条: ${displayPath}`
+                    : `没有新增消息，共 ${res.totalCount} 条: ${displayPath}`;
                 box.appendChild(tip);
 
                 setTimeout(() => {

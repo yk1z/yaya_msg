@@ -66,6 +66,7 @@
         'fetch-gift-list',
         'get-nim-login-info',
         'fetch-room-album',
+        'fetch-member-weibo',
         'fetch-room-radio',
         'fetch-live-rank',
         'fetch-friends-ids',
@@ -163,6 +164,101 @@
         return baseUrl ? `${baseUrl}${normalizedPath}` : normalizedPath;
     }
 
+    function sameOriginApiUrl(path) {
+        const normalizedPath = String(path || '').startsWith('/') ? String(path || '') : `/${path || ''}`;
+        return new URL(normalizedPath, window.location.origin).toString();
+    }
+
+    function parseJsonResponseText(text) {
+        try {
+            return {
+                data: text ? JSON.parse(text) : null,
+                looksLikeHtml: false
+            };
+        } catch (error) {
+            return {
+                data: null,
+                looksLikeHtml: /^\s*</.test(text || '')
+            };
+        }
+    }
+
+    const pocketProxyChannels = {
+        'fetch-melee-week-rank': {
+            path: '/gift/api/v1/melee/rank/getMeleeWeekRank',
+            payload: payload => {
+                const next = { rankId: Number(payload?.rankId) || 0 };
+                if (payload?.nextId !== undefined && payload?.nextId !== null && payload?.nextId !== '') {
+                    next.nextId = payload.nextId;
+                }
+                return next;
+            }
+        },
+        'fetch-melee-rank-page': {
+            path: '/gift/api/v1/melee/rank/getMeleeRankPage',
+            payload: payload => {
+                const next = { rankid: Number(payload?.rankId) || 0 };
+                if (payload?.nextId !== undefined && payload?.nextId !== null && payload?.nextId !== '') {
+                    next.nextId = payload.nextId;
+                }
+                return next;
+            }
+        },
+        'fetch-melee-year-rank-page': {
+            path: '/gift/api/v1/melee/rank/getMeleeYearRankPage',
+            payload: payload => {
+                const next = {};
+                if (payload?.rankId !== undefined && payload?.rankId !== null && payload?.rankId !== '') {
+                    next.rankid = Number(payload.rankId) || 0;
+                }
+                if (payload?.nextId !== undefined && payload?.nextId !== null && payload?.nextId !== '') {
+                    next.nextId = payload.nextId;
+                }
+                return next;
+            }
+        },
+        'fetch-person-melee-rank-page': {
+            path: '/gift/api/v1/melee/rank/getPersonMeleeRankPage',
+            payload: payload => ({ resId: Number(payload?.resId) || 0 })
+        }
+    };
+
+    async function invokePocketProxy(channel, payload) {
+        const config = pocketProxyChannels[channel];
+        if (!config) return null;
+
+        const response = await fetch(apiUrl('/api/pocket'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                path: config.path,
+                postData: config.payload(payload || {})
+            })
+        });
+
+        const text = await response.text();
+        let data = null;
+        try {
+            data = text ? JSON.parse(text) : null;
+        } catch (error) {
+            return {
+                success: false,
+                msg: /^\s*</.test(text || '')
+                    ? '口袋 API 返回了网页内容，请稍后重试。'
+                    : '口袋 API 返回内容不是 JSON'
+            };
+        }
+
+        if (!response.ok) {
+            return data || { success: false, msg: `口袋 API 请求失败: ${response.status}` };
+        }
+
+        if (data && data.status === 200 && data.success !== false) {
+            return { ...data, success: true };
+        }
+        return data || { success: false, msg: '口袋 API 请求失败' };
+    }
+
     function openMediaUrlForWeb(url) {
         const mediaUrl = String(url || '').trim();
         if (!mediaUrl) return false;
@@ -172,7 +268,7 @@
 
     const webLibraryUrls = {
         mpegts: 'https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js',
-        hls: 'https://cdn.jsdelivr.net/npm/hls.js@1.4.0/dist/hls.min.js',
+        hls: 'https://cdn.jsdelivr.net/npm/hls.js@1.6.16/dist/hls.min.js',
         artplayer: 'https://cdn.jsdelivr.net/npm/artplayer/dist/artplayer.js',
         artplayerDanmuku: 'https://cdn.jsdelivr.net/npm/artplayer-plugin-danmuku/dist/artplayer-plugin-danmuku.js',
         dplayer: 'https://cdn.jsdelivr.net/npm/dplayer/dist/DPlayer.min.js',
@@ -319,6 +415,9 @@
     };
 
     async function invokeRemote(channel, payload) {
+        const pocketProxyResult = await invokePocketProxy(channel, payload);
+        if (pocketProxyResult) return pocketProxyResult;
+
         const nextPayload = payload && typeof payload === 'object' && !Array.isArray(payload)
             ? { ...payload }
             : payload;
@@ -345,30 +444,44 @@
             }
         }
 
-        const response = await fetch(apiUrl('/api/ipc'), {
+        const requestBody = JSON.stringify({ channel, payload: nextPayload });
+        const requestOptions = {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ channel, payload: nextPayload })
-        });
+            body: requestBody
+        };
+        const primaryUrl = apiUrl('/api/ipc');
+        let response = await fetch(primaryUrl, requestOptions);
+        let text = await response.text();
+        let parsed = parseJsonResponseText(text);
 
-        const text = await response.text();
-        let data = null;
-        try {
-            data = text ? JSON.parse(text) : null;
-        } catch (error) {
-            const looksLikeHtml = /^\s*</.test(text || '');
+        if (parsed.looksLikeHtml) {
+            const fallbackUrl = sameOriginApiUrl('/api/ipc');
+            if (fallbackUrl !== primaryUrl) {
+                response = await fetch(fallbackUrl, requestOptions);
+                text = await response.text();
+                parsed = parseJsonResponseText(text);
+            }
+        }
+
+        if (parsed.looksLikeHtml) {
             return {
                 success: false,
-                msg: looksLikeHtml
-                    ? '网页版 API 返回了网页内容，请确认手机打开的是 Workers 部署地址，不是 Pages 静态地址。'
-                    : '网页版 API 返回内容不是 JSON'
+                msg: '网页版 API 暂时返回了网页内容，请稍后重试。'
+            };
+        }
+
+        if (!parsed.data && text) {
+            return {
+                success: false,
+                msg: '网页版 API 返回内容不是 JSON'
             };
         }
 
         if (!response.ok) {
-            return data || { success: false, msg: `网页版 API 请求失败: ${response.status}` };
+            return parsed.data || { success: false, msg: `网页版 API 请求失败: ${response.status}` };
         }
-        return data;
+        return parsed.data;
     }
 
     const FFMPEG_SCRIPT_URLS = [
