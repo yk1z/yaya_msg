@@ -1,7 +1,10 @@
         let memberData = [];
         let isMemberDataLoaded = false;
+        let memberDataLoadPromise = null;
         let currentSelectedMemberName = '';
         let currentLiveListRaw = [];
+        const MEMBER_DATA_URL = 'https://yaya-data.pages.dev/members.json';
+        const MEMBER_DATA_CACHE_KEY = 'yaya_member_data_cache_v1';
 
         function showShield(status = '正在处理', detail = '') {
             const shield = document.getElementById('loading-shield');
@@ -59,23 +62,146 @@
             reportFatalInitError(event.reason, '初始化任务执行失败');
         });
 
-        async function loadMemberData() {
-            if (isMemberDataLoaded) return;
+        function getRuntimeCacheApi() {
+            return window.desktop && window.desktop.appCache ? window.desktop.appCache : null;
+        }
+
+        function readRuntimeCacheValue(key, fallbackValue) {
+            const cacheApi = getRuntimeCacheApi();
+            if (cacheApi && typeof cacheApi.getCacheValueSync === 'function') {
+                const storedValue = cacheApi.getCacheValueSync(key, fallbackValue);
+                if (storedValue !== fallbackValue) return storedValue;
+            }
+
+            const raw = localStorage.getItem(key);
+            if (raw !== null) {
+                try {
+                    const parsed = JSON.parse(raw);
+                    if (cacheApi && typeof cacheApi.setCacheValueSync === 'function') {
+                        cacheApi.setCacheValueSync(key, parsed);
+                        localStorage.removeItem(key);
+                    }
+                    return parsed;
+                } catch (error) {
+                    console.warn('成员列表缓存解析失败:', error);
+                }
+            }
+
+            return fallbackValue;
+        }
+
+        function writeRuntimeCacheValue(key, value) {
+            const cacheApi = getRuntimeCacheApi();
+            if (cacheApi && typeof cacheApi.setCacheValueSync === 'function') {
+                cacheApi.setCacheValueSync(key, value);
+                localStorage.removeItem(key);
+                return value;
+            }
+
+            localStorage.setItem(key, JSON.stringify(value));
+            return value;
+        }
+
+        function normalizeMemberDataPayload(data) {
+            const allMembers = [];
+            if (Array.isArray(data)) allMembers.push(...data);
+            if (data && Array.isArray(data.roomId)) allMembers.push(...data.roomId);
+            if (data && Array.isArray(data.members)) allMembers.push(...data.members);
+            if (data && Array.isArray(data.retired)) allMembers.push(...data.retired);
+            return allMembers.filter(Boolean);
+        }
+
+        function applyMemberDataList(list) {
+            const normalized = Array.isArray(list) ? list.filter(Boolean) : [];
+            if (!normalized.length) return false;
+
+            memberData = normalized;
+            window.memberData = normalized;
+            isMemberDataLoaded = true;
+            window.isMemberDataLoaded = true;
+            window.dispatchEvent(new CustomEvent('member-data-loaded', {
+                detail: { count: normalized.length }
+            }));
+            return true;
+        }
+
+        function readCachedMemberDataList() {
+            const cached = readRuntimeCacheValue(MEMBER_DATA_CACHE_KEY, null);
+            if (!cached) return [];
+            const payload = cached.data || cached;
+            return normalizeMemberDataPayload(payload);
+        }
+
+        function writeCachedMemberDataPayload(data) {
+            const members = normalizeMemberDataPayload(data);
+            if (!members.length) return;
+            writeRuntimeCacheValue(MEMBER_DATA_CACHE_KEY, {
+                updatedAt: Date.now(),
+                data
+            });
+        }
+
+        async function fetchMemberDataPayload() {
+            const res = await fetch(`${MEMBER_DATA_URL}?t=${Date.now()}`, { cache: 'no-store' });
+            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+            const data = await res.json();
+            if (!normalizeMemberDataPayload(data).length) {
+                throw new Error('JSON 数据格式不正确');
+            }
+            return data;
+        }
+
+        async function loadMemberData(options = {}) {
+            const forceRefresh = !!options.forceRefresh;
+            if (isMemberDataLoaded && !forceRefresh) return memberData;
+            if (memberDataLoadPromise && !forceRefresh) return memberDataLoadPromise;
+
             const statusSpan = document.getElementById('sdk-status');
             if (statusSpan) statusSpan.innerText = '正在更新成员列表...';
-            try {
-                const url = `https://yaya-data.pages.dev/members.json?t=${Date.now()}`;
-                const res = await fetch(url);
-                const data = await res.json();
-                if (data && data.roomId) {
-                    memberData = data.roomId;
-                    isMemberDataLoaded = true;
-                    if (statusSpan) statusSpan.innerText = `✅ 成员列表已更新 (${memberData.length}人)`;
+
+            const loadTask = (async () => {
+                const cachedMembers = readCachedMemberDataList();
+                if (cachedMembers.length && !isMemberDataLoaded) {
+                    applyMemberDataList(cachedMembers);
+                    if (statusSpan) statusSpan.innerText = `成员列表缓存已载入 (${cachedMembers.length}人)`;
                 }
-            } catch (e) {
-                if (statusSpan) statusSpan.innerText = '⚠️ 成员列表加载失败';
-            }
+
+                try {
+                    const data = await fetchMemberDataPayload();
+                    writeCachedMemberDataPayload(data);
+                    const allMembers = normalizeMemberDataPayload(data);
+                    applyMemberDataList(allMembers);
+                    if (statusSpan) statusSpan.innerText = `✅ 成员列表已更新 (${memberData.length}人)`;
+                    return memberData;
+                } catch (e) {
+                    if (cachedMembers.length) {
+                        applyMemberDataList(cachedMembers);
+                        if (statusSpan) statusSpan.innerText = `⚠️ 成员列表更新失败，已使用缓存 (${cachedMembers.length}人)`;
+                        console.warn('成员列表在线加载失败，已使用缓存:', e);
+                        return memberData;
+                    }
+
+                    if (statusSpan) statusSpan.innerText = '⚠️ 成员列表加载失败';
+                    throw e;
+                } finally {
+                    if (memberDataLoadPromise === loadTask) {
+                        memberDataLoadPromise = null;
+                    }
+                }
+            })();
+
+            if (!forceRefresh) memberDataLoadPromise = loadTask;
+            return loadTask;
         }
+
+        window.YayaMemberDataStore = {
+            loadMemberData,
+            fetchMemberDataPayload,
+            normalizeMemberDataPayload,
+            applyMemberDataList,
+            readCachedMemberDataList,
+            writeCachedMemberDataPayload
+        };
 
         const TEAM_COLORS = {
             'SII': '#A1D5ED', 'TEAM SII': '#A1D5ED',

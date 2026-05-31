@@ -1660,29 +1660,23 @@
         window.seekMusicLyricLine = seekMusicLyricLine;
 
         async function autoUpdateMemberData() {
-            const url = `${DATA_BASE_URL}/members.json?t=${Date.now()}`;
-
             if (statusMsg) statusMsg.textContent = "正在更新完整成员列表...";
 
             try {
-                const response = await fetch(url);
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-
-                const data = await response.json();
-                if (!data.roomId && !Array.isArray(data.roomId)) {
-                    throw new Error("JSON 数据格式不正确");
+                let allMembers = [];
+                if (window.YayaMemberDataStore && typeof window.YayaMemberDataStore.loadMemberData === 'function') {
+                    allMembers = await window.YayaMemberDataStore.loadMemberData({ forceRefresh: true });
+                } else if (typeof loadMemberData === 'function') {
+                    allMembers = await loadMemberData({ forceRefresh: true });
                 }
 
-                let allMembers = [];
-                if (Array.isArray(data.roomId)) allMembers = allMembers.concat(data.roomId);
-                if (Array.isArray(data.members)) allMembers = allMembers.concat(data.members);
-                if (Array.isArray(data.retired)) allMembers = allMembers.concat(data.retired);
-
-                if (allMembers && allMembers.length > 0) {
+                if (Array.isArray(allMembers) && allMembers.length > 0) {
                     memberData = allMembers;
                     window.memberData = allMembers;
                     isMemberDataLoaded = true;
                     window.isMemberDataLoaded = true;
+                } else {
+                    throw new Error("JSON 数据格式不正确");
                 }
 
                 buildMemberCollectionsFromList(allMembers);
@@ -1701,7 +1695,22 @@
 
             } catch (err) {
                 console.error("自动更新成员 ID 失败:", err);
-                if (Array.isArray(memberData) && memberData.length > 0) {
+                let cachedMembers = [];
+                if (window.YayaMemberDataStore && typeof window.YayaMemberDataStore.readCachedMemberDataList === 'function') {
+                    cachedMembers = window.YayaMemberDataStore.readCachedMemberDataList();
+                }
+
+                if (Array.isArray(cachedMembers) && cachedMembers.length > 0) {
+                    if (window.YayaMemberDataStore && typeof window.YayaMemberDataStore.applyMemberDataList === 'function') {
+                        window.YayaMemberDataStore.applyMemberDataList(cachedMembers);
+                    }
+                    memberData = cachedMembers;
+                    window.memberData = cachedMembers;
+                    isMemberDataLoaded = true;
+                    window.isMemberDataLoaded = true;
+                    buildMemberCollectionsFromList(cachedMembers);
+                    if (statusMsg) statusMsg.textContent = `成员列表更新失败，已使用缓存 (${cachedMembers.length}人)`;
+                } else if (Array.isArray(memberData) && memberData.length > 0) {
                     buildMemberCollectionsFromList(memberData);
                     if (statusMsg) statusMsg.textContent = "成员列表更新失败，已使用当前内存数据";
                 } else {
