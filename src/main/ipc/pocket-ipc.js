@@ -60,6 +60,18 @@ function registerPocketIpc() {
     ipcMain.handle('fetch-conversation-page', (event, payload) => pocketService.fetchConversationPage(payload));
     ipcMain.handle('fetch-user-home-info', (event, payload) => pocketService.fetchUserHomeInfo(payload));
     ipcMain.handle('fetch-flip-custom-index-v1', (event, payload) => pocketService.fetchFlipCustomIndexV1(payload));
+    ipcMain.handle('score-vote-login', (event, payload) => pocketService.loginElectionVote(payload));
+    ipcMain.handle('score-vote-status', (event, payload) => pocketService.fetchElectionVoteStatus(payload));
+    ipcMain.handle('score-act-status', (event, payload) => pocketService.fetchElectionActStatus(payload));
+    ipcMain.handle('score-userinfo', (event, payload) => pocketService.fetchElectionUserInfo(payload));
+    ipcMain.handle('score-vote-history', (event, payload) => pocketService.fetchElectionVoteHistory(payload));
+    ipcMain.handle('score-code-act-history', (event, payload) => pocketService.fetchElectionCodeActHistory(payload));
+    ipcMain.handle('score-check-sg-bind', (event, payload) => pocketService.fetchElectionSgBindStatus(payload));
+    ipcMain.handle('score-bind-sg', (event, payload) => pocketService.bindElectionSg(payload));
+    ipcMain.handle('score-rare-treasure-list', (event, payload) => pocketService.fetchPageantryRareTreasures(payload));
+    ipcMain.handle('score-buy-star-list', (event, payload) => pocketService.fetchPageantryBuyStarList(payload));
+    ipcMain.handle('fetch-score-official-bundle', (event, payload) => pocketService.fetchScoreOfficialBundle(payload));
+    ipcMain.handle('score-official-action', (event, payload) => pocketService.runScoreOfficialAction(payload));
 }
 
 module.exports = {

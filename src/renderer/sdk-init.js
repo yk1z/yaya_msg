@@ -7,9 +7,22 @@
                 return null;
             }
 
-            const wasmPath = desktop.path.join(desktop.appDir, '2.wasm');
-            const bytes = desktop.fs.readFileSync(wasmPath);
-            return new Uint8Array(bytes);
+            const candidates = [
+                desktop.path.join(desktop.appDir, '2.wasm'),
+                desktop.path.join(desktop.appDir, '..', '2.wasm')
+            ];
+            for (const wasmPath of candidates) {
+                try {
+                    if (desktop.fs.existsSync && !desktop.fs.existsSync(wasmPath)) {
+                        continue;
+                    }
+                    const bytes = desktop.fs.readFileSync(wasmPath);
+                    return new Uint8Array(bytes);
+                } catch (error) {
+                    console.warn('WASM 本地路径不可用:', wasmPath, error);
+                }
+            }
+            return null;
         }
 
         async function initSDK() {

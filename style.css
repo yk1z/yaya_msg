@@ -2082,8 +2082,9 @@ body.topbar-page-title-enabled #view-official-site-music .page-header-left {
 
 .official-site-music-toolbar {
     display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
+    flex: 1 1 auto;
+    flex-wrap: nowrap;
+    gap: clamp(4px, 0.6vw, 8px);
     margin-bottom: 0;
     justify-content: flex-start;
     min-width: 0;
@@ -2094,13 +2095,17 @@ body.topbar-page-title-enabled #view-official-site-music .page-header-left {
     align-items: center;
     justify-content: center;
     gap: 6px;
+    flex: 1 1 0;
+    min-width: 0;
     min-height: 34px;
-    padding: 0 14px;
+    padding: 0 clamp(8px, 0.9vw, 14px);
     border: 1px solid var(--border);
     border-radius: 8px;
     background: var(--input-bg);
     color: var(--text-sub);
+    font-size: clamp(12px, 1vw, 14px);
     font-weight: 700;
+    white-space: nowrap;
     cursor: pointer;
     transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
@@ -2909,6 +2914,7 @@ html[data-theme="light"] #audio-player-queue .player-queue-item-time {
     }
 
     .official-site-music-toolbar {
+        flex-wrap: wrap;
         justify-content: flex-start;
     }
 

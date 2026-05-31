@@ -69,7 +69,19 @@ const pocketChannels = {
     'fetch-member-dynamic': fetchMemberDynamicMessages,
     'fetch-conversation-page': fetchConversationPage,
     'fetch-user-home-info': fetchUserHomeInfo,
-    'fetch-flip-custom-index-v1': fetchFlipCustomIndexV1
+    'fetch-flip-custom-index-v1': fetchFlipCustomIndexV1,
+    'score-vote-login': loginElectionVote,
+    'score-vote-status': fetchElectionVoteStatus,
+    'score-act-status': fetchElectionActStatus,
+    'score-userinfo': fetchElectionUserInfo,
+    'score-vote-history': fetchElectionVoteHistory,
+    'score-code-act-history': fetchElectionCodeActHistory,
+    'score-check-sg-bind': fetchElectionSgBindStatus,
+    'score-bind-sg': bindElectionSg,
+    'score-rare-treasure-list': fetchPageantryRareTreasures,
+    'score-buy-star-list': fetchPageantryBuyStarList,
+    'fetch-score-official-bundle': fetchScoreOfficialBundle,
+    'score-official-action': runScoreOfficialAction
 };
 
 export default {
@@ -353,10 +365,26 @@ function getDownloadContentType(key) {
     return 'application/octet-stream';
 }
 
-const R2_MUSIC_PREFIXES = ['SNH48/', 'GNZ48/', 'BEJ48/', 'CKG48/', 'CGT48/', 'SHY48/'];
+const R2_MUSIC_PREFIXES = ['SNH48/', 'GNZ48/', 'BEJ48/', 'CKG48/', 'CGT48/', 'SHY48/', 'TSH48/'];
 const R2_AUDIO_EXTENSIONS = new Set(['mp3', 'm4a', 'aac', 'wav', 'flac', 'ogg', 'opus']);
 const R2_IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp']);
 const R2_MUSIC_IMAGE_CACHE_SECONDS = 30 * 24 * 60 * 60;
+
+function getR2MusicCorsHeaders(extraHeaders = {}) {
+    const headers = new Headers(extraHeaders);
+    headers.set('Access-Control-Allow-Origin', '*');
+    headers.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+    headers.set('Access-Control-Allow-Headers', 'Range, Cache-Control, Content-Type');
+    headers.set('Access-Control-Expose-Headers', 'X-Yaya-Cache, Content-Length, Content-Range, Accept-Ranges, ETag, Content-Type');
+    return headers;
+}
+
+function r2MusicOptionsResponse() {
+    return new Response(null, {
+        status: 204,
+        headers: getR2MusicCorsHeaders({ 'Cache-Control': 'no-store' })
+    });
+}
 
 function getR2ObjectExtension(key) {
     const file = String(key || '').split('/').pop() || '';
@@ -429,22 +457,37 @@ async function listR2MusicObjects(env) {
 }
 
 async function handleR2MusicListRequest(request, env) {
+    if (request.method === 'OPTIONS') {
+        return r2MusicOptionsResponse();
+    }
     if (request.method !== 'GET' && request.method !== 'HEAD') {
-        return json({ success: false, msg: 'Method Not Allowed', tracks: [] }, 405);
+        return new Response(JSON.stringify({ success: false, msg: 'Method Not Allowed', tracks: [] }), {
+            status: 405,
+            headers: getR2MusicCorsHeaders({
+                'Content-Type': 'application/json;charset=utf-8',
+                'Cache-Control': 'no-store'
+            })
+        });
     }
     if (!env.YAYA_DOWNLOADS || typeof env.YAYA_DOWNLOADS.list !== 'function') {
-        return json({ success: false, msg: 'Music storage is not configured', tracks: [] }, 500);
+        return new Response(JSON.stringify({ success: false, msg: 'Music storage is not configured', tracks: [] }), {
+            status: 500,
+            headers: getR2MusicCorsHeaders({
+                'Content-Type': 'application/json;charset=utf-8',
+                'Cache-Control': 'no-store'
+            })
+        });
     }
 
     const bypassCache = /\bno-cache\b/i.test(request.headers.get('Cache-Control') || '');
     const now = Date.now();
     if (!bypassCache && r2MusicListCache && r2MusicListCache.expiresAt > now) {
         return new Response(r2MusicListCache.body, {
-            headers: {
+            headers: getR2MusicCorsHeaders({
                 'Content-Type': 'application/json;charset=utf-8',
                 'Cache-Control': `public, max-age=${R2_MUSIC_LIST_CACHE_TTL_SECONDS}`,
                 'X-Yaya-Cache': 'HIT'
-            }
+            })
         });
     }
     const edgeCache = typeof caches !== 'undefined' ? caches.default : null;
@@ -458,11 +501,11 @@ async function handleR2MusicListRequest(request, env) {
                 expiresAt: now + R2_MUSIC_LIST_CACHE_TTL_MS
             };
             return new Response(body, {
-                headers: {
+                headers: getR2MusicCorsHeaders({
                     'Content-Type': 'application/json;charset=utf-8',
                     'Cache-Control': `public, max-age=${R2_MUSIC_LIST_CACHE_TTL_SECONDS}`,
                     'X-Yaya-Cache': 'HIT'
-                }
+                })
             });
         }
     }
@@ -509,11 +552,11 @@ async function handleR2MusicListRequest(request, env) {
         expiresAt: now + R2_MUSIC_LIST_CACHE_TTL_MS
     };
     const response = new Response(body, {
-        headers: {
+        headers: getR2MusicCorsHeaders({
             'Content-Type': 'application/json;charset=utf-8',
             'Cache-Control': `public, max-age=${R2_MUSIC_LIST_CACHE_TTL_SECONDS}`,
             'X-Yaya-Cache': 'MISS'
-        }
+        })
     });
     if (edgeCache) {
         await edgeCache.put(edgeCacheKey, response.clone());
@@ -522,28 +565,57 @@ async function handleR2MusicListRequest(request, env) {
 }
 
 async function handleR2MusicObjectRequest(request, env, url) {
+    if (request.method === 'OPTIONS') {
+        return r2MusicOptionsResponse();
+    }
     if (request.method !== 'GET' && request.method !== 'HEAD') {
-        return textResponse('Method Not Allowed', 405);
+        return new Response('Method Not Allowed', {
+            status: 405,
+            headers: getR2MusicCorsHeaders({
+                'Content-Type': 'text/plain;charset=utf-8',
+                'Cache-Control': 'no-store'
+            })
+        });
     }
     if (!env.YAYA_DOWNLOADS) {
-        return textResponse('Music storage is not configured', 500);
+        return new Response('Music storage is not configured', {
+            status: 500,
+            headers: getR2MusicCorsHeaders({
+                'Content-Type': 'text/plain;charset=utf-8',
+                'Cache-Control': 'no-store'
+            })
+        });
     }
 
     const key = decodeURIComponent(url.pathname.replace(/^\/r2-music\/?/, '')).replace(/^\/+/, '');
     const ext = getR2ObjectExtension(key);
     if (!isAllowedR2MusicKey(key) || (!R2_AUDIO_EXTENSIONS.has(ext) && !R2_IMAGE_EXTENSIONS.has(ext))) {
-        return textResponse('Invalid music path', 400);
+        return new Response('Invalid music path', {
+            status: 400,
+            headers: getR2MusicCorsHeaders({
+                'Content-Type': 'text/plain;charset=utf-8',
+                'Cache-Control': 'no-store'
+            })
+        });
     }
 
     const object = await env.YAYA_DOWNLOADS.get(key, { range: request.headers });
-    if (!object) return textResponse('File not found', 404);
+    if (!object) {
+        return new Response('File not found', {
+            status: 404,
+            headers: getR2MusicCorsHeaders({
+                'Content-Type': 'text/plain;charset=utf-8',
+                'Cache-Control': 'no-store'
+            })
+        });
+    }
 
     const headers = new Headers();
     object.writeHttpMetadata(headers);
     headers.set('etag', object.httpEtag);
     headers.set('Accept-Ranges', 'bytes');
     headers.set('Cache-Control', R2_IMAGE_EXTENSIONS.has(ext)
-        ? `public, max-age=${R2_MUSIC_IMAGE_CACHE_SECONDS}`
+        ? `public, max-age=${R2_MUSIC_IMAGE_CACHE_SECONDS}, immutable`
         : 'no-store');
     headers.set('Content-Type', getR2MusicContentType(key, headers.get('Content-Type') || ''));
     headers.set('Content-Disposition', `inline; filename="${encodeURIComponent(key.split('/').pop() || 'music')}"`);
@@ -558,7 +630,7 @@ async function handleR2MusicObjectRequest(request, env, url) {
 
     return new Response(request.method === 'HEAD' ? null : object.body, {
         status: object.range ? 206 : 200,
-        headers
+        headers: getR2MusicCorsHeaders(headers)
     });
 }
 
@@ -866,6 +938,66 @@ function createPfileHeaders(token, pa) {
     const headers = createModernHeaders(token, pa);
     delete headers['Content-Type'];
     delete headers.Host;
+    return headers;
+}
+
+function getElectionVoteToken(payload = {}) {
+    return String(
+        payload.voteToken
+        || payload.electionToken
+        || payload.authToken
+        || payload.bearerToken
+        || payload.authorization
+        || payload.electionAuthorization
+        || ''
+    ).replace(/^Bearer\s+/i, '').trim();
+}
+
+function getElectionAppToken(payload = {}) {
+    return String(payload.appToken || payload.pocketToken || payload.token || '').trim();
+}
+
+function createElectionVoteHeaders(payload = {}, options = {}) {
+    const headers = {
+        'Content-Type': 'application/json; charset=utf-8',
+        Accept: 'application/json, text/plain, */*',
+        Origin: 'https://ceremony.ckg48.com',
+        Referer: 'https://ceremony.ckg48.com/',
+        Host: 'voteapi.48.cn',
+        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148'
+    };
+    if (options.appToken) {
+        const appToken = getElectionAppToken(payload);
+        if (appToken) headers['X-APP-TOKEN'] = appToken;
+    }
+    if (options.auth !== false) {
+        const voteToken = getElectionVoteToken(payload);
+        if (voteToken) headers.Authorization = `Bearer ${voteToken}`;
+    }
+    return headers;
+}
+
+function createPageantryHeaders(token, pa) {
+    const headers = {
+        'Content-Type': 'application/json; charset=utf-8',
+        Accept: 'application/json, text/plain, */*',
+        Origin: 'http://h5.snh48.com',
+        Referer: 'http://h5.snh48.com/',
+        Host: 'pocketapi.48.cn',
+        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148',
+        appInfo: encodeURIComponent(JSON.stringify({
+            build: '26042402',
+            phoneSystemVersion: 'iOS',
+            schema: 'com.DuYi.SNH48',
+            appName: 'pocket48',
+            IMEI: '7B93DFD0-472F-4736-A628-E85FAE086487',
+            osType: 'ios',
+            version: '7.1.38',
+            phoneName: 'iPhone17,1'
+        }))
+    };
+    if (token) headers.token = token;
+    if (pa) headers.pa = pa;
     return headers;
 }
 
@@ -1685,4 +1817,148 @@ async function fetchFlipCustomIndexV1({ token, pa, memberId }) {
         { memberId: String(memberId || '') },
         { token, pa, errorMessage: '获取翻牌配置失败' }
     );
+}
+
+async function requestElectionVoteApi(method, path, payload = {}, body = {}, options = {}) {
+    const response = await fetch(`https://voteapi.48.cn/election-vote/api/v1${path}`, {
+        method,
+        headers: createElectionVoteHeaders(payload, options),
+        body: method === 'GET' ? undefined : JSON.stringify(body || {})
+    });
+    const text = await response.text();
+    let data = null;
+    if (text) {
+        try {
+            data = JSON.parse(text);
+        } catch (_) {
+            return { success: false, msg: `计分 API 返回内容不是 JSON: ${text.replace(/\s+/g, ' ').slice(0, 120)}` };
+        }
+    }
+    if (response.status === 200 && (data?.status === 200 || data?.success)) {
+        return { success: true, content: data.content, data };
+    }
+    return { success: false, msg: data?.message || '计分 API 错误', data };
+}
+
+async function loginElectionVote(payload = {}) {
+    const appToken = getElectionAppToken(payload);
+    if (!appToken) return missingToken();
+    return requestElectionVoteApi('POST', '/login/app', payload, {
+        appToken,
+        nickName: String(payload.nickName || payload.nickname || ''),
+        avatar: String(payload.avatar || ''),
+        device: String(payload.device || 'iOS;iPhone17,1;7.1.38;26042402'),
+        platform: String(payload.platform || 'IOS')
+    }, { auth: false, appToken: true });
+}
+
+async function fetchElectionVoteStatus(payload = {}) {
+    return requestElectionVoteApi('GET', '/vote/status', payload, null, { auth: false });
+}
+
+async function fetchElectionActStatus(payload = {}) {
+    return requestElectionVoteApi('GET', '/act/status', payload, null, { auth: false });
+}
+
+async function fetchElectionUserInfo(payload = {}) {
+    if (!getElectionVoteToken(payload)) return missingToken();
+    return requestElectionVoteApi('POST', '/userinfo/get', payload, {}, { auth: true });
+}
+
+async function fetchElectionVoteHistory(payload = {}) {
+    if (!getElectionVoteToken(payload)) return missingToken();
+    return requestElectionVoteApi('POST', '/vote/history/list', payload, {
+        limit: Number(payload.limit) || 10,
+        lastTime: Number(payload.lastTime) || 0
+    }, { auth: true });
+}
+
+async function fetchElectionCodeActHistory(payload = {}) {
+    if (!getElectionVoteToken(payload)) return missingToken();
+    return requestElectionVoteApi('POST', '/code/act/history/list', payload, {
+        limit: Number(payload.limit) || 10,
+        lastTime: Number(payload.lastTime) || 0
+    }, { auth: true });
+}
+
+async function fetchElectionSgBindStatus(payload = {}) {
+    if (!getElectionVoteToken(payload)) return missingToken();
+    return requestElectionVoteApi('POST', '/userinfo/check/bind/sg', payload, {}, { auth: true });
+}
+
+async function bindElectionSg(payload = {}) {
+    if (!getElectionVoteToken(payload)) return missingToken();
+    return requestElectionVoteApi('POST', '/bind/sg', payload, {
+        clientId: String(payload.clientId || '20260518001'),
+        platform: String(payload.platform || 'IOS'),
+        code: String(payload.code || ''),
+        device: String(payload.device || 'iOS;iPhone17,1;7.1.38;26042402')
+    }, { auth: true, appToken: true });
+}
+
+async function fetchPageantryRareTreasures({ token, pa } = {}) {
+    if (!token) return missingToken();
+    return postPocketContent(
+        'https://pocketapi.48.cn/ai-fairyland/api/pageantry/2026/v1/rare_treasure/list',
+        {},
+        { token, pa, headersFactory: createPageantryHeaders, errorMessage: '获取稀有宝物列表失败' }
+    );
+}
+
+async function fetchPageantryBuyStarList({ token, pa, starId = '', starName = '' } = {}) {
+    if (!token) return missingToken();
+    return postPocketContent(
+        'https://pocketapi.48.cn/ai-fairyland/api/pageantry/2026/v1/get/buy_star/list',
+        { starId: String(starId || ''), starName: String(starName || '') },
+        { token, pa, headersFactory: createPageantryHeaders, errorMessage: '获取计分成员列表失败' }
+    );
+}
+
+async function fetchScoreOfficialBundle(payload = {}) {
+    const actions = [
+        ['voteStatus', () => fetchElectionVoteStatus(payload)],
+        ['actStatus', () => fetchElectionActStatus(payload)],
+        ['rareTreasures', () => fetchPageantryRareTreasures(payload)],
+        ['buyStarList', () => fetchPageantryBuyStarList(payload)]
+    ];
+    if (getElectionVoteToken(payload)) {
+        actions.push(
+            ['userInfo', () => fetchElectionUserInfo(payload)],
+            ['sgBindStatus', () => fetchElectionSgBindStatus(payload)],
+            ['voteHistory', () => fetchElectionVoteHistory(payload)],
+            ['codeActHistory', () => fetchElectionCodeActHistory(payload)]
+        );
+    }
+    const content = {};
+    await Promise.all(actions.map(async ([key, fn]) => {
+        try {
+            content[key] = await fn();
+        } catch (error) {
+            content[key] = { success: false, msg: error.message || '计分 API 错误' };
+        }
+    }));
+    return { success: true, content };
+}
+
+async function runScoreOfficialAction(payload = {}) {
+    const action = String(payload.action || payload.type || '').trim();
+    const actionPayload = payload.payload && typeof payload.payload === 'object'
+        ? { ...payload, ...payload.payload }
+        : payload;
+    const handlers = {
+        'vote-login': loginElectionVote,
+        'vote-status': fetchElectionVoteStatus,
+        'act-status': fetchElectionActStatus,
+        userinfo: fetchElectionUserInfo,
+        'vote-history': fetchElectionVoteHistory,
+        'code-act-history': fetchElectionCodeActHistory,
+        'check-sg-bind': fetchElectionSgBindStatus,
+        'bind-sg': bindElectionSg,
+        'rare-treasure-list': fetchPageantryRareTreasures,
+        'buy-star-list': fetchPageantryBuyStarList,
+        bundle: fetchScoreOfficialBundle
+    };
+    const handler = handlers[action];
+    if (!handler) return { success: false, msg: `未知计分动作: ${action || '-'}` };
+    return handler(actionPayload);
 }

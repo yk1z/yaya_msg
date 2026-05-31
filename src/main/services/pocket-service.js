@@ -107,6 +107,66 @@ function createPfileHeaders(token, pa) {
     return headers;
 }
 
+function getElectionVoteToken(payload = {}) {
+    return String(
+        payload.voteToken
+        || payload.electionToken
+        || payload.authToken
+        || payload.bearerToken
+        || payload.authorization
+        || payload.electionAuthorization
+        || ''
+    ).replace(/^Bearer\s+/i, '').trim();
+}
+
+function getElectionAppToken(payload = {}) {
+    return String(payload.appToken || payload.pocketToken || payload.token || '').trim();
+}
+
+function createElectionVoteHeaders(payload = {}, options = {}) {
+    const headers = {
+        'Content-Type': 'application/json; charset=utf-8',
+        Accept: 'application/json, text/plain, */*',
+        Origin: 'https://ceremony.ckg48.com',
+        Referer: 'https://ceremony.ckg48.com/',
+        Host: 'voteapi.48.cn',
+        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148'
+    };
+    if (options.appToken) {
+        const appToken = getElectionAppToken(payload);
+        if (appToken) headers['X-APP-TOKEN'] = appToken;
+    }
+    if (options.auth !== false) {
+        const voteToken = getElectionVoteToken(payload);
+        if (voteToken) headers.Authorization = `Bearer ${voteToken}`;
+    }
+    return headers;
+}
+
+function createPageantryHeaders(token, pa) {
+    const headers = {
+        'Content-Type': 'application/json; charset=utf-8',
+        Accept: 'application/json, text/plain, */*',
+        Origin: 'http://h5.snh48.com',
+        Referer: 'http://h5.snh48.com/',
+        Host: 'pocketapi.48.cn',
+        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148',
+        appInfo: encodeURIComponent(JSON.stringify({
+            build: '26042402',
+            phoneSystemVersion: 'iOS',
+            schema: 'com.DuYi.SNH48',
+            appName: 'pocket48',
+            IMEI: '7B93DFD0-472F-4736-A628-E85FAE086487',
+            osType: 'ios',
+            version: '7.1.38',
+            phoneName: 'iPhone17,1'
+        }))
+    };
+    if (token) headers.token = token;
+    if (pa) headers.pa = pa;
+    return headers;
+}
+
 function createMeet48Headers() {
     const storedAuth = settingsService.readSettings().meet48Auth || {};
     const authDisabled = storedAuth.disabled === true;
@@ -1729,6 +1789,147 @@ async function fetchFlipCustomIndexV1({ token, pa, memberId }) {
     );
 }
 
+async function requestElectionVoteApi(method, path, payload = {}, body = {}, options = {}) {
+    const url = `https://voteapi.48.cn/election-vote/api/v1${path}`;
+    try {
+        const response = await axios({
+            method,
+            url,
+            data: method === 'GET' ? undefined : (body || {}),
+            headers: createElectionVoteHeaders(payload, options)
+        });
+        if (response.status === 200 && response.data && (response.data.status === 200 || response.data.success)) {
+            return { success: true, content: response.data.content, data: response.data };
+        }
+        return apiError(response, '计分 API 错误');
+    } catch (error) {
+        return { success: false, msg: error.response?.data?.message || error.message || '计分 API 错误', data: error.response?.data };
+    }
+}
+
+async function loginElectionVote(payload = {}) {
+    const appToken = getElectionAppToken(payload);
+    if (!appToken) return missingToken();
+    return requestElectionVoteApi('POST', '/login/app', payload, {
+        appToken,
+        nickName: String(payload.nickName || payload.nickname || ''),
+        avatar: String(payload.avatar || ''),
+        device: String(payload.device || 'iOS;iPhone17,1;7.1.38;26042402'),
+        platform: String(payload.platform || 'IOS')
+    }, { auth: false, appToken: true });
+}
+
+async function fetchElectionVoteStatus(payload = {}) {
+    return requestElectionVoteApi('GET', '/vote/status', payload, null, { auth: false });
+}
+
+async function fetchElectionActStatus(payload = {}) {
+    return requestElectionVoteApi('GET', '/act/status', payload, null, { auth: false });
+}
+
+async function fetchElectionUserInfo(payload = {}) {
+    if (!getElectionVoteToken(payload)) return missingToken();
+    return requestElectionVoteApi('POST', '/userinfo/get', payload, {}, { auth: true });
+}
+
+async function fetchElectionVoteHistory(payload = {}) {
+    if (!getElectionVoteToken(payload)) return missingToken();
+    return requestElectionVoteApi('POST', '/vote/history/list', payload, {
+        limit: Number(payload.limit) || 10,
+        lastTime: Number(payload.lastTime) || 0
+    }, { auth: true });
+}
+
+async function fetchElectionCodeActHistory(payload = {}) {
+    if (!getElectionVoteToken(payload)) return missingToken();
+    return requestElectionVoteApi('POST', '/code/act/history/list', payload, {
+        limit: Number(payload.limit) || 10,
+        lastTime: Number(payload.lastTime) || 0
+    }, { auth: true });
+}
+
+async function fetchElectionSgBindStatus(payload = {}) {
+    if (!getElectionVoteToken(payload)) return missingToken();
+    return requestElectionVoteApi('POST', '/userinfo/check/bind/sg', payload, {}, { auth: true });
+}
+
+async function bindElectionSg(payload = {}) {
+    if (!getElectionVoteToken(payload)) return missingToken();
+    return requestElectionVoteApi('POST', '/bind/sg', payload, {
+        clientId: String(payload.clientId || '20260518001'),
+        platform: String(payload.platform || 'IOS'),
+        code: String(payload.code || ''),
+        device: String(payload.device || 'iOS;iPhone17,1;7.1.38;26042402')
+    }, { auth: true, appToken: true });
+}
+
+async function fetchPageantryRareTreasures({ token, pa } = {}) {
+    if (!token) return missingToken();
+    return postPocketContent(
+        'https://pocketapi.48.cn/ai-fairyland/api/pageantry/2026/v1/rare_treasure/list',
+        {},
+        { token, pa, headersFactory: createPageantryHeaders, errorMessage: '获取稀有宝物列表失败' }
+    );
+}
+
+async function fetchPageantryBuyStarList({ token, pa, starId = '', starName = '' } = {}) {
+    if (!token) return missingToken();
+    return postPocketContent(
+        'https://pocketapi.48.cn/ai-fairyland/api/pageantry/2026/v1/get/buy_star/list',
+        { starId: String(starId || ''), starName: String(starName || '') },
+        { token, pa, headersFactory: createPageantryHeaders, errorMessage: '获取计分成员列表失败' }
+    );
+}
+
+async function fetchScoreOfficialBundle(payload = {}) {
+    const actions = [
+        ['voteStatus', () => fetchElectionVoteStatus(payload)],
+        ['actStatus', () => fetchElectionActStatus(payload)],
+        ['rareTreasures', () => fetchPageantryRareTreasures(payload)],
+        ['buyStarList', () => fetchPageantryBuyStarList(payload)]
+    ];
+    if (getElectionVoteToken(payload)) {
+        actions.push(
+            ['userInfo', () => fetchElectionUserInfo(payload)],
+            ['sgBindStatus', () => fetchElectionSgBindStatus(payload)],
+            ['voteHistory', () => fetchElectionVoteHistory(payload)],
+            ['codeActHistory', () => fetchElectionCodeActHistory(payload)]
+        );
+    }
+    const content = {};
+    await Promise.all(actions.map(async ([key, fn]) => {
+        try {
+            content[key] = await fn();
+        } catch (error) {
+            content[key] = { success: false, msg: error.message || '计分 API 错误' };
+        }
+    }));
+    return { success: true, content };
+}
+
+async function runScoreOfficialAction(payload = {}) {
+    const action = String(payload.action || payload.type || '').trim();
+    const actionPayload = payload.payload && typeof payload.payload === 'object'
+        ? { ...payload, ...payload.payload }
+        : payload;
+    const handlers = {
+        'vote-login': loginElectionVote,
+        'vote-status': fetchElectionVoteStatus,
+        'act-status': fetchElectionActStatus,
+        userinfo: fetchElectionUserInfo,
+        'vote-history': fetchElectionVoteHistory,
+        'code-act-history': fetchElectionCodeActHistory,
+        'check-sg-bind': fetchElectionSgBindStatus,
+        'bind-sg': bindElectionSg,
+        'rare-treasure-list': fetchPageantryRareTreasures,
+        'buy-star-list': fetchPageantryBuyStarList,
+        bundle: fetchScoreOfficialBundle
+    };
+    const handler = handlers[action];
+    if (!handler) return { success: false, msg: `未知计分动作: ${action || '-'}` };
+    return handler(actionPayload);
+}
+
 module.exports = {
     loginSendSms,
     loginByCode,
@@ -1787,5 +1988,17 @@ module.exports = {
     fetchMemberDynamicMessages,
     fetchConversationPage,
     fetchUserHomeInfo,
-    fetchFlipCustomIndexV1
+    fetchFlipCustomIndexV1,
+    loginElectionVote,
+    fetchElectionVoteStatus,
+    fetchElectionActStatus,
+    fetchElectionUserInfo,
+    fetchElectionVoteHistory,
+    fetchElectionCodeActHistory,
+    fetchElectionSgBindStatus,
+    bindElectionSg,
+    fetchPageantryRareTreasures,
+    fetchPageantryBuyStarList,
+    fetchScoreOfficialBundle,
+    runScoreOfficialAction
 };

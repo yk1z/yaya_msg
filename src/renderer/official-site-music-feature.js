@@ -5,13 +5,15 @@
     const MUSIC_LYRICS_BASE_URL = `${DATA_BASE_URL}/lyrics`;
     const MUSIC_LYRICS_INDEX_URL = `${DATA_BASE_URL}/lyrics-index.json`;
     const R2_MUSIC_PUBLIC_ORIGIN = 'https://gnz.hk';
+    const R2_MUSIC_PUBLIC_ORIGIN_FALLBACK = 'https://yaya-msg-web.yk1z.workers.dev';
     const FAVORITES_STORAGE_KEY = 'yaya_official_site_music_favorites';
     const PLAYER_STATE_STORAGE_KEY = 'yaya_official_site_music_player_state';
     const DURATION_STORAGE_KEY = 'yaya_official_site_music_durations';
-    const TRACKS_CACHE_STORAGE_KEY = 'yaya_official_site_music_tracks_cache_v2';
+    const TRACKS_CACHE_STORAGE_KEY = 'yaya_official_site_music_tracks_cache_v4';
     const VOLUME_STORAGE_KEY = 'yaya_music_volume_v2';
     const TRACKS_CACHE_TTL = 24 * 60 * 60 * 1000;
     const DEFAULT_MUSIC_VOLUME = 0.43;
+    let activeR2MusicPublicOrigin = R2_MUSIC_PUBLIC_ORIGIN;
     const GROUPS = [
         { key: 'SNH', label: 'SNH48', script: 'json_data_snh.js', listVar: 'ix_mp3list_snh', recordsVar: 'records_snh', songsVar: 'ix_songs_snh' },
         { key: 'GNZ', label: 'GNZ48', script: 'json_data_gnz.js', listVar: 'ix_mp3list_gnz', recordsVar: 'records_gnz', songsVar: 'ix_songs_gnz' },
@@ -25,7 +27,8 @@
         ['BEJ', 2],
         ['CKG', 3],
         ['CGT', 4],
-        ['SHY', 5]
+        ['SHY', 5],
+        ['TSH', 6]
     ]);
 
     const state = {
@@ -295,22 +298,49 @@
             return parsed && typeof parsed === 'object'
                 ? {
                     updatedAt: Number(parsed.updatedAt) || 0,
-                    tracks: Array.isArray(parsed.tracks) ? parsed.tracks : []
+                    tracks: Array.isArray(parsed.tracks) ? parsed.tracks : [],
+                    hasR2Tracks: Boolean(parsed.hasR2Tracks)
                 }
-                : { updatedAt: 0, tracks: [] };
+                : { updatedAt: 0, tracks: [], hasR2Tracks: false };
         } catch (_) {
-            return { updatedAt: 0, tracks: [] };
+            return { updatedAt: 0, tracks: [], hasR2Tracks: false };
         }
     }
 
+    function hasR2PerformanceMusicTracks(tracks) {
+        return Array.isArray(tracks) && tracks.some((track) => {
+            if (!track) return false;
+            if (track.source === 'r2-performance') return true;
+            if (String(track.id || '').startsWith('R2-')) return true;
+            return /\/r2-music\//i.test(String(track.mp3 || track.coverUrl || ''));
+        });
+    }
+
+    function hasCurrentR2PerformanceMusicMetadata(tracks) {
+        if (!Array.isArray(tracks)) return false;
+        const r2Tracks = tracks.filter((track) => {
+            if (!track) return false;
+            if (track.source === 'r2-performance') return true;
+            if (String(track.id || '').startsWith('R2-')) return true;
+            return /\/r2-music\//i.test(String(track.mp3 || track.coverUrl || ''));
+        });
+        if (!r2Tracks.length) return false;
+        const tshTracks = r2Tracks.filter((track) => String(track.groupKey || '').toUpperCase() === 'TSH');
+        return !tshTracks.length || tshTracks.some((track) => String(track.coverUrl || '').trim());
+    }
+
     function isOfficialSiteMusicTracksCacheFresh(cache = readOfficialSiteMusicTracksCache()) {
-        return cache.updatedAt && Date.now() - cache.updatedAt < TRACKS_CACHE_TTL;
+        return cache.updatedAt
+            && Date.now() - cache.updatedAt < TRACKS_CACHE_TTL
+            && (cache.hasR2Tracks || hasR2PerformanceMusicTracks(cache.tracks))
+            && hasCurrentR2PerformanceMusicMetadata(cache.tracks);
     }
 
     function saveOfficialSiteMusicTracksCache(tracks) {
         writeStringSetting(TRACKS_CACHE_STORAGE_KEY, JSON.stringify({
             updatedAt: Date.now(),
-            tracks: Array.isArray(tracks) ? tracks : []
+            tracks: Array.isArray(tracks) ? tracks : [],
+            hasR2Tracks: hasR2PerformanceMusicTracks(tracks)
         }));
     }
 
@@ -539,7 +569,7 @@
     function isRemovableMusicTitleParenthetical(content) {
         const text = String(content || '').trim();
         if (!text || text.includes('重填词')) return false;
-        if (/^(?:SNH48(?:\s+GROUP)?|BEJ48|GNZ48|SHY48|CKG48|CGT48|IDOLS\s*FT)$/i.test(text)) return true;
+        if (/^(?:SNH48(?:\s+GROUP)?|BEJ48|GNZ48|SHY48|CKG48|CGT48|TSH48|IDOLS\s*FT)$/i.test(text)) return true;
         if (/^team\s*[a-z0-9]+$/i.test(text)) return true;
 
         const parts = text.split(/[\s,，、/＋+&]+/).filter(Boolean);
@@ -555,7 +585,7 @@
                 const text = String(content || '');
                 return !isRemovableMusicTitleParenthetical(text) && (text.includes('重填词') || (preserveEnglish && /[A-Za-z]/.test(text))) ? match : ' ';
             })
-            .replace(/\s*[–—-]\s*(?:[A-Z]+队|TEAM\s*[A-Z0-9]+|SNH48(?:\s+GROUP)?|BEJ48|GNZ48|SHY48|CKG48|CGT48|IDOLS\s*FT)\s*$/i, '')
+            .replace(/\s*[–—-]\s*(?:[A-Z]+队|TEAM\s*[A-Z0-9]+|SNH48(?:\s+GROUP)?|BEJ48|GNZ48|SHY48|CKG48|CGT48|TSH48|IDOLS\s*FT)\s*$/i, '')
             .replace(/\s+/g, ' ')
             .trim();
     }
@@ -590,7 +620,7 @@
         if (!text) return '';
         if (/^https?:\/\//i.test(text)) return text;
         if (typeof window.yayaWebApiUrl === 'function') return window.yayaWebApiUrl(text);
-        return `${R2_MUSIC_PUBLIC_ORIGIN}${text.startsWith('/') ? text : `/${text}`}`;
+        return `${activeR2MusicPublicOrigin}${text.startsWith('/') ? text : `/${text}`}`;
     }
 
     function normalizeR2MusicTrack(item, index) {
@@ -608,6 +638,7 @@
             coverUrl: coverUrl ? getR2MusicPublicUrl(coverUrl) : '',
             duration: String(item.duration || '').trim(),
             sourceIndex: Number.isFinite(Number(item.sourceIndex)) ? Number(item.sourceIndex) : 100000 + index,
+            source: 'r2-performance',
             audioGroupKey: String(item.key || item.id || index),
             lrcPath: '',
             mp3: getR2MusicPublicUrl(item.mp3)
@@ -615,11 +646,39 @@
     }
 
     async function loadR2PerformanceMusicTracks() {
-        const response = await fetch(getR2MusicPublicUrl('/api/r2-music'));
-        if (!response.ok) throw new Error(`R2 music list failed: ${response.status}`);
-        const data = await response.json();
-        const tracks = Array.isArray(data.tracks) ? data.tracks : [];
-        return tracks.map(normalizeR2MusicTrack).filter(Boolean);
+        const origins = typeof window.yayaWebApiUrl === 'function'
+            ? ['']
+            : [R2_MUSIC_PUBLIC_ORIGIN, R2_MUSIC_PUBLIC_ORIGIN_FALLBACK];
+        const errors = [];
+
+        for (const origin of origins) {
+            activeR2MusicPublicOrigin = origin || R2_MUSIC_PUBLIC_ORIGIN;
+            const apiUrl = origin ? `${origin}/api/r2-music` : getR2MusicPublicUrl('/api/r2-music');
+            try {
+                const response = await fetch(apiUrl, {
+                    cache: 'no-store',
+                    headers: { 'Cache-Control': 'no-cache' }
+                });
+                const text = await response.text();
+                if (!response.ok) {
+                    errors.push(`${apiUrl} ${response.status}`);
+                    continue;
+                }
+                let data = null;
+                try {
+                    data = text ? JSON.parse(text) : null;
+                } catch (_) {
+                    errors.push(`${apiUrl} returned non-JSON`);
+                    continue;
+                }
+                const tracks = Array.isArray(data?.tracks) ? data.tracks : [];
+                return tracks.map(normalizeR2MusicTrack).filter(Boolean);
+            } catch (error) {
+                errors.push(`${apiUrl} ${error.message || 'failed'}`);
+            }
+        }
+
+        throw new Error(`R2 music list failed: ${errors.join('; ') || 'unknown error'}`);
     }
 
     function getOfficialSiteMusicPinyinParts(value) {
@@ -1690,7 +1749,10 @@
             subtitle.textContent = getTrackSubtitle(track);
         }
         if (cover) {
-            cover.src = track && track.coverUrl ? track.coverUrl : './icon.png';
+            const nextCoverUrl = track && track.coverUrl ? track.coverUrl : './icon.png';
+            if (cover.getAttribute('src') !== nextCoverUrl) {
+                cover.src = nextCoverUrl;
+            }
         }
         updateFavoriteButton();
         updateOfficialSiteMediaSessionMetadata(track);
