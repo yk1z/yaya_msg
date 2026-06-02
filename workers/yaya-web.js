@@ -35,6 +35,10 @@ const pocketChannels = {
     'operate-flip-question': operateFlipQuestion,
     'fetch-member-photos': fetchMemberPhotos,
     'fetch-user-money': fetchUserMoney,
+    'fetch-invoice-tips': fetchInvoiceTips,
+    'fetch-invoice-config': fetchInvoiceConfig,
+    'fetch-invoice-order-list': fetchInvoiceOrderList,
+    'apply-electronic-invoice': applyElectronicInvoice,
     'fetch-checkin-today': fetchCheckinToday,
     'fetch-unread-message-count': fetchUnreadMessageCount,
     'edit-user-info': editUserInfo,
@@ -84,6 +88,13 @@ const pocketChannels = {
     'score-official-action': runScoreOfficialAction
 };
 
+const invoiceChannels = new Set([
+    'fetch-invoice-tips',
+    'fetch-invoice-config',
+    'fetch-invoice-order-list',
+    'apply-electronic-invoice'
+]);
+
 export default {
     async fetch(request, env) {
         const url = new URL(request.url);
@@ -107,7 +118,7 @@ export default {
         if (url.pathname === '/api/ipc') {
             const apiBackend = getApiBackend(env);
             if (apiBackend && await shouldProxyIpcToBackend(request)) {
-                return proxyApiRequest(request, apiBackend);
+                return proxyIpcRequest(request, env, apiBackend);
             }
             return handleIpc(request, env);
         }
@@ -243,6 +254,7 @@ function getWebAppRouteSlugs() {
         'audio',
         'profile',
         'database',
+        'invoice',
         'melee',
         'trip',
         'login',
@@ -291,11 +303,46 @@ async function shouldProxyIpcToBackend(request) {
         return new Set([
             'login-send-sms',
             'login-by-code',
-            'login-check-token'
+            'login-check-token',
+            'fetch-invoice-tips',
+            'fetch-invoice-config',
+            'fetch-invoice-order-list',
+            'apply-electronic-invoice'
         ]).has(String(body?.channel || ''));
     } catch (error) {
         return false;
     }
+}
+
+async function proxyIpcRequest(request, env, apiBackend) {
+    let channel = '';
+    try {
+        const body = await request.clone().json();
+        channel = String(body?.channel || '');
+    } catch (error) {
+    }
+
+    const response = await proxyApiRequest(request.clone(), apiBackend);
+    if (!invoiceChannels.has(channel)) {
+        return response;
+    }
+
+    const text = await response.clone().text();
+    let data = null;
+    try {
+        data = text ? JSON.parse(text) : null;
+    } catch (error) {
+        return response;
+    }
+
+    const msg = String(data?.msg || data?.message || '');
+    if (!data?.success && msg.includes(`网页版暂不支持: ${channel}`)) {
+        return json({
+            success: false,
+            msg: 'api.gnz.hk 后端还是旧版本，暂不支持发票接口。请更新并重启后端 server/yaya-api.mjs。'
+        }, 502);
+    }
+    return response;
 }
 
 function proxyApiRequest(request, apiBackend) {
@@ -312,7 +359,26 @@ function proxyApiRequest(request, apiBackend) {
     if (request.method !== 'GET' && request.method !== 'HEAD') {
         init.body = request.body;
     }
-    return fetch(targetUrl.toString(), init);
+    return fetch(targetUrl.toString(), init).then(async (response) => {
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('text/html')) {
+            return response;
+        }
+
+        const text = await response.text();
+        if (!/^\s*</.test(text || '')) {
+            return new Response(text, {
+                status: response.status,
+                statusText: response.statusText,
+                headers: response.headers
+            });
+        }
+
+        return json({
+            success: false,
+            msg: 'API 后端被 Cloudflare 浏览器校验拦截，请放行 api.gnz.hk/api/* 或配置不受校验的 YAYA_API_BACKEND。'
+        }, 502);
+    });
 }
 
 async function handleDownloadRequest(request, env, url) {
@@ -362,6 +428,7 @@ function getDownloadContentType(key) {
     const lowered = String(key || '').toLowerCase();
     if (lowered.endsWith('.tar.gz') || lowered.endsWith('.tgz')) return 'application/gzip';
     if (lowered.endsWith('.zip')) return 'application/zip';
+    if (lowered.endsWith('.exe')) return 'application/vnd.microsoft.portable-executable';
     return 'application/octet-stream';
 }
 
@@ -369,6 +436,7 @@ const R2_MUSIC_PREFIXES = ['SNH48/', 'GNZ48/', 'BEJ48/', 'CKG48/', 'CGT48/', 'SH
 const R2_AUDIO_EXTENSIONS = new Set(['mp3', 'm4a', 'aac', 'wav', 'flac', 'ogg', 'opus']);
 const R2_IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp']);
 const R2_MUSIC_IMAGE_CACHE_SECONDS = 30 * 24 * 60 * 60;
+const R2_MUSIC_AUDIO_CACHE_SECONDS = 7 * 24 * 60 * 60;
 
 function getR2MusicCorsHeaders(extraHeaders = {}) {
     const headers = new Headers(extraHeaders);
@@ -616,7 +684,7 @@ async function handleR2MusicObjectRequest(request, env, url) {
     headers.set('Accept-Ranges', 'bytes');
     headers.set('Cache-Control', R2_IMAGE_EXTENSIONS.has(ext)
         ? `public, max-age=${R2_MUSIC_IMAGE_CACHE_SECONDS}, immutable`
-        : 'no-store');
+        : `public, max-age=${R2_MUSIC_AUDIO_CACHE_SECONDS}`);
     headers.set('Content-Type', getR2MusicContentType(key, headers.get('Content-Type') || ''));
     headers.set('Content-Disposition', `inline; filename="${encodeURIComponent(key.split('/').pop() || 'music')}"`);
     if (object.range) {
@@ -941,6 +1009,19 @@ function createPfileHeaders(token, pa) {
     return headers;
 }
 
+function createInvoiceHeaders(token, options = {}) {
+    const headers = {
+        'Content-Type': 'application/json; charset=utf-8',
+        Accept: 'application/json, text/plain, */*',
+        Host: 'pocketapi.48.cn',
+        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148'
+    };
+    if (options.tokenHeader && token) {
+        headers.token = token;
+    }
+    return headers;
+}
+
 function getElectionVoteToken(payload = {}) {
     return String(
         payload.voteToken
@@ -1098,7 +1179,7 @@ async function postJson(url, payload, headers, options = {}) {
             const isHtml = /^\s*</.test(text);
             const preview = text.replace(/\s+/g, ' ').slice(0, 160);
             throw new Error(isHtml
-                ? `口袋 API 返回了 HTML 页面，可能拦截了 Cloudflare Worker 请求: ${preview}`
+                ? '口袋 API 返回了 HTML 页面，可能拦截了 Cloudflare Worker 请求'
                 : `口袋 API 返回内容不是 JSON: ${preview}`);
         }
     }
@@ -1817,6 +1898,121 @@ async function fetchFlipCustomIndexV1({ token, pa, memberId }) {
         { memberId: String(memberId || '') },
         { token, pa, errorMessage: '获取翻牌配置失败' }
     );
+}
+
+async function fetchInvoiceTips({ token } = {}) {
+    if (!token) return missingToken();
+    const response = await fetch('https://pocketapi.48.cn/invoice/api/v1/invoice/tips', {
+        headers: createInvoiceHeaders()
+    });
+    const text = await response.text();
+    const data = text ? JSON.parse(text) : null;
+    if (response.status === 200 && data?.status === 200) {
+        return { success: true, content: data.content };
+    }
+    return { success: false, msg: data?.message || '获取开票提示失败' };
+}
+
+async function fetchInvoiceConfig({ token } = {}) {
+    if (!token) return missingToken();
+    const response = await postJson(
+        'https://pocketapi.48.cn/invoice/api/v1/invoice/config',
+        {},
+        createInvoiceHeaders(token, { tokenHeader: true })
+    );
+    if (response.status === 200 && response.data?.status === 200) {
+        return { success: true, content: response.data.content };
+    }
+    return apiError(response, '获取开票配置失败');
+}
+
+async function fetchInvoiceOrderList({ token, nextTime = '', yearMonth = '' } = {}) {
+    if (!token) return missingToken();
+    const response = await postJson(
+        'https://pocketapi.48.cn/invoice/api/v1/order/list',
+        {
+            nextTime: String(nextTime || '0'),
+            token,
+            yearMonth: String(yearMonth || '')
+        },
+        createInvoiceHeaders()
+    );
+    if (response.status === 200 && response.data?.status === 200) {
+        return { success: true, content: response.data.content };
+    }
+    return apiError(response, '获取可开票订单失败');
+}
+
+async function applyElectronicInvoice({
+    token,
+    buyerType = 0,
+    buyerName = '',
+    buyerTaxNo = '',
+    buyerAddress = '',
+    buyerPhone = '',
+    buyerBankName = '',
+    buyerBankAccount = '',
+    notifyEmail = '',
+    notifyMobile = '',
+    orderDataId = []
+} = {}) {
+    if (!token) return missingToken();
+
+    const ids = Array.isArray(orderDataId)
+        ? orderDataId.map(item => String(item || '').trim()).filter(Boolean)
+        : [];
+    if (!ids.length) return { success: false, msg: '请选择要开票的订单' };
+    if (!String(buyerName || '').trim()) return { success: false, msg: '请填写发票抬头' };
+    if (!String(notifyEmail || '').trim()) return { success: false, msg: '请填写接收邮箱' };
+    if (!String(notifyMobile || '').trim()) return { success: false, msg: '请填写手机号' };
+
+    const normalizedBuyerType = Number(buyerType) === 1 ? 1 : 0;
+    if (normalizedBuyerType === 1) {
+        const taxNo = String(buyerTaxNo || '').trim();
+        if (!/^[A-Z0-9]{6,20}$/.test(taxNo)) {
+            return { success: false, msg: '请填写正确的纳税人识别号' };
+        }
+        if (
+            !String(buyerAddress || '').trim()
+            || !String(buyerPhone || '').trim()
+            || !String(buyerBankName || '').trim()
+            || !String(buyerBankAccount || '').trim()
+        ) {
+            return { success: false, msg: '请填写完整的企业开票信息' };
+        }
+    }
+
+    const requestPayload = {
+        buyerType: normalizedBuyerType,
+        buyerName: String(buyerName || '').trim(),
+        notifyEmail: String(notifyEmail || '').trim(),
+        notifyMobile: String(notifyMobile || '').trim(),
+        orderDataId: ids,
+        token
+    };
+    if (normalizedBuyerType === 1) {
+        Object.assign(requestPayload, {
+            buyerAddress: String(buyerAddress || '').trim(),
+            buyerBankAccount: String(buyerBankAccount || '').trim(),
+            buyerBankName: String(buyerBankName || '').trim(),
+            buyerPhone: String(buyerPhone || '').trim(),
+            buyerTaxNo: String(buyerTaxNo || '').trim()
+        });
+    }
+
+    const response = await postJson(
+        'https://pocketapi.48.cn/invoice/api/v1/invoice/apply/electronic',
+        requestPayload,
+        createInvoiceHeaders()
+    );
+    if (response.status === 200 && response.data?.status === 200) {
+        return {
+            success: true,
+            content: response.data.content,
+            msg: response.data.message || '提交成功'
+        };
+    }
+    return apiError(response, '提交开票申请失败');
 }
 
 async function requestElectionVoteApi(method, path, payload = {}, body = {}, options = {}) {
