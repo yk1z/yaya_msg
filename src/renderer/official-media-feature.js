@@ -45,6 +45,15 @@
             return value;
         }
 
+        function clampMediaVolume(value, fallback = 1) {
+            const volume = Number(value);
+            const fallbackVolume = Number(fallback);
+            const safeFallback = Number.isFinite(fallbackVolume) ? fallbackVolume : 1;
+            return Number.isFinite(volume)
+                ? Math.max(0, Math.min(1, volume))
+                : Math.max(0, Math.min(1, safeFallback));
+        }
+
         function escapeMediaHtml(value) {
             return escapeHtml(String(value ?? ''));
         }
@@ -1199,7 +1208,7 @@
 
             const savedVolume = readStringSetting('yaya_music_volume', '');
             if (savedVolume !== null) {
-                const vol = parseFloat(savedVolume);
+                const vol = clampMediaVolume(savedVolume, 1);
                 audioEl.volume = vol;
                 if (volumeBar) volumeBar.value = vol;
             }
@@ -1221,7 +1230,7 @@
 
             if (volumeBar) {
                 volumeBar.addEventListener('input', (e) => {
-                    const vol = parseFloat(e.target.value);
+                    const vol = clampMediaVolume(e.target.value, audioEl.volume);
                     audioEl.volume = vol;
                     audioEl.muted = false;
                     writeStringSetting('yaya_music_volume', String(vol));
@@ -1708,7 +1717,7 @@
 
             const savedVolume = readStringSetting('yaya_music_volume', '');
             if (savedVolume !== null) {
-                const vol = parseFloat(savedVolume);
+                const vol = clampMediaVolume(savedVolume, 1);
                 audioEl.volume = vol;
                 volumeBar.value = vol;
             }
@@ -1728,7 +1737,7 @@
             updateVolumeUI(audioEl.volume);
 
             volumeBar.addEventListener('input', (e) => {
-                const vol = parseFloat(e.target.value);
+                const vol = clampMediaVolume(e.target.value, audioEl.volume);
                 audioEl.volume = vol;
                 audioEl.muted = false;
                 writeStringSetting('yaya_music_volume', String(vol));

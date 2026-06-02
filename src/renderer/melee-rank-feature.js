@@ -8,8 +8,9 @@
     let allRankWeeksPromise = null;
     const weekRankCache = new Map();
     let selectedMember = null;
-    let currentMeleeRankMode = 'total';
+    let currentMeleeRankMode = 'person';
     let initialized = false;
+    let defaultModeApplied = false;
 
     function getEl(id) {
         return document.getElementById(id);
@@ -113,6 +114,12 @@
     function setResult(html) {
         const result = getEl('melee-rank-result');
         if (result) result.innerHTML = html;
+    }
+
+    function showDefaultPersonMeleePrompt() {
+        setMeleeRankMode('person');
+        setMeta('');
+        setResult('<div class="empty-state">请选择成员后查询</div>');
     }
 
     function setMeleeRankMode(mode) {
@@ -591,7 +598,15 @@
                 }
             });
         }
-        refreshRankPageMeta();
+        if (!defaultModeApplied) {
+            defaultModeApplied = true;
+            showDefaultPersonMeleePrompt();
+        } else {
+            setMeleeRankMode(currentMeleeRankMode);
+            if (currentMeleeRankMode === 'total') {
+                refreshRankPageMeta();
+            }
+        }
     }
 
     window.initMeleeRankDataPage = initMeleeRankDataPage;

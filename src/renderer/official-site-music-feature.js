@@ -5,11 +5,12 @@
     const MUSIC_LYRICS_BASE_URL = `${DATA_BASE_URL}/lyrics`;
     const MUSIC_LYRICS_INDEX_URL = `${DATA_BASE_URL}/lyrics-index.json`;
     const R2_MUSIC_PUBLIC_ORIGIN = 'https://gnz.hk';
-    const R2_MUSIC_PUBLIC_ORIGIN_FALLBACK = 'https://yaya-msg-web.yk1z.workers.dev';
+    const R2_MUSIC_API_FALLBACK_ORIGIN = 'https://yaya-msg-web.yk1z.workers.dev';
     const FAVORITES_STORAGE_KEY = 'yaya_official_site_music_favorites';
     const PLAYER_STATE_STORAGE_KEY = 'yaya_official_site_music_player_state';
     const DURATION_STORAGE_KEY = 'yaya_official_site_music_durations';
     const TRACKS_CACHE_STORAGE_KEY = 'yaya_official_site_music_tracks_cache_v4';
+    const R2_TRACKS_CACHE_STORAGE_KEY = 'yaya_official_site_r2_music_tracks_cache_v1';
     const VOLUME_STORAGE_KEY = 'yaya_music_volume_v2';
     const TRACKS_CACHE_TTL = 24 * 60 * 60 * 1000;
     const DEFAULT_MUSIC_VOLUME = 0.43;
@@ -151,6 +152,8 @@
 
     const MUSIC_LYRIC_TITLE_ALIASES = new Map([
         ['奔跑的少女', ['奔跑吧少女']],
+        ['Heavy Rotation', ['闪亮的幸运']],
+        ['闪亮的幸运', ['Heavy Rotation']],
         ['最初的爱', ['最初的，最后的爱', '最初的，最后的爱 (Live)']],
         ['花火 ((Fire in the rA.I.n)', ['花火 (Fire in the rA.I.n)', '花火']],
         ['荊棘皇冠', ['荆棘皇冠']]
@@ -307,7 +310,58 @@
         }
     }
 
-    function hasR2PerformanceMusicTracks(tracks) {
+    function isOfficialSiteMusicTracksCacheFresh(cache = readOfficialSiteMusicTracksCache()) {
+        return cache.updatedAt
+            && Date.now() - cache.updatedAt < TRACKS_CACHE_TTL
+            && (cache.hasR2Tracks || hasR2MusicTracks(cache.tracks))
+            && hasCurrentR2MusicMetadata(cache.tracks);
+    }
+
+    function saveOfficialSiteMusicTracksCache(tracks) {
+        writeStringSetting(TRACKS_CACHE_STORAGE_KEY, JSON.stringify({
+            updatedAt: Date.now(),
+            tracks: Array.isArray(tracks) ? tracks : [],
+            hasR2Tracks: hasR2MusicTracks(tracks)
+        }));
+    }
+
+    function readR2MusicTracksCache() {
+        const normalizeCache = (value) => {
+            const parsed = typeof value === 'string' ? JSON.parse(value || '{}') : value;
+            return parsed && typeof parsed === 'object'
+                ? {
+                    updatedAt: Number(parsed.updatedAt) || 0,
+                    tracks: Array.isArray(parsed.tracks) ? parsed.tracks : []
+                }
+                : { updatedAt: 0, tracks: [] };
+        };
+        try {
+            const cacheApi = window.desktop?.appCache;
+            if (cacheApi && typeof cacheApi.getCacheValueSync === 'function') {
+                const cached = cacheApi.getCacheValueSync(R2_TRACKS_CACHE_STORAGE_KEY, null);
+                const normalized = normalizeCache(cached);
+                if (normalized.tracks.length) return normalized;
+            }
+            return normalizeCache(readStringSetting(R2_TRACKS_CACHE_STORAGE_KEY, '{}'));
+        } catch (_) {
+            return { updatedAt: 0, tracks: [] };
+        }
+    }
+
+    function saveR2MusicTracksCache(tracks) {
+        const cachePayload = {
+            updatedAt: Date.now(),
+            tracks: Array.isArray(tracks) ? tracks : []
+        };
+        const cacheApi = window.desktop?.appCache;
+        if (cacheApi && typeof cacheApi.setCacheValueSync === 'function') {
+            cacheApi.setCacheValueSync(R2_TRACKS_CACHE_STORAGE_KEY, cachePayload);
+            return;
+        }
+        writeStringSetting(R2_TRACKS_CACHE_STORAGE_KEY, JSON.stringify(cachePayload));
+    }
+
+    function hasR2MusicTracks(tracks) {
         return Array.isArray(tracks) && tracks.some((track) => {
             if (!track) return false;
             if (track.source === 'r2-performance') return true;
@@ -316,7 +370,7 @@
         });
     }
 
-    function hasCurrentR2PerformanceMusicMetadata(tracks) {
+    function hasCurrentR2MusicMetadata(tracks) {
         if (!Array.isArray(tracks)) return false;
         const r2Tracks = tracks.filter((track) => {
             if (!track) return false;
@@ -329,19 +383,19 @@
         return !tshTracks.length || tshTracks.some((track) => String(track.coverUrl || '').trim());
     }
 
-    function isOfficialSiteMusicTracksCacheFresh(cache = readOfficialSiteMusicTracksCache()) {
-        return cache.updatedAt
-            && Date.now() - cache.updatedAt < TRACKS_CACHE_TTL
-            && (cache.hasR2Tracks || hasR2PerformanceMusicTracks(cache.tracks))
-            && hasCurrentR2PerformanceMusicMetadata(cache.tracks);
-    }
-
-    function saveOfficialSiteMusicTracksCache(tracks) {
-        writeStringSetting(TRACKS_CACHE_STORAGE_KEY, JSON.stringify({
-            updatedAt: Date.now(),
-            tracks: Array.isArray(tracks) ? tracks : [],
-            hasR2Tracks: hasR2PerformanceMusicTracks(tracks)
-        }));
+    function mergeR2MusicTracks(tracks, r2Tracks) {
+        const baseTracks = Array.isArray(tracks) ? tracks : [];
+        const extras = Array.isArray(r2Tracks) ? r2Tracks : [];
+        if (!extras.length) return baseTracks;
+        const seen = new Set(baseTracks.map((track) => String(track?.id || track?.mp3 || '')));
+        const merged = baseTracks.slice();
+        extras.forEach((track) => {
+            const key = String(track?.id || track?.mp3 || '');
+            if (!key || seen.has(key)) return;
+            seen.add(key);
+            merged.push(track);
+        });
+        return merged;
     }
 
     function getOfficialSiteTrackDurationKey(track) {
@@ -645,37 +699,39 @@
         };
     }
 
+    async function fetchR2PerformanceMusicTracks(url) {
+        const response = await fetch(url, {
+            cache: 'no-store',
+            headers: { 'Cache-Control': 'no-cache' }
+        });
+        if (!response.ok) throw new Error(`R2 music list failed: ${response.status}`);
+        const data = await response.json();
+        const tracks = Array.isArray(data.tracks) ? data.tracks : [];
+        return tracks.map(normalizeR2MusicTrack).filter(Boolean);
+    }
+
     async function loadR2PerformanceMusicTracks() {
         const origins = typeof window.yayaWebApiUrl === 'function'
             ? ['']
-            : [R2_MUSIC_PUBLIC_ORIGIN, R2_MUSIC_PUBLIC_ORIGIN_FALLBACK];
+            : [R2_MUSIC_PUBLIC_ORIGIN, R2_MUSIC_API_FALLBACK_ORIGIN];
         const errors = [];
 
         for (const origin of origins) {
             activeR2MusicPublicOrigin = origin || R2_MUSIC_PUBLIC_ORIGIN;
             const apiUrl = origin ? `${origin}/api/r2-music` : getR2MusicPublicUrl('/api/r2-music');
             try {
-                const response = await fetch(apiUrl, {
-                    cache: 'no-store',
-                    headers: { 'Cache-Control': 'no-cache' }
-                });
-                const text = await response.text();
-                if (!response.ok) {
-                    errors.push(`${apiUrl} ${response.status}`);
-                    continue;
-                }
-                let data = null;
-                try {
-                    data = text ? JSON.parse(text) : null;
-                } catch (_) {
-                    errors.push(`${apiUrl} returned non-JSON`);
-                    continue;
-                }
-                const tracks = Array.isArray(data?.tracks) ? data.tracks : [];
-                return tracks.map(normalizeR2MusicTrack).filter(Boolean);
+                const tracks = await fetchR2PerformanceMusicTracks(apiUrl);
+                saveR2MusicTracksCache(tracks);
+                return tracks;
             } catch (error) {
                 errors.push(`${apiUrl} ${error.message || 'failed'}`);
             }
+        }
+
+        const cache = readR2MusicTracksCache();
+        if (cache.tracks.length) {
+            console.warn('[official-site-music] R2 performance music using cached list', errors.join('; '));
+            return cache.tracks;
         }
 
         throw new Error(`R2 music list failed: ${errors.join('; ') || 'unknown error'}`);
@@ -823,7 +879,7 @@
         rawValues.forEach((value) => {
             const text = String(value || '').trim();
             if (!text) return;
-            const matched = text.match(/\b(SNH48|BEJ48|GNZ48|SHY48|CKG48|CGT48)\b/i);
+            const matched = text.match(/\b(SNH48|BEJ48|GNZ48|SHY48|CKG48|CGT48|TSH48)\b/i);
             if (matched) {
                 candidates.add(matched[1].toUpperCase());
             }
@@ -1734,7 +1790,9 @@
         document.querySelectorAll('.official-site-music-card').forEach((card) => {
             card.classList.toggle('is-playing', card.dataset.trackId === state.currentTrackId);
         });
-        renderOfficialSiteQueue();
+        document.querySelectorAll('.player-queue-item[data-track-id]').forEach((item) => {
+            item.classList.toggle('active', item.dataset.trackId === state.currentTrackId);
+        });
         updateFavoriteButton();
     }
 
@@ -1953,7 +2011,7 @@
 
         listEl.innerHTML = state.filteredTracks.map((track, index) => `
             <button class="player-queue-item ${track.id === state.currentTrackId ? 'active' : ''}"
-                onclick="event.stopPropagation(); playOfficialSiteTrack('${escapeHtml(track.id)}')">
+                data-track-id="${escapeHtml(track.id)}" onclick="event.stopPropagation(); playOfficialSiteTrack('${escapeHtml(track.id)}')">
                 <span class="player-queue-item-index">${index + 1}</span>
                 <div class="player-queue-item-main">
                     <div class="player-queue-item-title">${escapeHtml(getOfficialSiteTrackDisplayTitle(track))}</div>
@@ -1980,7 +2038,10 @@
         try {
             const cache = readOfficialSiteMusicTracksCache();
             if (!options.force && isOfficialSiteMusicTracksCacheFresh(cache) && cache.tracks.length) {
-                state.allTracks = cache.tracks;
+                const r2Cache = hasR2MusicTracks(cache.tracks) ? null : readR2MusicTracksCache();
+                state.allTracks = r2Cache?.tracks?.length
+                    ? mergeR2MusicTracks(cache.tracks, r2Cache.tracks)
+                    : cache.tracks;
                 if (!isOfficialSiteMusicWebRuntime()) {
                     state.allTracks.forEach(applyCachedOfficialSiteTrackDuration);
                 }
@@ -2037,25 +2098,26 @@
         updatePlayerProgress(false, 0);
         updateOfficialSiteMediaSessionMetadata(track);
 
-        const playFromStart = () => {
+        const resetProgressToStart = () => {
             try {
                 audio.currentTime = 0;
             } catch (_) { }
             syncOfficialSiteProgressAnchor();
             updatePlayerProgress();
             saveOfficialSiteMusicPlayerState({ currentTime: 0, wasPlaying: true });
-            audio.play().catch((error) => {
-                console.warn('[official-site-music] play blocked', error);
-                showOfficialMusicToast('播放失败，请稍后重试');
-            }).finally(updatePlayerButton);
         };
 
-        if (audio.readyState < 1) {
-            audio.addEventListener('loadedmetadata', playFromStart, { once: true });
-            audio.load();
+        if (audio.readyState >= 1) {
+            resetProgressToStart();
         } else {
-            playFromStart();
+            audio.addEventListener('loadedmetadata', resetProgressToStart, { once: true });
         }
+
+        saveOfficialSiteMusicPlayerState({ currentTime: 0, wasPlaying: true });
+        audio.play().catch((error) => {
+            console.warn('[official-site-music] play blocked', error);
+            showOfficialMusicToast('播放失败，请稍后重试');
+        }).finally(updatePlayerButton);
 
         updateCurrentTrackDisplay(track);
         updateActiveTrack();

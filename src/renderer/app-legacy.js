@@ -665,6 +665,7 @@
                 document.getElementById('view-messages'),
                 document.getElementById('view-media'),
                 document.getElementById('view-downloads'),
+                document.getElementById('view-invoice'),
                 document.getElementById('view-database'),
                 document.getElementById('view-melee-rank'),
                 document.getElementById('view-official-site-music'),
@@ -753,6 +754,7 @@
             'member-weibo',
             'trip',
             'room-radio',
+            'invoice',
             'private-messages',
             'followed-rooms'
         ]);
@@ -1015,6 +1017,7 @@
         const APP_TOPBAR_TITLE_MAP = {
             messages: '消息检索',
             downloads: '下载管理',
+            invoice: '开具发票',
             database: '数据库',
             'melee-rank': '鸡腿榜',
             'official-site-music': '音乐',
@@ -1080,6 +1083,7 @@
                 const msgView = document.getElementById('view-messages');
                 const mediaView = document.getElementById('view-media');
                 const downloadsView = document.getElementById('view-downloads');
+                const invoiceView = document.getElementById('view-invoice');
                 const databaseView = document.getElementById('view-database');
                 const meleeRankView = document.getElementById('view-melee-rank');
                 const officialSiteMusicView = document.getElementById('view-official-site-music');
@@ -1173,6 +1177,15 @@
                     if (downloadsView) downloadsView.style.display = 'block';
                     const downloadModule = document.getElementById('sb-download');
                     if (downloadModule) downloadModule.style.display = 'flex';
+
+                } else if (viewName === 'invoice') {
+                    setGlobalSidebarVisible(false);
+                    setSidebarHomeMode(false);
+                    toggleSidebarMode('login');
+                    if (invoiceView) invoiceView.style.display = 'block';
+                    if (typeof window.enterInvoiceView === 'function') {
+                        window.enterInvoiceView();
+                    }
 
                 } else if (viewName === 'database') {
                     setGlobalSidebarVisible(false);

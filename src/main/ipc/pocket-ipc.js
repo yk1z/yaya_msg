@@ -25,6 +25,10 @@ function registerPocketIpc() {
     ipcMain.handle('operate-flip-question', (event, payload) => pocketService.operateFlipQuestion(payload));
     ipcMain.handle('fetch-member-photos', (event, payload) => pocketService.fetchMemberPhotos(payload));
     ipcMain.handle('fetch-user-money', (event, payload) => pocketService.fetchUserMoney(payload));
+    ipcMain.handle('fetch-invoice-tips', (event, payload) => pocketService.fetchInvoiceTips(payload));
+    ipcMain.handle('fetch-invoice-config', (event, payload) => pocketService.fetchInvoiceConfig(payload));
+    ipcMain.handle('fetch-invoice-order-list', (event, payload) => pocketService.fetchInvoiceOrderList(payload));
+    ipcMain.handle('apply-electronic-invoice', (event, payload) => pocketService.applyElectronicInvoice(payload));
     ipcMain.handle('fetch-checkin-today', (event, payload) => pocketService.fetchCheckinToday(payload));
     ipcMain.handle('fetch-unread-message-count', (event, payload) => pocketService.fetchUnreadMessageCount(payload));
     ipcMain.handle('edit-user-info', (event, payload) => pocketService.editUserInfo(payload));

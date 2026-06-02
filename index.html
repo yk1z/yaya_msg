@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy"
         content="default-src 'self' file: https: data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net https://unpkg.com https://cdn.tailwindcss.com https://esm.sh https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https:; img-src 'self' file: https: data: blob:; media-src 'self' file: https: http: data: blob:; connect-src 'self' file: https: http: ws: wss: data: blob:; font-src 'self' https: data:;">
-    <title>牙牙消息 v2.5</title>
+    <title>牙牙消息 v2.6</title>
     <link rel="icon" href="./icon.png" type="image/x-icon">
 
     <link rel="stylesheet" href="style.css">
@@ -49,7 +49,7 @@
                 </svg>
             </div>
             <img src="./icon.png" class="title-logo">
-            <span>牙牙消息 v2.5</span>
+            <span>牙牙消息 v2.6</span>
         </div>
         <div id="topbar-page-title" class="title-bar-center-title" aria-live="polite"></div>
         <div class="window-controls">
@@ -459,7 +459,7 @@
 
                         <div class="home-panel home-panel-settings">
                             <div class="home-panel-title">通用</div>
-                            <div class="home-panel-subtitle">口袋账号、B站账号、下载管理、软件相关设置</div>
+                            <div class="home-panel-subtitle">口袋账号、B站账号、下载管理、开具发票、软件相关设置</div>
                             <div class="home-panel-actions home-card-grid">
                                 <button class="home-card" onclick="switchView('login')">
                                     <span class="home-card-title">账号登录</span>
@@ -468,6 +468,10 @@
                                 <button class="home-card" onclick="switchView('downloads')">
                                     <span class="home-card-title">下载管理</span>
                                     <span class="home-card-desc">查看任务与进度</span>
+                                </button>
+                                <button class="home-card" onclick="switchView('invoice')">
+                                    <span class="home-card-title">开具发票</span>
+                                    <span class="home-card-desc">订单开票申请</span>
                                 </button>
                                 <button class="home-card" onclick="switchView('settings')">
                                     <span class="home-card-title">软件设置</span>
@@ -1214,6 +1218,18 @@
                 </div>
             </div>
 
+            <div id="view-invoice"
+                style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
+                <div class="list-container invoice-shell">
+                    <div class="page-header" style="margin-bottom:16px;">
+                        <div>
+                            <h2 class="page-title">开具发票</h2>
+                        </div>
+                    </div>
+                    <div id="invoice-root" class="invoice-root"></div>
+                </div>
+            </div>
+
             <div id="view-database"
                 style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
                 <div class="list-container database-view-shell">
@@ -1250,11 +1266,11 @@
                             <div class="melee-rank-actions">
                                 <button class="btn btn-primary" id="btn-query-melee-rank"
                                     onclick="queryMeleeRankCurrentMode()">查询</button>
-                                <button class="btn btn-secondary melee-rank-mode-btn" id="btn-query-person-melee-rank"
-                                    onclick="toggleMeleeRankMode()">总榜</button>
+                                <button class="btn btn-secondary melee-rank-mode-btn active" id="btn-query-person-melee-rank"
+                                    onclick="toggleMeleeRankMode()">成员榜</button>
                             </div>
                         </div>
-                        <div class="melee-rank-meta" id="melee-rank-meta">读取历史周榜中...</div>
+                        <div class="melee-rank-meta" id="melee-rank-meta"></div>
                     </div>
                     <div class="melee-rank-results-shell" id="melee-rank-result">
                         <div class="empty-state">请选择成员后查询</div>
@@ -2857,6 +2873,7 @@
     <script src="./src/renderer/private-message-formatters-feature.js"></script>
     <script src="./src/renderer/private-messages-feature.js"></script>
     <script src="./src/renderer/app-legacy.js"></script>
+    <script src="./src/renderer/invoice-feature.js"></script>
     <script type="module" src="./src/renderer/sdk-init.js"></script>
     <script src="./src/renderer/fetch-legacy.js"></script>
 

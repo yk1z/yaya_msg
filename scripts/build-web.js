@@ -5,7 +5,10 @@ const vm = require('vm');
 const projectRoot = path.join(__dirname, '..');
 const outputDir = path.join(projectRoot, 'web-dist');
 const buildVersion = Date.now().toString(36);
-const BABEL_STANDALONE_URL = 'https://unpkg.com/@babel/standalone/babel.min.js';
+const BABEL_STANDALONE_URLS = [
+    'https://unpkg.com/@babel/standalone/babel.min.js',
+    'https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js'
+];
 const REACT_URL = 'https://esm.sh/react@18.2.0';
 const REACT_DOM_URL = 'https://esm.sh/react-dom@18.2.0/client';
 const LUCIDE_URL = 'https://esm.sh/lucide-react@0.292.0';
@@ -102,6 +105,7 @@ function createWebTopbarHtml() {
         '            </span>',
         '        </div>',
         '        <nav class="web-topbar-actions" aria-label="页面设置">',
+        '            <button class="web-topbar-btn web-invoice-btn" type="button" onclick="openWebHomeRoute(\'invoice\')" aria-label="开具发票" title="开具发票">开具发票</button>',
         '            <button id="web-account-button" class="web-account-button" type="button" onclick="openWebHomeRoute(\'login\')" aria-label="登录账号" title="登录账号">',
         '                <span id="web-account-login-label" class="web-account-login-label">登录</span>',
         '                <img id="web-account-avatar" class="web-account-avatar" src="./web-icon.png" alt="" onerror="this.src=\'./web-icon.png\'">',
@@ -212,12 +216,24 @@ function createCloudflareAnalyticsHtml() {
 }
 
 async function loadBabelStandalone() {
-    const response = await fetch(BABEL_STANDALONE_URL);
-    if (!response.ok) {
-        throw new Error(`Babel standalone 下载失败: ${response.status}`);
+    let source = '';
+    let lastError = null;
+    for (const url of BABEL_STANDALONE_URLS) {
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`${response.status} ${response.statusText || ''}`.trim());
+            }
+            source = await response.text();
+            break;
+        } catch (error) {
+            lastError = error;
+        }
+    }
+    if (!source) {
+        throw new Error(`Babel standalone 下载失败: ${lastError?.message || 'unknown error'}`);
     }
 
-    const source = await response.text();
     const context = {
         console,
         setTimeout,
@@ -341,9 +357,8 @@ async function applyWebTransforms() {
     indexHtml = indexHtml
         .replace(/软件设置/g, '页面设置')
         .replace(/软件相关设置/g, '页面相关设置');
-    indexHtml = replaceOnce(
-        indexHtml,
-        '<div class="home-panel-subtitle">口袋账号、B站账号、下载管理、页面相关设置</div>',
+    indexHtml = indexHtml.replace(
+        /<div class="home-panel-subtitle">口袋账号、(?:B站账号、下载管理、(?:发票|开具发票)、|B站账号、下载管理、)?页面相关设置<\/div>/,
         '<div class="home-panel-subtitle">口袋账号、页面相关设置</div>'
     );
     indexHtml = replaceOnce(
@@ -513,6 +528,7 @@ async function applyWebTransforms() {
             audio: { view: 'audio-programs', mode: null, title: '电台' },
             profile: { view: 'profile', mode: null, title: '成员档案' },
             database: { view: 'database', mode: null, title: '数据库' },
+            invoice: { view: 'invoice', mode: null, title: '开具发票' },
             melee: { view: 'melee-rank', mode: null, title: '鸡腿榜' },
             trip: { view: 'trip', mode: null, title: '成员行程' },
             login: { view: 'login', mode: null, title: '账号登录' },
@@ -541,6 +557,7 @@ async function applyWebTransforms() {
             ['audio-programs:', 'audio'],
             ['profile:', 'profile'],
             ['database:', 'database'],
+            ['invoice:', 'invoice'],
             ['melee-rank:', 'melee'],
             ['trip:', 'trip'],
             ['login:', 'login'],
@@ -1082,6 +1099,26 @@ async function applyWebTransforms() {
         'html[data-platform="web"] .web-topbar-btn:hover {',
         '    background: color-mix(in srgb, var(--primary) 10%, transparent);',
         '    color: var(--primary);',
+        '}',
+        '',
+        'html[data-platform="web"] .web-invoice-btn {',
+        '    min-width: 96px;',
+        '    color: rgba(255, 255, 255, 0.92);',
+        '}',
+        '',
+        'html[data-platform="web"] .web-invoice-btn:hover {',
+        '    color: #fff;',
+        '    background: rgba(255, 255, 255, 0.14);',
+        '}',
+        '',
+        'html[data-platform="web"][data-theme="light"] .web-invoice-btn {',
+        '    color: var(--primary);',
+        '    background: rgba(255, 255, 255, 0.38);',
+        '}',
+        '',
+        'html[data-platform="web"][data-theme="light"] .web-invoice-btn:hover {',
+        '    color: var(--primary);',
+        '    background: rgba(255, 255, 255, 0.72);',
         '}',
         '',
         'html[data-platform="web"] .web-account-button {',

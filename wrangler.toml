@@ -63,6 +63,8 @@ run_worker_first = [
     "/profile/*",
     "/database",
     "/database/*",
+    "/invoice",
+    "/invoice/*",
     "/melee",
     "/melee/*",
     "/trip",

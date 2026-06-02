@@ -107,6 +107,20 @@ function createPfileHeaders(token, pa) {
     return headers;
 }
 
+function createInvoiceHeaders(token, pa) {
+    const options = pa && typeof pa === 'object' ? pa : {};
+    const headers = {
+        'Content-Type': 'application/json; charset=utf-8',
+        Accept: 'application/json, text/plain, */*',
+        Host: 'pocketapi.48.cn',
+        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148'
+    };
+    if (options.tokenHeader && token) {
+        headers.token = token;
+    }
+    return headers;
+}
+
 function getElectionVoteToken(payload = {}) {
     return String(
         payload.voteToken
@@ -1789,6 +1803,159 @@ async function fetchFlipCustomIndexV1({ token, pa, memberId }) {
     );
 }
 
+async function fetchInvoiceTips({ token, pa } = {}) {
+    if (!token) {
+        return missingToken();
+    }
+
+    try {
+        const response = await axios.get(
+            'https://pocketapi.48.cn/invoice/api/v1/invoice/tips',
+            { headers: createInvoiceHeaders() }
+        );
+
+        if (response.status === 200 && response.data && response.data.status === 200) {
+            return { success: true, content: response.data.content };
+        }
+
+        return apiError(response, '获取开票提示失败');
+    } catch (error) {
+        return { success: false, msg: error.message };
+    }
+}
+
+async function fetchInvoiceConfig({ token, pa } = {}) {
+    if (!token) {
+        return missingToken();
+    }
+
+    try {
+        const response = await axios.post(
+            'https://pocketapi.48.cn/invoice/api/v1/invoice/config',
+            {},
+            { headers: createInvoiceHeaders(token, { tokenHeader: true }) }
+        );
+
+        if (response.status === 200 && response.data && response.data.status === 200) {
+            return { success: true, content: response.data.content };
+        }
+
+        return apiError(response, '获取开票配置失败');
+    } catch (error) {
+        return { success: false, msg: error.message };
+    }
+}
+
+async function fetchInvoiceOrderList({ token, pa, nextTime = '', yearMonth = '' } = {}) {
+    if (!token) {
+        return missingToken();
+    }
+
+    try {
+        const response = await axios.post(
+            'https://pocketapi.48.cn/invoice/api/v1/order/list',
+            {
+                nextTime: String(nextTime || '0'),
+                token,
+                yearMonth: String(yearMonth || '')
+            },
+            { headers: createInvoiceHeaders() }
+        );
+
+        if (response.status === 200 && response.data && response.data.status === 200) {
+            return { success: true, content: response.data.content };
+        }
+
+        return apiError(response, '获取可开票订单失败');
+    } catch (error) {
+        return { success: false, msg: error.message };
+    }
+}
+
+async function applyElectronicInvoice({
+    token,
+    pa,
+    buyerType = 0,
+    buyerName = '',
+    buyerTaxNo = '',
+    buyerAddress = '',
+    buyerPhone = '',
+    buyerBankName = '',
+    buyerBankAccount = '',
+    notifyEmail = '',
+    notifyMobile = '',
+    orderDataId = []
+} = {}) {
+    if (!token) {
+        return missingToken();
+    }
+
+    const ids = Array.isArray(orderDataId)
+        ? orderDataId.map(item => String(item || '').trim()).filter(Boolean)
+        : [];
+    if (!ids.length) {
+        return { success: false, msg: '请选择要开票的订单' };
+    }
+    if (!String(buyerName || '').trim()) {
+        return { success: false, msg: '请填写发票抬头' };
+    }
+    if (!String(notifyEmail || '').trim()) {
+        return { success: false, msg: '请填写接收邮箱' };
+    }
+    if (!String(notifyMobile || '').trim()) {
+        return { success: false, msg: '请填写手机号' };
+    }
+    const normalizedBuyerType = Number(buyerType) === 1 ? 1 : 0;
+    if (normalizedBuyerType === 1) {
+        const taxNo = String(buyerTaxNo || '').trim();
+        if (!/^[A-Z0-9]{6,20}$/.test(taxNo)) {
+            return { success: false, msg: '请填写正确的纳税人识别号' };
+        }
+        if (
+            !String(buyerAddress || '').trim()
+            || !String(buyerPhone || '').trim()
+            || !String(buyerBankName || '').trim()
+            || !String(buyerBankAccount || '').trim()
+        ) {
+            return { success: false, msg: '请填写完整的企业开票信息' };
+        }
+    }
+
+    const requestPayload = {
+        buyerType: normalizedBuyerType,
+        buyerName: String(buyerName || '').trim(),
+        notifyEmail: String(notifyEmail || '').trim(),
+        notifyMobile: String(notifyMobile || '').trim(),
+        orderDataId: ids,
+        token
+    };
+    if (normalizedBuyerType === 1) {
+        Object.assign(requestPayload, {
+            buyerAddress: String(buyerAddress || '').trim(),
+            buyerBankAccount: String(buyerBankAccount || '').trim(),
+            buyerBankName: String(buyerBankName || '').trim(),
+            buyerPhone: String(buyerPhone || '').trim(),
+            buyerTaxNo: String(buyerTaxNo || '').trim()
+        });
+    }
+
+    try {
+        const response = await axios.post(
+            'https://pocketapi.48.cn/invoice/api/v1/invoice/apply/electronic',
+            requestPayload,
+            { headers: createInvoiceHeaders() }
+        );
+
+        if (response.status === 200 && response.data && response.data.status === 200) {
+            return { success: true, content: response.data.content, msg: response.data.message || '提交成功' };
+        }
+
+        return apiError(response, '提交开票申请失败');
+    } catch (error) {
+        return { success: false, msg: error.message };
+    }
+}
+
 async function requestElectionVoteApi(method, path, payload = {}, body = {}, options = {}) {
     const url = `https://voteapi.48.cn/election-vote/api/v1${path}`;
     try {
@@ -1954,6 +2121,10 @@ module.exports = {
     operateFlipQuestion,
     fetchMemberPhotos,
     fetchUserMoney,
+    fetchInvoiceTips,
+    fetchInvoiceConfig,
+    fetchInvoiceOrderList,
+    applyElectronicInvoice,
     fetchCheckinToday,
     fetchUnreadMessageCount,
     editUserInfo,

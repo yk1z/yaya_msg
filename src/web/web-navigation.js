@@ -25,6 +25,7 @@
         audio: { view: 'audio-programs', mode: null, title: '电台' },
         profile: { view: 'profile', mode: null, title: '成员档案' },
         database: { view: 'database', mode: null, title: '数据库' },
+        invoice: { view: 'invoice', mode: null, title: '开具发票' },
         melee: { view: 'melee-rank', mode: null, title: '鸡腿榜' },
         trip: { view: 'trip', mode: null, title: '成员行程' },
         login: { view: 'login', mode: null, title: '账号登录' },
@@ -54,6 +55,7 @@
     viewToSlug.set(getViewKey('official-site-music', null), 'music');
     viewToSlug.set(getViewKey('melee-rank', null), 'melee');
     viewToSlug.set(getViewKey('trip', null), 'trip');
+    viewToSlug.set(getViewKey('invoice', null), 'invoice');
 
     let applyingRoute = false;
 

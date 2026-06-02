@@ -1982,6 +1982,443 @@ body.topbar-page-title-enabled #view-private-messages .private-messages-layout {
     border-radius: 999px;
 }
 
+.invoice-shell {
+    max-width: 1180px;
+    height: calc(100% - 4px);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.invoice-header {
+    margin-bottom: 16px;
+    flex: 0 0 auto;
+}
+
+.invoice-root {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.invoice-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(280px, 0.8fr);
+    gap: 16px;
+    align-items: stretch;
+    flex: 1;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.invoice-panel {
+    border: 1px solid var(--border);
+    background: var(--card);
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.invoice-orders-panel {
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.invoice-apply-panel {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    max-height: 100%;
+    overflow-y: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.invoice-apply-panel::-webkit-scrollbar {
+    display: none;
+}
+
+.invoice-toolbar {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 12px;
+    flex: 0 0 auto;
+}
+
+.invoice-month-picker,
+.invoice-dropdown-wrap {
+    position: relative;
+    flex: 0 0 auto;
+}
+
+.invoice-month-trigger,
+.invoice-dropdown-input {
+    height: 38px;
+    cursor: pointer;
+    text-align: left;
+}
+
+.invoice-month-trigger {
+    width: 150px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.invoice-sort-select {
+    max-width: 170px;
+}
+
+.invoice-dropdown-wrap {
+    width: 140px;
+}
+
+.invoice-field-dropdown {
+    width: 100%;
+}
+
+.invoice-dropdown-input {
+    width: 100%;
+    padding-right: 26px;
+}
+
+.invoice-control-arrow,
+.invoice-dropdown-arrow {
+    color: var(--text-sub);
+    font-size: 10px;
+    pointer-events: none;
+}
+
+.invoice-dropdown-arrow {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.invoice-month-dropdown {
+    width: 280px;
+}
+
+.invoice-month-panel {
+    gap: 0;
+}
+
+.invoice-month-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.invoice-month-option {
+    aspect-ratio: auto;
+    height: 36px;
+    border-radius: 10px;
+    font-weight: 700;
+}
+
+.invoice-month-panel .flip-date-clear {
+    height: 32px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--input-bg);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+    transition: border-color 0.18s ease, color 0.18s ease, background-color 0.18s ease;
+}
+
+.invoice-month-panel .flip-date-clear:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.invoice-inline-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-sub);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.invoice-stats-btn {
+    margin-left: auto;
+}
+
+.invoice-tip {
+    color: var(--text-sub);
+    font-size: 12px;
+    line-height: 1.6;
+    margin-bottom: 10px;
+}
+
+.invoice-configs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.invoice-configs span {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-sub);
+    font-size: 12px;
+    padding: 5px 8px;
+}
+
+.invoice-order-list {
+    display: grid;
+    gap: 8px;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 4px;
+    padding-bottom: 18px;
+    scroll-padding-bottom: 28px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+}
+
+.invoice-order-list::-webkit-scrollbar {
+    display: none;
+}
+
+.invoice-order-list::after {
+    content: "";
+    display: block;
+    height: 10px;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+}
+
+.invoice-month-group {
+    display: grid;
+    gap: 8px;
+}
+
+.invoice-month-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--text-sub);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 2px;
+}
+
+.invoice-month-header strong {
+    color: var(--text-sub);
+    font-size: 12px;
+}
+
+.invoice-order-row {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr) 90px 72px;
+    gap: 10px;
+    align-items: center;
+    min-height: 58px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    background: var(--input-bg);
+    cursor: pointer;
+}
+
+.invoice-order-row.is-selected {
+    border-color: var(--primary);
+}
+
+.invoice-order-row.is-disabled {
+    cursor: default;
+    opacity: 0.62;
+}
+
+.invoice-order-check {
+    display: flex;
+    justify-content: center;
+}
+
+.invoice-order-main {
+    min-width: 0;
+    display: grid;
+    gap: 4px;
+}
+
+.invoice-order-name,
+.invoice-order-meta {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.invoice-order-name {
+    color: var(--text);
+    font-weight: 700;
+}
+
+.invoice-order-meta,
+.invoice-order-status {
+    color: var(--text-sub);
+    font-size: 12px;
+}
+
+.invoice-order-fee {
+    color: var(--text);
+    font-weight: 700;
+    text-align: right;
+}
+
+.invoice-order-status {
+    text-align: right;
+}
+
+.invoice-empty {
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    color: var(--text-sub);
+    padding: 28px;
+    text-align: center;
+}
+
+.invoice-summary {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+
+.invoice-summary-main {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+}
+
+.invoice-summary span,
+.invoice-summary-source {
+    color: var(--text-sub);
+    font-size: 13px;
+}
+
+.invoice-summary-source {
+    line-height: 1.4;
+    word-break: break-word;
+}
+
+.invoice-summary strong {
+    color: var(--primary);
+    font-size: 24px;
+}
+
+.invoice-field {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.invoice-field span {
+    color: var(--text-sub);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.invoice-submit-btn {
+    margin-top: 6px;
+}
+
+.invoice-status {
+    color: var(--text-sub);
+    font-size: 12px;
+    line-height: 1.5;
+    min-height: 18px;
+    margin-top: 10px;
+}
+
+.invoice-status[data-type="success"] {
+    color: #28a745;
+}
+
+.invoice-status[data-type="error"] {
+    color: #ff4d4f;
+}
+
+.invoice-stats-modal {
+    max-width: 520px;
+}
+
+.invoice-stats-modal-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--border);
+}
+
+.invoice-stats-modal-summary span {
+    color: var(--text-sub);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.invoice-stats-modal-summary strong {
+    color: var(--primary);
+    font-size: 30px;
+}
+
+.invoice-stats-modal-list {
+    display: grid;
+    gap: 0;
+    padding: 8px 0;
+}
+
+.invoice-stats-modal-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 90px 110px;
+    gap: 12px;
+    align-items: center;
+    padding: 12px 20px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+    color: var(--text-sub);
+    font-size: 13px;
+}
+
+.invoice-stats-modal-row:last-child {
+    border-bottom: 0;
+}
+
+.invoice-stats-modal-row strong,
+.invoice-stats-modal-row b {
+    color: var(--text);
+    font-size: 13px;
+    text-align: right;
+    white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+    .invoice-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .invoice-order-row {
+        grid-template-columns: 28px minmax(0, 1fr) 76px;
+    }
+
+    .invoice-order-status {
+        grid-column: 2 / 4;
+        text-align: left;
+    }
+}
+
 .database-view-shell {
     display: flex;
     flex-direction: column;
