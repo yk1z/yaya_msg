@@ -141,7 +141,7 @@
         function formatFlipSevenDayRemaining(expireAt, now = Date.now()) {
             const remainingMs = Number(expireAt) - Number(now);
             if (!Number.isFinite(remainingMs) || remainingMs <= 0) {
-                return '七天乐已到期';
+                return '七天悲';
             }
 
             const totalSeconds = Math.floor(remainingMs / 1000);

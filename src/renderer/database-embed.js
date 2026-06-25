@@ -5,6 +5,8 @@
     const TAILWIND_URL = 'https://cdn.tailwindcss.com';
     const BABEL_URL = 'https://unpkg.com/@babel/standalone/babel.min.js';
     const REACT_URL = 'https://esm.sh/react@18.2.0';
+    const REACT_JSX_RUNTIME_URL = 'https://esm.sh/react@18.2.0/jsx-runtime';
+    const REACT_JSX_DEV_RUNTIME_URL = 'https://esm.sh/react@18.2.0/jsx-dev-runtime';
     const REACT_DOM_URL = 'https://esm.sh/react-dom@18.2.0/client';
     const LUCIDE_URL = 'https://esm.sh/lucide-react@0.292.0';
     const EMBED_SCRIPT_SRC = document.currentScript && document.currentScript.src ? document.currentScript.src : '';
@@ -139,6 +141,8 @@
     function rewriteImports(source) {
         return source
             .replace(/from\s+['"]react['"]/g, `from '${REACT_URL}'`)
+            .replace(/from\s+['"]react\/jsx-runtime['"]/g, `from '${REACT_JSX_RUNTIME_URL}'`)
+            .replace(/from\s+['"]react\/jsx-dev-runtime['"]/g, `from '${REACT_JSX_DEV_RUNTIME_URL}'`)
             .replace(/from\s+['"]react-dom\/client['"]/g, `from '${REACT_DOM_URL}'`)
             .replace(/from\s+['"]lucide-react['"]/g, `from '${LUCIDE_URL}'`);
     }
@@ -176,13 +180,13 @@
                     return;
                 }
 
-                const transformed = window.Babel.transform(
+                const transformed = rewriteImports(window.Babel.transform(
                     rewriteDatabaseSource(appScript.textContent || ''),
                     {
                         presets: ['react'],
                         sourceType: 'module'
                     }
-                ).code;
+                ).code);
 
                 host.innerHTML = '';
                 const blob = new Blob(
