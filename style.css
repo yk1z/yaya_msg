@@ -8427,6 +8427,10 @@ audio::-webkit-media-controls-panel {
     margin-top: 0;
 }
 
+#view-pbc .page-title {
+    color: var(--text);
+}
+
 .maskword-settings-head {
     display: flex;
     align-items: center;
