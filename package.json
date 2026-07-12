@@ -13,8 +13,6 @@
     "api:start": "node server/yaya-api.mjs",
     "search:import": "node tools/import-messages-to-sqlite.js",
     "search:start": "node server/search-api.mjs",
-    "report:upload": "node scripts/upload-report.js",
-    "live-danmu:gui": "electron scripts/auto-fetch-live-danmu-gui.js",
     "pack": "node scripts/run-builder.js --dir",
     "dist": "node scripts/run-builder.js"
   },
