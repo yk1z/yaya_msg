@@ -1852,6 +1852,26 @@
                         </div>
                     </div>
 
+                    <div id="view-pbc" class="main-content"
+                        style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box; background: transparent;">
+                        <div class="list-container pbc-shell">
+                            <div class="Box-row maskword-settings-card pbc-card">
+                                <div class="maskword-settings-head">
+                                    <div>
+                                        <h2 class="page-title" style="margin: 0;">屏蔽词检测</h2>
+                                        <div class="maskword-settings-desc">检测文本是否命中口袋48屏蔽词。</div>
+                                    </div>
+                                    <button id="btn-pbc-maskword-check" class="btn btn-primary btn-sm"
+                                        onclick="checkMaskwordText()">检测文本</button>
+                                </div>
+                                <textarea id="pbc-maskword-input" class="input-control maskword-input"
+                                    oninput="hideMaskwordResultIfEmpty()"
+                                    placeholder="请输入要检测的内容"></textarea>
+                                <div id="pbc-maskword-result" class="maskword-result" hidden></div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div id="view-video-library" class="main-content"
                         style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box; background: transparent;">
                         <div class="list-container">

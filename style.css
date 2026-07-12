@@ -8368,7 +8368,8 @@ audio::-webkit-media-controls-panel {
 #view-member-dynamic,
 #view-member-weibo,
 #view-room-radio,
-#view-settings {
+#view-settings,
+#view-pbc {
     overflow-y: scroll !important;
     scrollbar-gutter: stable both-edges;
 }
@@ -8415,6 +8416,15 @@ audio::-webkit-media-controls-panel {
     display: flex;
     flex-direction: column;
     gap: 14px;
+}
+
+.pbc-shell {
+    width: min(100%, 960px);
+    max-width: none;
+}
+
+.pbc-card {
+    margin-top: 0;
 }
 
 .maskword-settings-head {

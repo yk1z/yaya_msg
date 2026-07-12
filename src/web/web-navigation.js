@@ -14,6 +14,7 @@
         message: { view: 'private-messages', mode: null, title: '私信列表' },
         '48qu': { view: 'community', mode: null, title: '社区' },
         community: { view: 'community', mode: null, title: '社区' },
+        pbc: { view: 'pbc', mode: null, title: '屏蔽词检测' },
         img: { view: 'room-album', mode: null, title: '房间相册' },
         dynamic: { view: 'member-dynamic', mode: null, title: '成员动态' },
         weibo: { view: 'member-weibo', mode: null, title: '成员微博' },
@@ -48,6 +49,7 @@
     viewToSlug.set(getViewKey('media', 'meet-vod'), 'meet48-vod');
     viewToSlug.set(getViewKey('private-messages', null), 'message');
     viewToSlug.set(getViewKey('community', null), '48qu');
+    viewToSlug.set(getViewKey('pbc', null), 'pbc');
     viewToSlug.set(getViewKey('room-album', null), 'img');
     viewToSlug.set(getViewKey('member-dynamic', null), 'dynamic');
     viewToSlug.set(getViewKey('member-weibo', null), 'weibo');

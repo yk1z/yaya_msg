@@ -692,6 +692,7 @@
                 document.getElementById('view-room-radio'),
                 document.getElementById('view-audio-programs'),
                 document.getElementById('view-community'),
+                document.getElementById('view-pbc'),
                 document.getElementById('view-video-library'),
                 document.getElementById('view-music-library'),
                 document.getElementById('view-followed-rooms')
@@ -1046,6 +1047,7 @@
             'room-radio': '房间上麦',
             'audio-programs': '电台',
             community: '社区',
+            pbc: '屏蔽词检测',
             'video-library': '视频',
             'music-library': '音乐',
             'followed-rooms': '口袋房间'
@@ -1113,6 +1115,7 @@
                 const roomRadioView = document.getElementById('view-room-radio');
                 const audioProgramsView = document.getElementById('view-audio-programs');
                 const communityView = document.getElementById('view-community');
+                const pbcView = document.getElementById('view-pbc');
                 const videoLibraryView = document.getElementById('view-video-library');
                 const musicLibraryView = document.getElementById('view-music-library');
                 const followedRoomsView = document.getElementById('view-followed-rooms');
@@ -1401,6 +1404,12 @@
                     if (typeof ensureCommunityFeedLoaded === 'function') {
                         ensureCommunityFeedLoaded();
                     }
+
+                } else if (viewName === 'pbc') {
+                    setGlobalSidebarVisible(false);
+                    setSidebarHomeMode(false);
+                    toggleSidebarMode('login');
+                    if (pbcView) pbcView.style.display = 'block';
 
                 } else if (viewName === 'music-library') {
                     setGlobalSidebarVisible(false);

@@ -2452,8 +2452,20 @@
                 .replace(/'/g, '&#39;');
         }
 
+        function getActiveMaskwordElements() {
+            const pbcView = document.getElementById('view-pbc');
+            const isPbcVisible = pbcView && window.getComputedStyle(pbcView).display !== 'none';
+            const input = document.getElementById(isPbcVisible ? 'pbc-maskword-input' : 'maskword-input')
+                || document.getElementById('maskword-input')
+                || document.getElementById('pbc-maskword-input');
+            const result = document.getElementById(isPbcVisible ? 'pbc-maskword-result' : 'maskword-result')
+                || document.getElementById('maskword-result')
+                || document.getElementById('pbc-maskword-result');
+            return { input, result };
+        }
+
         function hideMaskwordResult() {
-            const resultEl = document.getElementById('maskword-result');
+            const resultEl = getActiveMaskwordElements().result;
             if (!resultEl) return;
             resultEl.hidden = true;
             resultEl.classList.remove('is-hit');
@@ -2461,7 +2473,7 @@
         }
 
         function showMaskwordResult(content, isHit = false, useHtml = false) {
-            const resultEl = document.getElementById('maskword-result');
+            const resultEl = getActiveMaskwordElements().result;
             if (!resultEl) return null;
             resultEl.hidden = false;
             resultEl.classList.toggle('is-hit', isHit);
@@ -2474,7 +2486,7 @@
         }
 
         function hideMaskwordResultIfEmpty() {
-            const input = document.getElementById('maskword-input');
+            const input = getActiveMaskwordElements().input;
             if (!String(input?.value || '').trim()) hideMaskwordResult();
         }
 
@@ -2506,7 +2518,7 @@
         }
 
         async function checkMaskwordText() {
-            const input = document.getElementById('maskword-input');
+            const input = getActiveMaskwordElements().input;
             const text = String(input?.value || '');
             if (!text.trim()) {
                 hideMaskwordResult();

@@ -41,6 +41,8 @@ run_worker_first = [
     "/48qu/*",
     "/community",
     "/community/*",
+    "/pbc",
+    "/pbc/*",
     "/img",
     "/img/*",
     "/dynamic",
