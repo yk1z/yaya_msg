@@ -6866,6 +6866,48 @@ html[data-theme="dark"] .account-checkin-toggle {
     color: var(--text);
 }
 
+.yaya-context-menu {
+    padding: 6px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--card) 92%, var(--bg));
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.16);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    color: var(--text);
+    font-size: 13px;
+}
+
+[data-theme="dark"] .yaya-context-menu {
+    background: color-mix(in srgb, var(--card) 94%, #14181f);
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.35);
+}
+
+.yaya-context-menu-item {
+    width: 100%;
+    height: 32px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+}
+
+.yaya-context-menu-item:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--primary) 12%, transparent);
+}
+
+.yaya-context-menu-item:disabled {
+    opacity: 0.48;
+    cursor: not-allowed;
+}
+
+.yaya-context-menu-danger {
+    color: #ff4f7b;
+}
+
 .gift-panel {
     display: none;
     background: var(--input-bg);

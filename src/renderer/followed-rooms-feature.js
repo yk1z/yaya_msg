@@ -609,33 +609,20 @@
 
             const menu = document.createElement('div');
             menu.id = 'followed-room-context-menu';
+            menu.className = 'yaya-context-menu';
             menu.style.cssText = [
                 'position: fixed',
                 'z-index: 99999',
                 'display: none',
-                'min-width: 132px',
-                'padding: 6px',
-                'border-radius: 8px',
-                'border: 1px solid var(--border)',
-                'background: rgba(20, 24, 31, 0.98)',
-                'box-shadow: 0 14px 34px rgba(0,0,0,0.35)',
-                'backdrop-filter: blur(12px)',
-                'color: var(--text)',
-                'font-size: 13px'
+                'min-width: 132px'
             ].join(';');
 
             menu.innerHTML = `
-                <button type="button" data-action="pin" style="width: 100%; height: 32px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: var(--text); text-align: left; cursor: pointer;">置顶</button>
-                <button type="button" data-action="unfollow" style="width: 100%; height: 32px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: #ff6b8a; text-align: left; cursor: pointer;">取关</button>
+                <button type="button" data-action="pin" class="yaya-context-menu-item">置顶</button>
+                <button type="button" data-action="unfollow" class="yaya-context-menu-item yaya-context-menu-danger">取关</button>
             `;
 
             menu.querySelectorAll('button').forEach(button => {
-                button.addEventListener('mouseenter', () => {
-                    button.style.background = 'rgba(255,255,255,0.08)';
-                });
-                button.addEventListener('mouseleave', () => {
-                    button.style.background = 'transparent';
-                });
                 button.addEventListener('click', event => {
                     event.stopPropagation();
                     const action = button.dataset.action;

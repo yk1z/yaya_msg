@@ -273,32 +273,19 @@
 
             const menu = document.createElement('div');
             menu.id = 'private-message-context-menu';
+            menu.className = 'yaya-context-menu';
             menu.style.cssText = [
                 'position: fixed',
                 'z-index: 99999',
                 'display: none',
-                'min-width: 120px',
-                'padding: 6px',
-                'border-radius: 8px',
-                'border: 1px solid var(--border)',
-                'background: rgba(20, 24, 31, 0.98)',
-                'box-shadow: 0 14px 34px rgba(0,0,0,0.35)',
-                'backdrop-filter: blur(12px)',
-                'color: var(--text)',
-                'font-size: 13px'
+                'min-width: 120px'
             ].join(';');
 
             menu.innerHTML = `
-                <button type="button" data-action="delete" style="width: 100%; height: 32px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: #ff6b8a; text-align: left; cursor: pointer;">删除</button>
+                <button type="button" data-action="delete" class="yaya-context-menu-item yaya-context-menu-danger">删除</button>
             `;
 
             menu.querySelectorAll('button').forEach(button => {
-                button.addEventListener('mouseenter', () => {
-                    if (!button.disabled) button.style.background = 'rgba(255,255,255,0.08)';
-                });
-                button.addEventListener('mouseleave', () => {
-                    button.style.background = 'transparent';
-                });
                 button.addEventListener('click', event => {
                     event.stopPropagation();
                     const target = privateMessageContextTarget;
@@ -329,8 +316,6 @@
             if (deleteButton) {
                 deleteButton.disabled = !msgId || deletingPrivateMessageIds.has(msgId);
                 deleteButton.textContent = deletingPrivateMessageIds.has(msgId) ? '删除中' : '删除';
-                deleteButton.style.opacity = deleteButton.disabled ? '0.55' : '1';
-                deleteButton.style.cursor = deleteButton.disabled ? 'not-allowed' : 'pointer';
             }
 
             menu.style.display = 'block';
