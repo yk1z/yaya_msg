@@ -185,12 +185,14 @@
             const token = getAppToken ? getAppToken() : (typeof window.getAppToken === 'function' ? window.getAppToken() : '');
 
             if (!token) {
-                setOpenLiveStatusHtml('<span style="color:red">⚠️ 请先登录账号</span>');
+                setOpenLiveStatusHtml('');
+                showToast('请先登录账号');
                 return;
             }
 
             if (!memberId) {
-                setOpenLiveStatusHtml('<span style="color:red">⚠️ 请先搜索并选择成员</span>');
+                setOpenLiveStatusHtml('');
+                showToast('请先搜索并选择成员');
                 return;
             }
 
@@ -214,7 +216,7 @@
 
                 if (!result?.success || !result.content) {
                     if (!isLoadMore) {
-                        container.innerHTML = `<div class="placeholder-tip"><h3>❌ 加载失败</h3><p>${result?.msg || '未知错误'}</p></div>`;
+                        container.innerHTML = `<div class="placeholder-tip"><h3>加载失败</h3><p>${result?.msg || '未知错误'}</p></div>`;
                     }
                     return;
                 }
@@ -244,7 +246,7 @@
             } catch (error) {
                 console.error(error);
                 if (!isLoadMore) {
-                    container.innerHTML = `<div class="placeholder-tip"><h3>❌ 发生错误</h3><p>${error.message}</p></div>`;
+                    container.innerHTML = `<div class="placeholder-tip"><h3>发生错误</h3><p>${error.message}</p></div>`;
                 }
             }
         }
@@ -264,7 +266,8 @@
             }
 
             if (!memberId) {
-                setOpenLiveStatusHtml('<span style="color:red">⚠️ 请先搜索并选择成员</span>');
+                setOpenLiveStatusHtml('');
+                showToast('请先搜索并选择成员');
                 return;
             }
 

@@ -343,7 +343,7 @@
                     if (cover) cover.style.opacity = '1';
                     if (overlay) overlay.style.opacity = '0.9';
                     cleanupStagingHost();
-                    wrapper.innerHTML = `<div style="padding:15px;color:#ff4d4f;background:#fff1f0;border-radius:8px;border:1px dashed #ff4d4f;font-size:12px;">❌ 视频无法加载</div>`;
+                    wrapper.innerHTML = `<div style="padding:15px;color:#ff4d4f;background:#fff1f0;border-radius:8px;border:1px dashed #ff4d4f;font-size:12px;">视频无法加载</div>`;
                 };
 
                 inlineVideo.onended = () => {

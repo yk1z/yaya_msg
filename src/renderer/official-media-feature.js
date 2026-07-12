@@ -943,7 +943,7 @@
                                 audioEl.load();
                             }
                         } else {
-                            showToast('❌ 无法播放，该节目文件可能已在服务器下线');
+                            showToast('无法播放，该节目文件可能已在服务器下线');
                             subTitleEl.innerText = '加载失败 (文件已失效)';
 
                             if (coverEl) coverEl.classList.add('vinyl-pause');
@@ -981,7 +981,7 @@
                     }
 
                 } else {
-                    showToast('❌ 未找到该节目的音频文件');
+                    showToast('未找到该节目的音频文件');
                 }
             } catch (e) {
                 showToast('获取详情出错: ' + e.message);

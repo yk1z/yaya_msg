@@ -42,6 +42,9 @@
         let privateMessageFlipPrices = [];
         let privateMessageFlipMember = null;
         let privateMessageFlipLoading = false;
+        let privateMessageContextMenu = null;
+        let privateMessageContextTarget = null;
+        const deletingPrivateMessageIds = new Set();
 
         function setPrivateMessageDetailLoading(isLoading) {
             privateMessageDetailState.loading = isLoading;
@@ -124,6 +127,8 @@
         function setPrivateMessageSending(isSending) {
             privateMessageDetailState.sending = isSending;
             const btn = document.getElementById('btn-send-private-message');
+            const imageBtn = document.getElementById('btn-send-private-message-image');
+            const imageInput = document.getElementById('private-message-image-file');
             const input = document.getElementById('private-message-reply-input');
             const flipEnabled = document.getElementById('private-message-flip-enabled');
             const flipAnswer = document.getElementById('private-message-flip-answer-display');
@@ -131,13 +136,15 @@
             const flipCost = document.getElementById('private-message-flip-cost-input');
             const disabled = !privateMessageDetailState.targetUserId || isSending;
             if (btn) btn.disabled = disabled;
+            if (imageBtn) imageBtn.disabled = disabled || isPrivateMessageFlipEnabled();
+            if (imageInput) imageInput.disabled = disabled || isPrivateMessageFlipEnabled();
             if (input) input.disabled = disabled;
             if (flipEnabled) flipEnabled.disabled = disabled || !privateMessageFlipMember;
             if (flipAnswer) flipAnswer.disabled = disabled || !isPrivateMessageFlipEnabled() || privateMessageFlipPrices.length === 0;
             if (flipPrivacy) flipPrivacy.disabled = disabled || !isPrivateMessageFlipEnabled() || privateMessageFlipPrices.length === 0;
             if (flipCost) flipCost.disabled = disabled || !isPrivateMessageFlipEnabled() || privateMessageFlipPrices.length === 0;
             if (btn) btn.textContent = isSending
-                ? (isPrivateMessageFlipEnabled() ? '发送翻牌中...' : '发送中...')
+                ? (isPrivateMessageFlipEnabled() ? '发送翻牌中' : '发送中')
                 : (isPrivateMessageFlipEnabled() ? '发送翻牌' : '发送');
         }
 
@@ -155,6 +162,7 @@
             const subtitleEl = document.getElementById('private-message-detail-subtitle');
             const avatarEl = document.getElementById('private-message-detail-avatar');
             const inputEl = document.getElementById('private-message-reply-input');
+            const imageInputEl = document.getElementById('private-message-image-file');
             const bodyEl = document.getElementById('private-message-detail-body');
             const viewEl = document.getElementById('view-private-messages');
 
@@ -163,6 +171,7 @@
             if (subtitleEl) subtitleEl.textContent = '--';
             if (avatarEl) avatarEl.src = './icon.png';
             if (inputEl) inputEl.value = '';
+            if (imageInputEl) imageInputEl.value = '';
             if (bodyEl) bodyEl.innerHTML = '<div class="empty-state">请选择一个私信会话</div>';
             if (viewEl) viewEl.classList.remove('is-detail-open');
 
@@ -188,14 +197,19 @@
 
         function createPrivateMessageDetailElement(item) {
             const incoming = String(item.user?.userId || '') === String(privateMessageDetailState.targetUserId);
+            const msgId = getPrivateMessageDeletableId(item);
+            const avatarUrl = getPrivateMessageSenderAvatar(item, incoming);
             const wrapper = document.createElement('div');
             wrapper.className = `private-message-item ${incoming ? 'incoming' : 'outgoing'}`;
-            wrapper.innerHTML = `
-                <div class="private-message-bubble-meta">${escapePrivateMessageHtml(formatPrivateMessageDateTime(item.timestamp))}</div>
-                <div class="private-message-bubble ${incoming ? 'incoming' : 'outgoing'}">
-                    ${renderPrivateMessageContentHtml(item)}
-                </div>
-            `;
+            if (msgId) {
+                wrapper.dataset.msgId = msgId;
+            }
+            wrapper.innerHTML = `<div class="private-message-row"><img class="private-message-sender-avatar" src="${escapePrivateMessageHtml(avatarUrl)}" alt="" onerror="this.src='./icon.png'"><div class="private-message-content"><div class="private-message-bubble-meta">${escapePrivateMessageHtml(formatPrivateMessageDateTime(item.timestamp))}</div><div class="private-message-bubble ${incoming ? 'incoming' : 'outgoing'}">${renderPrivateMessageContentHtml(item)}</div></div></div>`;
+            wrapper.addEventListener('contextmenu', event => {
+                event.preventDefault();
+                event.stopPropagation();
+                showPrivateMessageContextMenu(event, wrapper);
+            });
 
             wrapper.querySelectorAll('.private-message-audio-slot').forEach(slot => {
                 const src = slot.getAttribute('data-audio-src');
@@ -211,6 +225,227 @@
             });
 
             return wrapper;
+        }
+
+        function getCurrentAccountAvatar() {
+            const candidates = [
+                document.getElementById('current-user-avatar')?.getAttribute('src'),
+                document.getElementById('account-avatar-preview')?.getAttribute('src'),
+                document.getElementById('web-account-avatar')?.getAttribute('src')
+            ];
+
+            return candidates.map(value => String(value || '').trim()).find(Boolean) || './icon.png';
+        }
+
+        function getPrivateMessageSenderAvatar(item = {}, incoming = false) {
+            const user = item.user || {};
+            const rawAvatar = user.avatar
+                || user.faceImage
+                || user.headImg
+                || user.headImage
+                || user.avatarUrl
+                || '';
+
+            if (rawAvatar) {
+                return getPrivateMessageAvatar(String(rawAvatar));
+            }
+
+            return incoming
+                ? (privateMessageDetailState.avatar || './icon.png')
+                : getCurrentAccountAvatar();
+        }
+
+        function getPrivateMessageDeletableId(item = {}) {
+            const msgId = String(
+                item.messageId
+                || item.msgId
+                || item.id
+                || item.messageid
+                || ''
+            ).trim();
+
+            if (!msgId || msgId.startsWith('local-')) return '';
+            return msgId;
+        }
+
+        function ensurePrivateMessageContextMenu() {
+            if (privateMessageContextMenu) return privateMessageContextMenu;
+
+            const menu = document.createElement('div');
+            menu.id = 'private-message-context-menu';
+            menu.style.cssText = [
+                'position: fixed',
+                'z-index: 99999',
+                'display: none',
+                'min-width: 120px',
+                'padding: 6px',
+                'border-radius: 8px',
+                'border: 1px solid var(--border)',
+                'background: rgba(20, 24, 31, 0.98)',
+                'box-shadow: 0 14px 34px rgba(0,0,0,0.35)',
+                'backdrop-filter: blur(12px)',
+                'color: var(--text)',
+                'font-size: 13px'
+            ].join(';');
+
+            menu.innerHTML = `
+                <button type="button" data-action="delete" style="width: 100%; height: 32px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: #ff6b8a; text-align: left; cursor: pointer;">删除</button>
+            `;
+
+            menu.querySelectorAll('button').forEach(button => {
+                button.addEventListener('mouseenter', () => {
+                    if (!button.disabled) button.style.background = 'rgba(255,255,255,0.08)';
+                });
+                button.addEventListener('mouseleave', () => {
+                    button.style.background = 'transparent';
+                });
+                button.addEventListener('click', event => {
+                    event.stopPropagation();
+                    const target = privateMessageContextTarget;
+                    hidePrivateMessageContextMenu();
+                    if (!target || button.disabled) return;
+                    deletePrivateMessageFromContext(target);
+                });
+            });
+
+            document.body.appendChild(menu);
+            document.addEventListener('click', hidePrivateMessageContextMenu);
+            document.addEventListener('scroll', hidePrivateMessageContextMenu, true);
+            window.addEventListener('resize', hidePrivateMessageContextMenu);
+            document.addEventListener('keydown', event => {
+                if (event.key === 'Escape') hidePrivateMessageContextMenu();
+            });
+
+            privateMessageContextMenu = menu;
+            return menu;
+        }
+
+        function showPrivateMessageContextMenu(event, target) {
+            const menu = ensurePrivateMessageContextMenu();
+            const deleteButton = menu.querySelector('[data-action="delete"]');
+            const msgId = String(target?.dataset?.msgId || '').trim();
+            privateMessageContextTarget = target;
+
+            if (deleteButton) {
+                deleteButton.disabled = !msgId || deletingPrivateMessageIds.has(msgId);
+                deleteButton.textContent = deletingPrivateMessageIds.has(msgId) ? '删除中' : '删除';
+                deleteButton.style.opacity = deleteButton.disabled ? '0.55' : '1';
+                deleteButton.style.cursor = deleteButton.disabled ? 'not-allowed' : 'pointer';
+            }
+
+            menu.style.display = 'block';
+            menu.style.left = '0px';
+            menu.style.top = '0px';
+
+            const rect = menu.getBoundingClientRect();
+            const margin = 8;
+            const left = Math.min(event.clientX, window.innerWidth - rect.width - margin);
+            const top = Math.min(event.clientY, window.innerHeight - rect.height - margin);
+            menu.style.left = `${Math.max(margin, left)}px`;
+            menu.style.top = `${Math.max(margin, top)}px`;
+        }
+
+        function hidePrivateMessageContextMenu() {
+            if (privateMessageContextMenu) {
+                privateMessageContextMenu.style.display = 'none';
+            }
+            privateMessageContextTarget = null;
+        }
+
+        function showPrivateMessageDeleteConfirm(message, onConfirm) {
+            if (typeof window.showCustomConfirm === 'function') {
+                window.showCustomConfirm(escapePrivateMessageHtml(message), onConfirm);
+                return;
+            }
+
+            const overlay = document.createElement('div');
+            overlay.className = 'confirm-overlay';
+            overlay.innerHTML = `
+                <div class="confirm-box">
+                    <div class="confirm-text">${escapePrivateMessageHtml(message)}</div>
+                    <div class="confirm-btns">
+                        <button class="confirm-btn cancel" type="button">取消</button>
+                        <button class="confirm-btn ok" type="button">确定</button>
+                    </div>
+                </div>
+            `;
+
+            const close = () => {
+                if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+            };
+
+            overlay.querySelector('.confirm-btn.cancel')?.addEventListener('click', close);
+            overlay.querySelector('.confirm-btn.ok')?.addEventListener('click', () => {
+                close();
+                if (typeof onConfirm === 'function') onConfirm();
+            });
+            overlay.addEventListener('click', event => {
+                if (event.target === overlay) close();
+            });
+            document.body.appendChild(overlay);
+        }
+
+        function removePrivateMessageById(msgId) {
+            const targetId = String(msgId || '').trim();
+            if (!targetId) return false;
+
+            const beforeCount = privateMessageDetailState.items.length;
+            privateMessageDetailState.items = privateMessageDetailState.items.filter(item => getPrivateMessageDeletableId(item) !== targetId);
+            privateMessagePendingItems = privateMessagePendingItems.filter(item => getPrivateMessageDeletableId(item) !== targetId);
+            privateMessagePendingKeys = new Set(privateMessagePendingItems.map(item => getPrivateMessageItemKey(item, privateMessageDetailState.targetUserId)));
+            updatePrivateMessagePendingNotice();
+
+            return privateMessageDetailState.items.length !== beforeCount;
+        }
+
+        function deletePrivateMessageFromContext(target) {
+            const msgId = String(target?.dataset?.msgId || '').trim();
+            if (!msgId) {
+                showToast('这条消息暂时不能删除');
+                return;
+            }
+
+            if (deletingPrivateMessageIds.has(msgId)) return;
+
+            showPrivateMessageDeleteConfirm('确定删除这条私信吗？', async () => {
+                const token = getPrivateMessagesToken();
+                if (!token) {
+                    showToast('请先登录账号');
+                    return;
+                }
+
+                deletingPrivateMessageIds.add(msgId);
+                showToast('正在删除私信');
+                try {
+                    const res = await ipcRenderer.invoke('delete-private-message', {
+                        token,
+                        pa: getPrivateMessageSafePa(),
+                        msgId
+                    });
+
+                    if (!res || !res.success) {
+                        showToast(`删除失败: ${res?.msg || '未知错误'}`);
+                        return;
+                    }
+
+                    const bodyEl = document.getElementById('private-message-detail-body');
+                    const shouldStickToBottom = canPrivateMessageStickToBottom(bodyEl);
+                    removePrivateMessageById(msgId);
+                    renderPrivateMessageDetail({ stickToBottom: shouldStickToBottom });
+                    filterPrivateMessageList(getCurrentSearchKeyword(), { preserveScroll: true });
+                    setTimeout(() => loadPrivateMessageList({
+                        reset: false,
+                        silent: true,
+                        preserveScroll: true,
+                        refreshFromTop: true
+                    }), 300);
+                    showToast('已删除私信');
+                } catch (error) {
+                    showToast(`删除失败: ${error.message}`);
+                } finally {
+                    deletingPrivateMessageIds.delete(msgId);
+                }
+            });
         }
 
         function capturePrivateMessageAudioState(container) {
@@ -543,6 +778,7 @@
             }
             setPrivateMessageFlipStatus('');
             setPrivateMessageFlipPanelVisible(false);
+            setPrivateMessageSending(privateMessageDetailState.sending);
         }
 
         function populatePrivateMessageFlipOptions() {
@@ -723,6 +959,11 @@
             if (sendButton && !privateMessageDetailState.sending) {
                 sendButton.textContent = isEnabled ? '发送翻牌' : '发送';
             }
+            const imageBtn = document.getElementById('btn-send-private-message-image');
+            const imageInput = document.getElementById('private-message-image-file');
+            const imageDisabled = !privateMessageDetailState.targetUserId || privateMessageDetailState.sending || isEnabled;
+            if (imageBtn) imageBtn.disabled = imageDisabled;
+            if (imageInput) imageInput.disabled = imageDisabled;
 
             if (isEnabled && !privateMessageFlipPrices.length && !privateMessageFlipLoading) {
                 setPrivateMessageFlipStatus('该成员暂未开通翻牌', 'warn');
@@ -765,6 +1006,7 @@
             setPrivateMessageFlipPanelVisible(true);
             setPrivateMessageFlipStatus('');
             privateMessageFlipLoading = true;
+            syncPrivateMessageFlipControls();
 
             try {
                 const token = getPrivateMessagesToken();
@@ -830,6 +1072,7 @@
                 filterPrivateMessageList(getCurrentSearchKeyword());
                 renderPrivateMessageDetail();
                 updatePrivateMessageReplyCounter();
+                resetPrivateMessageFlipPanel();
                 setPrivateMessageSending(false);
                 void refreshPrivateMessageFlipPanel();
             }
@@ -1214,7 +1457,7 @@
             }
 
             setPrivateMessageSending(true);
-            setPrivateMessageFlipStatus('正在发送翻牌...', '');
+            setPrivateMessageFlipStatus('正在发送翻牌', '');
 
             try {
                 const payload = {
@@ -1271,6 +1514,149 @@
                 console.error('发送私信翻牌失败:', error);
                 setPrivateMessageFlipStatus(`发送失败: ${error.message}`, 'error');
             } finally {
+                setPrivateMessageSending(false);
+            }
+        }
+
+        function openPrivateMessageImagePicker() {
+            if (privateMessageDetailState.sending) return;
+            const token = getPrivateMessagesToken();
+            if (!token) {
+                showToast('请先登录账号');
+                return switchView('login');
+            }
+            if (!privateMessageDetailState.targetUserId) {
+                showToast('请先选择私信会话');
+                return;
+            }
+            if (isPrivateMessageFlipEnabled()) {
+                setPrivateMessageFlipStatus('翻牌模式不能发送图片', 'error');
+                return;
+            }
+
+            const input = document.getElementById('private-message-image-file');
+            if (input) input.click();
+        }
+
+        function readPrivateMessageImageData(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(String(reader.result || ''));
+                reader.onerror = () => reject(new Error('读取图片失败'));
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function getPrivateMessageImageSize(dataUrl) {
+            return new Promise(resolve => {
+                const image = new Image();
+                image.onload = () => resolve({
+                    width: Number(image.naturalWidth || image.width || 0),
+                    height: Number(image.naturalHeight || image.height || 0)
+                });
+                image.onerror = () => resolve({ width: 0, height: 0 });
+                image.src = dataUrl;
+            });
+        }
+
+        function setPrivateMessageImageButtonText(text) {
+            const btn = document.getElementById('btn-send-private-message-image');
+            if (btn) btn.textContent = text || '图片';
+        }
+
+        async function handlePrivateMessageImageSelected(file) {
+            if (!file || privateMessageDetailState.sending) return;
+            const token = getPrivateMessagesToken();
+            if (!token) {
+                showToast('请先登录账号');
+                return switchView('login');
+            }
+            if (!privateMessageDetailState.targetUserId) {
+                showToast('请先选择私信会话');
+                return;
+            }
+            if (isPrivateMessageFlipEnabled()) {
+                setPrivateMessageFlipStatus('翻牌模式不能发送图片', 'error');
+                return;
+            }
+
+            const mimeType = String(file.type || '').toLowerCase();
+            const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+            if (mimeType && !allowedTypes.has(mimeType)) {
+                showToast('请选择 JPG、PNG、WEBP 或 GIF 图片');
+                return;
+            }
+            const maxSize = 20 * 1024 * 1024;
+            if (file.size > maxSize) {
+                showToast('图片不能超过 20MB');
+                return;
+            }
+
+            const targetUserId = String(privateMessageDetailState.targetUserId || '');
+            setPrivateMessageSending(true);
+            setPrivateMessageImageButtonText('上传中');
+            try {
+                const dataUrl = await readPrivateMessageImageData(file);
+                const imageSize = await getPrivateMessageImageSize(dataUrl);
+                const uploadRes = await ipcRenderer.invoke('upload-private-message-image', {
+                    token,
+                    pa: getPrivateMessageSafePa(),
+                    fileName: file.name || `private-message-${Date.now()}.jpg`,
+                    mimeType: mimeType || 'image/jpeg',
+                    dataBase64: dataUrl
+                });
+
+                if (!uploadRes || !uploadRes.success) {
+                    throw new Error(uploadRes && uploadRes.msg ? uploadRes.msg : '上传图片失败');
+                }
+
+                const uploaded = Array.isArray(uploadRes.content) ? uploadRes.content[0] : (uploadRes.content || {});
+                const imagePayload = {
+                    imgUrl: String(uploaded.path || uploadRes.path || ''),
+                    imgWidth: Number(uploaded.width || imageSize.width || 0),
+                    imgHeight: Number(uploaded.height || imageSize.height || 0),
+                    imgSize: Number(uploaded.size || file.size || 0)
+                };
+
+                if (!imagePayload.imgUrl) {
+                    throw new Error('上传结果缺少图片地址');
+                }
+
+                setPrivateMessageImageButtonText('发送中');
+                const res = await ipcRenderer.invoke('send-private-message-reply', {
+                    token,
+                    pa: getPrivateMessageSafePa(),
+                    targetUserId,
+                    messageType: 'IMAGE',
+                    text: '',
+                    image: imagePayload
+                });
+
+                if (!res || !res.success || !res.content) {
+                    throw new Error(res && res.msg ? res.msg : '发送图片失败');
+                }
+
+                if (String(privateMessageDetailState.targetUserId || '') === targetUserId) {
+                    privateMessageDetailState.items.push({
+                        messageId: res.content.messageId,
+                        timestamp: res.content.timestamp,
+                        messageType: res.content.messageType || 'IMAGE',
+                        content: res.content.content || { messageType: 'IMAGE', text: '', ...imagePayload }
+                    });
+                    renderPrivateMessageDetail({ stickToBottom: true });
+                }
+
+                const conversation = privateMessageListState.items.find(entry => String(entry.user?.userId || '') === targetUserId);
+                if (conversation) {
+                    conversation.newestMessage = '[图片消息]';
+                    conversation.newestMessagetime = Number(res.content.timestamp) || Date.now();
+                    filterPrivateMessageList(getCurrentSearchKeyword(), { preserveScroll: true });
+                }
+            } catch (error) {
+                console.error('发送私信图片失败:', error);
+                showToast(`发送图片失败: ${error.message}`);
+            } finally {
+                setPrivateMessageImageButtonText('图片');
                 setPrivateMessageSending(false);
             }
         }
@@ -1422,6 +1808,7 @@
             checkPrivateMessageFlipCostMin,
             filterPrivateMessageList,
             flushPrivateMessagePendingMessages,
+            handlePrivateMessageImageSelected,
             handlePrivateMessageFlipCostInput,
             handlePrivateMessageReplyKeydown,
             loadMorePrivateMessageDetail,
@@ -1429,6 +1816,7 @@
             loadPrivateMessageDetail,
             loadPrivateMessageList,
             openPrivateMessageDetail,
+            openPrivateMessageImagePicker,
             refreshPrivateMessageList,
             resetPrivateMessageDetailPanel,
             resetPrivateMessageListState,

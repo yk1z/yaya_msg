@@ -367,8 +367,8 @@ async function applyWebTransforms() {
     );
     indexHtml = replaceOnce(
         indexHtml,
-        '<div class="home-panel-subtitle">官方视频、音乐、电台资源</div>',
-        '<div class="home-panel-subtitle">官方视频、音乐、电台资源</div>'
+        '<div class="home-panel-subtitle">视频、音乐、电台、数据库</div>',
+        '<div class="home-panel-subtitle">视频、音乐、电台、数据库</div>'
     );
     indexHtml = replaceOnce(
         indexHtml,
@@ -385,13 +385,13 @@ async function applyWebTransforms() {
     );
     indexHtml = addClassByPattern(
         indexHtml,
-        /<div class="Box-row">(\s*<div\s+style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">\s*<h3 style="margin: 0; color: var\(--text\);">🌐 IP检测<\/h3>)/,
+        /<div class="Box-row">(\s*<div\s+style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 15px;">\s*<div>\s*<h3 style="margin: 0; color: var\(--text\);">IP检测<\/h3>)/,
         '<div class="Box-row web-hidden">$1',
         'IP检测设置'
     );
     indexHtml = addClassByPattern(
         indexHtml,
-        /<div class="Box-row">(\s*<h3 style="margin-top: 0; color: var\(--text\);">📂 下载路径<\/h3>)/,
+        /<div class="Box-row">(\s*<h3 style="margin-top: 0; color: var\(--text\);">下载路径<\/h3>)/,
         '<div class="Box-row web-hidden">$1',
         '下载路径设置'
     );
@@ -403,7 +403,7 @@ async function applyWebTransforms() {
     indexHtml = replaceOnce(
         indexHtml,
         '                    </section>\r\n                    <div class="home-footer-credit">presented by yk1z</div>',
-        `                    </section>\r\n                    <div class="web-limit-notice">\r\n                        <span class="web-limit-copy">由于网页限制，使用完整功能请下载桌面端。</span>\r\n                        <div class="web-download-actions" aria-label="桌面端下载">\r\n                            <a class="web-desktop-download-btn" href="/downloads/yaya_msg-v2.6-win.zip?v=20260602" download><span class="web-platform-icon" aria-hidden="true">⊞</span><span>Windows</span></a>\r\n                            <a class="web-desktop-download-btn" href="/downloads/yaya_msg-v2.6-mac.zip?v=20260602" download><span class="web-platform-icon" aria-hidden="true"></span><span>macOS</span></a>\r\n                            <a class="web-desktop-download-btn" href="/downloads/yaya_msg-v2.6-linux.tar.gz?v=20260602" download><span class="web-platform-icon" aria-hidden="true">◆</span><span>Linux</span></a>\r\n                        </div>\r\n                    </div>\r\n                    <div class="home-footer-credit">presented by yk1z</div>`
+        `                    </section>\r\n                    <div class="web-limit-notice">\r\n                        <span class="web-limit-copy">由于网页限制，使用完整功能请下载桌面端。</span>\r\n                        <div class="web-download-actions" aria-label="桌面端下载">\r\n                            <a class="web-desktop-download-btn" href="/downloads/yaya_msg-v2.7-win.zip?v=20260602" download><span class="web-platform-icon" aria-hidden="true">⊞</span><span>Windows</span></a>\r\n                            <a class="web-desktop-download-btn" href="/downloads/yaya_msg-v2.7-mac.zip?v=20260602" download><span class="web-platform-icon" aria-hidden="true"></span><span>macOS</span></a>\r\n                            <a class="web-desktop-download-btn" href="/downloads/yaya_msg-v2.7-linux.tar.gz?v=20260602" download><span class="web-platform-icon" aria-hidden="true">◆</span><span>Linux</span></a>\r\n                        </div>\r\n                    </div>\r\n                    <div class="home-footer-credit">presented by yk1z</div>`
     );
     indexHtml = indexHtml.replace(/<span class="web-platform-icon" aria-hidden="true">.*?<\/span><span>(Windows|macOS|Linux)<\/span>/g, '$1');
     indexHtml = indexHtml.replace(

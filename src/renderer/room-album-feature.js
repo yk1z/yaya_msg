@@ -57,7 +57,7 @@
             const statusEl = document.getElementById('room-album-status');
 
             if (!channelId) {
-                showToast('⚠️ 请先搜索并选择成员');
+                showToast('请先搜索并选择成员');
                 return;
             }
 
@@ -116,7 +116,7 @@
             const memberName = document.getElementById('room-album-member-input')?.value || '未知成员';
 
             if (!allDownloadButtons.length) {
-                showToast('⚠️ 当前没有可下载的媒体，请先查询或加载内容');
+                showToast('当前没有可下载的媒体，请先查询或加载内容');
                 return;
             }
 
@@ -184,10 +184,10 @@
 
             if (buttonEl) {
                 if (failCount === 0) {
-                    buttonEl.innerText = `✅ 结束 (共${successCount}个)`;
+                    buttonEl.innerText = `结束 (共${successCount}个)`;
                     buttonEl.style.background = '#52c41a';
                 } else {
-                    buttonEl.innerText = `⚠️ 结束 (成功${successCount}, 失败${failCount})`;
+                    buttonEl.innerText = `结束 (成功${successCount}, 失败${failCount})`;
                     buttonEl.style.background = '#fa8c16';
                 }
 
@@ -268,12 +268,12 @@
             const statusEl = document.getElementById('room-album-status');
 
             if (!token) {
-                showToast('⚠️ 请先在“账号设置”中登录');
+                showToast('请先在“账号设置”中登录');
                 return;
             }
 
             if (!channelId || channelId === 'undefined') {
-                showToast('⚠️ 请先搜索成员，或手动输入房间 Channel ID');
+                showToast('请先搜索成员，或手动输入房间 Channel ID');
                 return;
             }
 
@@ -298,7 +298,7 @@
 
                 if (!result?.success || !result.content) {
                     if (!isLoadMore) {
-                        container.innerHTML = `<div class="placeholder-tip"><h3>❌ 加载失败</h3><p>${result?.msg || '未知错误'}</p></div>`;
+                        container.innerHTML = `<div class="placeholder-tip"><h3>加载失败</h3><p>${result?.msg || '未知错误'}</p></div>`;
                     }
                     return;
                 }
@@ -335,7 +335,7 @@
                 }
             } catch (error) {
                 if (!isLoadMore) {
-                    container.innerHTML = `<div class="placeholder-tip"><h3>❌ 发生错误</h3><p>${error.message}</p></div>`;
+                    container.innerHTML = `<div class="placeholder-tip"><h3>发生错误</h3><p>${error.message}</p></div>`;
                 }
             } finally {
                 isFetchingRoomAlbum = false;

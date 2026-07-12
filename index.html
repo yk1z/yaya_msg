@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy"
         content="default-src 'self' file: https: data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net https://unpkg.com https://cdn.tailwindcss.com https://esm.sh https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https:; img-src 'self' file: https: data: blob:; media-src 'self' file: https: http: data: blob:; connect-src 'self' file: https: http: ws: wss: data: blob:; font-src 'self' https: data:;">
-    <title>牙牙消息 v2.6</title>
+    <title>牙牙消息 v2.7</title>
     <link rel="icon" href="./icon.png" type="image/x-icon">
 
     <link rel="stylesheet" href="style.css">
@@ -49,7 +49,7 @@
                 </svg>
             </div>
             <img src="./icon.png" class="title-logo">
-            <span>牙牙消息 v2.6</span>
+            <span>牙牙消息 v2.7</span>
         </div>
         <div id="topbar-page-title" class="title-bar-center-title" aria-live="polite"></div>
         <div class="window-controls">
@@ -169,6 +169,8 @@
                         style="flex: 1; height: 38px; padding: 0;" onclick="switchView('official-site-music')">音乐</button>
                     <button id="btn-sb-audio-programs" class="btn btn-secondary btn-full"
                         style="flex: 1; height: 38px; padding: 0;" onclick="switchView('audio-programs')">电台</button>
+                    <button id="btn-sb-community" class="btn btn-secondary btn-full"
+                        style="flex: 1; height: 38px; padding: 0;" onclick="switchView('community')">社区</button>
                 </div>
             </div>
 
@@ -321,7 +323,7 @@
                     <section class="home-grid">
                         <div class="home-panel home-panel-messages">
                             <div class="home-panel-title">消息</div>
-                            <div class="home-panel-subtitle">房间消息抓取、检索</div>
+                            <div class="home-panel-subtitle">口袋房间消息抓取、检索</div>
                             <div class="home-panel-actions home-card-grid">
                                 <button class="home-card home-card-primary" onclick="switchView('messages')">
                                     <span class="home-card-title">检索</span>
@@ -367,7 +369,7 @@
 
                         <div class="home-panel home-panel-pocket">
                             <div class="home-panel-title">口袋</div>
-                            <div class="home-panel-subtitle">关注的口袋房间、私信列表、房间相册、成员动态</div>
+                            <div class="home-panel-subtitle">口袋房间、私信列表、房间相册、成员动态、成员微博</div>
                             <div class="home-panel-actions home-card-grid">
                                 <button class="home-card home-card-primary" onclick="switchView('followed-rooms')">
                                     <span class="home-card-title">房间</span>
@@ -394,7 +396,7 @@
 
                         <div class="home-panel home-panel-data">
                             <div class="home-panel-title">数据</div>
-                            <div class="home-panel-subtitle">档案、行程、公演记录、鸡腿榜、数据库</div>
+                            <div class="home-panel-subtitle">成员档案、成员行程、公演记录、鸡腿榜、48区</div>
                             <div class="home-panel-actions home-card-grid">
                                 <button class="home-card" onclick="switchView('profile')">
                                     <span class="home-card-title">档案</span>
@@ -408,13 +410,13 @@
                                     <span class="home-card-title">公演</span>
                                     <span class="home-card-desc">查看公演与活动记录</span>
                                 </button>
+                                <button class="home-card" onclick="switchView('community')">
+                                    <span class="home-card-title">社区</span>
+                                    <span class="home-card-desc">查看广场动态</span>
+                                </button>
                                 <button class="home-card" onclick="switchView('melee-rank')">
                                     <span class="home-card-title">鸡腿榜</span>
                                     <span class="home-card-desc">查询乱斗周榜</span>
-                                </button>
-                                <button class="home-card" onclick="switchView('database')">
-                                    <span class="home-card-title">数据库</span>
-                                    <span class="home-card-desc">查看附属数据</span>
                                 </button>
                             </div>
                         </div>
@@ -440,7 +442,7 @@
 
                         <div class="home-panel home-panel-library">
                             <div class="home-panel-title">资源</div>
-                            <div class="home-panel-subtitle">官方视频、音乐、电台资源</div>
+                            <div class="home-panel-subtitle">视频、音乐、电台、数据库</div>
                             <div class="home-panel-actions home-card-grid">
                                 <button class="home-card" onclick="switchView('video-library')">
                                     <span class="home-card-title">视频</span>
@@ -453,6 +455,10 @@
                                 <button class="home-card" onclick="switchView('audio-programs')">
                                     <span class="home-card-title">电台</span>
                                     <span class="home-card-desc">播放音频节目</span>
+                                </button>
+                                <button class="home-card" onclick="switchView('database')">
+                                    <span class="home-card-title">数据库</span>
+                                    <span class="home-card-desc">查看附属数据</span>
                                 </button>
                             </div>
                         </div>
@@ -542,7 +548,7 @@
                                     </div>
                                     <button id="btn-quick-action" class="btn btn-secondary"
                                         onclick="executeQuickAction()"
-                                        style="height: 30px; padding: 0 10px; font-size: 12px; white-space: nowrap;">
+                                        style="height: 30px; width: 56px; padding: 0; font-size: 12px; white-space: nowrap; flex: 0 0 56px;">
                                         关注
                                     </button>
                                 </div>
@@ -566,7 +572,7 @@
 
                                 <div style="flex: 1; min-width: 0;">
                                     <div id="followed-chat-title"
-                                        style="font-weight: bold; font-size: 16px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                        style="font-weight: bold; font-size: 16px; line-height: 20px; min-height: 20px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                                         成员房间</div>
                                     <div id="followed-chat-subtitle"
                                         style="font-size: 11px; color: var(--text-sub); margin-top: 2px;">Channel ID: --
@@ -1616,6 +1622,12 @@
                                     <div id="private-message-reply-count" class="private-message-reply-count"
                                         style="display:none;">0/200</div>
                                 </div>
+                                <input id="private-message-image-file" type="file"
+                                    accept="image/jpeg,image/png,image/webp,image/gif" hidden
+                                    onchange="handlePrivateMessageImageSelected(this.files && this.files[0]); this.value='';">
+                                <button class="btn btn-secondary private-message-image-send-btn"
+                                    id="btn-send-private-message-image" type="button"
+                                    onclick="openPrivateMessageImagePicker()" disabled>图片</button>
                                 <button class="btn btn-primary" id="btn-send-private-message"
                                     onclick="sendPrivateMessageReply()"
                                     style="width:96px; height:74px; flex-shrink:0;" disabled>发送</button>
@@ -1813,6 +1825,29 @@
                                     <span id="audio-player-queue-count">0 首</span>
                                 </div>
                                 <div id="audio-player-queue-list" class="player-queue-list"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="view-community" class="main-content"
+                        style="height: 100%; display: none; flex-direction: column; padding: 0; box-sizing: border-box; background: transparent;">
+                        <div class="community-scroll-area yklz-scroll"
+                            style="flex: 1; overflow-y: auto; min-height: 0; padding: 14px 40px 32px;">
+                            <div class="list-container community-shell">
+                                <div class="community-toolbar">
+                                    <div class="community-feed-tabs" role="tablist" aria-label="社区动态分类">
+                                        <button id="community-tab-newest" class="community-feed-tab is-active"
+                                            type="button" role="tab" aria-selected="true"
+                                            onclick="switchCommunityFeedMode('newest')">最新</button>
+                                        <button id="community-tab-recommend" class="community-feed-tab" type="button"
+                                            role="tab" aria-selected="false"
+                                            onclick="switchCommunityFeedMode('recommend')">推荐</button>
+                                    </div>
+                                    <button class="community-create-post-btn" type="button" hidden
+                                        onclick="openCommunityPostComposer()">发帖</button>
+                                </div>
+                                <div id="community-feed-list" class="community-feed-list"></div>
+                                <div id="community-load-sentinel" class="community-load-sentinel"></div>
                             </div>
                         </div>
                     </div>
@@ -2165,7 +2200,7 @@
 
                             <div id="flip-list-container">
                                 <div class="placeholder-tip">
-                                    <h3>👋 准备就绪</h3>
+                                    <h3>准备就绪</h3>
                                     <p>请确保您已在“账号设置”页面登录成功，然后点击刷新。</p>
                                 </div>
                             </div>
@@ -2606,7 +2641,7 @@
                             </div>
 
                             <div class="Box-row" style="margin-bottom: 30px;">
-                                <h3 style="margin-top: 0; color: var(--text);">🎨 外观设置</h3>
+                                <h3 style="margin-top: 0; color: var(--text);">外观设置</h3>
 
                                 <div
                                     style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
@@ -2635,7 +2670,7 @@
                             </div>
 
                             <div class="Box-row">
-                                <h3 style="margin-top: 0; color: var(--text);">📂 下载路径</h3>
+                                <h3 style="margin-top: 0; color: var(--text);">下载路径</h3>
 
                                 <div style="margin-bottom: 20px;">
                                     <label
@@ -2703,18 +2738,33 @@
                                     </div>
                                 </div>
                             </div>
+                            <div class="Box-row maskword-settings-card">
+                                <div class="maskword-settings-head">
+                                    <div>
+                                        <h3 style="margin: 0; color: var(--text);">屏蔽词检测</h3>
+                                        <div class="maskword-settings-desc">口袋48屏蔽词检测，虽然牙牙消息绕过了屏蔽词检测。</div>
+                                    </div>
+                                    <button id="btn-maskword-check" class="btn btn-primary btn-sm"
+                                        onclick="checkMaskwordText()">检测文本</button>
+                                </div>
+                                <textarea id="maskword-input" class="input-control maskword-input"
+                                    oninput="hideMaskwordResultIfEmpty()"
+                                    placeholder="请输入要检测的内容"></textarea>
+                                <div id="maskword-result" class="maskword-result" hidden></div>
+                            </div>
                             <div class="Box-row">
                                 <div
-                                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                                    <h3 style="margin: 0; color: var(--text);">🌐 IP检测</h3>
+                                    style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 15px;">
+                                    <div>
+                                        <h3 style="margin: 0; color: var(--text);">IP检测</h3>
+                                        <div style="font-size: 12px; color: var(--text-sub); margin-top: 6px;">
+                                            分别检测国内直连、通用出口及 Google 代理通道的 IP 归属。
+                                        </div>
+                                    </div>
                                     <button id="btn-check-all" class="btn btn-primary btn-sm"
                                         onclick="checkAllNetwork()">
                                         开始检测
                                     </button>
-                                </div>
-
-                                <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 15px;">
-                                    分别检测国内直连、通用出口及 Google 代理通道的 IP 归属。
                                 </div>
 
                                 <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
@@ -2847,6 +2897,7 @@
     <script src="./src/renderer/official-site-music-feature.js"></script>
     <script src="./src/renderer/openlive-feature.js"></script>
     <script src="./src/renderer/media-utils-feature.js"></script>
+    <script src="./src/renderer/community-feature.js"></script>
     <script src="./src/renderer/member-lookup-feature.js"></script>
     <script src="./src/renderer/member-photos-feature.js"></script>
     <script src="./src/renderer/profile-feature.js"></script>

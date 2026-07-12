@@ -43,6 +43,63 @@
             return (div.textContent || div.innerText || '').trim();
         }
 
+        function renderDynamicPlainText(value) {
+            return escapeHtml(value || '动态').replace(
+                /(^|[\s([（【「『，。！？、；：])(@[^\s@，。！？、；：,.!?()[\]（）【】「」『』]+)/g,
+                (match, prefix, mention) => {
+                    let name = mention;
+                    let rest = '';
+                    const asciiMatch = mention.match(/^@[A-Za-z0-9_.-]+/);
+                    if (asciiMatch) {
+                        name = asciiMatch[0];
+                        rest = mention.slice(name.length);
+                    } else {
+                        const greetingIndex = ['生日快乐', '新年快乐', '元旦快乐', '节日快乐'].reduce((nearest, word) => {
+                            const index = mention.indexOf(word);
+                            return index > 1 && (nearest < 0 || index < nearest) ? index : nearest;
+                        }, -1);
+                        if (greetingIndex > 1) {
+                            name = mention.slice(0, greetingIndex);
+                            rest = mention.slice(greetingIndex);
+                        }
+                    }
+                    return `${prefix}<span class="member-dynamic-mention">${name}</span>${rest}`;
+                }
+            );
+        }
+
+        function renderDynamicContent(value) {
+            const raw = String(value || '').trim();
+            if (!raw) return renderDynamicPlainText('动态');
+            if (!/[<>&]/.test(raw)) return renderDynamicPlainText(raw);
+
+            const div = document.createElement('div');
+            div.innerHTML = raw.replace(/<br\s*\/?>/gi, '\n');
+            const parts = [];
+
+            const walk = node => {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    const text = node.nodeValue || '';
+                    if (!text.trim() && !text.includes('\n')) return;
+                    parts.push(renderDynamicPlainText(text));
+                    return;
+                }
+                if (node.nodeType !== Node.ELEMENT_NODE) return;
+
+                const element = node;
+                const href = element.getAttribute('href') || '';
+                const label = (element.textContent || '').trim();
+                if (element.tagName === 'A' && href.startsWith('snh48://') && label) {
+                    parts.push(`<span class="member-dynamic-mention">${escapeHtml(label)}</span>`);
+                    return;
+                }
+                element.childNodes.forEach(walk);
+            };
+
+            div.childNodes.forEach(walk);
+            return parts.join('').replace(/\n{3,}/g, '\n\n').trim() || renderDynamicPlainText('动态');
+        }
+
         function normalize48Url(value) {
             const raw = String(value || '').trim();
             if (!raw) return '';
@@ -291,7 +348,7 @@
             const avatar = normalize48Url(ext.user?.avatar || '');
             const dateText = formatTime(item.msgTime || ext.createAt);
             const title = stripHtml(ext.title || '');
-            const content = stripHtml(ext.content || ext.previewText || item.bodys || '');
+            const rawContent = ext.content || ext.previewText || item.bodys || '';
 
             const card = document.createElement('article');
             card.className = 'member-weibo-card member-dynamic-card';
@@ -302,10 +359,9 @@
                         <div class="member-weibo-name">${escapeHtml(displayName)}</div>
                         <div class="member-weibo-time">${escapeHtml(dateText)}</div>
                     </div>
-                    <span class="member-dynamic-type">动态</span>
                 </div>
                 ${title ? `<div class="member-dynamic-title">${escapeHtml(title)}</div>` : ''}
-                <div class="member-weibo-text">${escapeHtml(content || '动态')}</div>
+                <div class="member-weibo-text">${renderDynamicContent(rawContent)}</div>
                 ${images.length ? `
                     <div class="member-weibo-images member-weibo-images-${Math.min(images.length, 4)}">
                         ${images.slice(0, 9).map((url, index) => {

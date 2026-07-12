@@ -1,7 +1,7 @@
 const APP_VERSION = '7.0.41';
 const APP_BUILD = '24011601';
 const DEFAULT_API_BACKEND = 'https://api.gnz.hk';
-const DESKTOP_DOWNLOAD_FILE = 'yaya_msg-v2.6-win.zip';
+const DESKTOP_DOWNLOAD_FILE = 'yaya_msg-v2.7-win.zip';
 const MEET48_APP_VERSION = '2.0.3';
 const MEET48_APP_BUILD = '2602062';
 const MEET48_BUNDLE_ID = 'com.dapp.meet48';
@@ -43,6 +43,7 @@ const pocketChannels = {
     'fetch-unread-message-count': fetchUnreadMessageCount,
     'edit-user-info': editUserInfo,
     'upload-user-avatar': uploadUserAvatar,
+    'upload-private-message-image': uploadPrivateMessageImage,
     'fetch-user-rename-count': fetchUserRenameCount,
     'fetch-user-picture-frames': fetchUserPictureFrames,
     'fetch-client-group-team-star-update': fetchClientGroupTeamStarUpdate,
@@ -53,6 +54,7 @@ const pocketChannels = {
     'get-nim-login-info': getNimLoginInfo,
     'fetch-room-album': fetchRoomAlbum,
     'fetch-room-radio': fetchRoomRadio,
+    'fetch-seine-server-detail': fetchSeineServerDetail,
     'fetch-live-rank': fetchLiveRank,
     'fetch-friends-ids': fetchFriendsIds,
     'fetch-last-messages': fetchLastMessages,
@@ -74,6 +76,17 @@ const pocketChannels = {
     'fetch-conversation-page': fetchConversationPage,
     'fetch-user-home-info': fetchUserHomeInfo,
     'fetch-flip-custom-index-v1': fetchFlipCustomIndexV1,
+    'fetch-area48-newest': fetchArea48Newest,
+    'fetch-area48-recommend': fetchArea48Recommend,
+    'fetch-area48-topic-info': fetchArea48TopicInfo,
+    'fetch-area48-topic-hot-posts': fetchArea48TopicHotPosts,
+    'fetch-area48-topic-newest-posts': fetchArea48TopicNewestPosts,
+    'fetch-area48-comments': fetchArea48Comments,
+    'fetch-area48-post-details': fetchArea48PostDetails,
+    'add-area48-comment': addArea48Comment,
+    'delete-area48-comment': deleteArea48Comment,
+    'create-area48-post': createArea48Post,
+    'fetch-pocket-mask-words': fetchPocketMaskWords,
     'score-vote-login': loginElectionVote,
     'score-vote-status': fetchElectionVoteStatus,
     'score-act-status': fetchElectionActStatus,
@@ -981,6 +994,53 @@ function createModernHeaders(token, pa) {
     return headers;
 }
 
+function createSeineHeaders(token, pa) {
+    const deviceId = getDeviceId().replace(/[^a-f0-9]/gi, '').slice(0, 16).toLowerCase()
+        || '0000000000000000';
+    const headers = createHeaders(token, pa);
+    headers.appInfo = JSON.stringify({
+        appVersion: '1.0.0',
+        appBuild: 26061101,
+        osType: 'android',
+        appName: 'seine48',
+        deviceId,
+        deviceName: 'SM-G9730',
+        osVersion: '12',
+        vendor: 'Samsung',
+        IMEI: deviceId,
+        phoneName: 'SM-G9730',
+        phoneSystemVersion: '12'
+    });
+    headers['X-Custom-Device-Type'] = 'ANDROID';
+    headers['User-Agent'] = 'PocketFans201807/1.0.0_26061101 (SM-G9730:Android 12;Samsung V417IR release-keys)';
+    headers['Content-Type'] = 'application/json; charset=UTF-8';
+    return headers;
+}
+
+function createArea48Headers(token, pa) {
+    const sourceDeviceId = `area48:${getDeviceId()}`;
+    const deviceId = Array.from(sourceDeviceId).reduce((acc, char) => {
+        const next = ((acc << 5) - acc + char.charCodeAt(0)) >>> 0;
+        return next;
+    }, 0).toString(16).padStart(16, '0').slice(0, 16);
+    const headers = createHeaders(token, pa);
+    headers.appInfo = JSON.stringify({
+        IMEI: deviceId,
+        appBuild: '201128',
+        appVersion: '6.0.22',
+        deviceId,
+        deviceName: 'SM-G9730',
+        osType: 'android',
+        osVersion: '12',
+        phoneName: 'SM-G9730',
+        phoneSystemVersion: '12',
+        vendor: 'Samsung'
+    });
+    headers['User-Agent'] = 'PocketFans201807/6.0.22_201128 (SM-G9730:Android 12;Samsung V417IR release-keys)';
+    headers['Content-Type'] = 'application/json; charset=UTF-8';
+    return headers;
+}
+
 function createCheckinHeaders(token, pa) {
     return { ...createModernHeaders(token, pa), 'P-Sign-Type': 'V0' };
 }
@@ -1004,6 +1064,13 @@ function createWeiboHeaders(token, pa) {
 
 function createPfileHeaders(token, pa) {
     const headers = createModernHeaders(token, pa);
+    delete headers['Content-Type'];
+    delete headers.Host;
+    return headers;
+}
+
+function createPfileImageHeaders(token, pa) {
+    const headers = createArea48Headers(token, pa);
     delete headers['Content-Type'];
     delete headers.Host;
     return headers;
@@ -1135,8 +1202,37 @@ function missingToken() {
     return { success: false, msg: '缺少 Token' };
 }
 
+function getApiMessage(data) {
+    if (!data || typeof data !== 'object') return '';
+    const message = data.message
+        || data.msg
+        || data.error
+        || data.errMsg
+        || data.errmsg
+        || '';
+    const normalized = String(message || '').trim();
+    return normalized && normalized !== 'No message available' ? normalized : '';
+}
+
+function formatApiFailure(fallback, { apiStatus = '', httpStatus = '', message = '' } = {}) {
+    if (message) return message;
+    const status = httpStatus || apiStatus;
+    if (Number(status) === 403) return `${fallback}：请求被口袋拒绝 (403)`;
+    return status ? `${fallback} (${status})` : fallback;
+}
+
 function apiError(response, fallback = 'API 错误') {
-    return { success: false, msg: response?.data?.message || fallback };
+    const data = response?.data;
+    const apiStatus = data && typeof data === 'object' && (data.status || data.code || data.errCode);
+    return {
+        success: false,
+        msg: formatApiFailure(fallback, {
+            apiStatus,
+            httpStatus: response?.status,
+            message: getApiMessage(data)
+        }),
+        data
+    };
 }
 
 async function postPocketContent(url, payload, options = {}) {
@@ -1179,8 +1275,8 @@ async function postJson(url, payload, headers, options = {}) {
             const isHtml = /^\s*</.test(text);
             const preview = text.replace(/\s+/g, ' ').slice(0, 160);
             throw new Error(isHtml
-                ? '口袋 API 返回了 HTML 页面，可能拦截了 Cloudflare Worker 请求'
-                : `口袋 API 返回内容不是 JSON: ${preview}`);
+                ? `口袋 API 返回了 HTML 页面 (${response.status})，可能请求被拦截`
+                : `口袋 API 返回内容不是 JSON (${response.status}): ${preview}`);
         }
     }
     return { status: response.status, data };
@@ -1189,6 +1285,56 @@ async function postJson(url, payload, headers, options = {}) {
 async function getText(url, headers) {
     const response = await fetch(url, { headers });
     return response.text();
+}
+
+function parseMaskWordsText(text) {
+    return String(text || '')
+        .replace(/^\uFEFF/, '')
+        .split(/\r?\n/)
+        .map(word => word.trim())
+        .filter(Boolean);
+}
+
+async function fetchPocketMaskWords({ token, pa, clientTime = 0 } = {}) {
+    const fallbackUrl = 'https://source.48.cn/app_mask_words/2023110101.utf8';
+    if (!token) {
+        const text = await getText(fallbackUrl);
+        const words = parseMaskWordsText(text);
+        return {
+            success: true,
+            content: {
+                needUpdate: false,
+                time: '',
+                url: fallbackUrl,
+                words,
+                count: words.length
+            }
+        };
+    }
+
+    const url = new URL('https://pocketapi.48.cn/home/api/check/maskword');
+    url.searchParams.set('clientTime', String(Number(clientTime) || 0));
+    const response = await fetch(url.toString(), { headers: createArea48Headers(token, pa) });
+    const data = await response.json();
+    if (!(response.status === 200 && (data?.status === 200 || data?.success))) {
+        return apiError({ status: response.status, data }, '获取屏蔽词配置失败');
+    }
+
+    const content = data.content || {};
+    const wordUrl = String(content.url || content.ordinaryUrl || content.starUrl || '').trim();
+    if (!wordUrl) return { success: true, content: { ...content, words: [], count: 0 } };
+
+    const text = await getText(wordUrl);
+    const words = parseMaskWordsText(text);
+    return {
+        success: true,
+        content: {
+            ...content,
+            url: wordUrl,
+            words,
+            count: words.length
+        }
+    };
 }
 
 async function resolveServerId(channelId, headers) {
@@ -1306,11 +1452,29 @@ async function fetchPrivateMessageInfo({ token, pa, targetUserId, lastTime = 0 }
     return apiError(response, '获取私信详情失败');
 }
 
-async function sendPrivateMessageReply({ token, pa, targetUserId, text }) {
+async function sendPrivateMessageReply({ token, pa, targetUserId, text, messageType = 'TEXT', image = null }) {
     if (!token) return missingToken();
+    const type = String(messageType || 'TEXT').toUpperCase();
+    const payload = type === 'IMAGE'
+        ? {
+            messageType: 'IMAGE',
+            imgUrl: String(image?.imgUrl || image?.path || ''),
+            imgWidth: Number(image?.imgWidth || image?.width || 0),
+            imgHeight: Number(image?.imgHeight || image?.height || 0),
+            imgSize: Number(image?.imgSize || image?.size || 0),
+            targetUserId: String(targetUserId),
+            text: String(text || '')
+        }
+        : {
+            messageType: 'TEXT',
+            text: String(text || ''),
+            targetUserId: String(targetUserId)
+        };
+    if (type === 'IMAGE' && !payload.imgUrl) return { success: false, msg: '缺少图片地址' };
+
     const response = await postJson(
         'https://pocketapi.48.cn/message/api/v1/user/message/reply',
-        { messageType: 'TEXT', text: String(text || ''), targetUserId: String(targetUserId) },
+        payload,
         createModernHeaders(token, pa)
     );
     if (response.status === 200 && response.data?.status === 200) return { success: true, content: response.data.content };
@@ -1531,21 +1695,23 @@ async function editUserInfo({ token, pa, key, value }) {
     return apiError(response, '修改资料失败');
 }
 
-async function uploadUserAvatar({ token, pa, fileName, mimeType, dataBase64 }) {
+async function uploadPocketImage({ token, pa, fileName, mimeType, dataBase64, fromType = 'avatar', headersFactory = createPfileHeaders } = {}) {
     if (!token) return missingToken();
     const base64Body = String(dataBase64 || '').replace(/^data:[^;,]+;base64,/, '');
-    if (!base64Body) return { success: false, msg: '缺少头像图片数据' };
+    if (!base64Body) return { success: false, msg: '缺少图片数据' };
 
     const binary = Uint8Array.from(atob(base64Body), char => char.charCodeAt(0));
     const finalMimeType = mimeType || 'image/jpeg';
-    const finalFileName = fileName || `avatar-${Date.now()}.${finalMimeType.includes('png') ? 'png' : 'jpg'}`;
+    const finalFileName = fileName || `image-${Date.now()}.${finalMimeType.includes('png') ? 'png' : 'jpg'}`;
     const formData = new FormData();
-    formData.append('fromType', 'avatar');
+    if (fromType) {
+        formData.append('fromType', String(fromType));
+    }
     formData.append('file', new Blob([binary], { type: finalMimeType }), finalFileName);
 
     const response = await fetch('https://pfile.48.cn/filesystem/upload/image', {
         method: 'POST',
-        headers: createPfileHeaders(token, pa),
+        headers: headersFactory(token, pa),
         body: formData
     });
     const data = await response.json();
@@ -1553,7 +1719,19 @@ async function uploadUserAvatar({ token, pa, fileName, mimeType, dataBase64 }) {
         const item = Array.isArray(data.content) ? data.content[0] : data.content;
         return { success: true, content: item, path: item?.path || '' };
     }
-    return { success: false, msg: data?.message || '上传头像失败' };
+    return { success: false, msg: data?.message || '上传图片失败' };
+}
+
+async function uploadUserAvatar(payload = {}) {
+    return uploadPocketImage({ ...payload, fromType: payload.fromType || 'avatar' });
+}
+
+async function uploadPrivateMessageImage(payload = {}) {
+    return uploadPocketImage({
+        ...payload,
+        fromType: payload.fromType || '',
+        headersFactory: createPfileImageHeaders
+    });
 }
 
 async function fetchUserRenameCount({ token, pa }) {
@@ -1692,6 +1870,16 @@ async function fetchRoomRadio({ token, pa, channelId, serverId }) {
     );
     if (response.status === 200 && response.data?.status === 200) return { success: true, content: response.data.content };
     return { success: false, msg: response.data?.message || '电台未开启或获取失败' };
+}
+
+async function fetchSeineServerDetail({ token, pa, serverId }) {
+    if (!token) return missingToken();
+    if (!serverId) return { success: false, msg: '缺少 Server ID' };
+    return postPocketContent(
+        'https://pocketapi.48.cn/im/api/seine/server/detail',
+        { serverId: Number(serverId) },
+        { token, pa, headersFactory: createSeineHeaders, errorMessage: '获取频道详情失败' }
+    );
 }
 
 async function fetchLiveRank({ token, pa, liveId }) {
@@ -2107,6 +2295,196 @@ async function fetchPageantryBuyStarList({ token, pa, starId = '', starName = ''
         'https://pocketapi.48.cn/ai-fairyland/api/pageantry/2026/v1/get/buy_star/list',
         { starId: String(starId || ''), starName: String(starName || '') },
         { token, pa, headersFactory: createPageantryHeaders, errorMessage: '获取计分成员列表失败' }
+    );
+}
+
+async function fetchArea48Newest({ token, pa, nextId = 0 } = {}) {
+    if (!token) return missingToken();
+    return postPocketContent(
+        'https://pocketapi.48.cn/posts/api/v1/area48/data/newest/new',
+        { nextId: Number(nextId) || 0 },
+        {
+            token,
+            pa,
+            headersFactory: createArea48Headers,
+            errorMessage: '获取社区动态失败',
+            largeNumbers: true
+        }
+    );
+}
+
+async function fetchArea48Recommend({ token, pa, nextId = 0 } = {}) {
+    if (!token) return missingToken();
+    return postPocketContent(
+        'https://pocketapi.48.cn/posts/api/v1/area48/data/recommend/new',
+        { nextId: Number(nextId) || 0 },
+        {
+            token,
+            pa,
+            headersFactory: createArea48Headers,
+            errorMessage: '获取社区推荐失败',
+            largeNumbers: true
+        }
+    );
+}
+
+async function fetchArea48TopicInfo({ token, pa, topicId } = {}) {
+    if (!token) return missingToken();
+    if (!topicId) return { success: false, msg: '缺少话题 ID' };
+    return postPocketContent(
+        'https://pocketapi.48.cn/posts/api/topic/info',
+        { topicId: String(topicId) },
+        {
+            token,
+            pa,
+            headersFactory: createArea48Headers,
+            errorMessage: '获取话题信息失败',
+            largeNumbers: true
+        }
+    );
+}
+
+async function fetchArea48TopicHotPosts({ token, pa, topicId } = {}) {
+    if (!token) return missingToken();
+    if (!topicId) return { success: false, msg: '缺少话题 ID' };
+    return postPocketContent(
+        'https://pocketapi.48.cn/posts/api/topic/posts/list/hot',
+        { topicId: String(topicId) },
+        {
+            token,
+            pa,
+            headersFactory: createArea48Headers,
+            errorMessage: '获取话题热门失败',
+            largeNumbers: true
+        }
+    );
+}
+
+async function fetchArea48TopicNewestPosts({ token, pa, topicId, nextId = 0, limit = 20 } = {}) {
+    if (!token) return missingToken();
+    if (!topicId) return { success: false, msg: '缺少话题 ID' };
+    return postPocketContent(
+        'https://pocketapi.48.cn/posts/api/topic/posts/list/newest',
+        {
+            nextId: String(nextId || 0),
+            topicId: String(topicId),
+            limit: Number(limit) || 20
+        },
+        {
+            token,
+            pa,
+            headersFactory: createArea48Headers,
+            errorMessage: '获取话题最新失败',
+            largeNumbers: true
+        }
+    );
+}
+
+async function fetchArea48Comments({ token, pa, resourceId, next = 0 } = {}) {
+    if (!token) return missingToken();
+    if (!resourceId) return { success: false, msg: '缺少帖子 ID' };
+    return postPocketContent(
+        'https://pocketapi.48.cn/comment/api/v1/comment/level1/getCommentList',
+        {
+            next: next ? String(next) : 0,
+            resourceId: String(resourceId),
+            resourceMd: 'md',
+            resourceType: 1002
+        },
+        {
+            token,
+            pa,
+            headersFactory: createArea48Headers,
+            errorMessage: '获取评论失败',
+            largeNumbers: true
+        }
+    );
+}
+
+async function fetchArea48PostDetails({ token, pa, postId } = {}) {
+    if (!token) return missingToken();
+    if (!postId) return { success: false, msg: '缺少帖子 ID' };
+    return postPocketContent(
+        'https://pocketapi.48.cn/posts/api/v1/posts/details',
+        {
+            needViewer: true,
+            needComment: true,
+            postId: String(postId)
+        },
+        {
+            token,
+            pa,
+            headersFactory: createArea48Headers,
+            errorMessage: '获取帖子详情失败',
+            largeNumbers: true
+        }
+    );
+}
+
+async function addArea48Comment({ token, pa, resourceId, commentMsg, commentUrl = '' } = {}) {
+    if (!token) return missingToken();
+    if (!resourceId) return { success: false, msg: '缺少帖子 ID' };
+    const normalizedMsg = String(commentMsg || '').trim();
+    if (!normalizedMsg) return { success: false, msg: '请输入评论内容' };
+    return postPocketContent(
+        'https://pocketapi.48.cn/comment/api/v1/comment/addComment',
+        {
+            resourceId: String(resourceId),
+            commentMsg: normalizedMsg,
+            commentUrl: String(commentUrl || ''),
+            resourceMd: 'md',
+            resourceType: 1002
+        },
+        {
+            token,
+            pa,
+            headersFactory: createArea48Headers,
+            errorMessage: '发送评论失败',
+            largeNumbers: true
+        }
+    );
+}
+
+async function deleteArea48Comment({ token, pa, resourceId } = {}) {
+    if (!token) return missingToken();
+    if (!resourceId) return { success: false, msg: '缺少评论 ID' };
+    return postPocketContent(
+        'https://pocketapi.48.cn/comment/api/v1/comment/delComment',
+        {
+            resourceId: String(resourceId),
+            resourceMd: '',
+            resourceType: 1003
+        },
+        {
+            token,
+            pa,
+            headersFactory: createArea48Headers,
+            errorMessage: '删除评论失败',
+            largeNumbers: true
+        }
+    );
+}
+
+async function createArea48Post({ token, pa, title = '', content = '', topicArray = '', extInfo = '' } = {}) {
+    if (!token) return missingToken();
+    const normalizedContent = String(content || '').trim();
+    if (!normalizedContent) return { success: false, msg: '请输入正文' };
+    return postPocketContent(
+        'https://pocketapi.48.cn/posts/api/v1/posts/create',
+        {
+            topicArray: String(topicArray || ''),
+            postSource: '1',
+            title: String(title || '').trim(),
+            content: normalizedContent,
+            extInfo: String(extInfo || '')
+        },
+        {
+            token,
+            pa,
+            headersFactory: createArea48Headers,
+            errorMessage: '发布动态失败',
+            largeNumbers: true
+        }
     );
 }
 

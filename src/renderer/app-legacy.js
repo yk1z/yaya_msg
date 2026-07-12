@@ -71,12 +71,14 @@
         let backToPrivateMessageList;
         let closePrivateMessageDetail;
         let filterPrivateMessageList;
+        let handlePrivateMessageImageSelected;
         let handlePrivateMessageReplyKeydown;
         let loadMorePrivateMessageDetail;
         let loadMorePrivateMessageList;
         let loadPrivateMessageDetail;
         let loadPrivateMessageList;
         let openPrivateMessageDetail;
+        let openPrivateMessageImagePicker;
         let refreshPrivateMessageList;
         let resetPrivateMessageDetailPanel;
         let sendPrivateMessageReply;
@@ -213,6 +215,10 @@
         let debouncedAudioSearch;
         let debouncedMusicSearch;
         let debouncedVideoSearch;
+        let ensureCommunityFeedLoaded;
+        let loadCommunityFeed;
+        let loadMoreCommunityFeed;
+        let refreshCommunityFeed;
         let fetchAllMusicLibrary;
         let fetchAllVideoLibrary;
         let initMusicScrollListener;
@@ -685,6 +691,7 @@
                 document.getElementById('view-trip'),
                 document.getElementById('view-room-radio'),
                 document.getElementById('view-audio-programs'),
+                document.getElementById('view-community'),
                 document.getElementById('view-video-library'),
                 document.getElementById('view-music-library'),
                 document.getElementById('view-followed-rooms')
@@ -756,7 +763,8 @@
             'room-radio',
             'invoice',
             'private-messages',
-            'followed-rooms'
+            'followed-rooms',
+            'community'
         ]);
 
         function getAppSettingsApi() {
@@ -1037,6 +1045,7 @@
             trip: '成员行程',
             'room-radio': '房间上麦',
             'audio-programs': '电台',
+            community: '社区',
             'video-library': '视频',
             'music-library': '音乐',
             'followed-rooms': '口袋房间'
@@ -1103,6 +1112,7 @@
                 const tripView = document.getElementById('view-trip');
                 const roomRadioView = document.getElementById('view-room-radio');
                 const audioProgramsView = document.getElementById('view-audio-programs');
+                const communityView = document.getElementById('view-community');
                 const videoLibraryView = document.getElementById('view-video-library');
                 const musicLibraryView = document.getElementById('view-music-library');
                 const followedRoomsView = document.getElementById('view-followed-rooms');
@@ -1383,6 +1393,15 @@
                         window.restoreAudioProgramPlayerState();
                     }
 
+                } else if (viewName === 'community') {
+                    setGlobalSidebarVisible(false);
+                    setSidebarHomeMode(false);
+                    toggleSidebarMode('login');
+                    if (communityView) communityView.style.display = 'flex';
+                    if (typeof ensureCommunityFeedLoaded === 'function') {
+                        ensureCommunityFeedLoaded();
+                    }
+
                 } else if (viewName === 'music-library') {
                     setGlobalSidebarVisible(false);
                     setSidebarHomeMode(false);
@@ -1455,6 +1474,7 @@
                 { id: 'btn-sb-audio-programs', defaultText: '电台', targetView: 'audio-programs' },
                 { id: 'btn-sb-video-library', defaultText: '视频', targetView: 'video-library' },
                 { id: 'btn-sb-music-library', defaultText: '音乐', targetView: 'official-site-music' },
+                { id: 'btn-sb-community', defaultText: '社区', targetView: 'community' },
                 { id: 'btn-sb-followed-rooms', defaultText: '口袋房间', targetView: 'followed-rooms' },
             ];
 
@@ -1525,6 +1545,7 @@
             }
         }
         let downloadStatusMap = {};
+        const vodPopularityCache = new Map();
 
         function formatDuration(ms) {
             if (!ms || isNaN(ms)) return "00:00";
@@ -1595,10 +1616,10 @@
                 console.log("启动软件：正在获取最新的成员列表...");
                 sessionStorage.setItem('member_updated_this_session', 'true');
                 await autoUpdateMemberData();
-                statusMsg.textContent = "✅ 成员映射表加载完成";
+                statusMsg.textContent = "成员映射表加载完成";
             } catch (e) {
                 console.error("加载映射表失败:", e);
-                statusMsg.textContent = "❌ 映射表解析出错";
+                statusMsg.textContent = "映射表解析出错";
             }
         }
         let bestNameMapForDisplay = new Map();
@@ -2242,6 +2263,24 @@
         window.openImageModal = openImageModal;
 
         ({
+            ensureCommunityFeedLoaded,
+            loadCommunityFeed,
+            loadMoreCommunityFeed,
+            refreshCommunityFeed
+        } = window.YayaRendererFeatures.createCommunityFeature({
+            getAppToken: () => getCurrentAppToken(),
+            getCurrentUserId: () => (typeof currentPocketUserId !== 'undefined' ? currentPocketUserId : ''),
+            ipcRenderer,
+            openImageModal,
+            openInBrowser,
+            replaceTencentEmoji: value => typeof replaceTencentEmoji === 'function' ? replaceTencentEmoji(value) : value,
+            showToast: (...args) => showToast(...args)
+        }));
+        window.loadCommunityFeed = loadCommunityFeed;
+        window.loadMoreCommunityFeed = loadMoreCommunityFeed;
+        window.refreshCommunityFeed = refreshCommunityFeed;
+
+        ({
             createCustomAudioPlayer,
             createCustomVideoPlayer
         } = window.YayaRendererFeatures.createCustomMediaPlayerFeature({
@@ -2378,6 +2417,7 @@
             closePrivateMessageDetail,
             filterPrivateMessageList,
             flushPrivateMessagePendingMessages,
+            handlePrivateMessageImageSelected,
             handlePrivateMessageFlipCostInput,
             handlePrivateMessageReplyKeydown,
             loadMorePrivateMessageDetail,
@@ -2385,6 +2425,7 @@
             loadPrivateMessageDetail,
             loadPrivateMessageList,
             openPrivateMessageDetail,
+            openPrivateMessageImagePicker,
             refreshPrivateMessageList,
             resetPrivateMessageDetailPanel,
             resetPrivateMessageListState,
@@ -2432,11 +2473,13 @@
         window.closePrivateMessageDetail = closePrivateMessageDetail;
         window.filterPrivateMessageList = filterPrivateMessageList;
         window.flushPrivateMessagePendingMessages = flushPrivateMessagePendingMessages;
+        window.handlePrivateMessageImageSelected = handlePrivateMessageImageSelected;
         window.handlePrivateMessageFlipCostInput = handlePrivateMessageFlipCostInput;
         window.handlePrivateMessageReplyKeydown = handlePrivateMessageReplyKeydown;
         window.loadMorePrivateMessageDetail = loadMorePrivateMessageDetail;
         window.loadMorePrivateMessageList = loadMorePrivateMessageList;
         window.openPrivateMessageDetail = openPrivateMessageDetail;
+        window.openPrivateMessageImagePicker = openPrivateMessageImagePicker;
         window.refreshPrivateMessageList = refreshPrivateMessageList;
         window.resetPrivateMessageListState = resetPrivateMessageListState;
         window.sendPrivateMessageReply = sendPrivateMessageReply;
@@ -2628,7 +2671,8 @@
                 if (typeof window.getTeamStyle === 'function') return window.getTeamStyle(...args);
                 return '';
             },
-            ipcRenderer
+            ipcRenderer,
+            showToast: (...args) => showToast(...args)
         }));
         window.handleProfileSearch = handleProfileSearch;
         window.selectProfileMember = selectProfileMember;
@@ -3223,7 +3267,7 @@
                     scanFiles();
                 } else if (fs.existsSync(CACHE_FILE)) {
                     setMessageIndexLoadingState(true, '正在读取缓存', '解析本地历史数据');
-                    statusMsg.textContent = "🚀 正在流式读取缓存...";
+                    statusMsg.textContent = "正在流式读取缓存...";
 
                     loadCacheOptimized().then((data) => {
                         allPosts = data;
@@ -3231,7 +3275,7 @@
                             post.originalIndex = index;
                         });
                         initUIWithData();
-                        statusMsg.textContent = `⚡ 缓存加载完毕: ${allPosts.length} 条`;
+                        statusMsg.textContent = `缓存加载完毕: ${allPosts.length} 条`;
 
                     }).catch((e) => {
                         try {
@@ -3363,7 +3407,7 @@
 
             currentFilteredPosts = [];
             resetMessageRenderState();
-            outputList.innerHTML = '<div class="placeholder-tip"><h3>🔄 正在增量更新...</h3><p>正在比对文件变动，请稍候。</p></div>';
+            outputList.innerHTML = '<div class="placeholder-tip"><h3>正在增量更新...</h3><p>正在比对文件变动，请稍候。</p></div>';
             statusMsg.textContent = "正在分析新文件...";
 
             setTimeout(() => scanFiles(true), 100);
@@ -3420,8 +3464,8 @@
         async function scanFilesInternal(isIncremental = false) {
             if (!fs.existsSync(FIXED_PATH)) {
                 setMessageIndexLoadingState(false);
-                statusMsg.textContent = "❌ 路径不存在";
-                outputList.innerHTML = `<div class="placeholder-tip"><h3>❌ 路径配置错误</h3><p>找不到文件夹：<br><b>${FIXED_PATH}</b></p></div>`;
+                statusMsg.textContent = "路径不存在";
+                outputList.innerHTML = `<div class="placeholder-tip"><h3>路径配置错误</h3><p>找不到文件夹：<br><b>${FIXED_PATH}</b></p></div>`;
                 return;
             }
 
@@ -3458,7 +3502,7 @@
                         if (!realFilesOnDisk.has(cachedPath)) {
                             console.log(`检测到文件已删除: ${cachedPath}，将触发全量重扫`);
                             isIncremental = false;
-                            statusMsg.textContent = "🗑️ 发现文件变动，正在重置缓存...";
+                            statusMsg.textContent = "发现文件变动，正在重置缓存...";
                             setMessageIndexLoadingState(true, '检测到文件变动', '正在重置缓存');
                             break;
                         }
@@ -3554,7 +3598,7 @@
                     return;
                 }
 
-                statusMsg.textContent = "🧹 正在整理数据...";
+                statusMsg.textContent = "正在整理数据...";
                 await new Promise(resolve => setTimeout(resolve, 50));
 
                 const uniqueMap = new Map();
@@ -3582,32 +3626,32 @@
                     removeMessageCacheFile();
                     saveManifest();
                     const msg = isIncremental
-                        ? `✅ 更新: 新增 ${newParsedCount} 个文件，JSONL 已直读`
-                        : `✅ 直读完成: 共 ${allPosts.length} 条`;
+                        ? `更新: 新增 ${newParsedCount} 个文件，JSONL 已直读`
+                        : `直读完成: 共 ${allPosts.length} 条`;
                     statusMsg.textContent = msg;
 
                     initUIWithData();
                     return;
                 }
 
-                statusMsg.textContent = "💾 正在保存缓存...";
+                statusMsg.textContent = "正在保存缓存...";
 
                 saveCacheOptimized(allPosts).then(() => {
                     saveManifest();
                     const msg = isIncremental
-                        ? `✅ 更新: 新增 ${newParsedCount} 个文件`
-                        : `✅ 重建完成: 共 ${allPosts.length} 条`;
+                        ? `更新: 新增 ${newParsedCount} 个文件`
+                        : `重建完成: 共 ${allPosts.length} 条`;
                     statusMsg.textContent = msg;
 
                     initUIWithData();
 
                 }).catch(e => {
-                    statusMsg.textContent = `⚠️ 缓存写入失败`;
+                    statusMsg.textContent = `缓存写入失败`;
                     setMessageIndexLoadingState(false);
                 });
 
             } catch (err) {
-                outputList.innerHTML = `<div class="placeholder-tip"><h3>❌ 读取错误</h3><p>${err.message}</p></div>`;
+                outputList.innerHTML = `<div class="placeholder-tip"><h3>读取错误</h3><p>${err.message}</p></div>`;
                 setMessageIndexLoadingState(false);
             }
         }
@@ -4153,6 +4197,82 @@
             container.dataset.busy = enabled ? '0' : '1';
         }
 
+        function getVODPopularityValue(item) {
+            const candidates = [
+                item?.onlineNum,
+                item?.online,
+                item?.hot,
+                item?.popularity,
+                item?.viewerNum,
+                item?.viewNum
+            ];
+            for (const value of candidates) {
+                const num = Number(value);
+                if (Number.isFinite(num) && num > 0) return num;
+            }
+            return null;
+        }
+
+        function formatVODPopularity(value) {
+            const num = Number(value);
+            if (!Number.isFinite(num) || num <= 0) return '';
+            if (num >= 10000) {
+                const text = (num / 10000).toFixed(num >= 100000 ? 0 : 1).replace(/\.0$/, '');
+                return `${text}万`;
+            }
+            return String(Math.round(num));
+        }
+
+        function renderVODPopularityBadge(liveId, value) {
+            const display = formatVODPopularity(value);
+            return `
+                <div class="vod-row-popularity" data-vod-popularity-liveid="${String(liveId)}" title="${display ? `人气值 ${display}` : ''}" ${display ? '' : 'hidden'}>
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                    <span>${display}</span>
+                </div>
+            `;
+        }
+
+        function updateVODPopularityBadge(liveId, value) {
+            const badge = document.querySelector(`.vod-row-popularity[data-vod-popularity-liveid="${String(liveId)}"]`);
+            if (!badge) return;
+            const display = formatVODPopularity(value);
+            if (!display) {
+                badge.hidden = true;
+                return;
+            }
+            badge.hidden = false;
+            badge.title = `人气值 ${display}`;
+            const valueEl = badge.querySelector('span');
+            if (valueEl) valueEl.textContent = display;
+        }
+
+        async function hydrateVODPopularity(pageItems, requestVersion = vodState.requestVersion) {
+            if (!Array.isArray(pageItems) || isMeet48Mode()) return;
+            const targets = pageItems
+                .filter(item => item?.liveId && getVODPopularityValue(item) === null && !vodPopularityCache.has(String(item.liveId)))
+                .slice(0, 8);
+            await Promise.allSettled(targets.map(async (item) => {
+                const liveId = String(item.liveId);
+                try {
+                    const res = await fetchPocketAPI('/live/api/v1/live/getLiveOne', JSON.stringify({ liveId }));
+                    if (requestVersion !== vodState.requestVersion) return;
+                    const value = getVODPopularityValue(res?.content || {});
+                    if (value === null) return;
+                    vodPopularityCache.set(liveId, value);
+                    item.onlineNum = value;
+                    updateVODPopularityBadge(liveId, value);
+                } catch (error) {
+                    console.warn('获取回放人气值失败:', liveId, error);
+                }
+            }));
+        }
+
         window.renderVODListUI = function () {
             if (!window.vodState) return;
             const container = document.getElementById('vod-list-container');
@@ -4212,6 +4332,8 @@
                 const name = item.userInfo ? item.userInfo.nickname : item.nickname || '未知成员';
                 const cover = normalizeMediaCoverUrl(item.coverPath, isMeetItem ? 'meet48' : 'pocket');
                 const titleText = item.liveTitle || item.title || '无标题';
+                const cachedPopularity = vodPopularityCache.get(String(item.liveId));
+                const popularityValue = getVODPopularityValue(item) ?? (cachedPopularity ?? null);
                 let timeStr = '未知时间';
                 const rawTime = item.startTime || item.ctime;
                 if (rawTime) {
@@ -4236,7 +4358,7 @@
                     <div class="vod-row-info">
                         <div class="vod-row-name">
                             ${name}
-                            <div style="margin-left:auto; display:flex; gap:5px;">
+                            <div class="vod-row-actions">
                                 ${isMeetItem ? '' : `<button class="btn btn-secondary web-hidden"
                                         style="padding: 2px 8px; font-size: 11px; height: 24px;" 
                                         onclick="handleDownloadDanmu(event, ${JSON.stringify(item).replace(/"/g, '&quot;')})">
@@ -4254,6 +4376,7 @@
                         <div class="vod-row-title">${titleText}</div>
                         <div class="vod-row-time">${timeStr}</div>
                     </div>
+                    ${renderVODPopularityBadge(item.liveId, popularityValue)}
                 `;
                 card.onclick = () => playLiveStream({
                     liveId: item.liveId,
@@ -4266,6 +4389,7 @@
                 }, isMeetItem ? currentMode : (isLive ? 'live' : 'vod'));
                 container.appendChild(card);
             });
+            hydrateVODPopularity(pageItems, vodState.requestVersion);
             updatePaginationControls(filteredList.length);
         }
 

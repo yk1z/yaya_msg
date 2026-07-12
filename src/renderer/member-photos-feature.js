@@ -35,7 +35,7 @@
             const statusEl = document.getElementById('photos-status');
 
             if (!memberId) {
-                showToast('⚠️ 请先搜索并选择成员');
+                showToast('请先搜索并选择成员');
                 return;
             }
 
@@ -146,12 +146,12 @@
             const statusEl = document.getElementById('photos-status');
 
             if (!token) {
-                showToast('⚠️ 请先在“账号设置”中登录');
+                showToast('请先在“账号设置”中登录');
                 return;
             }
 
             if (!memberId) {
-                showToast('⚠️ 请先搜索并选择成员');
+                showToast('请先搜索并选择成员');
                 return;
             }
 
@@ -177,7 +177,7 @@
 
                 if (!result?.success || !result.content) {
                     if (!isLoadMore) {
-                        container.innerHTML = `<div class="placeholder-tip"><h3>❌ 加载失败</h3><p>${result?.msg || '未知错误'}</p></div>`;
+                        container.innerHTML = `<div class="placeholder-tip"><h3>加载失败</h3><p>${result?.msg || '未知错误'}</p></div>`;
                     }
                     return;
                 }
@@ -210,7 +210,7 @@
                 }
             } catch (error) {
                 if (!isLoadMore) {
-                    container.innerHTML = `<div class="placeholder-tip"><h3>❌ 发生错误</h3><p>${error.message}</p></div>`;
+                    container.innerHTML = `<div class="placeholder-tip"><h3>发生错误</h3><p>${error.message}</p></div>`;
                 }
             } finally {
                 isFetchingPhotos = false;

@@ -40,6 +40,7 @@
         'fetch-room-messages',
         'fetch-private-message-list',
         'fetch-private-message-info',
+        'delete-private-message',
         'send-private-message-reply',
         'fetch-flip-list',
         'fetch-star-archives',
@@ -61,6 +62,7 @@
         'fetch-unread-message-count',
         'edit-user-info',
         'upload-user-avatar',
+        'upload-private-message-image',
         'fetch-user-rename-count',
         'fetch-user-picture-frames',
         'fetch-client-group-team-star-update',
@@ -76,7 +78,18 @@
         'fetch-friends-ids',
         'fetch-last-messages',
         'follow-member',
-        'unfollow-member'
+        'unfollow-member',
+        'fetch-area48-newest',
+        'fetch-area48-recommend',
+        'fetch-area48-topic-info',
+        'fetch-area48-topic-hot-posts',
+        'fetch-area48-topic-newest-posts',
+        'fetch-area48-comments',
+        'fetch-area48-post-details',
+        'add-area48-comment',
+        'delete-area48-comment',
+        'create-area48-post',
+        'fetch-pocket-mask-words'
     ]);
 
     function readStore(key) {

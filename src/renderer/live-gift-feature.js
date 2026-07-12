@@ -320,12 +320,12 @@
                         errorMsg = '余额不足，请充值';
                     }
 
-                    if (!notify(`❌ ${errorMsg}`, 3000)) {
+                    if (!notify(`${errorMsg}`, 3000)) {
                         console.error(res.msg);
                     }
                 }
             } catch (e) {
-                notify(`❌ 出错: ${e.message}`, 3000);
+                notify(`出错: ${e.message}`, 3000);
             } finally {
                 btn.disabled = false;
                 btn.innerText = originalText;

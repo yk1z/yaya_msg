@@ -5,9 +5,13 @@ web-dist/
 .wrangler-dry-run/
 html/
 tmp/
+reports/
+scripts/
+.agents/
 .npmrc
 
 *.log
+wrangler-*.log
 *.tmp
 *.temp
 

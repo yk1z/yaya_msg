@@ -338,7 +338,7 @@ function startRecord(event, { url, taskId, savePath }) {
 
     command
         .on('start', () => {
-            event.reply('record-status', { taskId, msg: '🔴 正在录制直播...', status: 'recording' });
+            event.reply('record-status', { taskId, msg: '正在录制直播...', status: 'recording' });
         })
         .on('error', (error) => {
             const currentTask = recordCommands.get(taskId);

@@ -18,6 +18,7 @@
         let autoCheckinInFlight = false;
         let autoCheckinSettingsMigrated = false;
         const WEB_ACCOUNT_PROFILE_CACHE_KEY = 'yaya_web_account_profile_v1';
+        let maskwordLibrary = [];
 
         function getAppSettingsApi() {
             return window.desktop && window.desktop.appSettings ? window.desktop.appSettings : null;
@@ -1075,7 +1076,7 @@
 
             const channelId = document.getElementById('tool-channel').value.trim();
             if (!channelId) {
-                box.innerHTML = `<div style="text-align:center; padding:20px; color:#ff4d4f;">⚠️ 请先在搜索框输入名字并选择成员</div>`;
+                box.innerHTML = `<div style="text-align:center; padding:20px; color:#ff4d4f;">请先在搜索框输入名字并选择成员</div>`;
                 return;
             }
 
@@ -1546,7 +1547,7 @@
                     showToast('复制失败，请手动复制');
                 });
             } else {
-                showToast('❌ 当前未获取到 Token');
+                showToast('当前未获取到 Token');
             }
         }
 
@@ -1598,7 +1599,7 @@
 
             if (!channelId) {
                 if (!isLoadMore) {
-                    box.innerHTML = `<div style="text-align:center; padding:20px; color:#ff4d4f;">⚠️ 请先在搜索框输入名字并选择成员</div>`;
+                    box.innerHTML = `<div style="text-align:center; padding:20px; color:#ff4d4f;">请先在搜索框输入名字并选择成员</div>`;
                 } else {
                     console.warn("缺少 Channel ID");
                 }
@@ -2260,7 +2261,7 @@
 
                         const outputList = document.getElementById('outputList');
                         if (outputList) {
-                            outputList.innerHTML = '<div class="placeholder-tip"><h3>🔄 正在读取新数据...</h3><p>由于导出内容已更新，分析可能需要一点时间。</p></div>';
+                            outputList.innerHTML = '<div class="placeholder-tip"><h3>正在读取新数据...</h3><p>由于导出内容已更新，分析可能需要一点时间。</p></div>';
                         }
 
                         if (typeof forceReloadData === 'function') {
@@ -2282,12 +2283,23 @@
         }
 
         function showToast(msg) {
-            const div = document.createElement('div');
-            div.className = 'toast-msg';
+            let div = document.querySelector('.toast-msg');
+            if (!div) {
+                div = document.createElement('div');
+                div.className = 'toast-msg';
+                document.body.appendChild(div);
+            }
             div.innerText = msg;
-            document.body.appendChild(div);
-            setTimeout(() => {
+            div.style.animation = 'none';
+            void div.offsetWidth;
+            div.style.animation = '';
+
+            if (window.__yayaToastTimer) {
+                clearTimeout(window.__yayaToastTimer);
+            }
+            window.__yayaToastTimer = setTimeout(() => {
                 if (div.parentNode) div.parentNode.removeChild(div);
+                window.__yayaToastTimer = null;
             }, 3000);
         }
 
@@ -2374,7 +2386,7 @@
                     btnElement.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" stroke="#ff4d4f" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
                     setTimeout(() => { btnElement.disabled = false; btnElement.innerHTML = originalIcon; }, 2000);
                 }
-                showToast(`❌ 下载失败: ${e.message}`);
+                showToast(`下载失败: ${e.message}`);
                 return false;
             }
         }
@@ -2431,6 +2443,107 @@
             }
         }
 
+        function escapeMaskwordHtml(value) {
+            return String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function hideMaskwordResult() {
+            const resultEl = document.getElementById('maskword-result');
+            if (!resultEl) return;
+            resultEl.hidden = true;
+            resultEl.classList.remove('is-hit');
+            resultEl.textContent = '';
+        }
+
+        function showMaskwordResult(content, isHit = false, useHtml = false) {
+            const resultEl = document.getElementById('maskword-result');
+            if (!resultEl) return null;
+            resultEl.hidden = false;
+            resultEl.classList.toggle('is-hit', isHit);
+            if (useHtml) {
+                resultEl.innerHTML = content;
+            } else {
+                resultEl.textContent = content;
+            }
+            return resultEl;
+        }
+
+        function hideMaskwordResultIfEmpty() {
+            const input = document.getElementById('maskword-input');
+            if (!String(input?.value || '').trim()) hideMaskwordResult();
+        }
+
+        async function updateMaskwordLibrary() {
+            const token = readStoredToken();
+
+            showMaskwordResult('正在读取词库');
+
+            try {
+                const res = await ipcRenderer.invoke('fetch-pocket-mask-words', {
+                    token,
+                    pa: window.getPA ? window.getPA() : null,
+                    clientTime: 0
+                });
+
+                if (!res || !res.success || !res.content) {
+                    throw new Error(res && res.msg ? res.msg : '获取失败');
+                }
+
+                const content = res.content || {};
+                maskwordLibrary = Array.isArray(content.words)
+                    ? content.words.map(word => String(word || '').trim()).filter(Boolean)
+                    : [];
+                if (!maskwordLibrary.length) showMaskwordResult('未读取到可用词库');
+            } catch (error) {
+                console.error('更新屏蔽词失败:', error);
+                showMaskwordResult(`更新失败: ${error.message}`);
+            }
+        }
+
+        async function checkMaskwordText() {
+            const input = document.getElementById('maskword-input');
+            const text = String(input?.value || '');
+            if (!text.trim()) {
+                hideMaskwordResult();
+                return;
+            }
+
+            if (!maskwordLibrary.length) {
+                await updateMaskwordLibrary();
+                if (!maskwordLibrary.length) return;
+            }
+
+            const lowerText = text.toLowerCase();
+            const hits = [];
+            const seen = new Set();
+            for (const word of maskwordLibrary) {
+                const normalized = String(word || '').trim();
+                if (!normalized || seen.has(normalized)) continue;
+                if (lowerText.includes(normalized.toLowerCase())) {
+                    seen.add(normalized);
+                    hits.push(normalized);
+                    if (hits.length >= 100) break;
+                }
+            }
+
+            if (!hits.length) {
+                showMaskwordResult('未命中屏蔽词');
+                return;
+            }
+
+            showMaskwordResult(`
+                <div>命中 ${hits.length} 个屏蔽词${hits.length >= 100 ? '，仅显示前 100 个' : ''}</div>
+                <div class="maskword-hit-list">
+                    ${hits.map(word => `<span class="maskword-hit-chip">${escapeMaskwordHtml(word)}</span>`).join('')}
+                </div>
+            `, true, true);
+        }
+
 
         async function checkNetworkStatus() {
             const display = document.getElementById('ip-info-display');
@@ -2473,7 +2586,7 @@
                 }
             } catch (e) {
                 display.style.display = 'flex';
-                display.innerHTML = `<span style="color: #ff4d4f;">❌ 检测失败: ${e.message}</span>`;
+                display.innerHTML = `<span style="color: #ff4d4f;">检测失败: ${e.message}</span>`;
             } finally {
                 btn.disabled = false;
                 btn.innerText = '重新检测';
@@ -2512,7 +2625,7 @@
             <div>${location}</div>
         `;
             } else {
-                el.innerHTML = `<span class="status-fail">❌ 检测失败</span>`;
+                el.innerHTML = `<span class="status-fail">检测失败</span>`;
             }
         }
 
@@ -2541,6 +2654,6 @@
         `;
             } else {
                 console.error('检测报错:', res.msg);
-                el.innerHTML = `<span class="status-fail" title="${res.msg}">❌ ${res.msg.split('\n')[0]}</span>`;
+                el.innerHTML = `<span class="status-fail" title="${res.msg}">${res.msg.split('\n')[0]}</span>`;
             }
         }

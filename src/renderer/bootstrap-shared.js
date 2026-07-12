@@ -171,17 +171,17 @@
                     writeCachedMemberDataPayload(data);
                     const allMembers = normalizeMemberDataPayload(data);
                     applyMemberDataList(allMembers);
-                    if (statusSpan) statusSpan.innerText = `✅ 成员列表已更新 (${memberData.length}人)`;
+                    if (statusSpan) statusSpan.innerText = `成员列表已更新 (${memberData.length}人)`;
                     return memberData;
                 } catch (e) {
                     if (cachedMembers.length) {
                         applyMemberDataList(cachedMembers);
-                        if (statusSpan) statusSpan.innerText = `⚠️ 成员列表更新失败，已使用缓存 (${cachedMembers.length}人)`;
+                        if (statusSpan) statusSpan.innerText = `成员列表更新失败，已使用缓存 (${cachedMembers.length}人)`;
                         console.warn('成员列表在线加载失败，已使用缓存:', e);
                         return memberData;
                     }
 
-                    if (statusSpan) statusSpan.innerText = '⚠️ 成员列表加载失败';
+                    if (statusSpan) statusSpan.innerText = '成员列表加载失败';
                     throw e;
                 } finally {
                     if (memberDataLoadPromise === loadTask) {

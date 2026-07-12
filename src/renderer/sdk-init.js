@@ -35,7 +35,7 @@
                     await init(wasmResponse);
                 }
                 window.isWasmReady = true;
-                console.log("✅ SDK 加载成功");
+                console.log("SDK 加载成功");
             } catch (e) {
                 console.error("SDK Error:", e);
             }

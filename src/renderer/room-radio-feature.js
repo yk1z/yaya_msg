@@ -166,12 +166,12 @@
             const token = getAppToken ? getAppToken() : (typeof window.getAppToken === 'function' ? window.getAppToken() : '');
 
             if (!token) {
-                showToast('⚠️ 请先在“账号设置”中登录');
+                showToast('请先在“账号设置”中登录');
                 return;
             }
 
             if (!channelId || channelId === 'undefined') {
-                showToast('⚠️ 请先搜索成员，或手动输入 Channel ID');
+                showToast('请先搜索成员，或手动输入 Channel ID');
                 return;
             }
 
@@ -199,11 +199,11 @@
                     }
                     playAudioOnlyStream(result.content.streamUrl, memberName, container);
                 } else if (container) {
-                    container.innerHTML = `<div class="placeholder-tip"><h3>❌ 连接失败</h3><p>${result.msg}</p></div>`;
+                    container.innerHTML = `<div class="placeholder-tip"><h3>连接失败</h3><p>${result.msg}</p></div>`;
                 }
             } catch (error) {
                 if (container) {
-                    container.innerHTML = `<div class="placeholder-tip"><h3>❌ 发生错误</h3><p>${error.message}</p></div>`;
+                    container.innerHTML = `<div class="placeholder-tip"><h3>发生错误</h3><p>${error.message}</p></div>`;
                 }
             }
         }
@@ -274,7 +274,7 @@
 
                     radioMediaElement.addEventListener('error', () => {
                         const statusEl = document.getElementById('radio-status-text');
-                        if (statusEl) statusEl.innerHTML = '<span style="color:#ff4d4f;">⚠️ 播放断开或解码出错</span>';
+                        if (statusEl) statusEl.innerHTML = '<span style="color:#ff4d4f;">播放断开或解码出错</span>';
                         handleRoomRadioEnded('error');
                     });
 
@@ -289,10 +289,10 @@
                     setupRoomRadioEndWatchdog();
                     radioMpegtsPlayer.play();
                 } else {
-                    container.innerHTML = '<div class="placeholder-tip"><h3>❌ 播放引擎错误</h3><p>您的环境不支持该格式的音频解码。</p></div>';
+                    container.innerHTML = '<div class="placeholder-tip"><h3>播放引擎错误</h3><p>您的环境不支持该格式的音频解码。</p></div>';
                 }
             } catch (error) {
-                container.innerHTML = `<div class="placeholder-tip"><h3>❌ 启动代理失败</h3><p>${error.message}</p></div>`;
+                container.innerHTML = `<div class="placeholder-tip"><h3>启动代理失败</h3><p>${error.message}</p></div>`;
             }
         }
 

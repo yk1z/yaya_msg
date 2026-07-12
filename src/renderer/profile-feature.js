@@ -10,7 +10,8 @@
             getPinyinInitials,
             memberSortLogic,
             getTeamStyle,
-            ipcRenderer
+            ipcRenderer,
+            showToast
         } = deps;
 
         function getProfileSearchResultBox() {
@@ -83,20 +84,12 @@
             if (!container) return;
 
             if (!token) {
-                container.innerHTML = `
-            <div class="placeholder-tip">
-                <h3 style="color: #ff4d4f;">⚠️ 未登录</h3>
-                <p>请先在左侧“账号设置”中登录。</p>
-            </div>`;
+                if (typeof showToast === 'function') showToast('请先登录账号');
                 return;
             }
 
             if (!memberId) {
-                container.innerHTML = `
-            <div class="placeholder-tip">
-                <h3 style="color: #ff4d4f;">⚠️ 未选择成员</h3>
-                <p>请在上方输入框搜索成员名字，并点击下拉项选中。</p>
-            </div>`;
+                if (typeof showToast === 'function') showToast('请先搜索并选择成员');
                 return;
             }
 
@@ -120,10 +113,10 @@
 
                     renderProfile(data, container);
                 } else {
-                    container.innerHTML = `<div class="placeholder-tip"><h3>❌ 获取失败</h3><p>${archiveRes.msg || '未知错误'}</p></div>`;
+                    container.innerHTML = `<div class="placeholder-tip"><h3>获取失败</h3><p>${archiveRes.msg || '未知错误'}</p></div>`;
                 }
             } catch (error) {
-                container.innerHTML = `<div class="placeholder-tip"><h3>❌ 发生错误</h3><p>${error.message}</p></div>`;
+                container.innerHTML = `<div class="placeholder-tip"><h3>发生错误</h3><p>${error.message}</p></div>`;
             }
         }
 
@@ -137,7 +130,7 @@
 
             const photosHtml = photos.map(url => {
                 const safeUrl = url.startsWith('http') ? url : 'https://source.48.cn' + url;
-                return `<img src="${safeUrl}" style="width:100%; border-radius:8px; margin-bottom:10px; box-shadow:0 2px 8px rgba(0,0,0,0.1);">`;
+                return `<img src="${safeUrl}" onclick="openImageModal('${safeUrl}')" style="width:100%; border-radius:8px; margin-bottom:10px; box-shadow:0 2px 8px rgba(0,0,0,0.1); cursor: zoom-in;">`;
             }).join('');
 
             let historyHtml = '';
@@ -193,7 +186,7 @@
             公式照
         </div>
 
-        <div style="column-count: 2; column-gap: 15px;">
+        <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 15px; align-items: start;">
             ${photosHtml}
         </div>
     `;

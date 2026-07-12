@@ -240,13 +240,13 @@
 
                     if (res.ok) {
                         const text = await res.text();
-                        console.log(`✅ [字幕加载成功] 来源于云端: ${folderName}`);
+                        console.log(`[字幕加载成功] 来源于云端: ${folderName}`);
                         return { text, url: srtUrl, fileName };
                     }
 
-                    console.log(`⚠️ [字幕提示] 云端未找到: ${folderName}/${fileName} (${res.status})`);
+                    console.log(`[字幕提示] 云端未找到: ${folderName}/${fileName} (${res.status})`);
                 } catch (err) {
-                    console.error(`❌ [字幕请求错误] ${folderName}/${fileName}:`, err.message);
+                    console.error(`[字幕请求错误] ${folderName}/${fileName}:`, err.message);
                 }
             }
 

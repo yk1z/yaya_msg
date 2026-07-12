@@ -95,18 +95,18 @@
                     }
                     if (!opened) {
                         const message = `无法唤起 ${getPreferredExternalPlayerName()}`;
-                        if (titleEl) titleEl.textContent = `❌ ${message}`;
+                        if (titleEl) titleEl.textContent = `${message}`;
                         showToast(message);
                     }
                 } else {
                     const message = res?.msg || '无法获取流地址，可能已失效或登录态不可用';
                     if (pendingWebWindow) pendingWebWindow.close();
-                    if (titleEl) titleEl.textContent = `❌ ${message}`;
+                    if (titleEl) titleEl.textContent = `${message}`;
                     showToast(message);
                 }
             } catch (err) {
                 if (pendingWebWindow) pendingWebWindow.close();
-                if (titleEl) titleEl.textContent = '❌ 网络请求失败';
+                if (titleEl) titleEl.textContent = '网络请求失败';
                 showToast(`网络请求失败: ${err.message || err}`);
             } finally {
                 if (targetEl) targetEl.style.cursor = 'pointer';

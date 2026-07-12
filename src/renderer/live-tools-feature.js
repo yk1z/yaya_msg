@@ -110,11 +110,11 @@
 
                     btnElement.innerText = '✓';
                 } else {
-                    btnElement.innerText = '❌';
+                    btnElement.innerText = '失败';
                 }
             } catch (e) {
                 console.error('刷新公告失败:', e);
-                btnElement.innerText = '❌';
+                btnElement.innerText = '失败';
             }
 
             setTimeout(() => {
@@ -365,11 +365,11 @@
         function setClipEndFromTimeline(time) {
             const art = getCurrentArt();
             if (clipStartTime === null) {
-                if (art && art.notice) art.notice.show = '❌ 请先设置起点';
+                if (art && art.notice) art.notice.show = '请先设置起点';
                 return;
             }
             if (time <= clipStartTime) {
-                if (art && art.notice) art.notice.show = '❌ 终点必须晚于起点';
+                if (art && art.notice) art.notice.show = '终点必须晚于起点';
                 return;
             }
             clipEndTime = time;
@@ -388,7 +388,7 @@
 
             if (currentMode === 'live') {
                 if (currentRecordTaskId) {
-                    if (dp) dp.notice('⚠️ 录制正在进行中，请先结束当前片段');
+                    if (dp) dp.notice('录制正在进行中，请先结束当前片段');
                     return;
                 }
 
@@ -403,8 +403,8 @@
                 });
 
                 const startDisplay = getClipElement('start-display', 'clip-start-display');
-                if (startDisplay) startDisplay.textContent = '🔴 状态: 正在录制...';
-                if (dp) dp.notice('🔴 后台录制已开启');
+                if (startDisplay) startDisplay.textContent = '状态: 正在录制...';
+                if (dp) dp.notice('后台录制已开启');
                 return;
             }
 
@@ -424,7 +424,7 @@
 
             if (currentMode === 'live') {
                 if (!currentRecordTaskId) {
-                    if (dp) dp.notice('❌ 请先点击开始录制');
+                    if (dp) dp.notice('请先点击开始录制');
                     return;
                 }
 
@@ -472,13 +472,13 @@
             }
 
             if (clipStartTime === null) {
-                if (art.notice) art.notice.show = '❌ 请先设置起点';
+                if (art.notice) art.notice.show = '请先设置起点';
                 return;
             }
 
             const current = art.currentTime;
             if (current <= clipStartTime) {
-                if (art.notice) art.notice.show = '❌ 终点必须晚于起点';
+                if (art.notice) art.notice.show = '终点必须晚于起点';
                 return;
             }
 
@@ -494,7 +494,7 @@
 
             const duration = clipEndTime - clipStartTime;
             if (duration <= 0.5) {
-                if (art.notice) art.notice.show = '❌ 片段太短';
+                if (art.notice) art.notice.show = '片段太短';
                 return;
             }
 
@@ -534,7 +534,7 @@
                         <button class="btn-cancel" onclick="cancelDownloadTask('${taskId}')">取消</button>
                     </div>
                     <div class="download-detail-row">
-                        <span>✂️ 视频切片</span>
+                        <span>视频切片</span>
                         <b class="download-percent">0%</b>
                     </div>
                     <div class="progress-container" style="margin: 5px 0;">
@@ -545,7 +545,7 @@
             `);
             }
 
-            if (art.notice) art.notice.show = '🚀 切片任务已开始';
+            if (art.notice) art.notice.show = '切片任务已开始';
             ipcRenderer.send('clip-vod', {
                 url: art.option.url,
                 fileName,

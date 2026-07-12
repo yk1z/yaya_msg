@@ -10,6 +10,7 @@ function registerPocketIpc() {
     ipcMain.handle('fetch-room-messages', (event, payload) => pocketService.fetchRoomMessages(payload));
     ipcMain.handle('fetch-private-message-list', (event, payload) => pocketService.fetchPrivateMessageList(payload));
     ipcMain.handle('fetch-private-message-info', (event, payload) => pocketService.fetchPrivateMessageInfo(payload));
+    ipcMain.handle('delete-private-message', (event, payload) => pocketService.deletePrivateMessage(payload));
     ipcMain.handle('send-private-message-reply', (event, payload) => pocketService.sendPrivateMessageReply(payload));
     ipcMain.handle('fetch-flip-list', (event, payload) => pocketService.fetchFlipList(payload));
     ipcMain.handle('fetch-star-archives', (event, payload) => pocketService.fetchStarArchives(payload));
@@ -33,6 +34,7 @@ function registerPocketIpc() {
     ipcMain.handle('fetch-unread-message-count', (event, payload) => pocketService.fetchUnreadMessageCount(payload));
     ipcMain.handle('edit-user-info', (event, payload) => pocketService.editUserInfo(payload));
     ipcMain.handle('upload-user-avatar', (event, payload) => pocketService.uploadUserAvatar(payload));
+    ipcMain.handle('upload-private-message-image', (event, payload) => pocketService.uploadPrivateMessageImage(payload));
     ipcMain.handle('fetch-user-rename-count', (event, payload) => pocketService.fetchUserRenameCount(payload));
     ipcMain.handle('fetch-user-picture-frames', (event, payload) => pocketService.fetchUserPictureFrames(payload));
     ipcMain.handle('fetch-client-group-team-star-update', (event, payload) => pocketService.fetchClientGroupTeamStarUpdate(payload));
@@ -43,6 +45,7 @@ function registerPocketIpc() {
     ipcMain.handle('get-nim-login-info', (event, payload) => pocketService.getNimLoginInfo(payload));
     ipcMain.handle('fetch-room-album', (event, payload) => pocketService.fetchRoomAlbum(payload));
     ipcMain.handle('fetch-room-radio', (event, payload) => pocketService.fetchRoomRadio(payload));
+    ipcMain.handle('fetch-seine-server-detail', (event, payload) => pocketService.fetchSeineServerDetail(payload));
     ipcMain.handle('fetch-live-rank', (event, payload) => pocketService.fetchLiveRank(payload));
     ipcMain.handle('fetch-friends-ids', (event, payload) => pocketService.fetchFriendsIds(payload));
     ipcMain.handle('fetch-last-messages', (event, payload) => pocketService.fetchLastMessages(payload));
@@ -64,6 +67,17 @@ function registerPocketIpc() {
     ipcMain.handle('fetch-conversation-page', (event, payload) => pocketService.fetchConversationPage(payload));
     ipcMain.handle('fetch-user-home-info', (event, payload) => pocketService.fetchUserHomeInfo(payload));
     ipcMain.handle('fetch-flip-custom-index-v1', (event, payload) => pocketService.fetchFlipCustomIndexV1(payload));
+    ipcMain.handle('fetch-area48-newest', (event, payload) => pocketService.fetchArea48Newest(payload));
+    ipcMain.handle('fetch-area48-recommend', (event, payload) => pocketService.fetchArea48Recommend(payload));
+    ipcMain.handle('fetch-area48-topic-info', (event, payload) => pocketService.fetchArea48TopicInfo(payload));
+    ipcMain.handle('fetch-area48-topic-hot-posts', (event, payload) => pocketService.fetchArea48TopicHotPosts(payload));
+    ipcMain.handle('fetch-area48-topic-newest-posts', (event, payload) => pocketService.fetchArea48TopicNewestPosts(payload));
+    ipcMain.handle('fetch-area48-comments', (event, payload) => pocketService.fetchArea48Comments(payload));
+    ipcMain.handle('fetch-area48-post-details', (event, payload) => pocketService.fetchArea48PostDetails(payload));
+    ipcMain.handle('add-area48-comment', (event, payload) => pocketService.addArea48Comment(payload));
+    ipcMain.handle('delete-area48-comment', (event, payload) => pocketService.deleteArea48Comment(payload));
+    ipcMain.handle('create-area48-post', (event, payload) => pocketService.createArea48Post(payload));
+    ipcMain.handle('fetch-pocket-mask-words', (event, payload) => pocketService.fetchPocketMaskWords(payload));
     ipcMain.handle('score-vote-login', (event, payload) => pocketService.loginElectionVote(payload));
     ipcMain.handle('score-vote-status', (event, payload) => pocketService.fetchElectionVoteStatus(payload));
     ipcMain.handle('score-act-status', (event, payload) => pocketService.fetchElectionActStatus(payload));
