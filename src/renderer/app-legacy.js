@@ -1651,11 +1651,17 @@
             ]
         };
 
-        ({ initYk1zHomePanel } = window.YayaRendererFeatures.createYk1zHomeFeature({
-            DATA_BASE_URL,
-            openInBrowser,
-            switchView
-        }));
+        const createYk1zHomeFeature = window.YayaRendererFeatures && window.YayaRendererFeatures.createYk1zHomeFeature;
+        if (typeof createYk1zHomeFeature === 'function') {
+            ({ initYk1zHomePanel } = createYk1zHomeFeature({
+                DATA_BASE_URL,
+                openInBrowser,
+                switchView
+            }));
+        } else {
+            console.warn('createYk1zHomeFeature 未加载，跳过 yk1z 首页模块');
+            initYk1zHomePanel = function noopInitYk1zHomePanel() {};
+        }
 
         function parseMusicLrc(text) {
             const lines = String(text || '').split(/\r?\n/);
