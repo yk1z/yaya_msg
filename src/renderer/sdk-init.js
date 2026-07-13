@@ -1,4 +1,7 @@
-        import init, { __x6c2adf8__ } from '../../rust-wasm-browser.js';
+        import * as wasmSdk from '../../rust-wasm-browser.js';
+
+        const init = wasmSdk.default;
+        const __x6c2adf8__ = wasmSdk.__x6c2adf8__;
         window.isWasmReady = false;
 
         function loadLocalWasmBytes() {
@@ -27,6 +30,9 @@
 
         async function initSDK() {
             try {
+                if (typeof init !== 'function' || typeof __x6c2adf8__ !== 'function') {
+                    throw new Error('WASM SDK 导出不可用');
+                }
                 const localBytes = loadLocalWasmBytes();
                 if (localBytes) {
                     await init(localBytes);
@@ -41,6 +47,6 @@
             }
         }
         window.getPA = function () {
-            return window.isWasmReady ? __x6c2adf8__() : null;
+            return window.isWasmReady && typeof __x6c2adf8__ === 'function' ? __x6c2adf8__() : null;
         };
         initSDK();
