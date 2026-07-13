@@ -360,19 +360,24 @@
         return new Error('网页版不支持直接访问本地文件系统');
     }
 
-    function waitForPaReady(timeoutMs = 5000) {
-        if (typeof window.getPA !== 'function') {
-            return Promise.resolve(null);
-        }
-        const firstPa = window.getPA();
-        if (firstPa) {
-            return Promise.resolve(firstPa);
-        }
-
+    function waitForPaReady(timeoutMs = 15000) {
         return new Promise(resolve => {
             const startedAt = Date.now();
+            const readPa = () => {
+                try {
+                    return typeof window.getPA === 'function' ? window.getPA() : null;
+                } catch (error) {
+                    console.warn('生成登录签名失败:', error);
+                    return null;
+                }
+            };
+            const firstPa = readPa();
+            if (firstPa) {
+                resolve(firstPa);
+                return;
+            }
             const timer = setInterval(() => {
-                const pa = typeof window.getPA === 'function' ? window.getPA() : null;
+                const pa = readPa();
                 if (pa || Date.now() - startedAt >= timeoutMs) {
                     clearInterval(timer);
                     resolve(pa || null);
@@ -443,6 +448,12 @@
             const pa = await waitForPaReady();
             if (pa) {
                 nextPayload.pa = pa;
+            } else if (channel === 'login-by-code' || channel === 'login-check-token') {
+                return {
+                    status: 503,
+                    success: false,
+                    message: '登录签名模块加载失败，请刷新页面后重试'
+                };
             }
         }
 

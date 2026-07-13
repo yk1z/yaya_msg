@@ -1693,18 +1693,28 @@
             return entries.sort((a, b) => a.time - b.time);
         }
 
-        ({
-            updateMusicLyricsToggleButton,
-            syncMusicLyrics,
-            toggleMusicLyricsPanel,
-            loadMusicLyrics,
-            seekMusicLyricLine
-        } = window.YayaRendererFeatures.createMusicLyricsFeature({
-            MUSIC_LYRICS_BASE_URL,
-            MUSIC_LYRICS_INDEX_URL,
-            escapeHtml,
-            parseMusicLrc
-        }));
+        const createMusicLyricsFeature = window.YayaRendererFeatures && window.YayaRendererFeatures.createMusicLyricsFeature;
+        if (typeof createMusicLyricsFeature === 'function') {
+            ({
+                updateMusicLyricsToggleButton,
+                syncMusicLyrics,
+                toggleMusicLyricsPanel,
+                loadMusicLyrics,
+                seekMusicLyricLine
+            } = createMusicLyricsFeature({
+                MUSIC_LYRICS_BASE_URL,
+                MUSIC_LYRICS_INDEX_URL,
+                escapeHtml,
+                parseMusicLrc
+            }));
+        } else {
+            console.warn('createMusicLyricsFeature 未加载，跳过音乐歌词模块');
+            updateMusicLyricsToggleButton = function noopUpdateMusicLyricsToggleButton() {};
+            syncMusicLyrics = function noopSyncMusicLyrics() {};
+            toggleMusicLyricsPanel = function noopToggleMusicLyricsPanel() {};
+            loadMusicLyrics = async function noopLoadMusicLyrics() {};
+            seekMusicLyricLine = function noopSeekMusicLyricLine() {};
+        }
         window.toggleMusicLyricsPanel = toggleMusicLyricsPanel;
         window.seekMusicLyricLine = seekMusicLyricLine;
 

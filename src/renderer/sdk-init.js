@@ -49,4 +49,4 @@
         window.getPA = function () {
             return window.isWasmReady && typeof __x6c2adf8__ === 'function' ? __x6c2adf8__() : null;
         };
-        initSDK();
+        window.yayaWasmReadyPromise = initSDK();
