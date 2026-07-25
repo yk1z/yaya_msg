@@ -198,10 +198,8 @@ function searchMessages(input) {
     const sql = buildSearchSql(input);
 
     if (groupBy && groupBy !== 'none') {
-        const groupColumn = groupBy === 'room' ? 'm.member_name'
-            : groupBy === 'team' ? 'm.group_name'
-                : groupBy === 'type' ? 'm.msg_type'
-                    : 'm.member_name';
+        const allowedGroupColumns = { room: 'm.member_name', team: 'm.group_name', type: 'm.msg_type' };
+        const groupColumn = allowedGroupColumns[groupBy] || 'm.member_name';
         const from = sql.countSql.match(/FROM\s+(.+?)\s*(WHERE|$)/is)?.[1] || 'messages m';
         const whereSql = sql.countSql.includes(' WHERE ') ? `WHERE ${sql.countSql.split(' WHERE ')[1]}` : '';
         const rows = db.prepare(`
