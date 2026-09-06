@@ -52,6 +52,7 @@ const POCKET_CHANNEL_METHODS = Object.freeze({
     'fetch-seine-server-detail': 'fetchSeineServerDetail',
     'fetch-live-rank': 'fetchLiveRank',
     'fetch-friends-ids': 'fetchFriendsIds',
+    'fetch-team-follow-state': 'fetchTeamFollowState',
     'fetch-last-messages': 'fetchLastMessages',
     'follow-member': 'followMember',
     'unfollow-member': 'unfollowMember',

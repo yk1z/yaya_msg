@@ -38,6 +38,15 @@
         let currentSubtitleUrl = '';
         let lastActiveIndex = -1;
         let danmuFollowEnabled = readDanmuFollowPreference();
+        const TIMELINE_ROW_HEIGHT = 36;
+        const TIMELINE_VIRTUAL_THRESHOLD = 400;
+        const TIMELINE_OVERSCAN_ROWS = 16;
+        let visibleTimelineEntries = [];
+        let visibleTimelinePositionByIndex = new Map();
+        let timelineSearchTerm = '';
+        let virtualWindowStart = -1;
+        let virtualWindowEnd = -1;
+        let virtualScrollFrame = 0;
 
         function safeEscapeHtml(value) {
             if (typeof escapeHtml === 'function') return escapeHtml(value);
@@ -49,31 +58,63 @@
                 .replace(/'/g, '&#39;');
         }
 
-        function isMobileWebTimeline() {
-            const platform = document.documentElement?.dataset?.platform;
-            return platform === 'web' && window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+        function getCurrentTimelineList() {
+            return currentTimelineMode === 'danmu' ? currentDanmuList : currentSubtitleList;
         }
 
-        function scrollTimelineRowIntoPosition(row) {
+        function rebuildVisibleTimelineEntries() {
+            const list = getCurrentTimelineList();
+            const term = timelineSearchTerm;
+            let termPinyin = term;
+            if (window.pinyinPro && term) {
+                termPinyin = window.pinyinPro.pinyin(term, { toneType: 'none', type: 'array' }).join('').toLowerCase();
+            }
+
+            visibleTimelineEntries = [];
+            visibleTimelinePositionByIndex = new Map();
+            list.forEach((item, index) => {
+                if (term) {
+                    const text = String(item.text || '').toLowerCase();
+                    const name = String(item.name || '').toLowerCase();
+                    let isMatch = text.includes(term) || name.includes(term);
+
+                    if (!isMatch && window.pinyinPro) {
+                        if (item._pinyinText === undefined) {
+                            item._pinyinText = window.pinyinPro.pinyin(text, { toneType: 'none', type: 'array' }).join('').toLowerCase();
+                        }
+                        if (item._pinyinName === undefined) {
+                            item._pinyinName = window.pinyinPro.pinyin(name, { toneType: 'none', type: 'array' }).join('').toLowerCase();
+                        }
+                        isMatch = (item._pinyinText || '').includes(termPinyin)
+                            || (item._pinyinName || '').includes(termPinyin);
+                    }
+
+                    if (!isMatch) return;
+                }
+
+                visibleTimelinePositionByIndex.set(index, visibleTimelineEntries.length);
+                visibleTimelineEntries.push({ item, index });
+            });
+        }
+
+        function scrollTimelineIndexIntoPosition(index) {
             const container = document.getElementById('danmu-list-body');
-            if (!row || !container || !container.contains(row)) return;
+            const position = visibleTimelinePositionByIndex.get(index);
+            if (!container || position === undefined) return false;
 
-            const canScrollInside = container.scrollHeight > container.clientHeight + 1;
-            if (canScrollInside) {
-                const rowTop = row.offsetTop;
-                const rowHeight = row.offsetHeight || 36;
-                const targetTop = rowTop - ((container.clientHeight - rowHeight) / 2);
-                const maxTop = Math.max(0, container.scrollHeight - container.clientHeight);
-                container.scrollTo({
-                    top: Math.max(0, Math.min(targetTop, maxTop)),
-                    behavior: 'smooth'
-                });
-                return;
-            }
+            const rowTop = position * TIMELINE_ROW_HEIGHT;
+            const rowBottom = rowTop + TIMELINE_ROW_HEIGHT;
+            const safeTop = container.scrollTop + (container.clientHeight * 0.4);
+            const safeBottom = container.scrollTop + (container.clientHeight * 0.6);
+            if (rowTop >= safeTop && rowBottom <= safeBottom) return true;
 
-            if (!isMobileWebTimeline()) {
-                row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
+            const targetTop = rowTop - ((container.clientHeight - TIMELINE_ROW_HEIGHT) / 2);
+            const maxTop = Math.max(0, container.scrollHeight - container.clientHeight);
+            container.scrollTo({
+                top: Math.max(0, Math.min(targetTop, maxTop)),
+                behavior: 'smooth'
+            });
+            return true;
         }
 
         function clearTimelineHighlight() {
@@ -100,39 +141,13 @@
         }
 
         function handleDanmuSearch(keyword) {
-            const term = String(keyword || '').trim().toLowerCase();
-            const list = currentTimelineMode === 'danmu' ? currentDanmuList : currentSubtitleList;
-
-            let termPinyin = term;
-            if (window.pinyinPro && term) {
-                termPinyin = pinyinPro.pinyin(term, { toneType: 'none', type: 'array' }).join('').toLowerCase();
-            }
-
-            list.forEach((item, index) => {
-                const row = document.getElementById(`dm-row-${index}`);
-                if (!row) return;
-
-                const text = String(item.text || '').toLowerCase();
-                const name = String(item.name || '').toLowerCase();
-                let isMatch = text.includes(term) || name.includes(term);
-
-                if (!isMatch && window.pinyinPro && term) {
-                    if (item._pinyinText === undefined) {
-                        item._pinyinText = pinyinPro.pinyin(text, { toneType: 'none', type: 'array' }).join('').toLowerCase();
-                    }
-                    if (item._pinyinName === undefined) {
-                        item._pinyinName = pinyinPro.pinyin(name, { toneType: 'none', type: 'array' }).join('').toLowerCase();
-                    }
-
-                    const textPinyin = item._pinyinText || '';
-                    const namePinyin = item._pinyinName || '';
-                    if (textPinyin.includes(termPinyin) || namePinyin.includes(termPinyin)) {
-                        isMatch = true;
-                    }
-                }
-
-                row.style.display = isMatch ? 'flex' : 'none';
-            });
+            timelineSearchTerm = String(keyword || '').trim().toLowerCase();
+            rebuildVisibleTimelineEntries();
+            const container = document.getElementById('danmu-list-body');
+            if (container) container.scrollTop = 0;
+            virtualWindowStart = -1;
+            virtualWindowEnd = -1;
+            renderTimelineWindow(true);
         }
 
         function parseSRT(srtText) {
@@ -307,7 +322,8 @@
             currentSubtitleUrl = '';
 
             if (!wrapper || !container) return;
-            if (getCurrentMode() === 'live') {
+            const playbackMode = getCurrentMode();
+            if (playbackMode === 'live' || playbackMode === 'meet-live') {
                 wrapper.style.display = 'none';
                 return;
             }
@@ -407,14 +423,129 @@
             refreshTimelineListUI();
         }
 
+        function createTimelineRow(item, index) {
+            const div = document.createElement('div');
+            div.className = 'danmu-row';
+            if (index === lastActiveIndex) div.classList.add('active');
+            div.id = `dm-row-${index}`;
+            div.style.cssText = `display: flex; align-items: center; height: ${TIMELINE_ROW_HEIGHT}px; box-sizing: border-box; padding: 0 15px; border-bottom: 1px solid rgba(0,0,0,0.03);`;
+
+            const time = Math.max(0, Number(item.time) || 0);
+            const s = Math.floor(time);
+            const ms = Math.floor((time % 1) * 1000);
+            const h = Math.floor(s / 3600);
+            const m = Math.floor((s % 3600) / 60);
+            const sec = s % 60;
+            const pad = (n, w = 2) => String(n).padStart(w, '0');
+            const timeStr = `${pad(h)}:${pad(m)}:${pad(sec)}.${pad(ms, 3)}`;
+
+            const nameHtml = currentTimelineMode === 'subtitle' ? '' :
+                `<div style="width: var(--col-name); margin-left: 10px; text-align: left; font-weight: bold; color: var(--text-sub); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 0;" title="${safeEscapeHtml(item.name || '???')}">${safeEscapeHtml(item.name || '???')}</div>`;
+            const endPointTime = (currentTimelineMode === 'subtitle' && item.endTime) ? item.endTime : item.time;
+            const actionHtml = currentTimelineMode === 'subtitle' && !isWebRuntime ? `
+                <div style="width: var(--col-act); display: flex; gap: 6px; justify-content: flex-end; align-items: center; flex-shrink: 0; margin-left: 10px; padding-right: 8px;">
+                    <button style="border: 1px solid #28a745; background: transparent; color: #28a745; padding: 2px 8px; font-size: 11px; border-radius: 4px; cursor: pointer; transition: all 0.2s;"
+                            onmouseover="this.style.background='#28a745'; this.style.color='#fff'"
+                            onmouseout="this.style.background='transparent'; this.style.color='#28a745'"
+                            onclick="event.stopPropagation(); setClipStartFromTimeline(${item.time})">起</button>
+                    <button style="border: 1px solid #dc3545; background: transparent; color: #dc3545; padding: 2px 8px; font-size: 11px; border-radius: 4px; cursor: pointer; transition: all 0.2s;"
+                            onmouseover="this.style.background='#dc3545'; this.style.color='#fff'"
+                            onmouseout="this.style.background='transparent'; this.style.color='#dc3545'"
+                            onclick="event.stopPropagation(); setClipEndFromTimeline(${endPointTime})">终</button>
+                </div>
+            ` : '';
+
+            div.innerHTML = `
+                <div style="width: var(--col-time); text-align: left; flex-shrink: 0; margin-left: 0; color: var(--primary); font-weight: bold;">${timeStr}</div>
+                ${nameHtml}
+                <div title="${safeEscapeHtml(item.text)}" style="padding-left: 15px; flex: 1; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text);">${safeEscapeHtml(item.text) || '&nbsp;'}</div>
+                ${actionHtml}
+            `;
+
+            div.onclick = () => {
+                const art = getArt();
+                if (!art) return;
+                const isPlaying = art.playing;
+                art.seek = item.time;
+                if (isPlaying) art.play();
+                else art.pause();
+            };
+            return div;
+        }
+
+        function renderTimelineWindow(force = false) {
+            const container = document.getElementById('danmu-list-body');
+            if (!container) return;
+
+            if (!visibleTimelineEntries.length) {
+                virtualWindowStart = -1;
+                virtualWindowEnd = -1;
+                const sourceList = getCurrentTimelineList();
+                const emptyText = timelineSearchTerm && sourceList.length
+                    ? '没有匹配的结果'
+                    : (currentTimelineMode === 'subtitle' ? '未在云端找到字幕文件' : '暂无弹幕数据');
+                container.innerHTML = `<div style="text-align: center; padding: 40px; color: var(--text-sub);">${emptyText}</div>`;
+                return;
+            }
+
+            const isVirtual = visibleTimelineEntries.length > TIMELINE_VIRTUAL_THRESHOLD;
+            let start = 0;
+            let end = visibleTimelineEntries.length;
+            if (isVirtual) {
+                const visibleRows = Math.max(1, Math.ceil(container.clientHeight / TIMELINE_ROW_HEIGHT));
+                const firstVisible = Math.max(0, Math.floor(container.scrollTop / TIMELINE_ROW_HEIGHT));
+                const lastVisible = Math.min(visibleTimelineEntries.length, firstVisible + visibleRows);
+                const minimumBuffer = Math.floor(TIMELINE_OVERSCAN_ROWS / 2);
+                const hasLeadingBuffer = virtualWindowStart === 0
+                    || firstVisible - virtualWindowStart >= minimumBuffer;
+                const hasTrailingBuffer = virtualWindowEnd === visibleTimelineEntries.length
+                    || virtualWindowEnd - lastVisible >= minimumBuffer;
+                if (!force && virtualWindowStart >= 0 && hasLeadingBuffer && hasTrailingBuffer) return;
+
+                start = Math.max(0, firstVisible - TIMELINE_OVERSCAN_ROWS);
+                end = Math.min(visibleTimelineEntries.length, start + visibleRows + (TIMELINE_OVERSCAN_ROWS * 2));
+            }
+
+            if (!force && start === virtualWindowStart && end === virtualWindowEnd) return;
+            virtualWindowStart = start;
+            virtualWindowEnd = end;
+
+            const fragment = document.createDocumentFragment();
+            if (isVirtual && start > 0) {
+                const topSpacer = document.createElement('div');
+                topSpacer.className = 'danmu-virtual-spacer';
+                topSpacer.style.height = `${start * TIMELINE_ROW_HEIGHT}px`;
+                fragment.appendChild(topSpacer);
+            }
+
+            for (let position = start; position < end; position++) {
+                const entry = visibleTimelineEntries[position];
+                fragment.appendChild(createTimelineRow(entry.item, entry.index));
+            }
+
+            if (isVirtual && end < visibleTimelineEntries.length) {
+                const bottomSpacer = document.createElement('div');
+                bottomSpacer.className = 'danmu-virtual-spacer';
+                bottomSpacer.style.height = `${(visibleTimelineEntries.length - end) * TIMELINE_ROW_HEIGHT}px`;
+                fragment.appendChild(bottomSpacer);
+            }
+            container.replaceChildren(fragment);
+        }
+
+        function handleTimelineScroll() {
+            if (visibleTimelineEntries.length <= TIMELINE_VIRTUAL_THRESHOLD || virtualScrollFrame) return;
+            virtualScrollFrame = window.requestAnimationFrame(() => {
+                virtualScrollFrame = 0;
+                renderTimelineWindow();
+            });
+        }
+
         function refreshTimelineListUI() {
             const container = document.getElementById('danmu-list-body');
             const searchInput = document.getElementById('danmu-search-input');
             const wrapper = document.getElementById('danmu-timeline-wrapper');
             if (!container || !wrapper) return;
             if (searchInput) searchInput.value = '';
-
-            const list = currentTimelineMode === 'danmu' ? currentDanmuList : currentSubtitleList;
 
             if (!document.getElementById('col-resize-style')) {
                 const style = document.createElement('style');
@@ -504,70 +635,18 @@
                 });
             }
 
+            if (!container.dataset.yayaVirtualTimelineBound) {
+                container.addEventListener('scroll', handleTimelineScroll, { passive: true });
+                container.dataset.yayaVirtualTimelineBound = '1';
+            }
+            timelineSearchTerm = '';
+            rebuildVisibleTimelineEntries();
             container.replaceChildren();
             container.scrollTop = 0;
             lastActiveIndex = -1;
-
-            if (list.length === 0) {
-                container.innerHTML = `<div style="text-align: center; padding: 40px; color: var(--text-sub);">${currentTimelineMode === 'subtitle' ? '未在云端找到字幕文件' : '暂无弹幕数据'}</div>`;
-                return;
-            }
-
-            const fragment = document.createDocumentFragment();
-            list.forEach((item, index) => {
-                const div = document.createElement('div');
-                div.className = 'danmu-row';
-                div.id = `dm-row-${index}`;
-                div.style.cssText = 'display: flex; align-items: center; height: 36px; box-sizing: border-box; padding: 0 15px; border-bottom: 1px solid rgba(0,0,0,0.03);';
-                const s = Math.floor(item.time);
-                const ms = Math.floor((item.time % 1) * 1000);
-                const h = Math.floor(s / 3600);
-                const m = Math.floor((s % 3600) / 60);
-                const sec = s % 60;
-                const pad = (n, w = 2) => String(n).padStart(w, '0');
-                const timeStr = `${pad(h)}:${pad(m)}:${pad(sec)}.${pad(ms, 3)}`;
-
-                const nameHtml = currentTimelineMode === 'subtitle' ? `` :
-                    `<div style="width: var(--col-name); margin-left: 10px; text-align: left; font-weight: bold; color: var(--text-sub); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 0;" title="${safeEscapeHtml(item.name || '???')}">${safeEscapeHtml(item.name || '???')}</div>`;
-
-                const endPointTime = (currentTimelineMode === 'subtitle' && item.endTime) ? item.endTime : item.time;
-
-                const actionHtml = currentTimelineMode === 'subtitle' && !isWebRuntime ? `
-                    <div style="width: var(--col-act); display: flex; gap: 6px; justify-content: flex-end; align-items: center; flex-shrink: 0; margin-left: 10px; padding-right: 8px;">
-                        <button style="border: 1px solid #28a745; background: transparent; color: #28a745; padding: 2px 8px; font-size: 11px; border-radius: 4px; cursor: pointer; transition: all 0.2s;"
-                                onmouseover="this.style.background='#28a745'; this.style.color='#fff'"
-                                onmouseout="this.style.background='transparent'; this.style.color='#28a745'"
-                                onclick="event.stopPropagation(); setClipStartFromTimeline(${item.time})">起</button>
-                        <button style="border: 1px solid #dc3545; background: transparent; color: #dc3545; padding: 2px 8px; font-size: 11px; border-radius: 4px; cursor: pointer; transition: all 0.2s;"
-                                onmouseover="this.style.background='#dc3545'; this.style.color='#fff'"
-                                onmouseout="this.style.background='transparent'; this.style.color='#dc3545'"
-                                onclick="event.stopPropagation(); setClipEndFromTimeline(${endPointTime})">终</button>
-                    </div>
-                ` : '';
-                div.innerHTML = `
-                    <div style="width: var(--col-time); text-align: left; flex-shrink: 0; margin-left: 0; color: var(--primary); font-weight: bold;">${timeStr}</div>
-                    ${nameHtml}
-                    <div title="${safeEscapeHtml(item.text)}" style="padding-left: 15px; flex: 1; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text);">${safeEscapeHtml(item.text) || '&nbsp;'}</div>
-                    ${actionHtml}
-                `;
-
-                div.onclick = () => {
-                    const art = getArt();
-                    if (art) {
-                        const isPlaying = art.playing;
-
-                        art.seek = item.time;
-
-                        if (isPlaying) {
-                            art.play();
-                        } else {
-                            art.pause();
-                        }
-                    }
-                };
-                fragment.appendChild(div);
-            });
-            container.appendChild(fragment);
+            virtualWindowStart = -1;
+            virtualWindowEnd = -1;
+            renderTimelineWindow(true);
 
             if (danmuFollowEnabled) {
                 const currentTime = Number(getArt()?.currentTime);
@@ -577,13 +656,21 @@
 
         function syncDanmuHighlight(currentTime) {
             if (!danmuFollowEnabled || !Number.isFinite(Number(currentTime))) return;
-            const list = currentTimelineMode === 'danmu' ? currentDanmuList : currentSubtitleList;
+            const list = getCurrentTimelineList();
             if (!list || !list.length) return;
 
             let activeIndex = -1;
-            for (let i = 0; i < list.length; i++) {
-                if (list[i].time > currentTime) break;
-                activeIndex = i;
+            let low = 0;
+            let high = list.length - 1;
+            const targetTime = Number(currentTime);
+            while (low <= high) {
+                const mid = Math.floor((low + high) / 2);
+                if ((Number(list[mid]?.time) || 0) <= targetTime) {
+                    activeIndex = mid;
+                    low = mid + 1;
+                } else {
+                    high = mid - 1;
+                }
             }
 
             if (activeIndex !== lastActiveIndex) {
@@ -591,14 +678,11 @@
                     const oldRow = document.getElementById(`dm-row-${lastActiveIndex}`);
                     if (oldRow) oldRow.classList.remove('active');
                 }
-                if (activeIndex !== -1) {
-                    const newRow = document.getElementById(`dm-row-${activeIndex}`);
-                    if (newRow) {
-                        newRow.classList.add('active');
-                        scrollTimelineRowIntoPosition(newRow);
-                    }
-                }
                 lastActiveIndex = activeIndex;
+                if (activeIndex !== -1 && scrollTimelineIndexIntoPosition(activeIndex)) {
+                    const newRow = document.getElementById(`dm-row-${activeIndex}`);
+                    if (newRow) newRow.classList.add('active');
+                }
             }
         }
 
@@ -607,10 +691,19 @@
             if (timelineWrapper) timelineWrapper.style.display = 'none';
             const danmuBody = document.getElementById('danmu-list-body');
             if (danmuBody) danmuBody.replaceChildren();
+            if (virtualScrollFrame) {
+                window.cancelAnimationFrame(virtualScrollFrame);
+                virtualScrollFrame = 0;
+            }
             lastActiveIndex = -1;
             currentDanmuList = [];
             currentSubtitleList = [];
             currentSubtitleUrl = '';
+            visibleTimelineEntries = [];
+            visibleTimelinePositionByIndex = new Map();
+            timelineSearchTerm = '';
+            virtualWindowStart = -1;
+            virtualWindowEnd = -1;
         }
 
         function loadTimelineSubtitleText(text) {

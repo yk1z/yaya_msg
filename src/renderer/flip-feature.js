@@ -134,7 +134,6 @@
             try {
                 localStorage.setItem(DEFAULT_FLIP_ANSWER_TYPE_KEY, String(normalizedType));
             } catch (_error) {
-                // Keep the current session usable even when storage is unavailable.
             }
             syncDefaultFlipSettingsControls();
 
@@ -156,7 +155,6 @@
             try {
                 localStorage.setItem(DEFAULT_FLIP_PRIVACY_TYPE_KEY, String(normalizedType));
             } catch (_error) {
-                // Keep the current session usable even when storage is unavailable.
             }
             syncDefaultFlipSettingsControls();
             selectFlipPrivacy(normalizedType, FLIP_PRIVACY_TYPE_NAMES[normalizedType]);
@@ -492,22 +490,59 @@
                             downloadBtn.onclick = (e) => {
                                 e.stopPropagation();
                                 if (typeof downloadMediaFileIconMode === 'function') {
-                                    downloadMediaFileIconMode(url, `【${memberName}】翻牌回答_${item.questionId}.mp3`, downloadBtn, downloadIcon);
+                                    downloadMediaFileIconMode(
+                                        url,
+                                        `【${memberName}】翻牌回答_${item.questionId}.mp3`,
+                                        downloadBtn,
+                                        downloadIcon,
+                                        'flip'
+                                    );
                                 }
                             };
 
                             audioRow.appendChild(downloadBtn);
                             answerDiv.appendChild(audioRow);
                         } else if (item.answerType === 3) {
+                            const videoRow = document.createElement('div');
+                            videoRow.style.cssText = 'display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap;';
+
                             if (typeof createCustomVideoPlayer === 'function') {
-                                answerDiv.appendChild(createCustomVideoPlayer(url));
+                                videoRow.appendChild(createCustomVideoPlayer(url));
                             } else {
                                 const video = document.createElement('video');
                                 video.src = url;
                                 video.controls = true;
                                 video.style.cssText = 'max-width:100%; max-height:300px; border-radius:8px; background:#000;';
-                                answerDiv.appendChild(video);
+                                videoRow.appendChild(video);
                             }
+
+                            const downloadBtn = document.createElement('button');
+                            downloadBtn.className = 'btn btn-secondary';
+                            downloadBtn.style.cssText = 'width: 38px; height: 38px; padding: 0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; margin: 8px 0;';
+                            downloadBtn.title = '下载视频';
+                            const downloadIcon = `
+                                <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="7 10 12 15 17 10"></polyline>
+                                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                                </svg>
+                            `;
+                            downloadBtn.innerHTML = downloadIcon;
+                            downloadBtn.onclick = (e) => {
+                                e.stopPropagation();
+                                if (typeof downloadMediaFileIconMode === 'function') {
+                                    downloadMediaFileIconMode(
+                                        url,
+                                        `【${memberName}】翻牌回答_${item.questionId}.mp4`,
+                                        downloadBtn,
+                                        downloadIcon,
+                                        'flip'
+                                    );
+                                }
+                            };
+
+                            videoRow.appendChild(downloadBtn);
+                            answerDiv.appendChild(videoRow);
                         }
                     }
                 } catch (e) {
@@ -1383,7 +1418,7 @@
                     const teamHtml = m.team ? `<span class="team-tag" style="${baseStyle} ${colorStyle}">${m.team}</span>` : '';
 
                     return `<div class="suggestion-item" 
-                 onclick="selectFlipSendMember('${m.ownerName}', '${m.id || m.userId}')"
+                 onclick="selectFlipSendMember('${m.ownerName}', '${m.id || m.userId || m.ownerId || m.memberId || ''}')"
                  style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="font-weight:bold; ${baseStyle}">${m.ownerName}</span>
                 ${teamHtml}
@@ -1412,8 +1447,35 @@
             if (priceLoading) priceLoading.style.display = 'block';
             if (sendMsg) sendMsg.innerText = '';
 
+            if (id && typeof window.syncWebFlipSendRoute === 'function') {
+                window.syncWebFlipSendRoute(id);
+            }
+
             void refreshFlipUserBalance();
             void fetchFlipPrices(id);
+        }
+
+        async function openFlipSendByMemberId(memberId) {
+            const normalizedMemberId = String(memberId || '').trim();
+            if (!/^\d{1,32}$/.test(normalizedMemberId)) return false;
+
+            if (!window.isMemberDataLoaded && typeof loadMemberData === 'function') {
+                try {
+                    await loadMemberData();
+                } catch (error) {
+                    console.warn('按成员 ID 打开翻牌提问时加载成员资料失败:', error);
+                }
+            }
+
+            const members = typeof getMemberData === 'function' ? getMemberData() : [];
+            const member = (Array.isArray(members) ? members : []).find(item => [
+                item?.id,
+                item?.userId,
+                item?.ownerId,
+                item?.memberId
+            ].some(value => String(value || '') === normalizedMemberId));
+            selectFlipSendMember(member?.ownerName || member?.name || '', normalizedMemberId);
+            return true;
         }
 
         async function refreshFlipUserBalance() {
@@ -1801,6 +1863,7 @@
             handleFlipSendSearch,
             loadFlipList,
             openFlipDefaultSettings,
+            openFlipSendByMemberId,
             refreshFlipUserBalance,
             saveFlipDefaultSettings,
             selectFlipDefaultSetting,

@@ -210,6 +210,24 @@ function createSeineHeaders(token, pa) {
     return headers;
 }
 
+function createFriendshipHeaders(token, pa) {
+    const headers = createHeaders(token, pa);
+    headers.Accept = '*/*';
+    headers.appInfo = JSON.stringify({
+        vendor: 'apple',
+        deviceId: getDeviceId(),
+        appVersion: '7.1.43',
+        appBuild: '26082801',
+        osVersion: '27.0.0',
+        osType: 'ios',
+        deviceName: 'iPhone17,1',
+        os: 'ios'
+    });
+    headers['User-Agent'] = 'PocketFans201807/7.1.43 (iPhone; iOS 27.0; Scale/3.00)';
+    headers['P-Sign-Type'] = 'V0';
+    return headers;
+}
+
 function createSeineIosHeaders(token, pa) {
     const headers = createHeaders(token, pa);
     headers.appInfo = JSON.stringify({
@@ -1273,7 +1291,6 @@ async function fetchOpenLiveParticipantsUncached({ liveId, title = '', dateHint 
                         return { success: true, content: { participants, source: 'memberhot' } };
                     }
                 } catch (error) {
-                    // Fall back to parsing the page HTML.
                 }
             }
 
@@ -1282,7 +1299,6 @@ async function fetchOpenLiveParticipantsUncached({ liveId, title = '', dateHint 
                 return { success: true, content: { participants, source: 'html-live' } };
             }
         } catch (error) {
-            // Fall back to replay pages.
         }
 
         for (const clubId of getReplayClubSearchOrder(groupHint, title)) {
@@ -1295,7 +1311,6 @@ async function fetchOpenLiveParticipantsUncached({ liveId, title = '', dateHint 
                     return { success: true, content: { participants, source: `html-replay-club-${clubId}` } };
                 }
             } catch (error) {
-                // Try the next club.
             }
         }
 
@@ -1672,8 +1687,53 @@ async function fetchLiveRank({ token, pa, liveId }) {
 }
 
 async function fetchFriendsIds({ token, pa }) {
-    const response = await postJson('https://pocketapi.48.cn/user/api/v1/friendships/friends/id', {}, createHeaders(token, pa));
+    const response = await postJson(
+        'https://pocketapi.48.cn/user/api/v1/friendships/friends/id',
+        {},
+        createFriendshipHeaders(token, pa)
+    );
     return response.data;
+}
+
+async function fetchTeamFollowState({ token, pa, teamId, starId, channelId }) {
+    const normalizedTeamId = parseInt(teamId, 10);
+    let normalizedStarId = parseInt(starId, 10);
+    const normalizedChannelId = parseInt(channelId, 10);
+    if (!normalizedTeamId) {
+        return { success: false, msg: '缺少队伍 ID' };
+    }
+
+    if (!normalizedStarId && normalizedChannelId) {
+        const roomResponse = await postJson(
+            'https://pocketapi.48.cn/im/api/v1/im/team/room/info',
+            { channelId: String(normalizedChannelId) },
+            createFriendshipHeaders(token, pa)
+        );
+        if (roomResponse.status !== 200 || roomResponse.data?.status !== 200 || roomResponse.data?.success !== true) {
+            return apiError(roomResponse);
+        }
+        normalizedStarId = parseInt(roomResponse.data?.content?.channelInfo?.ownerId, 10);
+    }
+
+    if (!normalizedStarId) {
+        return { success: false, msg: '缺少队伍服务器所有者 ID' };
+    }
+
+    const response = await postJson(
+        'https://pocketapi.48.cn/im/api/v1/im/server/jump',
+        { starId: normalizedStarId, tabId: normalizedTeamId, targetType: 2 },
+        createFriendshipHeaders(token, pa)
+    );
+    if (response.status === 200 && response.data?.status === 200 && response.data?.success === true) {
+        return {
+            success: true,
+            content: {
+                ...(response.data.content || {}),
+                serverOwner: normalizedStarId
+            }
+        };
+    }
+    return apiError(response);
 }
 
 async function fetchLastMessages({ token, pa, serverIdList }) {
@@ -1685,23 +1745,41 @@ async function fetchLastMessages({ token, pa, serverIdList }) {
     return response.data;
 }
 
-async function followMember({ token, pa, memberId }) {
+function normalizeFollowSourceId({ memberId, sourceId, toSourceId }) {
+    const value = toSourceId ?? sourceId ?? memberId;
+    const normalized = parseInt(value, 10);
+    return Number.isFinite(normalized) ? normalized : 0;
+}
+
+function normalizeFollowSourceType(toType) {
+    return Number(toType) === 0 ? 0 : 1;
+}
+
+async function followMember({ token, pa, memberId, sourceId, toSourceId, toType = 1 }) {
+    const normalizedSourceId = normalizeFollowSourceId({ memberId, sourceId, toSourceId });
+    if (!normalizedSourceId) return { success: false, msg: '缺少关注目标 ID' };
     const response = await postJson(
         'https://pocketapi.48.cn/user/api/v2/friendships/friends/add',
-        { toSourceId: parseInt(memberId, 10), toType: 1 },
-        createHeaders(token, pa)
+        { toSourceId: normalizedSourceId, toType: normalizeFollowSourceType(toType) },
+        createFriendshipHeaders(token, pa)
     );
-    if (response.status === 200 && response.data?.success) return { success: true };
+    if (response.status === 200 && response.data?.status === 200 && response.data?.success === true) {
+        return { success: true, content: response.data.content || null };
+    }
     return apiError(response);
 }
 
-async function unfollowMember({ token, pa, memberId }) {
+async function unfollowMember({ token, pa, memberId, sourceId, toSourceId, toType = 1 }) {
+    const normalizedSourceId = normalizeFollowSourceId({ memberId, sourceId, toSourceId });
+    if (!normalizedSourceId) return { success: false, msg: '缺少取关目标 ID' };
     const response = await postJson(
         'https://pocketapi.48.cn/user/api/v2/friendships/friends/remove',
-        { toSourceId: parseInt(memberId, 10), toType: 1 },
-        createHeaders(token, pa)
+        { toSourceId: normalizedSourceId, toType: normalizeFollowSourceType(toType) },
+        createFriendshipHeaders(token, pa)
     );
-    if (response.status === 200 && response.data?.success) return { success: true };
+    if (response.status === 200 && response.data?.status === 200 && response.data?.success === true) {
+        return { success: true, content: response.data.content || null };
+    }
     return apiError(response);
 }
 
@@ -2438,6 +2516,7 @@ const pocketMethods = Object.freeze({
     fetchSeineServerDetail,
     fetchLiveRank,
     fetchFriendsIds,
+    fetchTeamFollowState,
     fetchLastMessages,
     followMember,
     unfollowMember,

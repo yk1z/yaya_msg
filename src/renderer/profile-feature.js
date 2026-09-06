@@ -74,6 +74,33 @@
             if (inputEl) inputEl.value = name || '';
             if (idEl) idEl.value = userId || '';
             if (resultBox) resultBox.style.display = 'none';
+            if (userId && typeof window.syncWebProfileRoute === 'function') {
+                window.syncWebProfileRoute(userId);
+            }
+        }
+
+        async function openProfileById(memberId) {
+            const normalizedMemberId = String(memberId || '').trim();
+            if (!/^\d{1,32}$/.test(normalizedMemberId)) return false;
+
+            if (!getMemberDataLoaded() && typeof loadMemberData === 'function') {
+                try {
+                    await loadMemberData();
+                } catch (error) {
+                    console.warn('按成员 ID 打开档案时加载成员资料失败:', error);
+                }
+            }
+
+            const memberList = Array.isArray(getMemberData()) ? getMemberData() : [];
+            const member = memberList.find(item => [
+                item?.id,
+                item?.userId,
+                item?.ownerId,
+                item?.memberId
+            ].some(value => String(value || '') === normalizedMemberId));
+            selectProfileMember(member?.ownerName || member?.name || '', normalizedMemberId);
+            setTimeout(() => loadStarProfile(), 0);
+            return true;
         }
 
         async function loadStarProfile() {
@@ -91,6 +118,10 @@
             if (!memberId) {
                 if (typeof showToast === 'function') showToast('请先搜索并选择成员');
                 return;
+            }
+
+            if (typeof window.syncWebProfileRoute === 'function') {
+                window.syncWebProfileRoute(memberId);
             }
 
             container.innerHTML = '<div class="empty-state">正在读取完整档案...</div>';
@@ -195,6 +226,7 @@
         return {
             handleProfileSearch,
             selectProfileMember,
+            openProfileById,
             loadStarProfile
         };
     };

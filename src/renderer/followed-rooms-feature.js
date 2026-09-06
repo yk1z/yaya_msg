@@ -34,18 +34,23 @@
         let followedRoomNotificationRunning = false;
         let followedRoomNotificationEnabled = false;
         let followedRoomNotificationGeneration = 0;
+        let followedTeamDiscoveryAt = 0;
+        let followedTeamDiscoveryPromise = null;
         const followedNotificationServerDetailCache = new Map();
         window.allFollowedIds = window.allFollowedIds || new Set();
+        window.followedTeamIds = window.followedTeamIds || new Set();
         const FOLLOWED_CUSTOM_ORDER_KEY = 'yaya_followed_custom_order';
         const FOLLOWED_PINNED_CHANNELS_KEY = 'yaya_followed_pinned_channels';
         const FOLLOWED_NOTIFICATION_ROOMS_KEY = 'yaya_followed_notification_rooms';
         const FOLLOWED_NOTIFICATION_CURSORS_KEY = 'yaya_followed_notification_cursors';
+        const FOLLOWED_TEAM_RELATIONS_KEY = 'yaya_followed_team_relations';
         const FOLLOWED_NOTIFICATION_POLL_INTERVAL = 2000;
         const FOLLOWED_ACCOUNT_SETTING_KEYS = new Set([
             FOLLOWED_CUSTOM_ORDER_KEY,
             FOLLOWED_PINNED_CHANNELS_KEY,
             FOLLOWED_NOTIFICATION_ROOMS_KEY,
-            FOLLOWED_NOTIFICATION_CURSORS_KEY
+            FOLLOWED_NOTIFICATION_CURSORS_KEY,
+            FOLLOWED_TEAM_RELATIONS_KEY
         ]);
 
         function isWebRuntime() {
@@ -106,7 +111,6 @@
             const storedValue = readRawJsonSetting(storageKey, null);
             if (storedValue !== null) return storedValue;
 
-            // 旧版本的关注设置是全局的，只迁移给升级后首次使用的当前账号。
             if (storageKey !== key && getFollowedNotificationAccountSuffix() !== 'signed-out') {
                 const legacyValue = readRawJsonSetting(key, null);
                 if (legacyValue !== null) {
@@ -121,6 +125,141 @@
 
         function writeJsonSetting(key, value) {
             return writeRawJsonSetting(getFollowedSettingStorageKey(key), value);
+        }
+
+        function getSavedTeamRelations() {
+            const saved = readJsonSetting(FOLLOWED_TEAM_RELATIONS_KEY, []);
+            if (!Array.isArray(saved)) return [];
+            const relations = new Map();
+            saved.forEach(item => {
+                const teamId = String(item?.teamId || '').trim();
+                if (!teamId) return;
+                relations.set(teamId, {
+                    teamId,
+                    starId: String(item?.starId || '').trim(),
+                    serverId: String(item?.serverId || '').trim(),
+                    checkedAt: Number(item?.checkedAt) || 0
+                });
+            });
+            return Array.from(relations.values());
+        }
+
+        function writeSavedTeamRelations(relations) {
+            const normalized = Array.isArray(relations) ? relations : [];
+            writeJsonSetting(FOLLOWED_TEAM_RELATIONS_KEY, normalized.filter(item => item?.teamId));
+        }
+
+        function parseTeamFollowRelation(teamId, content = {}) {
+            let custom = {};
+            if (content?.custom && typeof content.custom === 'string') {
+                try {
+                    custom = JSON.parse(content.custom);
+                } catch (error) {
+                    console.warn('队伍关注信息解析失败:', error);
+                }
+            } else if (content?.custom && typeof content.custom === 'object') {
+                custom = content.custom;
+            }
+            const jumpInfo = content?.jumpServerInfo || {};
+            return {
+                teamId: String(teamId || custom.teamId || jumpInfo.teamId || '').trim(),
+                starId: String(content?.serverOwner || custom.serverOwner || jumpInfo.serverOwner || '').trim(),
+                serverId: String(content?.serverId || custom.serverId || jumpInfo.serverId || '').trim(),
+                checkedAt: Date.now()
+            };
+        }
+
+        function saveTeamRelation(relation) {
+            if (!relation?.teamId) return;
+            const relations = getSavedTeamRelations().filter(item => item.teamId !== relation.teamId);
+            relations.push(relation);
+            writeSavedTeamRelations(relations);
+            window.followedTeamIds.add(String(relation.teamId));
+        }
+
+        function removeTeamRelation(teamId) {
+            const normalizedTeamId = String(teamId || '').trim();
+            writeSavedTeamRelations(getSavedTeamRelations().filter(item => item.teamId !== normalizedTeamId));
+            window.followedTeamIds.delete(normalizedTeamId);
+        }
+
+        async function checkTeamFollowRelation(relation, token, pa) {
+            if (!relation?.teamId || (!relation?.starId && !relation?.channelId)) return null;
+            try {
+                const response = await ipcRenderer.invoke('fetch-team-follow-state', {
+                    token,
+                    pa,
+                    teamId: relation.teamId,
+                    starId: relation.starId,
+                    channelId: relation.channelId
+                });
+                if (!response?.success || typeof response.content?.friend !== 'boolean') return null;
+                if (!response.content.friend) return false;
+                return parseTeamFollowRelation(relation.teamId, response.content);
+            } catch (error) {
+                console.warn('队伍关注状态校验失败:', error);
+                return null;
+            }
+        }
+
+        async function reconcileSavedTeamRelations(memberData, token, pa, force = false) {
+            const savedRelations = getSavedTeamRelations();
+            const now = Date.now();
+            const shouldDiscover = force || !followedTeamDiscoveryAt || now - followedTeamDiscoveryAt >= 5 * 60 * 1000;
+            if (!shouldDiscover) return savedRelations;
+            if (followedTeamDiscoveryPromise) return followedTeamDiscoveryPromise;
+
+            const discoveryAccountSuffix = getFollowedNotificationAccountSuffix();
+            const discoveryPromise = (async () => {
+                const savedByTeamId = new Map(savedRelations.map(item => [String(item.teamId), item]));
+                const candidates = (Array.isArray(memberData) ? memberData : [])
+                    .map(item => ({ item, target: getFollowedTarget(item) }))
+                    .filter(entry => entry.target.isTeam)
+                    .map(entry => ({
+                        ...(savedByTeamId.get(entry.target.id) || {}),
+                        teamId: entry.target.id,
+                        channelId: String(entry.item.channelId || '').trim(),
+                        serverId: String(entry.item.serverId || '').trim()
+                    }));
+
+                const activeRelations = [];
+                for (let index = 0; index < candidates.length; index += 4) {
+                    const batch = candidates.slice(index, index + 4);
+                    const results = await Promise.all(batch.map(async relation => ({
+                        relation,
+                        result: await checkTeamFollowRelation(relation, token, pa)
+                    })));
+                    results.forEach(({ relation, result }) => {
+                        if (result) {
+                            activeRelations.push({ ...relation, ...result, checkedAt: now });
+                        } else if (result === null && savedByTeamId.has(relation.teamId)) {
+                            activeRelations.push(savedByTeamId.get(relation.teamId));
+                        }
+                    });
+                }
+
+                if (discoveryAccountSuffix !== getFollowedNotificationAccountSuffix()) {
+                    return [];
+                }
+                followedTeamDiscoveryAt = Date.now();
+                writeSavedTeamRelations(activeRelations);
+                return activeRelations;
+            })();
+            followedTeamDiscoveryPromise = discoveryPromise;
+            try {
+                return await discoveryPromise;
+            } finally {
+                if (followedTeamDiscoveryPromise === discoveryPromise) {
+                    followedTeamDiscoveryPromise = null;
+                }
+            }
+        }
+
+        function isFollowTargetFollowed(id, sourceType) {
+            const normalizedId = String(id || '').trim();
+            return Number(sourceType) === 0
+                ? window.followedTeamIds.has(normalizedId)
+                : window.allFollowedIds.has(normalizedId);
         }
 
         function getFollowedNotificationConfigs() {
@@ -575,8 +714,6 @@
                         const nextKey = getFollowedMessageKey(lastMessage);
                         const previous = cursors[room.channelId];
 
-                        // 软件启动后的第一次检查只同步到最新位置，不补发关闭期间的消息。
-                        // 第一次开启或迁移旧游标时也读取详细消息建立可靠位置，不弹出历史消息。
                         const hasPreviousMessageCursor = !!previous
                             && Array.isArray(previous.recentMessageKeys)
                             && previous.recentMessageKeys.length > 0;
@@ -674,7 +811,6 @@
                         };
                         cursorChanged = true;
 
-                        // 摘要变化但详情中没有真正的新消息时，只推进游标，不重复通知旧消息。
                         if (freshMessages.length === 0) continue;
 
                         const newestMessage = freshMessages[freshMessages.length - 1];
@@ -684,7 +820,6 @@
                             || getFollowedNotificationAvatar(lastMessage)
                             || room.avatarUrl;
 
-                        // 同一成员的大房间和小房间在同一轮都有更新时，只通知时间最新的一条。
                         const memberKey = String(room.memberId || room.mainChannelId || room.memberName);
                         const pendingNotification = {
                             room,
@@ -937,6 +1072,21 @@
             return String(value || '').trim().toLowerCase();
         }
 
+        function getFollowedTarget(item) {
+            const memberId = String(item?.id || item?.userId || '').trim();
+            const teamId = String(item?.teamId || '').trim();
+            const ownerName = String(item?.ownerName || '').trim().toUpperCase();
+            const teamName = String(item?.team || '').trim().toUpperCase();
+            const isTeamRecord = String(item?.groupName || '').trim() === '队伍'
+                || (!!item?.serverId && !!item?.channelId && !!ownerName && ownerName === teamName);
+            const isTeam = !memberId && !!teamId && isTeamRecord;
+            return {
+                id: isTeam ? teamId : memberId,
+                type: isTeam ? 0 : 1,
+                isTeam
+            };
+        }
+
         function getFollowedListSearchKeyword() {
             return normalizeSearchText(document.getElementById('quick-follow-input')?.value);
         }
@@ -1058,6 +1208,37 @@
             renderFollowedRoomsList(filterFollowedRoomsByKeyword(sortedData), options);
         }
 
+        function openFollowedRoomByChannelId(channelId) {
+            const normalizedChannelId = String(channelId || '').trim();
+            if (!normalizedChannelId || typeof window.openFollowedChat !== 'function') return false;
+
+            const matchesChannel = room => (
+                String(room.channelId || '') === normalizedChannelId
+                || String(room.smallChannelId || room.yklzId || '') === normalizedChannelId
+            );
+            const item = currentFollowedData.find(matchesChannel)
+                || getMemberData().find(matchesChannel);
+            if (!item) return false;
+
+            const mainChannelId = String(item.channelId || '').trim();
+            const smallChannelId = String(item.smallChannelId || item.yklzId || '').trim();
+            const isSmallRoom = Boolean(smallChannelId && smallChannelId === normalizedChannelId);
+            const followTarget = getFollowedTarget(item);
+            const rawOwnerName = String(item.bigDisplayName || item.ownerName || item.name || '成员');
+            const displayName = rawOwnerName.replace(/^(SNH48|GNZ48|BEJ48|CKG48|CGT48)-/, '') || rawOwnerName;
+            window.openFollowedChat(
+                displayName,
+                normalizedChannelId,
+                String(item.serverId || ''),
+                {
+                    mainChannelId: mainChannelId || normalizedChannelId,
+                    roomType: isSmallRoom ? 'small' : 'big',
+                    memberId: followTarget.isTeam ? '' : followTarget.id
+                }
+            );
+            return true;
+        }
+
         function setFollowedCustomSortMode() {
             const sortValue = document.getElementById('followed-sort-value');
             const sortDisplay = document.getElementById('followed-sort-display');
@@ -1090,7 +1271,7 @@
         }
 
         async function loadFollowedRooms(options = {}) {
-            const { silent = false, preserveScroll = false } = options;
+            const { silent = false, preserveScroll = false, skipTeamDiscovery = false } = options;
             const container = document.getElementById('followed-rooms-container');
             const token = getAppToken();
             if (!token) {
@@ -1127,18 +1308,29 @@
                 if (!isCurrentRequest()) return;
                 if (friendsRes.status !== 200 || !friendsRes.content?.data) throw new Error('获取失败');
 
-                const followedIds = friendsRes.content.data;
-                window.allFollowedIds = new Set(followedIds.map(id => String(id)));
+                const memberFollowedIds = Array.isArray(friendsRes.content.data)
+                    ? friendsRes.content.data.map(id => String(id))
+                    : [];
 
                 if (!getMemberDataLoaded()) await loadMemberData();
                 if (!isCurrentRequest()) return;
 
+                const memberData = getMemberData();
+                const teamRelations = getSavedTeamRelations();
+                const teamFollowedIds = teamRelations.map(item => String(item.teamId));
+                const followedIds = [...new Set([...memberFollowedIds, ...teamFollowedIds])];
+                window.followedTeamIds = new Set(teamFollowedIds);
+                window.allFollowedIds = new Set(followedIds);
+
                 const followedMembers = [];
                 const serverIds = new Set();
-                const memberData = getMemberData();
-
                 followedIds.forEach(uid => {
-                    const member = memberData.find(m => String(m.id || m.userId) === String(uid));
+                    const followedId = String(uid);
+                    const member = memberData.find(m => String(m.id || m.userId || '') === followedId)
+                        || memberData.find(m => {
+                            const target = getFollowedTarget(m);
+                            return target.isTeam && target.id === followedId;
+                        });
                     if (member && member.channelId) {
                         followedMembers.push(member);
                         if (member.serverId) serverIds.add(member.serverId);
@@ -1176,11 +1368,37 @@
                 });
 
                 sortFollowedRooms({ preserveScroll });
+                if (isWebRuntime()) {
+                    window.dispatchEvent(new CustomEvent('yaya:followed-rooms-loaded'));
+                }
 
                 const currentSearchId = document.getElementById('quick-follow-id')?.value;
                 const currentSearchName = document.getElementById('quick-follow-input')?.value;
+                const currentSearchType = document.getElementById('quick-follow-type')?.value;
                 if (currentSearchId) {
-                    selectQuickFollowMember(currentSearchName, currentSearchId);
+                    selectQuickFollowMember(currentSearchName, currentSearchId, currentSearchType);
+                }
+
+                const shouldRefreshTeams = !silent
+                    || !followedTeamDiscoveryAt
+                    || Date.now() - followedTeamDiscoveryAt >= 5 * 60 * 1000;
+                if (!skipTeamDiscovery && shouldRefreshTeams && !followedTeamDiscoveryPromise) {
+                    const previousTeamIds = new Set(teamFollowedIds);
+                    void reconcileSavedTeamRelations(memberData, token, pa, !silent)
+                        .then(nextRelations => {
+                            if (!isCurrentAccount()) return;
+                            const nextTeamIds = new Set(nextRelations.map(item => String(item.teamId)));
+                            const changed = nextTeamIds.size !== previousTeamIds.size
+                                || Array.from(nextTeamIds).some(id => !previousTeamIds.has(id));
+                            if (changed) {
+                                loadFollowedRooms({
+                                    silent: true,
+                                    preserveScroll: true,
+                                    skipTeamDiscovery: true
+                                });
+                            }
+                        })
+                        .catch(error => console.warn('队伍关注状态后台更新失败:', error));
                 }
             } catch (e) {
                 if (!isCurrentRequest()) return;
@@ -1212,18 +1430,23 @@
             stopFollowedRoomsPolling();
             stopFollowedRoomNotificationPolling();
             followedNotificationServerDetailCache.clear();
+            followedTeamDiscoveryAt = 0;
+            followedTeamDiscoveryPromise = null;
             currentFollowedData = [];
             followedRoomsLastRenderHtml = '';
             window.allFollowedIds = new Set();
+            window.followedTeamIds = new Set();
             const container = document.getElementById('followed-rooms-container');
             if (container) {
                 container.innerHTML = '<div class="empty-state" style="margin-top: 50px;">正在加载房间列表</div>';
             }
             const quickInput = document.getElementById('quick-follow-input');
             const quickId = document.getElementById('quick-follow-id');
+            const quickType = document.getElementById('quick-follow-type');
             const quickButton = document.getElementById('btn-quick-action');
             if (quickInput) quickInput.value = '';
             if (quickId) quickId.value = '';
+            if (quickType) quickType.value = '1';
             if (quickButton) {
                 quickButton.innerText = '关注';
                 quickButton.style.color = '';
@@ -1314,8 +1537,9 @@
 
             const pinnedIdSet = new Set(getPinnedChannelIds());
             const html = renderData.map((item, index) => {
+                const followTarget = getFollowedTarget(item);
                 const teamName = item.team || '';
-                const isInactive = item.isInGroup === false;
+                const isInactive = !followTarget.isTeam && item.isInGroup === false;
                 const colorStyle = getTeamStyle(teamName, isInactive);
                 const isPinned = pinnedIdSet.has(String(item.channelId));
                 const previousItem = index > 0 ? renderData[index - 1] : null;
@@ -1334,7 +1558,7 @@
                     ? `<span style="background:#ff4d4f; color:#fff; font-size:10px; padding:0 6px; border-radius:10px; margin-left:8px; font-weight:bold;">${item.unread}</span>`
                     : '';
                 const notificationAvatarUrl = getFollowedNotificationAvatar(item);
-                const memberId = String(item.id || item.userId || '');
+                const memberId = followTarget.isTeam ? '' : followTarget.id;
                 const memberNames = new Set([
                     String(item.bigDisplayName || '').trim(),
                     String(item.ownerName || '').trim(),
@@ -1363,7 +1587,7 @@
                     || (!!playingRadioKey && isCurrentFollowedRoom);
                 const isMutedRadio = window.yayaRoomRadioMuted === true
                     && (isListeningRadio || isCurrentFollowedRoom);
-                const radioButtonHtml = activeRadio ? `
+                const radioButtonHtml = !isWebRuntime() && activeRadio ? `
                     <button type="button" class="followed-room-radio-listen${isListeningRadio ? ' is-listening' : ''}${isMutedRadio ? ' is-muted' : ''}"
                         data-radio-channel-id="${escapeHtml(activeRadio.channelId)}"
                         data-radio-server-id="${escapeHtml(activeRadio.serverId)}"
@@ -1383,7 +1607,7 @@
 
                 return `
         ${pinnedDividerHtml}
-        <div class="session-card ${isActive}" id="session-card-${escapeHtml(item.channelId)}" data-channelid="${escapeHtml(item.channelId)}" data-small-channel-id="${escapeHtml(item.smallChannelId || item.yklzId || '')}" data-member-id="${escapeHtml(item.id || item.userId || '')}" data-owner-name="${escapeHtml(item.bigDisplayName)}" data-server-id="${escapeHtml(item.serverId)}" data-avatar-url="${escapeHtml(notificationAvatarUrl)}" ${draggableAttr} style="padding: 12px 16px; border-bottom: 1px solid var(--border); transition: 0.2s; ${cursorStyle}">
+        <div class="session-card ${isActive}" id="session-card-${escapeHtml(item.channelId)}" data-channelid="${escapeHtml(item.channelId)}" data-small-channel-id="${escapeHtml(item.smallChannelId || item.yklzId || '')}" data-member-id="${escapeHtml(memberId)}" data-follow-source-id="${escapeHtml(followTarget.id)}" data-follow-source-type="${followTarget.type}" data-owner-name="${escapeHtml(item.bigDisplayName)}" data-server-id="${escapeHtml(item.serverId)}" data-avatar-url="${escapeHtml(notificationAvatarUrl)}" ${draggableAttr} style="padding: 12px 16px; border-bottom: 1px solid var(--border); transition: 0.2s; ${cursorStyle}">
             <div class="session-info" style="flex: 1; min-width: 0;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                     <div style="display: flex; align-items: center; min-width: 0; flex: 1;">
@@ -1405,14 +1629,12 @@
     `;
             }).join('');
 
-            // 自动刷新没有产生可见变化时保留现有节点，避免鼠标悬停状态被重建。
             if (html === followedRoomsLastRenderHtml && container.querySelector('.session-card')) {
                 updateFollowedRoomNotificationButton();
                 updateAllFollowedRoomNotificationsButton();
                 return;
             }
 
-            // 确有变化时同步替换节点；这一帧关闭过渡，避免悬停背景从透明色重新渐变。
             container.classList.add('is-refreshing-list');
             container.innerHTML = html;
             followedRoomsLastRenderHtml = html;
@@ -1676,28 +1898,38 @@
         }
 
         function unfollowFromFollowedRoomCard(card) {
-            const memberId = String(card.dataset.memberId || '').trim();
+            const sourceId = String(card.dataset.followSourceId || card.dataset.memberId || '').trim();
+            const sourceType = Number(card.dataset.followSourceType) === 0 ? 0 : 1;
             const channelId = String(card.dataset.channelid || '').trim();
-            const memberName = card.dataset.ownerName || '该成员';
+            const memberName = card.dataset.ownerName || (sourceType === 0 ? '该队伍' : '该成员');
             const token = getAppToken();
             const pa = window.getPA ? window.getPA() : null;
 
-            if (!token || !memberId) {
-                showToast('取关失败：缺少成员 ID 或登录信息');
+            if (!token || !sourceId) {
+                showToast(`取关失败：缺少${sourceType === 0 ? '队伍' : '成员'} ID 或登录信息`);
                 return;
             }
 
             showFollowedRoomConfirm(`确定取关 ${memberName} 吗？`, async () => {
                 showToast(`正在取消关注 ${memberName}`);
                 try {
-                    const res = await ipcRenderer.invoke('unfollow-member', { token, pa, memberId });
+                    const res = await ipcRenderer.invoke('unfollow-member', {
+                        token,
+                        pa,
+                        sourceId,
+                        toType: sourceType
+                    });
                     if (!res.success) {
                         showToast(`取关失败: ${res.msg || '未知错误'}`);
                         return;
                     }
 
-                    window.allFollowedIds.delete(String(memberId));
-                    currentFollowedData = currentFollowedData.filter(item => String(item.id || item.userId) !== String(memberId));
+                    window.allFollowedIds.delete(sourceId);
+                    if (sourceType === 0) removeTeamRelation(sourceId);
+                    currentFollowedData = currentFollowedData.filter(item => {
+                        const target = getFollowedTarget(item);
+                        return target.id !== sourceId || target.type !== sourceType;
+                    });
                     removeChannelFromCustomOrder(channelId);
                     removeFollowedRoomNotification(channelId);
                     sortFollowedRooms();
@@ -1712,8 +1944,10 @@
         function handleQuickFollowSearch(keyword) {
             const resultBox = document.getElementById('quick-follow-results');
             const quickId = document.getElementById('quick-follow-id');
+            const quickType = document.getElementById('quick-follow-type');
             const quickButton = document.getElementById('btn-quick-action');
             if (quickId) quickId.value = '';
+            if (quickType) quickType.value = '1';
             if (quickButton) {
                 quickButton.innerText = '关注';
                 quickButton.style.color = '';
@@ -1733,43 +1967,57 @@
             const lowerKw = keyword.toLowerCase();
             const memberData = getMemberData();
             const matches = memberData.filter(m => {
-                const matchName = m.ownerName.includes(keyword);
+                const target = getFollowedTarget(m);
+                if (!target.id) return false;
+                const matchName = String(m.ownerName || '').includes(keyword);
                 const pinyin = m.pinyin || "";
                 const initials = getPinyinInitials(pinyin);
-                return matchName || pinyin.toLowerCase().includes(lowerKw) || initials.toLowerCase().includes(lowerKw);
+                const team = target.isTeam ? String(m.team || '').toLowerCase() : '';
+                const groupName = target.isTeam ? String(m.groupName || '').toLowerCase() : '';
+                return matchName
+                    || pinyin.toLowerCase().includes(lowerKw)
+                    || initials.toLowerCase().includes(lowerKw)
+                    || team.includes(lowerKw)
+                    || groupName.includes(lowerKw);
             });
 
             matches.sort(memberSortLogic);
 
             if (matches.length > 0) {
                 const html = matches.slice(0, 10).map(m => {
-                    const isInactive = m.isInGroup === false;
+                    const target = getFollowedTarget(m);
+                    const isInactive = !target.isTeam && m.isInGroup === false;
                     const colorStyle = getTeamStyle(m.team, isInactive);
                     return `
-                <div class="suggestion-item" data-name="${escapeHtml(m.ownerName)}" data-id="${escapeHtml(m.id || m.userId)}" style="display: flex; justify-content: space-between; align-items: center; padding: 8px;">
+                <div class="suggestion-item" data-name="${escapeHtml(m.ownerName)}" data-id="${escapeHtml(target.id)}" data-source-type="${target.type}" style="display: flex; justify-content: space-between; align-items: center; padding: 8px;">
                     <span style="font-weight:bold; font-size:12px; ${isInactive ? 'opacity:0.6' : ''}">${escapeHtml(m.ownerName)}</span>
-                    <span class="team-tag" style="font-size:10px; padding:0 4px; height:16px; line-height:14px; ${colorStyle}">${escapeHtml(m.team)}</span>
+                    <span class="team-tag" style="font-size:10px; padding:0 4px; height:16px; line-height:14px; ${colorStyle}">${target.isTeam ? '队伍' : escapeHtml(m.team)}</span>
                 </div>`;
                 }).join('');
                 resultBox.innerHTML = html;
                 resultBox.querySelectorAll('.suggestion-item').forEach(item => {
-                    item.addEventListener('click', () => selectQuickFollowMember(item.dataset.name, item.dataset.id));
+                    item.addEventListener('click', () => selectQuickFollowMember(
+                        item.dataset.name,
+                        item.dataset.id,
+                        item.dataset.sourceType
+                    ));
                 });
                 resultBox.style.display = 'block';
             } else {
-                resultBox.innerHTML = '<div class="suggestion-item" style="font-size:12px; color:#999;">未找到该成员</div>';
+                resultBox.innerHTML = '<div class="suggestion-item" style="font-size:12px; color:#999;">未找到该成员或队伍</div>';
                 resultBox.style.display = 'block';
             }
         }
 
-        function selectQuickFollowMember(name, id) {
+        function selectQuickFollowMember(name, id, sourceType = 1) {
             document.getElementById('quick-follow-input').value = name;
             document.getElementById('quick-follow-id').value = id;
+            document.getElementById('quick-follow-type').value = Number(sourceType) === 0 ? '0' : '1';
             document.getElementById('quick-follow-results').style.display = 'none';
             sortFollowedRooms();
 
             const btn = document.getElementById('btn-quick-action');
-            if (window.allFollowedIds.has(String(id))) {
+            if (isFollowTargetFollowed(id, sourceType)) {
                 btn.disabled = false;
                 btn.innerText = '取关';
                 btn.style.color = '#ff4d4f';
@@ -1783,26 +2031,56 @@
         async function executeQuickAction() {
             const memberId = document.getElementById('quick-follow-id').value;
             const memberName = document.getElementById('quick-follow-input').value;
+            const sourceType = Number(document.getElementById('quick-follow-type')?.value) === 0 ? 0 : 1;
             const btn = document.getElementById('btn-quick-action');
             const token = getAppToken();
             const pa = window.getPA ? window.getPA() : null;
 
             if (!token || !memberId) return showToast('请先选择成员');
 
-            const isUnfollow = window.allFollowedIds.has(String(memberId)) || btn.innerText === '取关';
+            const isUnfollow = isFollowTargetFollowed(memberId, sourceType) || btn.innerText === '取关';
             const channel = isUnfollow ? 'unfollow-member' : 'follow-member';
 
             showToast(`正在${isUnfollow ? '取消关注' : '关注'} ${memberName}`);
 
             try {
-                const res = await ipcRenderer.invoke(channel, { token, pa, memberId });
+                const res = await ipcRenderer.invoke(channel, {
+                    token,
+                    pa,
+                    sourceId: memberId,
+                    toType: sourceType
+                });
                 if (res.success) {
+                    if (!isUnfollow && sourceType === 0) {
+                        const relation = parseTeamFollowRelation(memberId, res.content);
+                        if (!relation.starId) {
+                            throw new Error('服务器未返回队伍所有者 ID，无法确认关注状态');
+                        }
+                        saveTeamRelation(relation);
+                        let confirmed = await checkTeamFollowRelation(relation, token, pa);
+                        if (confirmed === false) {
+                            await new Promise(resolve => setTimeout(resolve, 700));
+                            confirmed = await checkTeamFollowRelation(relation, token, pa);
+                        }
+                        if (confirmed === false) {
+                            removeTeamRelation(memberId);
+                            throw new Error('服务器未确认队伍关注，请稍后重试');
+                        }
+                        if (confirmed) saveTeamRelation(confirmed);
+                    }
                     showToast(`${isUnfollow ? '已取消关注' : '成功关注'} ${memberName}`);
 
                     if (isUnfollow) {
-                        const removed = currentFollowedData.find(item => String(item.id || item.userId) === String(memberId));
+                        const removed = currentFollowedData.find(item => {
+                            const target = getFollowedTarget(item);
+                            return target.id === String(memberId) && target.type === sourceType;
+                        });
                         window.allFollowedIds.delete(String(memberId));
-                        currentFollowedData = currentFollowedData.filter(item => String(item.id || item.userId) !== String(memberId));
+                        if (sourceType === 0) removeTeamRelation(memberId);
+                        currentFollowedData = currentFollowedData.filter(item => {
+                            const target = getFollowedTarget(item);
+                            return target.id !== String(memberId) || target.type !== sourceType;
+                        });
                         removeChannelFromCustomOrder(removed?.channelId);
                         removeFollowedRoomNotification(removed?.channelId);
                         sortFollowedRooms();
@@ -1813,6 +2091,7 @@
 
                     document.getElementById('quick-follow-input').value = '';
                     document.getElementById('quick-follow-id').value = '';
+                    document.getElementById('quick-follow-type').value = '1';
                     btn.disabled = false;
                     btn.innerText = "关注";
                     btn.style.color = "";
@@ -1828,6 +2107,7 @@
             executeQuickAction,
             handleQuickFollowSearch,
             loadFollowedRooms,
+            openFollowedRoomByChannelId,
             resetFollowedRoomsState,
             selectFollowedSort,
             selectQuickFollowMember,

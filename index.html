@@ -11,11 +11,14 @@
     <link rel="icon" href="./icon.png" type="image/x-icon">
     <link rel="stylesheet" href="style.css?v=__YAYA_BUILD_VERSION__">
     <link rel="stylesheet" href="./src/web/web-overrides.css?v=__YAYA_BUILD_VERSION__">
+    <link rel="stylesheet" href="./src/web/pocket-home.css?v=__YAYA_BUILD_VERSION__">
 
     <script src="./src/renderer/renderer-utils.js?v=__YAYA_BUILD_VERSION__"></script>
     <script src="./src/renderer/vendor/media-vendors.js?v=__YAYA_BUILD_VERSION__"></script>
     <script src="./src/web/browser-shim.js?v=__YAYA_BUILD_VERSION__"></script>
     <script src="./src/web/web-shell.js?v=__YAYA_BUILD_VERSION__"></script>
+    <script src="./src/web/pocket-home.js?v=__YAYA_BUILD_VERSION__"></script>
+    <script src="./src/web/presence-feature.js?v=__YAYA_BUILD_VERSION__"></script>
 
     <script src="./src/renderer/theme-init.js?v=__YAYA_BUILD_VERSION__"></script>
 
@@ -56,7 +59,7 @@
                 </svg>
             </div>
             <img src="./icon.png" class="title-logo">
-            <span>牙牙消息 v2.11</span>
+            <span>牙牙消息 v2.12</span>
         </div>
         <div id="topbar-page-title" class="title-bar-center-title" aria-live="polite"></div>
         <div class="window-controls">
@@ -604,7 +607,7 @@
                                 <div style="display: flex; gap: 8px; position: relative;">
                                     <div style="flex: 1; position: relative;">
                                         <input type="text" id="quick-follow-input" class="input-control"
-                                            placeholder="搜索成员" style="height: 30px; font-size: 12px; width: 100%;"
+                                            placeholder="搜索成员或队伍" style="height: 30px; font-size: 12px; width: 100%;"
                                             oninput="handleQuickFollowSearch(this.value)"
                                             onfocus="handleQuickFollowSearch(this.value)" autocomplete="off">
 
@@ -619,6 +622,7 @@
                                     </button>
                                 </div>
                                 <input type="hidden" id="quick-follow-id">
+                                <input type="hidden" id="quick-follow-type" value="1">
                             </div>
                         </div>
                     </div>
@@ -640,13 +644,16 @@
                                     <div id="followed-chat-title"
                                         style="font-weight: bold; font-size: 16px; line-height: 20px; min-height: 20px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                                         成员房间</div>
-                                    <div id="followed-chat-subtitle"
+                                    <div id="followed-chat-subtitle" data-channel-id="--"
                                         style="font-size: 11px; color: var(--text-sub); margin-top: 2px;">Channel ID: --
                                     </div>
                                 </div>
                             </div>
 
-                            <div style="display: flex; gap: 10px; align-items: center; flex-shrink: 0;">
+                            <div class="followed-chat-header-actions"
+                                style="display: flex; gap: 10px; align-items: center; flex-shrink: 0;">
+                                <div class="followed-chat-icon-actions"
+                                    style="display: flex; gap: 10px; align-items: center;">
                                 <button id="btn-open-followed-flip-question" type="button"
                                     class="followed-notification-toggle followed-flip-question-button"
                                     onclick="openActiveFollowedFlipQuestion()" title="向当前成员翻牌提问"
@@ -676,7 +683,10 @@
                                         <path class="followed-notification-slash" d="M4 4l16 16" />
                                     </svg>
                                 </button>
+                                </div>
 
+                                <div class="followed-chat-mode-actions"
+                                    style="display: flex; gap: 10px; align-items: center;">
                                 <button id="btn-toggle-room-type" class="btn btn-secondary"
                                     onclick="toggleFollowedRoomType()"
                                     style="height: 30px; padding: 0 10px; font-size: 12px; display: flex; justify-content: center; align-items: center; transition: all 0.2s;">
@@ -688,6 +698,7 @@
                                     style="height: 30px; width: 85px; padding: 0; font-size: 12px; display: flex; justify-content: center; align-items: center;">
                                     成员消息
                                 </button>
+                                </div>
                             </div>
                         </div>
 
@@ -1012,7 +1023,7 @@
                             </div>
 
 
-                            <div id="clip-toolbar"
+                            <div id="clip-toolbar" class="media-clip-toolbar" data-clip-toolbar="media" data-clip-toolbar-owner="live"
                                 style="background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); backdrop-filter: blur(10px);">
                                 <div style="display: flex; gap: 15px; align-items: flex-end;">
 
@@ -3033,13 +3044,12 @@
                                 </div>
                             </div>
 
-                            <div class="Box-row">
+                            <div class="Box-row download-paths-card">
                                 <h3 style="margin-top: 0; color: var(--text);">下载路径</h3>
 
-                                <div style="margin-bottom: 20px;">
-                                    <label
-                                        style="display:block; font-weight:bold; margin-bottom:8px; color:var(--text);">直播</label>
-                                    <div style="display: flex; gap: 10px;">
+                                <div class="download-path-row">
+                                    <label>直播</label>
+                                    <div class="download-path-controls">
                                         <input type="text" id="path-live" class="input-control"
                                             placeholder="默认路径 (未设置)" onchange="saveCustomPaths()">
                                         <button class="btn btn-secondary"
@@ -3047,10 +3057,9 @@
                                     </div>
                                 </div>
 
-                                <div style="margin-bottom: 20px;">
-                                    <label
-                                        style="display:block; font-weight:bold; margin-bottom:8px; color:var(--text);">回放</label>
-                                    <div style="display: flex; gap: 10px;">
+                                <div class="download-path-row">
+                                    <label>回放</label>
+                                    <div class="download-path-controls">
                                         <input type="text" id="path-video" class="input-control"
                                             placeholder="默认路径 (未设置)" onchange="saveCustomPaths()">
                                         <button class="btn btn-secondary"
@@ -3058,10 +3067,9 @@
                                     </div>
                                 </div>
 
-                                <div style="margin-bottom: 20px;">
-                                    <label
-                                        style="display:block; font-weight:bold; margin-bottom:8px; color:var(--text);">上麦</label>
-                                    <div style="display: flex; gap: 10px;">
+                                <div class="download-path-row">
+                                    <label>上麦</label>
+                                    <div class="download-path-controls">
                                         <input type="text" id="path-room-radio" class="input-control" placeholder="默认路径 (未设置)"
                                             onchange="saveCustomPaths()">
                                         <button class="btn btn-secondary"
@@ -3069,10 +3077,9 @@
                                     </div>
                                 </div>
 
-                                <div style="margin-bottom: 20px;">
-                                    <label
-                                        style="display:block; font-weight:bold; margin-bottom:8px; color:var(--text);">切片</label>
-                                    <div style="display: flex; gap: 10px;">
+                                <div class="download-path-row">
+                                    <label>切片</label>
+                                    <div class="download-path-controls">
                                         <input type="text" id="path-clip" class="input-control" placeholder="默认路径 (未设置)"
                                             onchange="saveCustomPaths()">
                                         <button class="btn btn-secondary"
@@ -3080,10 +3087,9 @@
                                     </div>
                                 </div>
 
-                                <div style="margin-bottom: 20px;">
-                                    <label
-                                        style="display:block; font-weight:bold; margin-bottom:8px; color:var(--text);">弹幕</label>
-                                    <div style="display: flex; gap: 10px;">
+                                <div class="download-path-row">
+                                    <label>弹幕</label>
+                                    <div class="download-path-controls">
                                         <input type="text" id="path-danmu" class="input-control"
                                             placeholder="默认路径 (未设置)" onchange="saveCustomPaths()">
                                         <button class="btn btn-secondary"
@@ -3091,10 +3097,9 @@
                                     </div>
                                 </div>
 
-                                <div style="margin-bottom: 20px;">
-                                    <label
-                                        style="display:block; font-weight:bold; margin-bottom:8px; color:var(--text);">相册</label>
-                                    <div style="display: flex; gap: 10px;">
+                                <div class="download-path-row">
+                                    <label>相册</label>
+                                    <div class="download-path-controls">
                                         <input type="text" id="path-media" class="input-control"
                                             placeholder="默认路径 (未设置)" onchange="saveCustomPaths()">
                                         <button class="btn btn-secondary"
@@ -3102,10 +3107,9 @@
                                     </div>
                                 </div>
 
-                                <div style="margin-bottom: 20px;">
-                                    <label
-                                        style="display:block; font-weight:bold; margin-bottom:8px; color:var(--text);">翻牌</label>
-                                    <div style="display: flex; gap: 10px;">
+                                <div class="download-path-row">
+                                    <label>翻牌</label>
+                                    <div class="download-path-controls">
                                         <input type="text" id="path-flip" class="input-control" placeholder="默认路径 (未设置)"
                                             onchange="saveCustomPaths()">
                                         <button class="btn btn-secondary"

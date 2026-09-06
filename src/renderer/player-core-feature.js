@@ -29,7 +29,8 @@
             setSelectedLiveGiftId,
             showToast,
             stopRoomRadio,
-            syncDanmuHighlight
+            syncDanmuHighlight,
+            activateMediaPlaybackPage
         } = deps;
 
         let pendingLiveReconnectTimer = null;
@@ -46,7 +47,40 @@
 
         function isLivePlayerViewOpen() {
             const playerView = document.getElementById('live-player-view');
-            return !!playerView && playerView.style.display !== 'none';
+            const playbackPage = playerView?.closest('.media-playback-page');
+            return !!playerView
+                && playerView.style.display !== 'none'
+                && (!playbackPage || playbackPage.style.display !== 'none');
+        }
+
+        function getPerpendicularVideoScale(video, bounds) {
+            const containerWidth = Number(bounds?.width) || 0;
+            const containerHeight = Number(bounds?.height) || 0;
+            if (containerWidth <= 0 || containerHeight <= 0) return 1;
+
+            const videoWidth = Number(video?.videoWidth) || 0;
+            const videoHeight = Number(video?.videoHeight) || 0;
+            if (videoWidth <= 0 || videoHeight <= 0) {
+                return Math.min(1, containerWidth / containerHeight, containerHeight / containerWidth);
+            }
+
+            const mediaAspect = videoWidth / videoHeight;
+            const containerAspect = containerWidth / containerHeight;
+            let renderedWidth;
+            let renderedHeight;
+            if (mediaAspect > containerAspect) {
+                renderedWidth = containerWidth;
+                renderedHeight = containerWidth / mediaAspect;
+            } else {
+                renderedHeight = containerHeight;
+                renderedWidth = containerHeight * mediaAspect;
+            }
+
+            const scale = Math.min(
+                containerWidth / renderedHeight,
+                containerHeight / renderedWidth
+            );
+            return Number.isFinite(scale) && scale > 0 ? scale : 1;
         }
 
         function applyDPlayerVideoTransform(dp, { animate = true } = {}) {
@@ -57,12 +91,10 @@
             let rotateScale = 1;
             if (isPerpendicular) {
                 const bounds = (dp.container || dp.video.parentElement || dp.video).getBoundingClientRect();
-                if (bounds.width > 0 && bounds.height > 0) {
-                    rotateScale = Math.min(1, bounds.width / bounds.height, bounds.height / bounds.width);
-                }
+                rotateScale = getPerpendicularVideoScale(dp.video, bounds);
             }
             const rotateTransform = degree ? `rotate(${degree}deg)` : '';
-            const scaleTransform = rotateScale < 1 ? `scale(${rotateScale})` : '';
+            const scaleTransform = Math.abs(rotateScale - 1) > 0.001 ? `scale(${rotateScale})` : '';
             const mirrorTransform = mirror === 'horizontal'
                 ? 'scaleX(-1)'
                 : mirror === 'vertical'
@@ -485,6 +517,7 @@
         }
 
         function attachStableHls(video, videoUrl, isLiveContent) {
+            const isVodPlayback = !isLiveContent;
             const resumeAt = isLiveContent
                 ? 0
                 : Math.max(0, Number(video.yayaHlsResumeAt) || Number(video.currentTime) || 0);
@@ -500,6 +533,7 @@
             let sourceLoaded = false;
             let hasPlayableMedia = false;
             let disposed = false;
+            let lastPlaybackPosition = resumeAt;
 
             const clearReloadTimers = () => {
                 clearTimeout(initialLoadTimer);
@@ -510,12 +544,20 @@
 
             const rememberPlaybackState = () => {
                 if (!isLiveContent) {
-                    video.yayaHlsResumeAt = Math.max(
-                        0,
-                        Number(video.yayaHlsResumeAt) || 0,
-                        Number(video.currentTime) || 0,
-                        resumeAt || 0
-                    );
+                    if (isVodPlayback) {
+                        const currentTime = Number(video.currentTime);
+                        if (Number.isFinite(currentTime) && currentTime >= 0) {
+                            lastPlaybackPosition = currentTime;
+                        }
+                        video.yayaHlsResumeAt = Math.max(0, lastPlaybackPosition || 0);
+                    } else {
+                        video.yayaHlsResumeAt = Math.max(
+                            0,
+                            Number(video.yayaHlsResumeAt) || 0,
+                            Number(video.currentTime) || 0,
+                            resumeAt || 0
+                        );
+                    }
                 }
                 video.yayaHlsShouldResume = Boolean(video.yayaHlsShouldResume)
                     || shouldResumePlayback
@@ -587,9 +629,7 @@
             };
 
             const scheduleStallRecovery = (reason) => {
-                // `waiting` is expected while the first fragment is loading. Aborting it here
-                // makes slower connections restart the same fragment indefinitely.
-                if (!hasPlayableMedia) return;
+                if (!hasPlayableMedia || !isLiveContent) return;
                 clearTimeout(stallRecoverTimer);
                 stallRecoverTimer = setTimeout(() => {
                     if (video && !video.paused && !video.ended && video.readyState < 3) {
@@ -606,13 +646,16 @@
 
             const hls = new window.Hls({
                 enableWorker: true,
-                progressive: true,
+                progressive: isVodPlayback ? false : true,
                 lowLatencyMode: false,
                 startFragPrefetch: !isLiveContent,
                 backBufferLength: isLiveContent ? 15 : 90,
                 maxBufferLength: isLiveContent ? 30 : 90,
                 maxMaxBufferLength: isLiveContent ? 60 : 180,
                 maxBufferSize: 128 * 1000 * 1000,
+                maxBufferHole: isVodPlayback ? 0.5 : 0.1,
+                highBufferWatchdogPeriod: isVodPlayback ? 1 : 2,
+                nudgeMaxRetry: isVodPlayback ? 5 : 3,
                 manifestLoadPolicy: {
                     default: {
                         maxTimeToFirstByteMs: 4000,
@@ -651,18 +694,18 @@
                 },
                 fragLoadPolicy: {
                     default: {
-                        maxTimeToFirstByteMs: 4000,
-                        maxLoadTimeMs: 15000,
+                        maxTimeToFirstByteMs: isVodPlayback ? 60000 : 4000,
+                        maxLoadTimeMs: isVodPlayback ? 60000 : 15000,
                         timeoutRetry: {
-                            maxNumRetry: 4,
-                            retryDelayMs: 300,
-                            maxRetryDelayMs: 2500,
+                            maxNumRetry: isVodPlayback ? 6 : 4,
+                            retryDelayMs: isVodPlayback ? 1000 : 300,
+                            maxRetryDelayMs: isVodPlayback ? 64000 : 2500,
                             backoff: 'linear'
                         },
                         errorRetry: {
-                            maxNumRetry: 5,
-                            retryDelayMs: 500,
-                            maxRetryDelayMs: 5000,
+                            maxNumRetry: isVodPlayback ? 6 : 5,
+                            retryDelayMs: isVodPlayback ? 1000 : 500,
+                            maxRetryDelayMs: isVodPlayback ? 64000 : 5000,
                             backoff: 'linear'
                         }
                     }
@@ -701,6 +744,26 @@
             video.webkitPreservesPitch = true;
             const handleWaiting = () => scheduleStallRecovery('waiting');
             const handleStalled = () => scheduleStallRecovery('stalled');
+            const rememberCurrentPosition = () => {
+                if (!isVodPlayback) return;
+                const currentTime = Number(video.currentTime);
+                if (Number.isFinite(currentTime) && currentTime >= 0) {
+                    lastPlaybackPosition = currentTime;
+                }
+            };
+            const handleSeeking = () => {
+                if (!isVodPlayback) return;
+                rememberCurrentPosition();
+                const seekTarget = Math.max(0, lastPlaybackPosition || 0);
+                video.yayaHlsResumeAt = seekTarget;
+                clearStallRecovery();
+            };
+            const handleSeeked = () => {
+                if (!isVodPlayback) return;
+                rememberCurrentPosition();
+                const seekTarget = Math.max(0, lastPlaybackPosition || 0);
+                video.yayaHlsResumeAt = seekTarget;
+            };
             const restorePlaybackPosition = () => {
                 if (isLiveContent || resumeAt <= 0) return;
                 const duration = Number(video.duration);
@@ -725,6 +788,11 @@
                     });
                 }
             };
+            if (isVodPlayback) {
+                video.addEventListener('timeupdate', rememberCurrentPosition);
+                video.addEventListener('seeking', handleSeeking);
+                video.addEventListener('seeked', handleSeeked);
+            }
             video.addEventListener('waiting', handleWaiting);
             video.addEventListener('stalled', handleStalled);
             video.addEventListener('loadedmetadata', restorePlaybackPosition);
@@ -748,6 +816,11 @@
                 disposed = true;
                 clearStallRecovery();
                 clearReloadTimers();
+                if (isVodPlayback) {
+                    video.removeEventListener('timeupdate', rememberCurrentPosition);
+                    video.removeEventListener('seeking', handleSeeking);
+                    video.removeEventListener('seeked', handleSeeked);
+                }
                 video.removeEventListener('waiting', handleWaiting);
                 video.removeEventListener('stalled', handleStalled);
                 video.removeEventListener('loadedmetadata', restorePlaybackPosition);
@@ -782,7 +855,13 @@
 
             if (!splitLayout || !playerView) return;
 
-            if (mode === 'live' || mode === 'meet-live') {
+            const usesFullWidthLayout = mode === 'live'
+                || mode === 'meet-live'
+                || mode === 'open-live'
+                || mode === 'open-live-record'
+                || mode === 'performance-record';
+
+            if (usesFullWidthLayout) {
                 splitLayout.style.flexDirection = 'column';
                 splitLayout.style.alignItems = 'stretch';
                 if (timelineWrapper) timelineWrapper.style.display = 'none';
@@ -938,13 +1017,38 @@
             }
         }
 
+        function showSeparatedMediaPlayerPage(mode, item, playerView) {
+            const mediaView = document.getElementById('view-media');
+            const pageIdByMode = {
+                live: 'view-live-player',
+                vod: 'view-vod-player',
+                'meet-live': 'view-meet-live-player',
+                'meet-vod': 'view-meet-vod-player'
+            };
+            const fallbackPageId = isLivePlaybackMode(mode, item)
+                ? 'view-live-player'
+                : 'view-vod-player';
+            const targetPage = document.getElementById(pageIdByMode[mode] || fallbackPageId);
+
+            if (!targetPage || !playerView) return;
+            if (typeof activateMediaPlaybackPage === 'function'
+                && activateMediaPlaybackPage(targetPage.id, playerView)) {
+                return;
+            }
+            if (playerView.parentElement !== targetPage) targetPage.appendChild(playerView);
+            if (mediaView) mediaView.style.display = 'none';
+            document.querySelectorAll('.media-playback-page').forEach(page => {
+                page.style.display = 'none';
+            });
+            targetPage.style.display = 'flex';
+            targetPage.style.flexDirection = 'column';
+            targetPage.scrollTop = 0;
+            playerView.style.display = 'flex';
+        }
+
         async function playLiveStream(item, mode) {
             if (typeof setCurrentPlayingItem === 'function') {
                 setCurrentPlayingItem(item);
-            }
-
-            if (typeof resetClipTool === 'function') {
-                resetClipTool();
             }
 
             const mediaListArea = document.getElementById('media-list-area');
@@ -958,7 +1062,10 @@
             if (mediaListArea) mediaListArea.style.display = 'none';
             if (vodPaginationControls) vodPaginationControls.style.display = 'none';
             if (mediaListControls) mediaListControls.style.display = 'none';
-            if (playerView) playerView.style.display = 'flex';
+            showSeparatedMediaPlayerPage(mode, item, playerView);
+            if (typeof resetClipTool === 'function') {
+                resetClipTool();
+            }
             if (playerRankButton) {
                 playerRankButton.style.display = mode === 'vod' ? 'inline-flex' : 'none';
             }
@@ -1084,41 +1191,77 @@
                     if (typeof window.ensureYayaWebPlayerLibs === 'function') {
                         await window.ensureYayaWebPlayerLibs('dplayer');
                     }
-                    const localUrl = await ipcRenderer.invoke('start-live-proxy', url);
+                    const liveProxyPayload = window.desktop?.platform === 'web'
+                        ? { url, liveId }
+                        : url;
+                    const localUrl = await ipcRenderer.invoke('start-live-proxy', liveProxyPayload);
                     await new Promise(resolve => setTimeout(resolve, 1000));
                     container.innerHTML = '<div id="dplayer-container" style="width:100%; height:100%"></div>';
 
                     let flvPlayer = null;
+                    let hlsPlayer = null;
+                    const useHlsLive = /\.m3u8(?:$|[?#])/i.test(String(localUrl || ''));
+                    const liveCustomType = useHlsLive
+                        ? {
+                            customHls: function (video) {
+                                video.setAttribute('playsinline', '');
+                                video.setAttribute('webkit-playsinline', '');
+                                video.disableRemotePlayback = true;
+                                if (window.Hls?.isSupported?.()) {
+                                    hlsPlayer = new window.Hls({
+                                        lowLatencyMode: true,
+                                        liveSyncDurationCount: 3,
+                                        liveMaxLatencyDurationCount: 6,
+                                        backBufferLength: 30,
+                                        enableWorker: true
+                                    });
+                                    hlsPlayer.loadSource(localUrl);
+                                    hlsPlayer.attachMedia(video);
+                                    video.hls = hlsPlayer;
+                                    return;
+                                }
+                                if (canUseNativeHls(video)) {
+                                    video.src = localUrl;
+                                    return;
+                                }
+                                throw new Error('当前浏览器不支持 HLS 直播');
+                            }
+                        }
+                        : {
+                            customFlv: function (video) {
+                                flvPlayer = mpegts.createPlayer({
+                                    type: 'flv',
+                                    url: localUrl,
+                                    isLive: true,
+                                    enableWorker: false,
+                                    enableStashBuffer: false
+                                });
+                                flvPlayer.attachMediaElement(video);
+                                flvPlayer.load();
+                            }
+                        };
                     const nextDp = new DPlayer({
                         container: document.getElementById('dplayer-container'),
                         live: isLiveContent,
-                        autoplay: true,
+                        autoplay: !useHlsLive,
                         screenshot: true,
                         hotkey: false,
                         playbackSpeed: [1],
                         theme: '#FF8EBF',
                         video: {
                             url: localUrl,
-                            type: 'customFlv',
-                                customType: {
-                                    customFlv: function (video) {
-                                        flvPlayer = mpegts.createPlayer({
-                                            type: 'flv',
-                                            url: localUrl,
-                                        isLive: true,
-                                        enableWorker: false,
-                                        enableStashBuffer: false
-                                    });
-                                    flvPlayer.attachMediaElement(video);
-                                    flvPlayer.load();
-                                }
-                            }
+                            type: useHlsLive ? 'customHls' : 'customFlv',
+                            customType: liveCustomType
                         }
                     });
 
                     setDp(nextDp);
                     enhanceDPlayerControls(nextDp);
                     nextDp.yayaFlvPlayer = flvPlayer;
+                    nextDp.yayaHlsPlayer = hlsPlayer;
+                    if (useHlsLive && typeof nextDp.notice === 'function') {
+                        nextDp.notice('手机端请点击画面开始播放');
+                    }
                     setArt({
                         get currentTime() {
                             return nextDp.video.currentTime;
@@ -1280,10 +1423,10 @@
                 const isPerpendicular = degree % 180 !== 0;
                 const bounds = (art.container || art.video.parentElement || art.video).getBoundingClientRect();
                 const rotateScale = isPerpendicular && bounds.width > 0 && bounds.height > 0
-                    ? Math.min(1, bounds.width / bounds.height, bounds.height / bounds.width)
+                    ? getPerpendicularVideoScale(art.video, bounds)
                     : 1;
                 const rotateTransform = degree ? `rotate(${degree}deg)` : '';
-                const scaleTransform = rotateScale < 1 ? `scale(${rotateScale})` : '';
+                const scaleTransform = Math.abs(rotateScale - 1) > 0.001 ? `scale(${rotateScale})` : '';
                 const mirrorTransform = mirror === 'horizontal'
                     ? 'scaleX(-1)'
                     : mirror === 'vertical'
@@ -1520,10 +1663,6 @@
                         }
                     },
                     m3u8: function (video, videoUrl) {
-                        // Chromium on Windows may report `maybe` for HLS MIME types even
-                        // though assigning an m3u8 URL directly to <video> fails. Prefer
-                        // hls.js whenever MSE is available and reserve native playback for
-                        // platforms such as iOS Safari where hls.js cannot be used.
                         if (window.Hls?.isSupported?.()) {
                             attachStableHls(video, videoUrl, isLiveContent);
                         } else {
@@ -1555,7 +1694,15 @@
                 nextArt.on('video:timeupdate', syncTimelinePosition);
                 nextArt.on('video:seeked', syncTimelinePosition);
                 syncTimelinePosition();
-                nextArt.play();
+                const playPromise = nextArt.play();
+                if (playPromise && typeof playPromise.catch === 'function') {
+                    playPromise.catch((error) => {
+                        if (String(error?.name || '') === 'NotAllowedError') {
+                            return;
+                        }
+                        window.YayaRendererUtils.reportIgnoredError(error, 'player-core:vod-autoplay');
+                    });
+                }
             });
         }
 
@@ -1603,6 +1750,12 @@
                     } catch (error) { window.YayaRendererUtils.reportIgnoredError(error, 'src/renderer/player-core-feature.js'); }
                     currentDp.yayaFlvPlayer = null;
                 }
+                if (currentDp.yayaHlsPlayer && typeof currentDp.yayaHlsPlayer.destroy === 'function') {
+                    try {
+                        currentDp.yayaHlsPlayer.destroy();
+                    } catch (error) { window.YayaRendererUtils.reportIgnoredError(error, 'src/renderer/player-core-feature.js'); }
+                    currentDp.yayaHlsPlayer = null;
+                }
                 currentDp.destroy();
                 setDp(null);
             }
@@ -1633,6 +1786,7 @@
         }
 
         return {
+            configurePlayerLayout,
             destroyPlayers,
             playLiveStream,
             startPlayer

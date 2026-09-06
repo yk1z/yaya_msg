@@ -1344,7 +1344,6 @@
             }
             const savedConfig = writeAutoMessageFetchConfig(nextConfig);
 
-            // 同步即时保存后的开关状态。
             draftConfig[settingKey] = savedConfig[settingKey];
             if (!autoMessageFetchDraftDirty) {
                 autoMessageFetchDraftConfig = cloneAutoMessageFetchConfig(savedConfig);
@@ -1377,7 +1376,6 @@
             saveAutoMessageFetchEnabledState('scheduledEnabled', enabled);
         }
 
-        // 保留旧入口，已有页面缓存调用时按“定时抓取”处理。
         function setAutoMessageFetchEnabled(enabled) {
             setScheduledAutoMessageFetchEnabled(enabled);
         }
@@ -1562,7 +1560,6 @@
                 pageCount += 1;
                 nextTime = reachedPrevious ? 0 : (Number(content.nextTime) || 0);
 
-                // 没有历史边界时只取最新一页，避免首次启用就抓完整个历史房间。
                 if (!previousBoundary || !Array.isArray(rawList) || rawList.length === 0) nextTime = 0;
                 if (nextTime > 0 && pageCount < AUTO_MESSAGE_FETCH_MAX_PAGES) await sleep(350);
             } while (nextTime > 0 && pageCount < AUTO_MESSAGE_FETCH_MAX_PAGES);

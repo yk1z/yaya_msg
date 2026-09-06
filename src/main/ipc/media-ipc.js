@@ -4,6 +4,7 @@ const mediaService = require('../services/media-service');
 function registerMediaIpc() {
     ipcMain.on('start-record', (event, payload) => mediaService.startRecord(event, payload));
     ipcMain.on('stop-record', (event, payload) => mediaService.stopRecord(event, payload));
+    ipcMain.on('finalize-live-record-session', (event, payload) => mediaService.finalizeLiveRecordSession(event, payload));
     ipcMain.on('cancel-download', (event, payload) => mediaService.cancelDownload(event, payload));
     ipcMain.on('clip-vod', (event, payload) => mediaService.clipVod(event, payload));
     ipcMain.on('download-vod', (event, payload) => mediaService.downloadVod(event, payload));

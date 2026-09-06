@@ -42,6 +42,7 @@
         let autoLoadObserver = null;
         let autoLoadFrame = 0;
         let autoLoadScrollRoot = null;
+        let directOpenRequestId = 0;
         const AUTO_LOAD_PAGE_BATCH = 4;
         const FAST_SEARCH_PAGE_BATCH = 12;
         const MEMBER_RECORD_RENDER_BATCH = 4;
@@ -512,6 +513,167 @@
             return String(item?.businessId || `${item?.title || ''}:${item?.startTime || ''}`);
         }
 
+        function openPerformanceItem(item) {
+            const groupKey = inferPerformanceGroup(item);
+            const isLivePerformance = Number(item?.openLiveInfo?.status) === 2;
+            if (isLivePerformance) {
+                Promise.resolve(openBilibiliLiveGroup(groupKey)).catch(error => {
+                    console.error('[公演列表] 打开B站直播失败:', error);
+                    showToast('B站直播页面打开失败，请稍后重试');
+                });
+                return;
+            }
+
+            const liveId = String(item?.businessId || '').trim();
+            if (!liveId) {
+                showToast('该场公演缺少播放信息');
+                return;
+            }
+            if (typeof window.syncWebPerformanceRoute === 'function') {
+                window.syncWebPerformanceRoute(liveId);
+            }
+
+            const groupName = GROUPS[groupKey] || '公演';
+            playOpenLiveVideo(
+                liveId,
+                String(item?.title || '未命名公演'),
+                groupName,
+                item?.startTime,
+                getPerformanceParticipantPageId(item),
+                'performance',
+                false,
+                groupKey
+            );
+        }
+
+        function findPerformanceItemById(performanceId) {
+            return [
+                ...(Array.isArray(state.items) ? state.items : []),
+                ...(Array.isArray(state.dateSearchItems) ? state.dateSearchItems : []),
+                ...(Array.isArray(state.memberItems) ? state.memberItems : [])
+            ].find(entry => String(entry?.businessId || '') === performanceId) || null;
+        }
+
+        function normalizePerformanceDetail(content, performanceId) {
+            if (!content || typeof content !== 'object') return null;
+
+            const liveInfo = content.openLiveInfo && typeof content.openLiveInfo === 'object'
+                ? content.openLiveInfo
+                : (content.liveInfo && typeof content.liveInfo === 'object' ? content.liveInfo : content);
+            const user = liveInfo.user && typeof liveInfo.user === 'object'
+                ? liveInfo.user
+                : (content.user && typeof content.user === 'object' ? content.user : {});
+            const liveId = String(
+                liveInfo.liveId
+                || liveInfo.businessId
+                || content.liveId
+                || content.businessId
+                || performanceId
+            ).trim();
+            const participantPageId = String(
+                liveInfo.id
+                || content.id
+                || liveId
+            ).trim();
+
+            return {
+                ...content,
+                businessId: liveId,
+                title: String(
+                    liveInfo.title
+                    || liveInfo.liveTitle
+                    || content.title
+                    || content.liveTitle
+                    || '公演'
+                ),
+                cover: String(
+                    liveInfo.cover
+                    || liveInfo.coverUrl
+                    || liveInfo.coverPath
+                    || content.cover
+                    || content.coverUrl
+                    || content.coverPath
+                    || ''
+                ),
+                startTime: liveInfo.startTime
+                    || liveInfo.liveStartTime
+                    || content.startTime
+                    || content.liveStartTime
+                    || 0,
+                groupName: liveInfo.groupName
+                    || content.groupName
+                    || user.groupName
+                    || '',
+                groupId: liveInfo.groupId
+                    || content.groupId
+                    || user.groupId
+                    || '',
+                teamName: liveInfo.teamName
+                    || content.teamName
+                    || user.teamName
+                    || '',
+                teamLogo: liveInfo.teamLogo
+                    || content.teamLogo
+                    || '',
+                openLiveInfo: {
+                    ...(content.openLiveInfo && typeof content.openLiveInfo === 'object'
+                        ? content.openLiveInfo
+                        : liveInfo),
+                    id: participantPageId,
+                    liveId,
+                    status: Number(liveInfo.status ?? content.status ?? 0)
+                }
+            };
+        }
+
+        async function loadAndOpenPerformanceById(performanceId, requestId) {
+            const token = getAppToken ? getAppToken() : '';
+            const pa = window.getPA ? window.getPA() : null;
+
+            try {
+                const result = await ipcRenderer.invoke('fetch-open-live-one', {
+                    token,
+                    pa,
+                    liveId: performanceId
+                });
+                if (requestId !== directOpenRequestId) return;
+                if (!result?.success || !result.content) {
+                    throw new Error(result?.msg || '公演详情返回异常');
+                }
+
+                const item = normalizePerformanceDetail(result.content, performanceId);
+                if (!item) throw new Error('公演详情为空');
+                openPerformanceItem(item);
+            } catch (error) {
+                if (requestId !== directOpenRequestId) return;
+                console.error('[公演列表] 按链接加载公演详情失败:', error);
+                const fallbackItem = findPerformanceItemById(performanceId);
+                if (fallbackItem) {
+                    openPerformanceItem(fallbackItem);
+                    return;
+                }
+                if (typeof showToast === 'function') {
+                    showToast('公演信息加载失败，请返回列表后重试');
+                }
+            }
+        }
+
+        function openPerformanceById(performanceId) {
+            const normalizedId = String(performanceId || '').trim();
+            if (!/^[a-z0-9_-]{1,128}$/i.test(normalizedId)) return false;
+
+            const item = findPerformanceItemById(normalizedId);
+            if (item) {
+                directOpenRequestId += 1;
+                openPerformanceItem(item);
+                return true;
+            }
+
+            const requestId = ++directOpenRequestId;
+            void loadAndOpenPerformanceById(normalizedId, requestId);
+            return true;
+        }
+
         function createPerformanceCard(item) {
             const card = document.createElement('article');
             card.className = 'performance-card';
@@ -570,33 +732,7 @@
 
             body.appendChild(schedule);
             card.append(visual, body);
-            const openPlayer = () => {
-                if (isLivePerformance) {
-                    Promise.resolve(openBilibiliLiveGroup(groupKey)).catch(error => {
-                        console.error('[公演列表] 打开B站直播失败:', error);
-                        showToast('B站直播页面打开失败，请稍后重试');
-                    });
-                    return;
-                }
-
-                const liveId = String(item?.businessId || '').trim();
-                if (!liveId) {
-                    showToast('该场公演缺少播放信息');
-                    return;
-                }
-
-                const groupName = GROUPS[groupKey] || '公演';
-                playOpenLiveVideo(
-                    liveId,
-                    String(item?.title || '未命名公演'),
-                    groupName,
-                    item?.startTime,
-                    getPerformanceParticipantPageId(item),
-                    'performance',
-                    false,
-                    groupKey
-                );
-            };
+            const openPlayer = () => openPerformanceItem(item);
             card.addEventListener('click', openPlayer);
             card.addEventListener('keydown', event => {
                 if (event.key !== 'Enter' && event.key !== ' ') return;
@@ -1011,6 +1147,7 @@
 
         return {
             enterPerformanceView,
+            openPerformanceById,
             loadMorePerformanceList,
             refreshPerformanceList,
             selectPerformanceGroup,

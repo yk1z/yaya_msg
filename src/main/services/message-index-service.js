@@ -6,7 +6,7 @@ const { reportIgnoredError } = require('../../common/error-utils');
 
 const DEFAULT_PAGE_SIZE = 100;
 const MAX_PAGE_SIZE = 200;
-const MESSAGE_INDEX_SCHEMA_VERSION = 2;
+const MESSAGE_INDEX_SCHEMA_VERSION = 3;
 let database = null;
 let syncPromise = null;
 let messageDirectoryWatcher = null;
@@ -18,9 +18,13 @@ let messageWatcherListener = null;
 function hasCurrentMessageSchema(db) {
     const columns = db.prepare('PRAGMA table_info(messages)').all();
     if (!columns.length) return true;
+    const columnNames = new Set(columns.map(column => String(column.name || '')));
     const idColumn = columns.find(column => column.name === 'id');
-    return columns.some(column => column.name === 'file_id')
-        && String(idColumn?.type || '').toUpperCase() === 'INTEGER';
+    return String(idColumn?.type || '').toUpperCase() === 'INTEGER'
+        && ['file_id', 'record_offset', 'record_length',
+            'gift_id', 'gift_name', 'gift_count', 'gift_unit_cost', 'reply_target_name']
+            .every(name => columnNames.has(name))
+        && !columnNames.has('record_json');
 }
 
 function initializeDatabase(db) {
@@ -61,7 +65,13 @@ function initializeDatabase(db) {
             has_audio INTEGER NOT NULL DEFAULT 0,
             is_reply INTEGER NOT NULL DEFAULT 0,
             is_live INTEGER NOT NULL DEFAULT 0,
-            record_json TEXT NOT NULL
+            gift_id TEXT NOT NULL DEFAULT '',
+            gift_name TEXT NOT NULL DEFAULT '',
+            gift_count REAL NOT NULL DEFAULT 0,
+            gift_unit_cost REAL NOT NULL DEFAULT 0,
+            reply_target_name TEXT NOT NULL DEFAULT '',
+            record_offset INTEGER NOT NULL,
+            record_length INTEGER NOT NULL
         );
         CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_file_key ON messages(file_id, message_key);
         CREATE INDEX IF NOT EXISTS idx_messages_time ON messages(sort_time, id);
@@ -117,10 +127,14 @@ function getRecordSearchText(record) {
     return `${sender.name || record?.senderName || ''} ${contentText}`.toLowerCase();
 }
 
-function normalizeRecordForIndex(record, sourcePath) {
+function normalizeRecordForIndex(record, sourcePath, recordOffset, recordLength) {
     if (!record || typeof record !== 'object' || !record.key) return null;
 
-    const sender = record.sender && typeof record.sender === 'object' ? record.sender : {};
+    const sender = getIndexedSender(record);
+    const content = getIndexedContent(record);
+    const giftInfo = content.giftInfo && typeof content.giftInfo === 'object'
+        ? content.giftInfo
+        : content;
     const messageType = getRecordMessageType(record);
     const memberName = path.basename(path.dirname(sourcePath)) || '未命名成员';
     const messageKey = String(record.key);
@@ -130,16 +144,64 @@ function normalizeRecordForIndex(record, sourcePath) {
         messageKey,
         sortTime: Number(record.sortTime || record.msgTime || 0),
         messageType,
-        senderName: String(sender.name || record.senderName || ''),
-        userId: String(sender.userId || record.userId || ''),
+        senderName: sender.name,
+        userId: sender.userId,
         searchText: getRecordSearchText(record),
         hasImage: messageType === 'IMAGE' ? 1 : 0,
         hasVideo: messageType === 'VIDEO' || messageType === 'FLIPCARD_VIDEO' ? 1 : 0,
         hasAudio: ['AUDIO', 'AUDIO_REPLY', 'AUDIO_GIFT_REPLY', 'FLIPCARD_AUDIO'].includes(messageType) ? 1 : 0,
         isReply: messageType.startsWith('FLIPCARD') ? 1 : 0,
         isLive: ['LIVEPUSH', 'SHARE_LIVE'].includes(messageType) ? 1 : 0,
-        recordJson: JSON.stringify(record)
+        giftId: String(giftInfo.giftId || giftInfo.id || ''),
+        giftName: String(giftInfo.giftName || giftInfo.name || ''),
+        giftCount: Number(giftInfo.giftNum || giftInfo.num || giftInfo.count || 0) || 0,
+        giftUnitCost: Number(giftInfo.money || giftInfo.cost) || 0,
+        replyTargetName: getReplyTargetName(record),
+        recordOffset: Number(recordOffset) || 0,
+        recordLength: Number(recordLength) || 0
     };
+}
+
+function parseJsonlBuffer(buffer, baseOffset = 0) {
+    const entries = [];
+    let lineStart = 0;
+    let indexedLength = 0;
+
+    function parseLine(lineEnd, nextLineStart, isTrailingLine = false) {
+        let contentEnd = lineEnd;
+        if (contentEnd > lineStart && buffer[contentEnd - 1] === 13) contentEnd -= 1;
+        const recordLength = Math.max(0, contentEnd - lineStart);
+        const text = buffer.subarray(lineStart, contentEnd).toString('utf8').trim();
+        if (!text) {
+            indexedLength = nextLineStart;
+            return;
+        }
+
+        try {
+            entries.push({
+                record: JSON.parse(text),
+                recordOffset: baseOffset + lineStart,
+                recordLength
+            });
+            indexedLength = nextLineStart;
+        } catch (error) {
+            reportIgnoredError(error, 'src/main/services/message-index-service.js');
+            if (!isTrailingLine) indexedLength = nextLineStart;
+        }
+    }
+
+    for (let index = 0; index < buffer.length; index += 1) {
+        if (buffer[index] !== 10) continue;
+        parseLine(index, index + 1);
+        lineStart = index + 1;
+    }
+    if (lineStart < buffer.length) {
+        parseLine(buffer.length, buffer.length, true);
+    } else {
+        indexedLength = buffer.length;
+    }
+
+    return { entries, indexedLength };
 }
 
 async function readFileRange(filePath, start, end) {
@@ -149,8 +211,18 @@ async function readFileRange(filePath, start, end) {
     const handle = await fs.promises.open(filePath, 'r');
     try {
         const buffer = Buffer.allocUnsafe(length);
-        const { bytesRead } = await handle.read(buffer, 0, length, start);
-        return buffer.subarray(0, bytesRead);
+        let totalRead = 0;
+        while (totalRead < length) {
+            const { bytesRead } = await handle.read(
+                buffer,
+                totalRead,
+                length - totalRead,
+                start + totalRead
+            );
+            if (!bytesRead) break;
+            totalRead += bytesRead;
+        }
+        return buffer.subarray(0, totalRead);
     } finally {
         await handle.close();
     }
@@ -162,8 +234,10 @@ function indexFileRecords(db, fileId, filePath, records, replaceSource) {
         INSERT INTO messages (
             file_id, member_name, message_key, sort_time,
             message_type, sender_name, user_id, search_text,
-            has_image, has_video, has_audio, is_reply, is_live, record_json
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            has_image, has_video, has_audio, is_reply, is_live,
+            gift_id, gift_name, gift_count, gift_unit_cost, reply_target_name,
+            record_offset, record_length
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(file_id, message_key) DO UPDATE SET
             member_name = excluded.member_name,
             sort_time = excluded.sort_time,
@@ -176,18 +250,31 @@ function indexFileRecords(db, fileId, filePath, records, replaceSource) {
             has_audio = excluded.has_audio,
             is_reply = excluded.is_reply,
             is_live = excluded.is_live,
-            record_json = excluded.record_json
+            gift_id = excluded.gift_id,
+            gift_name = excluded.gift_name,
+            gift_count = excluded.gift_count,
+            gift_unit_cost = excluded.gift_unit_cost,
+            reply_target_name = excluded.reply_target_name,
+            record_offset = excluded.record_offset,
+            record_length = excluded.record_length
     `);
 
     if (replaceSource) deleteMessages.run(fileId);
     let indexedCount = 0;
-    for (const record of records) {
-        const item = normalizeRecordForIndex(record, filePath);
+    for (const entry of records) {
+        const item = normalizeRecordForIndex(
+            entry.record,
+            filePath,
+            entry.recordOffset,
+            entry.recordLength
+        );
         if (!item) continue;
         insertMessage.run(
             fileId, item.memberName, item.messageKey,
             item.sortTime, item.messageType, item.senderName, item.userId, item.searchText,
-            item.hasImage, item.hasVideo, item.hasAudio, item.isReply, item.isLive, item.recordJson
+            item.hasImage, item.hasVideo, item.hasAudio, item.isReply, item.isLive,
+            item.giftId, item.giftName, item.giftCount, item.giftUnitCost, item.replyTargetName,
+            item.recordOffset, item.recordLength
         );
         indexedCount += 1;
     }
@@ -221,6 +308,7 @@ async function syncMessageIndexInternal() {
     }
 
     const getFile = db.prepare('SELECT file_id, size, mtime_ms, indexed_size, message_count FROM message_files WHERE path = ?');
+    const getFileMessageCount = db.prepare('SELECT COUNT(*) AS count FROM messages WHERE file_id = ?');
     const upsertFile = db.prepare(`
         INSERT INTO message_files(path, size, mtime_ms, indexed_size, message_count)
         VALUES (?, ?, ?, ?, ?)
@@ -236,22 +324,22 @@ async function syncMessageIndexInternal() {
     for (const filePath of jsonlFiles) {
         const stat = await fs.promises.stat(filePath);
         const previous = getFile.get(filePath);
-        if (previous && previous.size === stat.size && previous.mtime_ms === stat.mtimeMs) continue;
+        if (previous
+            && previous.size === stat.size
+            && previous.mtime_ms === stat.mtimeMs
+            && Number(previous.indexed_size) === Number(stat.size)) continue;
 
+        const sameSnapshot = !!previous
+            && stat.size === previous.size
+            && stat.mtimeMs === previous.mtime_ms;
         const appendOnly = !!previous
-            && stat.size > previous.size
-            && Number(previous.indexed_size) === Number(previous.size);
+            && Number(previous.indexed_size) <= Number(previous.size)
+            && (stat.size > previous.size
+                || (sameSnapshot && Number(previous.indexed_size) < Number(previous.size)));
         const startOffset = appendOnly ? Number(previous.indexed_size) || 0 : 0;
         const buffer = await readFileRange(filePath, startOffset, stat.size);
-        const text = buffer.toString('utf8');
-        const records = [];
-        for (const line of text.split(/\r?\n/)) {
-            const trimmed = line.trim();
-            if (!trimmed) continue;
-            try {
-                records.push(JSON.parse(trimmed));
-            } catch (error) { reportIgnoredError(error, 'src/main/services/message-index-service.js'); }
-        }
+        const parsed = parseJsonlBuffer(buffer, startOffset);
+        const indexedSize = startOffset + parsed.indexedLength;
 
         db.exec('BEGIN IMMEDIATE');
         try {
@@ -259,17 +347,17 @@ async function syncMessageIndexInternal() {
                 filePath,
                 stat.size,
                 stat.mtimeMs,
-                stat.size,
+                indexedSize,
                 Number(previous?.message_count) || 0
             );
             const fileId = Number(getFile.get(filePath)?.file_id);
             if (!Number.isFinite(fileId)) throw new Error(`无法创建消息文件索引: ${filePath}`);
-            const count = indexFileRecords(db, fileId, filePath, records, !appendOnly);
-            const totalCount = appendOnly ? (Number(previous.message_count) || 0) + count : count;
+            const count = indexFileRecords(db, fileId, filePath, parsed.entries, !appendOnly);
+            const totalCount = Number(getFileMessageCount.get(fileId)?.count) || 0;
             if (!appendOnly && previous) {
                 removedMessages += Math.max(0, (Number(previous.message_count) || 0) - count);
             }
-            upsertFile.run(filePath, stat.size, stat.mtimeMs, stat.size, totalCount);
+            upsertFile.run(filePath, stat.size, stat.mtimeMs, indexedSize, totalCount);
             db.exec('COMMIT');
             changedFiles += 1;
             indexedMessages += count;
@@ -315,7 +403,6 @@ async function flushMessageIndexWatcher() {
     messageWatcherSyncing = true;
 
     try {
-        // 如果其他入口正在同步，先等它结束，再执行一次新的同步，避免漏掉同步期间发生的删除。
         if (syncPromise) await syncPromise;
         while (messageWatcherDirty) {
             messageWatcherDirty = false;
@@ -448,6 +535,80 @@ function buildQueryConditions(filters = {}, includeCursor = true) {
     };
 }
 
+function readIndexedRecord(row, source) {
+    const recordOffset = Number(row.record_offset);
+    const recordLength = Number(row.record_length);
+    if (!Number.isSafeInteger(recordOffset) || recordOffset < 0
+        || !Number.isSafeInteger(recordLength) || recordLength <= 0) {
+        throw new Error(`消息索引位置无效，请重新建立索引: ${row.source_path}`);
+    }
+
+    let buffer;
+    if (Buffer.isBuffer(source)) {
+        const recordEnd = recordOffset + recordLength;
+        if (recordEnd > source.length) {
+            throw new Error(`消息源文件已变化，请重新建立索引: ${row.source_path}`);
+        }
+        buffer = source.subarray(recordOffset, recordEnd);
+    } else {
+        buffer = Buffer.allocUnsafe(recordLength);
+        let totalRead = 0;
+        while (totalRead < recordLength) {
+            const bytesRead = fs.readSync(
+                source,
+                buffer,
+                totalRead,
+                recordLength - totalRead,
+                recordOffset + totalRead
+            );
+            if (!bytesRead) break;
+            totalRead += bytesRead;
+        }
+        if (totalRead !== recordLength) {
+            throw new Error(`消息源文件已变化，请重新建立索引: ${row.source_path}`);
+        }
+    }
+
+    try {
+        const record = JSON.parse(buffer.toString('utf8').trim());
+        return record && typeof record === 'object' ? record : {};
+    } catch (error) {
+        throw new Error(`消息源文件内容无法读取，请重新建立索引: ${row.source_path}`, { cause: error });
+    }
+}
+
+function hydrateIndexedRows(rows, options = {}) {
+    const wholeFiles = options.wholeFiles === true;
+    const sources = new Map();
+
+    try {
+        return rows.map(row => {
+            let source = sources.get(row.source_path);
+            if (!source) {
+                source = wholeFiles
+                    ? fs.readFileSync(row.source_path)
+                    : fs.openSync(row.source_path, 'r');
+                sources.set(row.source_path, source);
+            }
+            return {
+                ...readIndexedRecord(row, source),
+                indexId: row.id,
+                sourcePath: row.source_path,
+                fileName: path.basename(row.source_path),
+                memberName: row.member_name
+            };
+        });
+    } finally {
+        if (!wholeFiles) {
+            for (const handle of sources.values()) {
+                try {
+                    fs.closeSync(handle);
+                } catch (error) { reportIgnoredError(error, 'src/main/services/message-index-service.js'); }
+            }
+        }
+    }
+}
+
 function queryMessageIndexPage(filters = {}) {
     const db = getDatabase();
     const limit = Math.max(1, Math.min(MAX_PAGE_SIZE, Math.trunc(Number(filters.limit) || DEFAULT_PAGE_SIZE)));
@@ -455,7 +616,8 @@ function queryMessageIndexPage(filters = {}) {
     const countQuery = buildQueryConditions(filters, false);
     const direction = query.sortOrder === 'asc' ? 'ASC' : 'DESC';
     const rows = db.prepare(`
-        SELECT messages.id, message_files.path AS source_path, member_name, sort_time, record_json
+        SELECT messages.id, message_files.path AS source_path, member_name, sort_time,
+            record_offset, record_length
         FROM messages
         JOIN message_files ON message_files.file_id = messages.file_id
         ${query.sql}
@@ -465,16 +627,7 @@ function queryMessageIndexPage(filters = {}) {
     const totalCount = Number(db.prepare(`SELECT COUNT(*) AS count FROM messages ${countQuery.sql}`).get(...countQuery.params)?.count) || 0;
     const hasMore = rows.length > limit;
     const pageRows = hasMore ? rows.slice(0, limit) : rows;
-    const records = pageRows.map(row => {
-        const record = JSON.parse(row.record_json);
-        return {
-            ...record,
-            indexId: row.id,
-            sourcePath: row.source_path,
-            fileName: path.basename(row.source_path),
-            memberName: row.member_name
-        };
-    });
+    const records = hydrateIndexedRows(pageRows);
     const lastRow = pageRows[pageRows.length - 1];
 
     return {
@@ -484,15 +637,6 @@ function queryMessageIndexPage(filters = {}) {
         limit,
         nextCursor: lastRow ? { sortTime: Number(lastRow.sort_time), id: Number(lastRow.id) } : null
     };
-}
-
-function parseIndexedRecord(recordJson) {
-    try {
-        const record = JSON.parse(recordJson);
-        return record && typeof record === 'object' ? record : {};
-    } catch (error) {
-        return {};
-    }
 }
 
 function getIndexedSender(record, fallback = {}) {
@@ -541,6 +685,36 @@ function appendAnalysisCondition(query, condition) {
         : `WHERE ${condition}`;
 }
 
+function queryLatestSenderRecords(db, whereSql, params = []) {
+    const rows = db.prepare(`
+        WITH ranked AS (
+            SELECT
+                id,
+                file_id,
+                member_name,
+                sender_name,
+                user_id,
+                sort_time,
+                record_offset,
+                record_length,
+                COUNT(*) OVER (PARTITION BY COALESCE(NULLIF(user_id, ''), sender_name)) AS message_count,
+                ROW_NUMBER() OVER (
+                    PARTITION BY COALESCE(NULLIF(user_id, ''), sender_name)
+                    ORDER BY sort_time DESC, id DESC
+                ) AS row_number
+            FROM messages
+            ${whereSql}
+        )
+        SELECT ranked.*, message_files.path AS source_path
+        FROM ranked
+        JOIN message_files ON message_files.file_id = ranked.file_id
+        WHERE row_number = 1
+        ORDER BY message_count DESC, sort_time DESC
+    `).all(...params);
+    const records = hydrateIndexedRows(rows);
+    return rows.map((row, index) => ({ row, record: records[index] }));
+}
+
 function queryDateAnalysis(db, payload) {
     const filters = payload?.filters || {};
     const query = buildQueryConditions({ member: filters.member }, false);
@@ -580,29 +754,9 @@ function queryDateAnalysis(db, payload) {
 function querySpeechAnalysis(db, payload) {
     const query = buildQueryConditions(payload?.filters || {}, false);
     const whereSql = appendAnalysisCondition(query, "message_type <> 'GIFT_TEXT' AND sender_name <> ''");
-    const rows = db.prepare(`
-        WITH ranked AS (
-            SELECT
-                sender_name,
-                user_id,
-                sort_time,
-                record_json,
-                COUNT(*) OVER (PARTITION BY COALESCE(NULLIF(user_id, ''), sender_name)) AS message_count,
-                ROW_NUMBER() OVER (
-                    PARTITION BY COALESCE(NULLIF(user_id, ''), sender_name)
-                    ORDER BY sort_time DESC, id DESC
-                ) AS row_number
-            FROM messages
-            ${whereSql}
-        )
-        SELECT sender_name, user_id, sort_time, record_json, message_count
-        FROM ranked
-        WHERE row_number = 1
-        ORDER BY message_count DESC, sort_time DESC
-    `).all(...query.params);
+    const latestRecords = queryLatestSenderRecords(db, whereSql, query.params);
 
-    const items = rows.map(row => {
-        const record = parseIndexedRecord(row.record_json);
+    const items = latestRecords.map(({ row, record }) => {
         const sender = getIndexedSender(record, { senderName: row.sender_name, userId: row.user_id });
         return {
             id: String(row.user_id || row.sender_name || ''),
@@ -625,7 +779,8 @@ function queryGiftAnalysis(db, payload) {
     const query = buildQueryConditions(payload?.filters || {}, false);
     const whereSql = appendAnalysisCondition(query, "message_type = 'GIFT_TEXT'");
     const rows = db.prepare(`
-        SELECT sender_name, user_id, sort_time, record_json
+        SELECT sender_name, user_id, sort_time,
+            gift_id, gift_name, gift_count, gift_unit_cost
         FROM messages
         ${whereSql}
         ORDER BY sort_time ASC, id ASC
@@ -638,27 +793,28 @@ function queryGiftAnalysis(db, payload) {
     });
     const users = new Map();
     let totalRevenue = 0;
+    const latestSenders = new Map(queryLatestSenderRecords(db, whereSql, query.params).map(({ row, record }) => {
+        const key = String(row.user_id || row.sender_name || '未知用户');
+        return [key, getIndexedSender(record, { senderName: row.sender_name, userId: row.user_id })];
+    }));
 
     rows.forEach(row => {
-        const record = parseIndexedRecord(row.record_json);
-        const sender = getIndexedSender(record, { senderName: row.sender_name, userId: row.user_id });
-        const content = getIndexedContent(record);
-        const info = content.giftInfo && typeof content.giftInfo === 'object' ? content.giftInfo : content;
-        const giftName = String(info.giftName || info.name || '未知礼物');
-        const giftCount = Number(info.giftNum || info.num || info.count || 1) || 1;
-        const unitCost = Number(info.money || info.cost)
-            || giftPrices.get(`id:${info.giftId || info.id}`)
+        const giftName = String(row.gift_name || '未知礼物');
+        const giftCount = Number(row.gift_count) || 1;
+        const unitCost = Number(row.gift_unit_cost)
+            || giftPrices.get(`id:${row.gift_id}`)
             || giftPrices.get(`name:${giftName}`)
             || 0;
         const key = String(row.user_id || row.sender_name || '未知用户');
+        const latestSender = latestSenders.get(key) || {};
         if (!users.has(key)) {
             users.set(key, {
                 id: key,
                 realUserId: String(row.user_id || ''),
-                name: sender.name || String(row.sender_name || '未知用户'),
+                name: latestSender.name || String(row.sender_name || '未知用户'),
                 totalCost: 0,
                 totalCount: 0,
-                avatarUrl: sender.avatarUrl,
+                avatarUrl: latestSender.avatarUrl || '',
                 latestTime: Number(row.sort_time) || 0
             });
         }
@@ -667,8 +823,8 @@ function queryGiftAnalysis(db, payload) {
         user.totalCount += giftCount;
         totalRevenue += unitCost * giftCount;
         if (Number(row.sort_time) >= user.latestTime) {
-            user.name = sender.name || user.name;
-            user.avatarUrl = sender.avatarUrl || user.avatarUrl;
+            user.name = latestSender.name || String(row.sender_name || user.name);
+            user.avatarUrl = latestSender.avatarUrl || user.avatarUrl;
             user.latestTime = Number(row.sort_time) || user.latestTime;
         }
     });
@@ -695,23 +851,10 @@ function queryInteractionAnalysis(db, payload) {
         WHERE sender_name <> ''
         GROUP BY sender_name, user_id
     `).all();
-    const latestRows = db.prepare(`
-        WITH ranked AS (
-            SELECT sender_name, user_id, sort_time, record_json,
-                ROW_NUMBER() OVER (
-                    PARTITION BY COALESCE(NULLIF(user_id, ''), sender_name)
-                    ORDER BY sort_time DESC, id DESC
-                ) AS row_number
-            FROM messages
-            WHERE sender_name <> ''
-        )
-        SELECT sender_name, user_id, sort_time, record_json
-        FROM ranked
-        WHERE row_number = 1
-    `).all();
+    const latestRecords = queryLatestSenderRecords(db, "WHERE sender_name <> ''");
     const replyWhere = appendAnalysisCondition(memberQuery, "message_type IN ('REPLY', 'GIFTREPLY', 'AUDIO_REPLY', 'AUDIO_GIFT_REPLY')");
     const replyRows = db.prepare(`
-        SELECT record_json
+        SELECT reply_target_name
         FROM messages
         ${replyWhere}
     `).all(...memberQuery.params);
@@ -721,8 +864,7 @@ function queryInteractionAnalysis(db, payload) {
         if (row.sender_name && row.user_id) nameToId.set(String(row.sender_name), String(row.user_id));
     });
     const latestById = new Map();
-    latestRows.forEach(row => {
-        const record = parseIndexedRecord(row.record_json);
+    latestRecords.forEach(({ row, record }) => {
         const sender = getIndexedSender(record, { senderName: row.sender_name, userId: row.user_id });
         latestById.set(String(row.user_id || row.sender_name), {
             name: sender.name || String(row.sender_name || ''),
@@ -733,7 +875,7 @@ function queryInteractionAnalysis(db, payload) {
     const stats = new Map();
     let totalInteractions = 0;
     replyRows.forEach(row => {
-        const rawName = getReplyTargetName(parseIndexedRecord(row.record_json));
+        const rawName = String(row.reply_target_name || '').trim();
         if (!rawName) return;
         const realId = nameToId.get(rawName) || '';
         const key = realId || rawName;
@@ -773,18 +915,14 @@ function queryMessageAnalysis(payload = {}) {
 
 function getAllMessageIndexRecords() {
     const db = getDatabase();
-    return db.prepare(`
-        SELECT messages.id, message_files.path AS source_path, member_name, record_json
+    const rows = db.prepare(`
+        SELECT messages.id, message_files.path AS source_path, member_name,
+            record_offset, record_length
         FROM messages
         JOIN message_files ON message_files.file_id = messages.file_id
         ORDER BY sort_time ASC, messages.id ASC
-    `).all().map(row => ({
-        ...JSON.parse(row.record_json),
-        indexId: row.id,
-        sourcePath: row.source_path,
-        fileName: path.basename(row.source_path),
-        memberName: row.member_name
-    }));
+    `).all();
+    return hydrateIndexedRows(rows, { wholeFiles: true });
 }
 
 function closeMessageIndex() {

@@ -17,7 +17,7 @@
     const PLAYER_STATE_STORAGE_KEY = 'yaya_official_site_music_player_state';
     const DURATION_STORAGE_KEY = 'yaya_official_site_music_durations';
     const TRACKS_CACHE_STORAGE_KEY = 'yaya_official_site_music_tracks_cache_v10';
-    const R2_TRACKS_CACHE_STORAGE_KEY = 'yaya_official_site_r2_music_tracks_cache_v8';
+    const R2_TRACKS_CACHE_STORAGE_KEY = 'yaya_official_site_r2_music_tracks_cache_v10';
     const VOLUME_STORAGE_KEY = 'yaya_music_volume_v2';
     const VIEW_MODE_STORAGE_KEY = 'yaya_official_site_music_view_mode_v1';
     const TRACKS_CACHE_TTL = 24 * 60 * 60 * 1000;
@@ -44,6 +44,7 @@
         ['TSH', 7],
         ['TPE', 8]
     ]);
+    const MUSIC_ROUTE_GROUP_KEYS = new Set(GROUP_SORT_ORDER.keys());
     const MUSIC_ALBUM_DEDUP_ALIASES = new Map([
         ['foreveryoung无限青春', 'foreveryoung']
     ]);
@@ -90,6 +91,8 @@
         sortDirection: 'asc',
         viewMode: 'list',
         albumFocusKey: '',
+        routeAlbumTitle: '',
+        routeAlbumGroup: '',
         albumGalleryScrollTop: 0,
         playMode: 'sequence',
         previousVolume: 1,
@@ -440,7 +443,7 @@
             ? window.removeStoredSetting
             : (key) => localStorage.removeItem(key);
         for (let version = 1; version <= 8; version += 1) {
-            try { removeSetting(`yaya_official_site_music_tracks_cache_v${version}`); } catch (_) { /* ignore cache cleanup */ }
+                try { removeSetting(`yaya_official_site_music_tracks_cache_v${version}`); } catch (_) {}
         }
         const cacheApi = window.desktop?.appCache;
         for (let version = 1; version <= 7; version += 1) {
@@ -451,7 +454,7 @@
                 } else {
                     localStorage.removeItem(key);
                 }
-            } catch (_) { /* ignore cache cleanup */ }
+            } catch (_) {}
         }
     }
 
@@ -1339,10 +1342,12 @@
             title: String(item.title || '').trim(),
             groupKey,
             groupLabel,
-            artist: String(item.album || groupLabel || '').trim(),
+            artist: String(item.artist || item.albumArtist || item.album || groupLabel || '').trim(),
+            albumArtist: String(item.albumArtist || '').trim(),
             album: String(item.album || '').trim(),
             grouping: String(item.grouping || '').trim(),
             albumDate: String(item.albumDate || '').trim(),
+            genre: String(item.genre || '').trim(),
             trackNumber: Number(item.trackNumber) > 0 ? Number(item.trackNumber) : 0,
             discNumber: Number(item.discNumber) > 0 ? Number(item.discNumber) : 1,
             coverUrl: coverUrl ? getR2MusicPublicUrl(coverUrl) : '',
@@ -1357,7 +1362,7 @@
 
     async function fetchR2PerformanceMusicTracks(url) {
         const separator = String(url || '').includes('?') ? '&' : '?';
-        const requestUrl = `${url}${separator}metadata_v=3`;
+        const requestUrl = `${url}${separator}metadata_v=5`;
         const response = await fetch(requestUrl);
         if (!response.ok) throw new Error(`R2 music list failed: ${response.status}`);
         const data = await response.json();
@@ -2772,6 +2777,13 @@
 
         const matchingTracks = getFilteredTracks();
         const albums = state.viewMode === 'album' ? buildOfficialSiteMusicAlbums(matchingTracks) : [];
+        if (state.routeAlbumTitle) {
+            const routeAlbum = albums.find((album) => (
+                album.groupKey === state.routeAlbumGroup
+                && album.title.normalize().toLocaleLowerCase() === state.routeAlbumTitle.normalize().toLocaleLowerCase()
+            ));
+            if (routeAlbum) state.albumFocusKey = routeAlbum.key;
+        }
         let focusedAlbum = state.albumFocusKey ? albums.find((album) => album.key === state.albumFocusKey) : null;
         if (state.albumFocusKey && !focusedAlbum) {
             state.albumFocusKey = '';
@@ -2927,6 +2939,7 @@
     }
 
     async function loadOfficialSiteMusic(options = {}) {
+        ensureOfficialSiteMusicPinyinReady();
         if (state.isLoading) return;
         if (state.isLoaded && !options.force) {
             renderOfficialSiteMusic();
@@ -3243,33 +3256,51 @@
     function handleOfficialSiteMusicSearch(value) {
         state.searchTerm = value || '';
         state.albumFocusKey = '';
+        state.routeAlbumTitle = '';
+        state.routeAlbumGroup = '';
         renderOfficialSiteMusic();
+        syncOfficialSiteMusicRoute(state.favoritesOnly ? 'favorite' : state.groupFilter);
     }
 
     function toggleOfficialSiteMusicView() {
         state.viewMode = state.viewMode === 'album' ? 'list' : 'album';
         state.albumFocusKey = '';
+        state.routeAlbumTitle = '';
+        state.routeAlbumGroup = '';
         writeStringSetting(VIEW_MODE_STORAGE_KEY, state.viewMode);
         const list = $('official-site-music-list');
         if (list) list.scrollTop = 0;
         renderOfficialSiteMusic();
+        syncOfficialSiteMusicRoute(state.favoritesOnly ? 'favorite' : state.groupFilter);
     }
 
     function openOfficialSiteMusicAlbum(albumKey) {
+        const album = buildOfficialSiteMusicAlbums(getFilteredTracks())
+            .find((item) => item.key === String(albumKey || ''));
+        if (!album) return;
         state.viewMode = 'album';
-        state.albumFocusKey = String(albumKey || '');
+        state.albumFocusKey = album.key;
+        state.routeAlbumTitle = album.title;
+        state.routeAlbumGroup = album.groupKey;
         writeStringSetting(VIEW_MODE_STORAGE_KEY, state.viewMode);
         const list = $('official-site-music-list');
         state.albumGalleryScrollTop = list ? Math.max(0, list.scrollTop) : 0;
         if (list) list.scrollTop = 0;
         renderOfficialSiteMusic();
+        syncOfficialSiteMusicRoute(state.favoritesOnly ? 'favorite' : album.groupKey, {
+            albumGroup: album.groupKey,
+            albumTitle: album.title
+        });
     }
 
     function closeOfficialSiteMusicAlbum() {
         const restoreScrollTop = Math.max(0, Number(state.albumGalleryScrollTop) || 0);
         state.albumFocusKey = '';
+        state.routeAlbumTitle = '';
+        state.routeAlbumGroup = '';
         const list = $('official-site-music-list');
         renderOfficialSiteMusic();
+        syncOfficialSiteMusicRoute(state.favoritesOnly ? 'favorite' : state.groupFilter);
         if (!list) return;
         const restoreAlbumGalleryPosition = () => {
             const maxScrollTop = Math.max(0, list.scrollHeight - list.clientHeight);
@@ -3282,24 +3313,70 @@
     function setOfficialSiteMusicAlbumGroupingFilter(grouping) {
         state.albumGroupingFilter = String(grouping || 'ALL');
         state.albumFocusKey = '';
+        state.routeAlbumTitle = '';
+        state.routeAlbumGroup = '';
         closeOfficialSiteMusicAlbumGroupingMenu();
+        renderOfficialSiteMusic();
+        syncOfficialSiteMusicRoute(state.favoritesOnly ? 'favorite' : state.groupFilter);
+    }
+
+    function normalizeOfficialSiteMusicRouteFilter(filter) {
+        const normalized = String(filter || '').trim();
+        if (!normalized || normalized.toLowerCase() === 'all') return 'ALL';
+        if (normalized.toLowerCase() === 'favorite') return 'favorite';
+        const groupKey = normalized.toUpperCase().replace(/48$/, '');
+        return MUSIC_ROUTE_GROUP_KEYS.has(groupKey) ? groupKey : 'ALL';
+    }
+
+    function syncOfficialSiteMusicRoute(filter, options = {}) {
+        if (typeof window.syncWebOfficialSiteMusicRoute === 'function') {
+            window.syncWebOfficialSiteMusicRoute(filter, options);
+        }
+    }
+
+    function applyOfficialSiteMusicRouteFilter(filter, albumTitle = '', albumGroup = '') {
+        const normalized = normalizeOfficialSiteMusicRouteFilter(filter);
+        const normalizedAlbumGroup = normalized === 'favorite'
+            ? normalizeOfficialSiteMusicRouteFilter(albumGroup)
+            : normalized;
+        const isAlbumRoute = normalizedAlbumGroup !== 'ALL' && normalizedAlbumGroup !== 'favorite'
+            && Boolean(String(albumTitle || '').trim());
+        state.favoritesOnly = normalized === 'favorite';
+        state.groupFilter = isAlbumRoute || state.favoritesOnly ? 'ALL' : normalized;
+        state.albumFocusKey = '';
+        state.routeAlbumTitle = isAlbumRoute ? String(albumTitle || '').trim() : '';
+        state.routeAlbumGroup = isAlbumRoute ? normalizedAlbumGroup : '';
+        if (state.routeAlbumTitle) {
+            state.viewMode = 'album';
+            state.albumGroupingFilter = 'ALL';
+            state.searchTerm = '';
+            const searchInput = $('official-site-music-search-input');
+            if (searchInput) searchInput.value = '';
+        }
         renderOfficialSiteMusic();
     }
 
     function setOfficialSiteMusicGroupFilter(groupKey) {
-        state.groupFilter = groupKey || 'ALL';
+        state.groupFilter = normalizeOfficialSiteMusicRouteFilter(groupKey);
+        if (state.groupFilter === 'favorite') state.groupFilter = 'ALL';
         state.favoritesOnly = false;
         state.albumFocusKey = '';
+        state.routeAlbumTitle = '';
+        state.routeAlbumGroup = '';
         renderOfficialSiteMusic();
+        syncOfficialSiteMusicRoute(state.groupFilter);
     }
 
     function toggleOfficialSiteMusicFavoritesFilter() {
         state.favoritesOnly = !state.favoritesOnly;
         state.albumFocusKey = '';
+        state.routeAlbumTitle = '';
+        state.routeAlbumGroup = '';
         if (!state.favoritesOnly) {
             state.groupFilter = 'ALL';
         }
         renderOfficialSiteMusic();
+        syncOfficialSiteMusicRoute(state.favoritesOnly ? 'favorite' : 'ALL');
     }
 
     function toggleOfficialSiteMusicTrackFavorite(track, options = {}) {
@@ -3476,7 +3553,6 @@
         state.favoriteTrackKeys = readOfficialSiteMusicFavorites();
         state.playQueueKeys = readOfficialSiteMusicPlayQueue();
         state.durationCache = isOfficialSiteMusicWebRuntime() ? new Map() : readOfficialSiteMusicDurationCache();
-        ensureOfficialSiteMusicPinyinReady();
         const savedState = readOfficialSiteMusicPlayerState();
         if (PLAYER_MODE_ORDER.includes(savedState.playMode)) {
             state.playMode = savedState.playMode;
@@ -3531,6 +3607,7 @@
     window.toggleOfficialSiteMusicAlbumGroupingMenu = toggleOfficialSiteMusicAlbumGroupingMenu;
     window.setOfficialSiteMusicAlbumGroupingFilter = setOfficialSiteMusicAlbumGroupingFilter;
     window.setOfficialSiteMusicGroupFilter = setOfficialSiteMusicGroupFilter;
+    window.applyOfficialSiteMusicRouteFilter = applyOfficialSiteMusicRouteFilter;
     window.toggleOfficialSiteMusicView = toggleOfficialSiteMusicView;
     window.openOfficialSiteMusicAlbum = openOfficialSiteMusicAlbum;
     window.closeOfficialSiteMusicAlbum = closeOfficialSiteMusicAlbum;

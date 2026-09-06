@@ -23,6 +23,7 @@
         } = deps;
 
         let currentRoomAlbumNextTime = 0;
+        let currentRoomAlbumChannelId = '';
         let isFetchingRoomAlbum = false;
         let isRoomAlbumAutoLoading = false;
         let isBatchDownloadingRoom = false;
@@ -280,6 +281,12 @@
             if (!container || isFetchingRoomAlbum) return;
             isFetchingRoomAlbum = true;
 
+            isLoadMore = Boolean(isLoadMore && currentRoomAlbumChannelId === channelId);
+
+            if (typeof window.syncWebRoomAlbumRoute === 'function') {
+                window.syncWebRoomAlbumRoute(channelId);
+            }
+
             if (!isLoadMore) {
                 currentRoomAlbumNextTime = 0;
                 container.innerHTML = '<div class="empty-state">正在抓取房间相册...</div>';
@@ -302,6 +309,8 @@
                     }
                     return;
                 }
+
+                currentRoomAlbumChannelId = channelId;
 
                 console.log('房间相册 API 返回数据:', result.content);
                 const list = normalizeRoomAlbumList(result.content);

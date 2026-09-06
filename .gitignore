@@ -6,11 +6,19 @@ web-dist/
 html/
 tmp/
 reports/
-scripts/*
+# Keep one-off/local scripts out of Git, but retain scripts referenced by
+# package.json or the application build.
+/scripts/*
+!/scripts/build-web.js
+!/scripts/copy-ffmpeg.js
+!/scripts/run-builder.js
 tools/
 .agents/
 .codex-tmp/
 .codex-logs/
+/.codex-work/
+/.codex-release-*/
+/.codex-hls-test/
 dist-next/
 .npmrc
 .env
@@ -41,9 +49,31 @@ __pycache__/
 wrangler-*.log
 *.tmp
 *.temp
+*.bak
+*.swp
+*~
+
+# Test and tooling caches
+/coverage/
+/.nyc_output/
+/.cache/
+.eslintcache
+
+# Local editor settings
+/.idea/
+/.vscode/
+*.code-workspace
 
 .DS_Store
 Thumbs.db
 
 codex-start.err.log
 codex-start.out.log
+
+# Website-only source and Cloudflare deployment files stay local.
+/src/web/
+/server/
+/workers/
+/wrangler.jsonc
+/web-icon.png
+/deploy/

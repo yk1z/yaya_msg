@@ -30,9 +30,6 @@ exports.default = async function copyFfmpeg(context) {
             throw new Error('Unable to determine the macOS app bundle name');
         }
 
-        // On macOS appOutDir is the directory containing the .app bundle, not
-        // the bundle itself. Copying directly under appOutDir leaves FFmpeg
-        // outside the archive produced by electron-builder.
         resourcesDir = path.join(
             context.appOutDir,
             `${productFilename}.app`,

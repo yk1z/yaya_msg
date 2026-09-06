@@ -59,6 +59,7 @@ function getBuildVersion() {
     [
         'index.html',
         'style.css',
+        'scripts/build-web.js',
         'src/renderer',
         'src/web',
         'rust-wasm-browser.js'
@@ -67,6 +68,14 @@ function getBuildVersion() {
         hash.update(fs.readFileSync(filePath));
     });
     return hash.digest('hex').slice(0, 12);
+}
+
+function getContentVersion(content) {
+    return crypto.createHash('sha256').update(content).digest('hex').slice(0, 12);
+}
+
+function getFileVersion(filePath) {
+    return getContentVersion(fs.readFileSync(filePath));
 }
 
 async function buildDatabaseRuntime(sourcePath, runtimePath, banner) {
@@ -176,24 +185,100 @@ function getRendererBundlePaths(indexHtml) {
     return { startIndex, endIndex, paths };
 }
 
-async function bundleRenderer(indexHtml, buildVersion) {
-    const { startIndex, endIndex, paths } = getRendererBundlePaths(indexHtml);
-    const source = paths.map((relativePath) => {
-        const filePath = path.join(outputDir, relativePath);
-        return `// ${relativePath}\n${fs.readFileSync(filePath, 'utf8')}\n;`;
-    }).join('\n');
+async function writeRendererChunk(label, source, options = {}) {
+    const preserveTopLevelNames = options.preserveTopLevelNames === true;
     const result = await esbuild.transform(source, {
         loader: 'js',
         target: 'es2020',
-        minify: true,
+        minify: !preserveTopLevelNames,
+        minifyIdentifiers: !preserveTopLevelNames,
+        minifySyntax: true,
+        minifyWhitespace: true,
         legalComments: 'none',
-        sourcefile: 'web-renderer.js'
+        sourcefile: `${label}.js`
     });
-    const bundleName = `web-app-bundle.${buildVersion}.js`;
-    const bundleRelativePath = path.join('src', 'renderer', bundleName);
-    fs.writeFileSync(path.join(outputDir, bundleRelativePath), result.code, 'utf8');
-    const bundleTag = `<script defer src="./src/renderer/${bundleName}"></script>`;
-    return indexHtml.slice(0, startIndex) + bundleTag + indexHtml.slice(endIndex);
+    const chunkName = `${label}.${getContentVersion(result.code)}.js`;
+    const chunkRelativePath = path.join('src', 'renderer', chunkName);
+    fs.writeFileSync(path.join(outputDir, chunkRelativePath), result.code, 'utf8');
+    return `<script defer src="./src/renderer/${chunkName}"></script>`;
+}
+
+async function bundleRenderer(indexHtml) {
+    const { startIndex, endIndex, paths } = getRendererBundlePaths(indexHtml);
+    const bootstrapPath = paths[0];
+    const appLegacyPath = paths[paths.length - 1];
+    if (!bootstrapPath.endsWith('/bootstrap-shared.js') || !appLegacyPath.endsWith('/app-legacy.js')) {
+        throw new Error('Unexpected web renderer bundle boundaries');
+    }
+
+    const readRendererSource = (relativePath) => fs.readFileSync(path.join(outputDir, relativePath), 'utf8');
+    const tags = [];
+    tags.push(await writeRendererChunk(
+        'web-bootstrap',
+        readRendererSource(bootstrapPath),
+        { preserveTopLevelNames: true }
+    ));
+
+    const featurePaths = paths.slice(1, -1);
+    const targetChunkBytes = 280 * 1024;
+    const featureChunks = [];
+    let currentChunk = [];
+    let currentChunkBytes = 0;
+    featurePaths.forEach((relativePath) => {
+        const source = readRendererSource(relativePath);
+        const sourceBytes = Buffer.byteLength(source);
+        if (currentChunk.length && currentChunkBytes + sourceBytes > targetChunkBytes) {
+            featureChunks.push(currentChunk);
+            currentChunk = [];
+            currentChunkBytes = 0;
+        }
+        currentChunk.push({ relativePath, source });
+        currentChunkBytes += sourceBytes;
+    });
+    if (currentChunk.length) featureChunks.push(currentChunk);
+
+    for (let index = 0; index < featureChunks.length; index += 1) {
+        const source = featureChunks[index]
+            .map(({ relativePath, source: fileSource }) => `// ${relativePath}\n${fileSource}\n;`)
+            .join('\n');
+        tags.push(await writeRendererChunk(`web-features-${index + 1}`, source));
+    }
+
+    tags.push(await writeRendererChunk('web-app-core', readRendererSource(appLegacyPath)));
+    return indexHtml.slice(0, startIndex) + tags.join('\n    ') + indexHtml.slice(endIndex);
+}
+
+function configureLazyWebMediaVendors(indexHtml) {
+    const mediaVendorsPath = path.join(outputDir, 'src', 'renderer', 'vendor', 'media-vendors.js');
+    const mediaVendorsVersion = getFileVersion(mediaVendorsPath);
+    const versionedRelativePath = `src/renderer/vendor/media-vendors.${mediaVendorsVersion}.js`;
+    fs.copyFileSync(mediaVendorsPath, path.join(outputDir, versionedRelativePath));
+
+    const browserShimTag = '    <script src="./src/web/browser-shim.js?v=__YAYA_BUILD_VERSION__"></script>';
+    const lazyBrowserShimTag = `    <script src="./src/web/browser-shim.js?v=__YAYA_BUILD_VERSION__" data-media-vendors-url="./${versionedRelativePath}"></script>`;
+    return indexHtml
+        .replace(/^[ \t]*<script src="\.\/src\/renderer\/vendor\/media-vendors\.js\?v=__YAYA_BUILD_VERSION__"><\/script>\r?\n/m, '')
+        .replace(browserShimTag, lazyBrowserShimTag);
+}
+
+function configureWebDocumentBase(indexHtml) {
+    if (/<base\s/i.test(indexHtml)) return indexHtml;
+    const headTag = '<head>';
+    if (!indexHtml.includes(headTag)) {
+        throw new Error('Web index head tag not found');
+    }
+    return indexHtml.replace(headTag, `${headTag}\n    <base href="/">`);
+}
+
+function versionWebIndexAssets(indexHtml, fallbackVersion) {
+    const versionedReference = /((?:src|href)="\.\/|(?:src|href)=")([^"?]+)\?v=__YAYA_BUILD_VERSION__(")/g;
+    const withPerFileVersions = indexHtml.replace(versionedReference, (match, prefix, assetPath, suffix) => {
+        const relativePath = assetPath.replace(/^\.\//, '').replaceAll('/', path.sep);
+        const filePath = path.join(outputDir, relativePath);
+        if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) return match;
+        return `${prefix}${assetPath}?v=${getFileVersion(filePath)}${suffix}`;
+    });
+    return withPerFileVersions.replaceAll('__YAYA_BUILD_VERSION__', fallbackVersion);
 }
 
 async function buildWebAssets() {
@@ -218,10 +303,36 @@ async function buildWebAssets() {
     );
 
     const buildVersion = getBuildVersion();
+    const onlineAssetDir = path.join(outputDir, 'src', 'web');
+    const onlineCssPath = path.join(onlineAssetDir, 'online.css');
+    const presenceScriptPath = path.join(onlineAssetDir, 'presence-feature.js');
+    if (fs.existsSync(onlineCssPath)) {
+        fs.copyFileSync(onlineCssPath, path.join(onlineAssetDir, `online.${buildVersion}.css`));
+    }
+    if (fs.existsSync(presenceScriptPath)) {
+        fs.copyFileSync(
+            presenceScriptPath,
+            path.join(onlineAssetDir, `presence-feature.${buildVersion}.js`)
+        );
+    }
     const indexPath = path.join(outputDir, 'index.html');
-    let indexHtml = fs.readFileSync(indexPath, 'utf8').replaceAll('__YAYA_BUILD_VERSION__', buildVersion);
-    indexHtml = await bundleRenderer(indexHtml, buildVersion);
+    let indexHtml = fs.readFileSync(indexPath, 'utf8');
+    indexHtml = configureWebDocumentBase(indexHtml);
+    indexHtml = configureLazyWebMediaVendors(indexHtml);
+    indexHtml = await bundleRenderer(indexHtml);
+    indexHtml = versionWebIndexAssets(indexHtml, buildVersion);
     fs.writeFileSync(indexPath, indexHtml, 'utf8');
+    const onlinePath = path.join(outputDir, 'src', 'web', 'online-page.txt');
+    if (fs.existsSync(onlinePath)) {
+        const onlineHtml = fs.readFileSync(onlinePath, 'utf8')
+            .replaceAll('__YAYA_BUILD_VERSION__', buildVersion);
+        fs.writeFileSync(onlinePath, onlineHtml, 'utf8');
+        fs.writeFileSync(
+            path.join(outputDir, 'src', 'web', 'online-page-admin-layout-v5.txt'),
+            onlineHtml,
+            'utf8'
+        );
+    }
     console.log(`Web assets built with esbuild (${buildVersion}) at ${outputDir}`);
 }
 

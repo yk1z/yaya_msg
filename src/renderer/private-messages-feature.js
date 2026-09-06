@@ -42,6 +42,7 @@
         let privateMessageAccountGeneration = 0;
         let privateMessageListRequestGeneration = 0;
         let privateMessageDetailRequestGeneration = 0;
+        let privateMessageUserRequestGeneration = 0;
         let privateMessagePendingItems = [];
         let privateMessagePendingKeys = new Set();
         let privateMessageFlipPrices = [];
@@ -177,6 +178,7 @@
 
         function resetPrivateMessageDetailPanel() {
             privateMessageDetailRequestGeneration += 1;
+            privateMessageUserRequestGeneration += 1;
             privateMessageDetailState.targetUserId = '';
             privateMessageDetailState.title = '';
             privateMessageDetailState.avatar = './icon.png';
@@ -214,17 +216,134 @@
             setPrivateMessageDetailLoading(false);
         }
 
+        function getPrivateMessageProfileUser(content = {}, targetUserId = '') {
+            const profile = content?.userInfo || content?.user || content?.profile || content || {};
+            const base = profile?.baseUserInfo || profile?.baseInfo || profile || {};
+            return {
+                ...profile,
+                ...base,
+                userId: base.userId || base.id || profile.userId || profile.id || targetUserId,
+                starName: base.starName || profile.starName || '',
+                realNickName: base.realNickName || profile.realNickName || '',
+                nickname: base.nickname || base.nickName || base.userName
+                    || profile.nickname || profile.nickName || profile.userName || '',
+                avatar: base.avatar || base.avatarUrl || base.faceImage || base.headImg
+                    || profile.avatar || profile.avatarUrl || profile.faceImage || profile.headImg || ''
+            };
+        }
+
+        function applyPrivateMessageDetailUser(user = {}, targetUserId = '') {
+            const normalizedTargetUserId = String(targetUserId || user.userId || user.id || '').trim();
+            if (!normalizedTargetUserId
+                || String(privateMessageDetailState.targetUserId || '').trim() !== normalizedTargetUserId) return false;
+
+            const displayName = getPrivateMessageDisplayName(user);
+            const rawAvatar = String(
+                user.avatar
+                || user.avatarUrl
+                || user.faceImage
+                || user.headImg
+                || user.headImage
+                || ''
+            ).trim();
+            const avatar = rawAvatar ? getPrivateMessageAvatar(rawAvatar) : '';
+            const hasDisplayName = displayName && displayName !== '未知用户';
+
+            if (hasDisplayName) privateMessageDetailState.title = displayName;
+            if (avatar) privateMessageDetailState.avatar = avatar;
+
+            const titleEl = document.getElementById('private-message-detail-title');
+            const avatarEl = document.getElementById('private-message-detail-avatar');
+            if (titleEl && hasDisplayName) titleEl.textContent = displayName;
+            if (avatarEl && avatar) avatarEl.src = avatar;
+            if (avatarEl) {
+                avatarEl.classList.add('is-clickable');
+                avatarEl.onclick = event => {
+                    openPrivateMessageUserProfile(
+                        normalizedTargetUserId,
+                        privateMessageDetailState.title,
+                        privateMessageDetailState.avatar,
+                        event
+                    );
+                };
+            }
+            return hasDisplayName || Boolean(avatar);
+        }
+
+        async function loadPrivateMessageUser(targetUserId, requestGeneration) {
+            const token = getPrivateMessagesToken();
+            if (!token) return;
+
+            try {
+                const res = await ipcRenderer.invoke('fetch-user-home-info', {
+                    token,
+                    pa: window.getPA ? window.getPA() : null,
+                    userId: targetUserId
+                });
+                if (requestGeneration !== privateMessageUserRequestGeneration
+                    || String(privateMessageDetailState.targetUserId || '').trim() !== targetUserId) return;
+                if (!res?.success || !res.content) {
+                    throw new Error(res?.msg || '用户主页信息返回异常');
+                }
+                applyPrivateMessageDetailUser(
+                    getPrivateMessageProfileUser(res.content, targetUserId),
+                    targetUserId
+                );
+            } catch (error) {
+                if (requestGeneration === privateMessageUserRequestGeneration) {
+                    console.warn('读取私信用户资料失败:', error);
+                }
+            }
+        }
+
         function backToPrivateMessageList(event) {
             if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
             const viewEl = document.getElementById('view-private-messages');
             if (viewEl) viewEl.classList.remove('is-detail-open');
             filterPrivateMessageList(getCurrentSearchKeyword(), { preserveScroll: true });
+            if (typeof window.syncWebPrivateMessageListRoute === 'function') {
+                window.syncWebPrivateMessageListRoute();
+            }
         }
 
         function canPrivateMessageStickToBottom(container) {
             if (!container) return true;
             const threshold = 32;
             return (container.scrollHeight - container.scrollTop - container.clientHeight) <= threshold;
+        }
+
+        function shouldUsePrivateMessageScrollAnchor() {
+            return document.documentElement.dataset.platform === 'web'
+                && Boolean(window.matchMedia?.('(max-width: 768px)').matches);
+        }
+
+        function capturePrivateMessageScrollAnchor(container) {
+            if (!container || !shouldUsePrivateMessageScrollAnchor()) return null;
+
+            const containerTop = container.getBoundingClientRect().top;
+            const messageItems = Array.from(container.querySelectorAll('.private-message-item[data-scroll-key]'));
+            const anchorEl = messageItems.find(item => item.getBoundingClientRect().bottom > containerTop + 1)
+                || messageItems[0];
+            const scrollKey = anchorEl?.dataset?.scrollKey;
+            if (!anchorEl || !scrollKey) return null;
+
+            return {
+                scrollKey: String(scrollKey),
+                offsetTop: anchorEl.getBoundingClientRect().top - containerTop
+            };
+        }
+
+        function restorePrivateMessageScrollAnchor(container, anchor) {
+            if (!container || !anchor || !shouldUsePrivateMessageScrollAnchor()) return false;
+
+            const anchorEl = Array.from(container.querySelectorAll('.private-message-item[data-scroll-key]'))
+                .find(item => String(item.dataset.scrollKey || '') === anchor.scrollKey);
+            if (!anchorEl) return false;
+
+            const containerTop = container.getBoundingClientRect().top;
+            const currentOffsetTop = anchorEl.getBoundingClientRect().top - containerTop;
+            container.scrollTop = Math.max(1, container.scrollTop + currentOffsetTop - anchor.offsetTop);
+            return true;
         }
 
         function openPrivateMessageUserProfile(userId, displayName = '', avatarUrl = '', event = null) {
@@ -247,6 +366,10 @@
             const avatarUrl = getPrivateMessageSenderAvatar(item, incoming);
             const wrapper = document.createElement('div');
             wrapper.className = `private-message-item ${incoming ? 'incoming' : 'outgoing'}`;
+            const scrollKey = getPrivateMessageItemKey(item, privateMessageDetailState.targetUserId);
+            if (scrollKey) {
+                wrapper.dataset.scrollKey = scrollKey;
+            }
             if (msgId) {
                 wrapper.dataset.msgId = msgId;
             }
@@ -632,6 +755,7 @@
             const { keepScrollOffset = false, stickToBottom = false } = options;
             const previousScrollHeight = bodyEl.scrollHeight;
             const previousScrollTop = bodyEl.scrollTop;
+            const scrollAnchor = keepScrollOffset ? capturePrivateMessageScrollAnchor(bodyEl) : null;
             const audioPlaybackState = capturePrivateMessageAudioState(bodyEl);
 
             if (!privateMessageDetailState.items.length) {
@@ -651,7 +775,9 @@
             bodyEl.appendChild(fragment);
 
             if (keepScrollOffset) {
-                bodyEl.scrollTop = bodyEl.scrollHeight - previousScrollHeight + previousScrollTop;
+                if (!restorePrivateMessageScrollAnchor(bodyEl, scrollAnchor)) {
+                    bodyEl.scrollTop = bodyEl.scrollHeight - previousScrollHeight + previousScrollTop;
+                }
             } else if (stickToBottom) {
                 bodyEl.scrollTop = bodyEl.scrollHeight;
             }
@@ -667,6 +793,7 @@
             const { prepend = false, keepScrollOffset = false, stickToBottom = false } = options;
             const previousScrollHeight = bodyEl.scrollHeight;
             const previousScrollTop = bodyEl.scrollTop;
+            const scrollAnchor = keepScrollOffset ? capturePrivateMessageScrollAnchor(bodyEl) : null;
 
             if (bodyEl.querySelector('.empty-state')) {
                 bodyEl.replaceChildren();
@@ -687,7 +814,9 @@
             }
 
             if (keepScrollOffset) {
-                bodyEl.scrollTop = bodyEl.scrollHeight - previousScrollHeight + previousScrollTop;
+                if (!restorePrivateMessageScrollAnchor(bodyEl, scrollAnchor)) {
+                    bodyEl.scrollTop = bodyEl.scrollHeight - previousScrollHeight + previousScrollTop;
+                }
             } else if (stickToBottom) {
                 bodyEl.scrollTop = bodyEl.scrollHeight;
             }
@@ -711,6 +840,9 @@
             if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
             resetPrivateMessageDetailPanel();
             filterPrivateMessageList(getCurrentSearchKeyword());
+            if (typeof window.syncWebPrivateMessageListRoute === 'function') {
+                window.syncWebPrivateMessageListRoute();
+            }
         }
 
         function getPrivateMessagesToken() {
@@ -1169,6 +1301,12 @@
                 }
 
                 const incoming = Array.isArray(res.content.data) ? res.content.data : [];
+                const incomingUser = incoming
+                    .map(item => item?.user)
+                    .find(user => String(user?.userId || user?.id || '').trim() === requestTargetUserId);
+                if (incomingUser) {
+                    applyPrivateMessageDetailUser(incomingUser, requestTargetUserId);
+                }
                 const previousItems = privateMessageDetailState.items.slice();
                 const previousMinTimestamp = previousItems.length
                     ? Math.min(...previousItems.map(item => Number(item.timestamp || 0)))
@@ -1266,6 +1404,12 @@
             const normalizedTargetUserId = String(targetUserId || '').trim();
             if (!normalizedTargetUserId) return;
 
+            const userRequestGeneration = ++privateMessageUserRequestGeneration;
+
+            if (typeof window.syncWebPrivateMessageRoute === 'function') {
+                window.syncWebPrivateMessageRoute(normalizedTargetUserId);
+            }
+
             const item = privateMessageListState.items.find(entry => String(entry.user?.userId || '') === normalizedTargetUserId);
             const user = item?.user || {
                 userId: normalizedTargetUserId,
@@ -1280,6 +1424,9 @@
                 avatar: getPrivateMessageAvatar(user.avatar || fallback.avatar),
                 reset: true
             });
+            if (!item) {
+                void loadPrivateMessageUser(normalizedTargetUserId, userRequestGeneration);
+            }
         }
 
         function setPrivateMessagesLoading(isLoading, options = {}) {
@@ -1472,6 +1619,16 @@
                 merged.sort((a, b) => Number(b.newestMessagetime || 0) - Number(a.newestMessagetime || 0));
                 privateMessageListState.items = merged;
                 clearActivePrivateMessageUnread();
+
+                const activeTargetUserId = String(privateMessageDetailState.targetUserId || '').trim();
+                if (activeTargetUserId) {
+                    const activeConversation = merged.find(item => (
+                        getPrivateMessageConversationKey(item) === activeTargetUserId
+                    ));
+                    if (activeConversation?.user) {
+                        applyPrivateMessageDetailUser(activeConversation.user, activeTargetUserId);
+                    }
+                }
 
                 filterPrivateMessageList(getCurrentSearchKeyword(), { preserveScroll });
                 updatePrivateMessagesStatus('');

@@ -26,8 +26,10 @@
             || document.documentElement?.dataset?.platform === 'web';
 
         let radioMpegtsPlayer = null;
+        let radioHlsPlayer = null;
         let radioMediaElement = null;
         let roomRadioEndWatchdog = null;
+        let roomRadioStartupTimer = null;
         let roomRadioLastCurrentTime = 0;
         let roomRadioStallCount = 0;
         let roomRadioHasStartedPlayback = false;
@@ -708,8 +710,6 @@
                         };
                     }
                     if (result?.success && result?.content?.streamUrl) {
-                        // The room is still active, but the selected member is no
-                        // longer in its explicit voice-user list.
                         continue;
                     }
                     if (!isRoomRadioOfflineResult(result)) hadUnknownResult = true;
@@ -821,7 +821,6 @@
         }
 
         async function scanAllMemberRoomRadios(options = {}) {
-            if (IS_WEB_PLATFORM) return;
             const {
                 followedOnly = false,
                 preferredChannelId = '',
@@ -939,7 +938,7 @@
             };
 
             await Promise.all(Array.from(
-                { length: Math.min(ROOM_RADIO_SCAN_CONCURRENCY, tasks.length) },
+                { length: Math.min(IS_WEB_PLATFORM ? 6 : ROOM_RADIO_SCAN_CONCURRENCY, tasks.length) },
                 () => worker()
             ));
 
@@ -985,7 +984,7 @@
 
         function scheduleAllMemberRoomRadioAutoScan(delayMs = ROOM_RADIO_AUTO_SCAN_INTERVAL_MS) {
             clearAllMemberRoomRadioAutoScanTimer();
-            if (!isRoomRadioAutoScanEnabled) return;
+            if (IS_WEB_PLATFORM || !isRoomRadioAutoScanEnabled) return;
             roomRadioAutoScanTimer = setTimeout(runAllMemberRoomRadioAutoScan, Math.max(0, delayMs));
         }
 
@@ -1071,9 +1070,8 @@
         }
 
         async function startScannedRoomRadioPlayback(item) {
-            if (IS_WEB_PLATFORM) return;
             const targetKey = getRoomRadioScanKey(item);
-            if (activeRoomRadioScanKey === targetKey && (radioMpegtsPlayer || radioMediaElement)) return;
+            if (activeRoomRadioScanKey === targetKey && (radioMpegtsPlayer || radioHlsPlayer || radioMediaElement)) return;
             stopRoomRadio(false);
             const playbackRequestId = ++roomRadioPlaybackRequestId;
             activeRoomRadioScanKey = targetKey;
@@ -1100,7 +1098,12 @@
                     freshStreamUrl,
                     item.name,
                     ensureFollowedRoomRadioPlaybackHost(),
-                    { headless: true, playbackRequestId }
+                    {
+                        headless: true,
+                        playbackRequestId,
+                        channelId: item.channelId,
+                        serverId: item.serverId
+                    }
                 );
             } catch (error) {
                 if (playbackRequestId !== roomRadioPlaybackRequestId) return;
@@ -1231,6 +1234,10 @@
                 clearInterval(roomRadioEndWatchdog);
                 roomRadioEndWatchdog = null;
             }
+            if (roomRadioStartupTimer) {
+                clearTimeout(roomRadioStartupTimer);
+                roomRadioStartupTimer = null;
+            }
             roomRadioLastCurrentTime = 0;
             roomRadioStallCount = 0;
             roomRadioHasStartedPlayback = false;
@@ -1279,10 +1286,6 @@
         }
 
         async function connectRoomRadio() {
-            if (IS_WEB_PLATFORM) {
-                showToast('网页端已禁用上麦请求');
-                return;
-            }
             const container = document.getElementById('room-radio-result-container');
             const channelId = String(document.getElementById('room-radio-channel-id')?.value || '').trim();
             const serverId = String(document.getElementById('room-radio-server-id')?.value || '').trim() || 0;
@@ -1306,6 +1309,10 @@
             }
 
             try {
+                if (IS_WEB_PLATFORM) {
+                    await playAudioOnlyStream('', memberName, container, { channelId, serverId });
+                    return;
+                }
                 const pa = window.getPA ? window.getPA() : null;
                 const result = await ipcRenderer.invoke('fetch-room-radio', {
                     token,
@@ -1321,7 +1328,7 @@
                         }
                         return;
                     }
-                    playAudioOnlyStream(result.content.streamUrl, memberName, container);
+                    playAudioOnlyStream(result.content.streamUrl, memberName, container, { channelId, serverId });
                 } else if (container) {
                     container.innerHTML = `<div class="placeholder-tip"><h3>连接失败</h3><p>${result.msg}</p></div>`;
                 }
@@ -1334,42 +1341,194 @@
 
         async function playAudioOnlyStream(remoteUrl, memberName, container, options = {}) {
             if (!container) return;
-            const { headless = false, playbackRequestId = roomRadioPlaybackRequestId } = options;
+            const {
+                headless = false,
+                playbackRequestId = roomRadioPlaybackRequestId,
+                channelId = '',
+                serverId = '0'
+            } = options;
             activeRoomRadioMemberName = String(memberName || '').trim() || '未知成员';
             container.innerHTML = '<div class="empty-state">正在解析音频流，请稍候...</div>';
             activeRoomRadioContainer = container;
 
             try {
-                const localUrl = await ipcRenderer.invoke('start-radio-proxy', remoteUrl);
+                const proxyPayload = IS_WEB_PLATFORM
+                    ? {
+                        url: remoteUrl,
+                        channelId,
+                        serverId,
+                        token: getAppToken ? getAppToken() : '',
+                        pa: window.getPA ? window.getPA() : null
+                    }
+                    : remoteUrl;
+                const localUrl = await ipcRenderer.invoke('start-radio-proxy', proxyPayload);
                 if (playbackRequestId !== roomRadioPlaybackRequestId) {
                     if (!activeRoomRadioScanKey) await ipcRenderer.invoke('stop-live-proxy');
                     return;
                 }
-                await new Promise(resolve => setTimeout(resolve, 700));
+                if (!IS_WEB_PLATFORM) {
+                    await new Promise(resolve => setTimeout(resolve, 700));
+                }
 
+                const recordButton = IS_WEB_PLATFORM
+                    ? ''
+                    : '<button class="btn btn-secondary" onclick="toggleRoomRadioRecord()" id="btn-radio-record" style="width: 100px;">开始录制</button>';
+                const mediaElement = '<audio id="hidden-radio-audio" style="display: none;" crossorigin="anonymous"></audio>';
                 container.innerHTML = headless ? `
                     <div id="radio-status-text">正在缓冲音频数据...</div>
-                    <video id="hidden-radio-audio" width="1" height="1" crossorigin="anonymous"></video>
+                    <audio id="hidden-radio-audio" style="display:none" crossorigin="anonymous"></audio>
                 ` : `
             <div style="background: var(--input-bg); border: 1px solid var(--border); border-radius: 12px; padding: 28px 20px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-top: 10px;">
                 <h3 style="margin: 0 0 10px 0; color: var(--primary);">${memberName} 的房间电台</h3>
                 <div style="font-size: 13px; color: var(--text-sub); margin-bottom: 20px;" id="radio-status-text">正在缓冲音频数据...</div>
                 
                 <div style="display: flex; justify-content: center; gap: 15px; align-items: center;">
-                    <button class="btn btn-secondary" onclick="toggleRoomRadioRecord()" id="btn-radio-record" style="width: 100px;">开始录制</button>
+                    ${recordButton}
                     <button class="btn btn-primary" onclick="stopRoomRadio(true)" style="background: #ff4d4f; border-color: #ff4d4f; width: 100px;">停止收听</button>
                 </div>
-                <video id="hidden-radio-audio" style="display: none;" crossorigin="anonymous"></video>
+                ${mediaElement}
             </div>
         `;
 
                 radioMediaElement = container.querySelector('#hidden-radio-audio');
                 const attachedMediaElement = radioMediaElement;
                 let hasStartedPlayback = false;
-                if (typeof window.ensureYayaWebPlayerLibs === 'function') {
-                    await window.ensureYayaWebPlayerLibs('mpegts');
-                }
-                if (window.mpegts && window.mpegts.isSupported()) {
+                let startupRetryCount = 0;
+                const isHlsStream = /\.m3u8(?:[?#].*)?$/i.test(String(localUrl || ''));
+                const markPlaying = () => {
+                    if (playbackRequestId !== roomRadioPlaybackRequestId || radioMediaElement !== attachedMediaElement) return;
+                    hasStartedPlayback = true;
+                    roomRadioHasStartedPlayback = true;
+                    if (roomRadioStartupTimer) {
+                        clearTimeout(roomRadioStartupTimer);
+                        roomRadioStartupTimer = null;
+                    }
+                    const statusEl = activeRoomRadioContainer?.querySelector('#radio-status-text');
+                    if (statusEl) statusEl.innerHTML = '<span style="color:#28a745; font-weight:bold;">▶ 正在收听</span>';
+                    if (headless && activeRoomRadioScanKey) showToast(`正在收听 ${memberName}`);
+                    roomRadioLastCurrentTime = Number(attachedMediaElement.currentTime || 0);
+                    roomRadioStallCount = 0;
+                };
+                const markError = () => {
+                    if (playbackRequestId !== roomRadioPlaybackRequestId || radioMediaElement !== attachedMediaElement) return;
+                    const statusEl = activeRoomRadioContainer?.querySelector('#radio-status-text');
+                    if (statusEl) statusEl.innerHTML = '<span style="color:#ff4d4f;">播放断开或解码出错</span>';
+                    if (headless && activeRoomRadioScanKey) showToast(`${memberName} 的上麦音频播放失败`);
+                    handleRoomRadioEnded('error', attachedMediaElement, playbackRequestId);
+                };
+                const showManualPlaybackButton = (message, label = '点击播放') => {
+                    const statusEl = activeRoomRadioContainer?.querySelector('#radio-status-text');
+                    if (!statusEl || !IS_WEB_PLATFORM || headless) return;
+                    statusEl.replaceChildren();
+                    const copy = document.createElement('span');
+                    copy.textContent = message;
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'btn btn-secondary';
+                    button.textContent = label;
+                    button.style.cssText = 'height:30px;margin-left:10px;padding:0 12px;';
+                    button.addEventListener('click', () => {
+                        startupRetryCount = 0;
+                        statusEl.textContent = '正在继续缓冲音频...';
+                        requestPlayback();
+                        scheduleStartupRecovery();
+                    });
+                    statusEl.append(copy, button);
+                };
+                const requestPlayback = () => {
+                    const playPromise = attachedMediaElement.play();
+                    if (playPromise && typeof playPromise.catch === 'function') {
+                        playPromise.catch(error => {
+                            if (
+                                playbackRequestId !== roomRadioPlaybackRequestId
+                                || radioMediaElement !== attachedMediaElement
+                            ) return;
+
+                            const errorName = String(error?.name || '');
+                            if (errorName === 'AbortError') {
+                                window.YayaRendererUtils.reportIgnoredError(error, 'room-radio:play-interrupted');
+                                return;
+                            }
+
+                            console.error('上麦音频启动播放失败:', error);
+                            if (errorName === 'NotAllowedError') {
+                                showManualPlaybackButton('浏览器阻止了自动播放。');
+                            } else {
+                                showManualPlaybackButton('音频尚未准备好。', '继续播放');
+                            }
+                            if (headless && activeRoomRadioScanKey) {
+                                showToast(`播放失败：${error.message || error}`);
+                                activeRoomRadioScanKey = '';
+                                publishRoomRadioScanState();
+                            }
+                        });
+                    }
+                };
+                const scheduleStartupRecovery = () => {
+                    if (roomRadioStartupTimer) clearTimeout(roomRadioStartupTimer);
+                    roomRadioStartupTimer = setTimeout(() => {
+                        roomRadioStartupTimer = null;
+                        if (
+                            playbackRequestId !== roomRadioPlaybackRequestId
+                            || radioMediaElement !== attachedMediaElement
+                            || hasStartedPlayback
+                        ) return;
+
+                        startupRetryCount += 1;
+                        const statusEl = activeRoomRadioContainer?.querySelector('#radio-status-text');
+                        if (statusEl) statusEl.textContent = `音频流正在缓冲 ${startupRetryCount}/3...`;
+                        try {
+                            requestPlayback();
+                        } catch (error) {
+                            window.YayaRendererUtils.reportIgnoredError(error, 'room-radio:startup-retry');
+                        }
+
+                        if (startupRetryCount < 3) {
+                            scheduleStartupRecovery();
+                        } else {
+                            showManualPlaybackButton('音频仍在缓冲，请稍候。', '继续播放');
+                        }
+                    }, 8000);
+                };
+
+                attachedMediaElement.addEventListener('playing', markPlaying);
+                attachedMediaElement.addEventListener('error', markError);
+                attachedMediaElement.addEventListener('ended', () => {
+                    handleRoomRadioEnded('ended', attachedMediaElement, playbackRequestId);
+                });
+                attachedMediaElement.addEventListener('emptied', () => {
+                    if (!hasStartedPlayback) return;
+                    handleRoomRadioEnded('emptied', attachedMediaElement, playbackRequestId);
+                });
+
+                if (isHlsStream) {
+                    if (attachedMediaElement.canPlayType('application/vnd.apple.mpegurl')) {
+                        attachedMediaElement.src = localUrl;
+                        attachedMediaElement.load();
+                        requestPlayback();
+                    } else {
+                        if (typeof window.ensureYayaWebPlayerLibs === 'function') {
+                            await window.ensureYayaWebPlayerLibs('hls');
+                        }
+                        if (!window.Hls?.isSupported?.()) throw new Error('当前浏览器不支持 HLS 音频播放');
+                        radioHlsPlayer = new window.Hls({
+                            lowLatencyMode: true,
+                            liveSyncDurationCount: 2,
+                            liveMaxLatencyDurationCount: 5
+                        });
+                        radioHlsPlayer.loadSource(localUrl);
+                        radioHlsPlayer.attachMedia(attachedMediaElement);
+                        radioHlsPlayer.once(window.Hls.Events.MANIFEST_PARSED, requestPlayback);
+                    }
+                    setupRoomRadioEndWatchdog(attachedMediaElement, playbackRequestId);
+                    scheduleStartupRecovery();
+                } else {
+                    if (typeof window.ensureYayaWebPlayerLibs === 'function') {
+                        await window.ensureYayaWebPlayerLibs('mpegts');
+                    }
+                    if (!window.mpegts || !window.mpegts.isSupported()) {
+                        throw new Error('您的环境不支持 FLV 音频解码');
+                    }
                     radioMpegtsPlayer = window.mpegts.createPlayer(
                         {
                             type: 'flv',
@@ -1389,51 +1548,9 @@
 
                     radioMpegtsPlayer.attachMediaElement(attachedMediaElement);
                     radioMpegtsPlayer.load();
-
-                    attachedMediaElement.addEventListener('playing', () => {
-                        if (playbackRequestId !== roomRadioPlaybackRequestId || radioMediaElement !== attachedMediaElement) return;
-                        hasStartedPlayback = true;
-                        roomRadioHasStartedPlayback = true;
-                        const statusEl = activeRoomRadioContainer?.querySelector('#radio-status-text');
-                        if (statusEl) statusEl.innerHTML = '<span style="color:#28a745; font-weight:bold;">▶ 正在收听</span>';
-                        if (headless && activeRoomRadioScanKey) showToast(`正在收听 ${memberName}`);
-                        roomRadioLastCurrentTime = Number(attachedMediaElement.currentTime || 0);
-                        roomRadioStallCount = 0;
-                    });
-
-                    attachedMediaElement.addEventListener('error', () => {
-                        if (playbackRequestId !== roomRadioPlaybackRequestId || radioMediaElement !== attachedMediaElement) return;
-                        const statusEl = activeRoomRadioContainer?.querySelector('#radio-status-text');
-                        if (statusEl) statusEl.innerHTML = '<span style="color:#ff4d4f;">播放断开或解码出错</span>';
-                        if (headless && activeRoomRadioScanKey) showToast(`${memberName} 的上麦音频播放失败`);
-                        handleRoomRadioEnded('error', attachedMediaElement, playbackRequestId);
-                    });
-
-                    attachedMediaElement.addEventListener('ended', () => {
-                        handleRoomRadioEnded('ended', attachedMediaElement, playbackRequestId);
-                    });
-
-                    attachedMediaElement.addEventListener('emptied', () => {
-                        if (!hasStartedPlayback) return;
-                        handleRoomRadioEnded('emptied', attachedMediaElement, playbackRequestId);
-                    });
-
                     setupRoomRadioEndWatchdog(attachedMediaElement, playbackRequestId);
-                    const playPromise = radioMpegtsPlayer.play();
-                    if (playPromise && typeof playPromise.catch === 'function') {
-                        playPromise.catch(error => {
-                            console.error('上麦音频启动播放失败:', error);
-                            if (headless && activeRoomRadioScanKey) {
-                                showToast(`播放失败：${error.message || error}`);
-                                activeRoomRadioScanKey = '';
-                                publishRoomRadioScanState();
-                            }
-                        });
-                    }
-                } else {
-                    container.innerHTML = '<div class="placeholder-tip"><h3>播放引擎错误</h3><p>您的环境不支持该格式的音频解码。</p></div>';
-                    activeRoomRadioScanKey = '';
-                    publishRoomRadioScanState();
+                    requestPlayback();
+                    scheduleStartupRecovery();
                 }
             } catch (error) {
                 container.innerHTML = `<div class="placeholder-tip"><h3>启动代理失败</h3><p>${error.message}</p></div>`;
@@ -1456,7 +1573,7 @@
         }
 
         function stopRoomRadio(updateUI = true) {
-            const hadActiveRadio = !!(radioMpegtsPlayer || radioMediaElement || isRoomRadioRecording);
+            const hadActiveRadio = !!(radioMpegtsPlayer || radioHlsPlayer || radioMediaElement || isRoomRadioRecording);
             const hadActiveScanResult = !!activeRoomRadioScanKey;
             roomRadioPlaybackRequestId += 1;
             pendingFollowedRoomRadioAutoConnect = null;
@@ -1476,6 +1593,13 @@
                     radioMpegtsPlayer.destroy();
                 } catch (error) { window.YayaRendererUtils.reportIgnoredError(error, 'src/renderer/room-radio-feature.js'); }
                 radioMpegtsPlayer = null;
+            }
+
+            if (radioHlsPlayer) {
+                try {
+                    radioHlsPlayer.destroy();
+                } catch (error) { window.YayaRendererUtils.reportIgnoredError(error, 'src/renderer/room-radio-feature.js:hls-destroy'); }
+                radioHlsPlayer = null;
             }
 
             if (radioMediaElement) {

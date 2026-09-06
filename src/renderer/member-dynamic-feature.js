@@ -186,7 +186,6 @@
 
         function getDynamicPostMeta(item, ext) {
             const post = findDynamicPostObject(ext) || findDynamicPostObject(item) || {};
-            // POST_INFO messages expose the dynamic resource ID as extInfo.id.
             const postId = String(post.postId || ext?.postId || ext?.id || item?.postId || '').trim();
             const getCount = candidates => {
                 const rawValue = candidates.find(value => value !== undefined && value !== null && value !== '');
@@ -681,7 +680,7 @@
                 const colorStyle = typeof getTeamStyle === 'function'
                     ? (getTeamStyle(member.team, isInactive) || '')
                     : '';
-                const memberId = member.id || member.userId || member.ownerId || '';
+                const memberId = member.id || member.userId || member.ownerId || member.memberId || '';
                 const displayName = member.ownerName || member.name || '';
 
                 return `<div class="suggestion-item"
@@ -701,6 +700,34 @@
             if (input) input.value = name || '';
             if (idInput) idInput.value = memberId || '';
             if (resultBox) resultBox.style.display = 'none';
+            if (memberId && typeof window.syncWebMemberDynamicRoute === 'function') {
+                window.syncWebMemberDynamicRoute(memberId);
+            }
+        }
+
+        async function openMemberDynamicById(memberId) {
+            const normalizedMemberId = String(memberId || '').trim();
+            if (!/^\d{1,32}$/.test(normalizedMemberId)) return false;
+
+            if (!getMemberDataLoaded() && typeof loadMemberData === 'function') {
+                try {
+                    await loadMemberData();
+                } catch (error) {
+                    console.warn('按成员 ID 打开动态时加载成员资料失败:', error);
+                }
+            }
+
+            const memberList = Array.isArray(getMemberData()) ? getMemberData() : [];
+            const member = memberList.find(item => [
+                item?.id,
+                item?.userId,
+                item?.ownerId,
+                item?.memberId
+            ].some(value => String(value || '') === normalizedMemberId));
+            const displayName = String(member?.ownerName || member?.name || '').trim();
+            selectMemberDynamicMember(displayName, normalizedMemberId);
+            setTimeout(() => fetchMemberDynamic(), 0);
+            return true;
         }
 
         async function fetchMemberDynamic() {
@@ -714,6 +741,9 @@
             if (!ownerId) {
                 showToast('请先搜索并选择成员');
                 return;
+            }
+            if (typeof window.syncWebMemberDynamicRoute === 'function') {
+                window.syncWebMemberDynamicRoute(ownerId);
             }
             if (!container || isFetchingDynamic) return;
 
@@ -863,6 +893,7 @@
         return {
             handleMemberDynamicSearch,
             selectMemberDynamicMember,
+            openMemberDynamicById,
             fetchMemberDynamic,
             toggleMemberDynamicComments,
             loadMoreMemberDynamicComments,

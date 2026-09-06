@@ -3,6 +3,7 @@ const path = require('path');
 const net = require('net');
 const crypto = require('crypto');
 const { spawnSync } = require('child_process');
+const { pipeline } = require('stream/promises');
 const { pathToFileURL } = require('url');
 const { app } = require('electron');
 const axios = require('axios');
@@ -13,12 +14,14 @@ const settingsService = require('./settings-service');
 
 const activeCommands = new Map();
 const recordCommands = new Map();
+const liveRecordSessions = new Map();
 const compatVodJobs = new Map();
 const compatVodCommands = new Map();
 const compatVodFiles = new Set();
 const roomRadioRecordingSessions = new Map();
 const LIVE_RECORD_SHUTDOWN_TIMEOUT_MS = 30_000;
 const LIVE_RECORD_RECOVERY_MIN_AGE_MS = 15_000;
+const LIVE_RECORD_SESSION_IDLE_FINALIZE_MS = 90_000;
 let mediaShutdownInProgress = false;
 let liveRecordRecoveryPromise = null;
 
@@ -725,6 +728,21 @@ function replyMediaEvent(event, channel, payload) {
     }
 }
 
+function clearLiveRecordSessionFinalizeTimer(session) {
+    if (!session?.finalizeTimer) return;
+    clearTimeout(session.finalizeTimer);
+    session.finalizeTimer = null;
+}
+
+function closeLiveRecordSession(task) {
+    const session = task?.liveRecordSession;
+    if (!session || task.keepLiveRecordSession === true) return;
+    clearLiveRecordSessionFinalizeTimer(session);
+    if (liveRecordSessions.get(session.sessionId) === session) {
+        liveRecordSessions.delete(session.sessionId);
+    }
+}
+
 function finishLiveRecordTask(event, task, { status, msg, outputPath = '' }) {
     if (!task || task.completed) return;
     task.completed = true;
@@ -732,6 +750,7 @@ function finishLiveRecordTask(event, task, { status, msg, outputPath = '' }) {
     if (recordCommands.get(task.taskId) === task) {
         recordCommands.delete(task.taskId);
     }
+    closeLiveRecordSession(task);
     replyMediaEvent(event, 'download-status', {
         taskId: task.taskId,
         msg,
@@ -786,11 +805,146 @@ async function preserveLiveRecordingAsTs(event, task, message) {
     }
 }
 
+async function appendLiveRecordSessionPart(task) {
+    const session = task?.liveRecordSession;
+    if (!session || !task.tempPath || task.tempPath === session.aggregatePath) return false;
+
+    let stats;
+    try {
+        stats = await fs.promises.stat(task.tempPath);
+    } catch (error) {
+        return false;
+    }
+
+    if (!stats.isFile() || stats.size <= 0) {
+        await fs.promises.unlink(task.tempPath).catch(() => { });
+        return false;
+    }
+
+    await fs.promises.mkdir(path.dirname(session.aggregatePath), { recursive: true });
+    if (!fs.existsSync(session.aggregatePath)) {
+        await moveLiveRecordingFile(task.tempPath, session.aggregatePath);
+    } else {
+        await pipeline(
+            fs.createReadStream(task.tempPath),
+            fs.createWriteStream(session.aggregatePath, { flags: 'a' })
+        );
+        await fs.promises.unlink(task.tempPath).catch(() => { });
+    }
+    task.tempPath = session.aggregatePath;
+    session.partCount += 1;
+    return true;
+}
+
+function createLiveRecordSessionFinalizationTask(session, event, reason = 'session-finish') {
+    const taskId = `auto_live_finalize_${sanitizeFileName(session.sessionId)}_${Date.now()}`;
+    let resolveCompletion;
+    const completionPromise = new Promise(resolve => {
+        resolveCompletion = resolve;
+    });
+    return {
+        taskId,
+        command: null,
+        tempPath: session.aggregatePath,
+        tempFolder: session.tempFolder,
+        downloadFolder: session.downloadFolder,
+        fileName: session.fileName,
+        stopRequested: true,
+        stopReason: reason,
+        finalizing: false,
+        completed: false,
+        diskCheckTimer: null,
+        forceStopTimer: null,
+        forceFinalizeTimer: null,
+        canceled: false,
+        mediaStarted: true,
+        resumeAfterUnexpectedEnd: false,
+        event: event || session.event,
+        completionPromise,
+        resolveCompletion,
+        recordType: 'live',
+        liveRecordSession: session,
+        keepLiveRecordSession: false
+    };
+}
+
+function finalizeLiveRecordSession(event, { sessionId, reason = 'session-finish' } = {}) {
+    const normalizedSessionId = String(sessionId || '').trim();
+    const session = liveRecordSessions.get(normalizedSessionId);
+    if (!session || session.finalizing) return null;
+
+    clearLiveRecordSessionFinalizeTimer(session);
+    const activeTask = session.activeTaskId ? recordCommands.get(session.activeTaskId) : null;
+    if (activeTask && !activeTask.completed) {
+        requestLiveRecordStop(event || activeTask.event, activeTask, reason);
+        return activeTask.completionPromise;
+    }
+
+    const task = createLiveRecordSessionFinalizationTask(session, event, reason);
+    session.activeTaskId = task.taskId;
+    session.finalizing = true;
+    recordCommands.set(task.taskId, task);
+    finalizeLiveRecording(task.event, task.taskId, { interrupted: false }).catch(error => {
+        finishLiveRecordTask(task.event, task, {
+            status: 'error',
+            msg: `合并直播录制失败：${error.message || error}`
+        });
+    });
+    return task.completionPromise;
+}
+
+function scheduleLiveRecordSessionFinalization(session) {
+    if (!session || session.finalizing || mediaShutdownInProgress) return;
+    clearLiveRecordSessionFinalizeTimer(session);
+    session.finalizeTimer = setTimeout(() => {
+        session.finalizeTimer = null;
+        finalizeLiveRecordSession(session.event, {
+            sessionId: session.sessionId,
+            reason: 'retry-timeout'
+        });
+    }, LIVE_RECORD_SESSION_IDLE_FINALIZE_MS);
+}
+
 async function finalizeLiveRecording(event, taskId, { interrupted = false, emptyFileMessage = '' } = {}) {
     const task = recordCommands.get(taskId);
     if (!task || task.finalizing || task.completed) return;
     task.finalizing = true;
     clearLiveRecordTimers(task);
+
+    if (task.liveRecordSession) {
+        const session = task.liveRecordSession;
+        session.event = event || session.event;
+        session.activeTaskId = '';
+        try {
+            await appendLiveRecordSessionPart(task);
+        } catch (error) {
+            task.keepLiveRecordSession = false;
+            finishLiveRecordTask(event, task, {
+                status: 'error',
+                msg: `录制片段暂存失败：${error.message || error}`
+            });
+            return;
+        }
+
+        if (!task.stopReason) {
+            task.keepLiveRecordSession = true;
+            task.resumeAfterUnexpectedEnd = task.mediaStarted;
+            scheduleLiveRecordSessionFinalization(session);
+            finishLiveRecordTask(event, task, {
+                status: task.mediaStarted ? 'success' : 'error',
+                msg: task.mediaStarted
+                    ? '直播流中断，当前内容已暂存，将继续录入同一文件'
+                    : (emptyFileMessage || '直播流暂时没有有效数据，将自动重试')
+            });
+            return;
+        }
+
+        task.keepLiveRecordSession = false;
+        task.tempPath = session.aggregatePath;
+        task.fileName = session.fileName;
+        task.downloadFolder = session.downloadFolder;
+        session.finalizing = true;
+    }
 
     let tempStats;
     try {
@@ -843,7 +997,9 @@ async function finalizeLiveRecording(event, taskId, { interrupted = false, empty
         return;
     }
 
-    const finalOutputPath = path.join(task.downloadFolder, `${sanitizeFileName(task.fileName)}.mp4`);
+    const finalOutputPath = task.liveRecordSession
+        ? getUniqueMediaPath(task.downloadFolder, task.fileName, '.mp4')
+        : path.join(task.downloadFolder, `${sanitizeFileName(task.fileName)}.mp4`);
     task.outputPath = finalOutputPath;
     const processingMessage = task.stopReason === 'low-disk'
         ? '磁盘剩余空间不足，正在保存已录部分...'
@@ -864,7 +1020,12 @@ async function finalizeLiveRecording(event, taskId, { interrupted = false, empty
     }
 
     const finalizeCommand = ffmpeg(task.tempPath)
-        .outputOptions(['-c copy', '-movflags faststart']);
+        .inputOptions(task.liveRecordSession
+            ? ['-fflags', '+genpts+discardcorrupt', '-dts_delta_threshold', '1']
+            : [])
+        .outputOptions(task.liveRecordSession
+            ? ['-c copy', '-movflags faststart', '-avoid_negative_ts make_zero']
+            : ['-c copy', '-movflags faststart']);
     task.command = finalizeCommand;
 
     finalizeCommand
@@ -943,7 +1104,14 @@ function requestLiveRecordStop(event, task, reason = 'manual') {
     }, 15_000);
 }
 
-function startRecord(event, { url, taskId, savePath, fileName, recordType = '' }) {
+function startRecord(event, {
+    url,
+    taskId,
+    savePath,
+    fileName,
+    recordType = '',
+    recordingSessionId = ''
+}) {
     const sourceUrl = String(url || '').trim();
     const normalizedTaskId = String(taskId || '').trim();
     if (mediaShutdownInProgress || !ffmpegConfig.isAvailable || !sourceUrl || !normalizedTaskId || recordCommands.has(normalizedTaskId)) {
@@ -963,7 +1131,35 @@ function startRecord(event, { url, taskId, savePath, fileName, recordType = '' }
     const defaultPrefix = isRoomRadioRecord
         ? '房间上麦'
         : (normalizedTaskId.startsWith('auto_live_record_') ? '直播录制' : '直播切片');
-    const resolvedFileName = String(fileName || `${defaultPrefix}_${Date.now()}`);
+    let resolvedFileName = String(fileName || `${defaultPrefix}_${Date.now()}`);
+    const normalizedSessionId = !isRoomRadioRecord && normalizedTaskId.startsWith('auto_live_record_')
+        ? String(recordingSessionId || '').trim()
+        : '';
+    let liveRecordSession = normalizedSessionId ? liveRecordSessions.get(normalizedSessionId) : null;
+    if (normalizedSessionId && !liveRecordSession) {
+        liveRecordSession = {
+            sessionId: normalizedSessionId,
+            fileName: resolvedFileName,
+            tempFolder,
+            downloadFolder,
+            aggregatePath: path.join(
+                tempFolder,
+                `未完成_${sanitizeFileName(resolvedFileName)}_auto_live_record_${sanitizeFileName(normalizedSessionId)}_${Date.now()}.ts`
+            ),
+            activeTaskId: '',
+            event,
+            finalizeTimer: null,
+            finalizing: false,
+            partCount: 0
+        };
+        liveRecordSessions.set(normalizedSessionId, liveRecordSession);
+    }
+    if (liveRecordSession) {
+        clearLiveRecordSessionFinalizeTimer(liveRecordSession);
+        liveRecordSession.event = event;
+        liveRecordSession.downloadFolder = downloadFolder;
+        resolvedFileName = liveRecordSession.fileName;
+    }
     const tempTsPath = path.join(
         tempFolder,
         `未完成_${sanitizeFileName(resolvedFileName)}_${sanitizeFileName(normalizedTaskId)}.${isRoomRadioRecord ? 'mp3' : 'ts'}`
@@ -1026,9 +1222,12 @@ function startRecord(event, { url, taskId, savePath, fileName, recordType = '' }
         event,
         completionPromise,
         resolveCompletion,
-        recordType: isRoomRadioRecord ? 'room-radio' : 'live'
+        recordType: isRoomRadioRecord ? 'room-radio' : 'live',
+        liveRecordSession,
+        keepLiveRecordSession: false
     };
     recordCommands.set(normalizedTaskId, task);
+    if (liveRecordSession) liveRecordSession.activeTaskId = normalizedTaskId;
 
     const markRecordingStarted = () => {
         if (task.mediaStarted || task.finalizing || task.completed) return;
@@ -1101,6 +1300,10 @@ function startRecord(event, { url, taskId, savePath, fileName, recordType = '' }
     try {
         command.run();
     } catch (error) {
+        if (liveRecordSession) {
+            task.keepLiveRecordSession = true;
+            scheduleLiveRecordSessionFinalization(liveRecordSession);
+        }
         finishLiveRecordTask(event, task, {
             status: 'error',
             msg: `无法启动直播录制：${error.message || error}`
@@ -1129,6 +1332,11 @@ function cancelDownload(event, { taskId }) {
 
     task.canceled = true;
     clearLiveRecordTimers(task);
+    const canceledLiveRecordSession = liveRecordTask?.liveRecordSession || null;
+    if (canceledLiveRecordSession) {
+        clearLiveRecordSessionFinalizeTimer(canceledLiveRecordSession);
+        liveRecordSessions.delete(canceledLiveRecordSession.sessionId);
+    }
     stopCommand(task.command);
     activeCommands.delete(taskId);
     recordCommands.delete(taskId);
@@ -1148,6 +1356,12 @@ function cancelDownload(event, { taskId }) {
             try {
                 fs.unlinkSync(task.tempPath);
             } catch (error) { reportIgnoredError(error, 'src/main/services/media-service.js'); }
+        }
+
+        if (canceledLiveRecordSession?.aggregatePath && fs.existsSync(canceledLiveRecordSession.aggregatePath)) {
+            try {
+                fs.unlinkSync(canceledLiveRecordSession.aggregatePath);
+            } catch (error) { reportIgnoredError(error, 'media-service:cancel-live-record-session'); }
         }
     }, 1000);
 
@@ -1545,7 +1759,10 @@ async function performInterruptedLiveRecordingRecovery({
         const belongsToActiveTask = Array.from(recordCommands.values()).some(task => (
             task?.tempPath && path.resolve(task.tempPath).toLowerCase() === normalizedStalePath
         ));
-        if (belongsToActiveTask) continue;
+        const belongsToActiveSession = Array.from(liveRecordSessions.values()).some(session => (
+            session?.aggregatePath && path.resolve(session.aggregatePath).toLowerCase() === normalizedStalePath
+        ));
+        if (belongsToActiveTask || belongsToActiveSession) continue;
 
         let stats;
         try {
@@ -1597,6 +1814,15 @@ function recoverInterruptedLiveRecordings(options = {}) {
 
 async function finalizeLiveRecordingsBeforeQuit(timeoutMs = LIVE_RECORD_SHUTDOWN_TIMEOUT_MS) {
     mediaShutdownInProgress = true;
+    Array.from(liveRecordSessions.values()).forEach(session => {
+        const activeTask = session.activeTaskId ? recordCommands.get(session.activeTaskId) : null;
+        if (!activeTask) {
+            finalizeLiveRecordSession(session.event, {
+                sessionId: session.sessionId,
+                reason: 'app-quit'
+            });
+        }
+    });
     const tasks = Array.from(recordCommands.values());
     if (tasks.length === 0) return { total: 0, completed: 0, timedOut: false };
 
@@ -1657,6 +1883,8 @@ function cleanupMediaTasks() {
         removeMediaFile(session.tempInputPath);
     });
     roomRadioRecordingSessions.clear();
+    liveRecordSessions.forEach(session => clearLiveRecordSessionFinalizeTimer(session));
+    liveRecordSessions.clear();
     stopMediaServer();
 }
 
@@ -1674,9 +1902,6 @@ function downloadVod(event, { url, fileName, taskId, savePath }) {
         return;
     }
 
-    // Let FFmpeg normalize HLS discontinuities into one continuous timeline.
-    // Preserving raw timestamps makes later epochs overlap earlier ones and can
-    // truncate the MP4 to only the final epoch.
     const inputOptions = ['-protocol_whitelist', 'file,http,https,tcp,tls,crypto,rtmp,rtmps'];
 
     const command = ffmpeg(sourceUrl)
@@ -1724,6 +1949,7 @@ async function downloadDanmu(event, { url, fileName, savePath }) {
 module.exports = {
     startRecord,
     stopRecord,
+    finalizeLiveRecordSession,
     cancelDownload,
     clipVod,
     startLiveProxy,

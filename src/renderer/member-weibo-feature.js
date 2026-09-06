@@ -391,6 +391,34 @@
             if (input) input.value = name || '';
             if (idInput) idInput.value = memberId || '';
             if (resultBox) resultBox.style.display = 'none';
+            if (memberId && typeof window.syncWebMemberWeiboRoute === 'function') {
+                window.syncWebMemberWeiboRoute(memberId);
+            }
+        }
+
+        async function openMemberWeiboById(memberId) {
+            const normalizedMemberId = String(memberId || '').trim();
+            if (!/^\d{1,32}$/.test(normalizedMemberId)) return false;
+
+            if (!getMemberDataLoaded() && typeof loadMemberData === 'function') {
+                try {
+                    await loadMemberData();
+                } catch (error) {
+                    console.warn('按成员 ID 打开微博时加载成员资料失败:', error);
+                }
+            }
+
+            const memberList = Array.isArray(getMemberData()) ? getMemberData() : [];
+            const member = memberList.find(item => [
+                item?.id,
+                item?.userId,
+                item?.ownerId,
+                item?.memberId
+            ].some(value => String(value || '') === normalizedMemberId));
+            const displayName = String(member?.ownerName || member?.name || '').trim();
+            selectMemberWeiboMember(displayName, normalizedMemberId);
+            setTimeout(() => fetchMemberWeibo(false), 0);
+            return true;
         }
 
         async function fetchAllMemberWeibo() {
@@ -442,6 +470,9 @@
             if (!ownerId) {
                 showToast('请先搜索并选择成员');
                 return;
+            }
+            if (typeof window.syncWebMemberWeiboRoute === 'function') {
+                window.syncWebMemberWeiboRoute(ownerId);
             }
             if (!container || isFetchingWeibo) return;
 
@@ -602,6 +633,7 @@
         return {
             handleMemberWeiboSearch,
             selectMemberWeiboMember,
+            openMemberWeiboById,
             fetchAllMemberWeibo,
             fetchMemberWeibo
         };

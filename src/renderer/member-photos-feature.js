@@ -120,7 +120,7 @@
                     : '';
 
                 return `<div class="suggestion-item"
-                                 onclick="selectPhotoMember('${member.ownerName}', '${member.id || member.userId || member.memberId}')"
+                                 onclick="selectPhotoMember('${member.ownerName}', '${member.id || member.userId || member.ownerId || member.memberId || ''}')"
                                  style="display: flex; justify-content: space-between; align-items: center;">
                                 <span style="font-weight:bold; ${baseStyle}">${member.ownerName}</span>
                                 <span class="team-tag" style="${baseStyle} ${colorStyle}">${member.team}</span>
@@ -137,6 +137,33 @@
             if (inputEl) inputEl.value = name || '';
             if (idEl) idEl.value = userId || '';
             if (resultBox) resultBox.style.display = 'none';
+            if (userId && typeof window.syncWebMemberPhotosRoute === 'function') {
+                window.syncWebMemberPhotosRoute(userId);
+            }
+        }
+
+        async function openMemberPhotosById(memberId) {
+            const normalizedMemberId = String(memberId || '').trim();
+            if (!/^\d{1,32}$/.test(normalizedMemberId)) return false;
+
+            if (!getMemberDataLoaded() && typeof loadMemberData === 'function') {
+                try {
+                    await loadMemberData();
+                } catch (error) {
+                    console.warn('按成员 ID 打开个人相册时加载成员资料失败:', error);
+                }
+            }
+
+            const memberList = Array.isArray(getMemberData()) ? getMemberData() : [];
+            const member = memberList.find(item => [
+                item?.id,
+                item?.userId,
+                item?.ownerId,
+                item?.memberId
+            ].some(value => String(value || '') === normalizedMemberId));
+            selectPhotoMember(member?.ownerName || member?.name || '', normalizedMemberId);
+            setTimeout(() => fetchMemberPhotos(false), 0);
+            return true;
         }
 
         async function fetchMemberPhotos(isLoadMore) {
@@ -153,6 +180,10 @@
             if (!memberId) {
                 showToast('请先搜索并选择成员');
                 return;
+            }
+
+            if (typeof window.syncWebMemberPhotosRoute === 'function') {
+                window.syncWebMemberPhotosRoute(memberId);
             }
 
             if (!container || isFetchingPhotos) return;
@@ -387,6 +418,7 @@
             fetchAllMemberPhotos,
             handlePhotoSearch,
             selectPhotoMember,
+            openMemberPhotosById,
             fetchMemberPhotos
         };
     };

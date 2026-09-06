@@ -39,6 +39,7 @@
         const autoLiveRecordTaskOwners = new Map();
         const autoLiveRecordHandledLiveIds = new Set();
         const autoLiveRecordRetryState = new Map();
+        const autoLiveRecordMissingPolls = new Map();
 
         function readStringSetting(key, fallbackValue = '') {
             if (typeof window.readStoredStringSetting === 'function') {
@@ -99,11 +100,21 @@
 
         function getActiveClipScope() {
             const currentViewName = getSafeCurrentViewName();
-            const preferredScope = currentViewName === 'bilibili-live'
-                ? document.getElementById('view-bilibili-live')
-                : document.getElementById('view-media');
+            let preferredScope;
+            if (currentViewName === 'bilibili-live') {
+                preferredScope = document.getElementById('view-bilibili-live');
+            } else {
+                const visiblePlaybackPage = Array.from(document.querySelectorAll('.media-playback-page'))
+                    .find(page => page.style.display !== 'none');
+                const mode = getClipMode();
+                preferredScope = visiblePlaybackPage || (
+                    mode === 'live' || mode === 'meet-live'
+                        ? document.getElementById('view-live-player')
+                        : document.getElementById('view-vod-player')
+                );
+            }
             if (preferredScope) return preferredScope;
-            return document;
+            return document.getElementById('view-media') || document;
         }
 
         function getClipElement(role, legacyId = '') {
@@ -120,6 +131,11 @@
 
         function getClipMode() {
             if (getSafeCurrentViewName() === 'bilibili-live') return 'live';
+            const visiblePlaybackPage = Array.from(document.querySelectorAll('.media-playback-page'))
+                .find(page => page.style.display !== 'none');
+            if (visiblePlaybackPage?.dataset.mediaPlaybackKind) {
+                return visiblePlaybackPage.dataset.mediaPlaybackKind;
+            }
             return typeof getCurrentMode === 'function' ? getCurrentMode() : 'live';
         }
 
@@ -130,7 +146,7 @@
             const shouldHide = mode === 'live' || mode === 'meet-live';
             const toolbar = getSafeCurrentViewName() === 'bilibili-live'
                 ? document.querySelector('[data-clip-toolbar="bilibili-live"]')
-                : document.getElementById('clip-toolbar');
+                : getActiveClipScope()?.querySelector('.media-clip-toolbar');
             if (toolbar) {
                 toolbar.classList.toggle('web-live-clip-toolbar-hidden', shouldHide);
             }
@@ -659,6 +675,16 @@
                     fileName: activeTask.fileName
                 });
             }
+            autoLiveRecordRetryState.forEach((retryState, liveId) => {
+                if (retryState?.memberId !== normalizedId) return;
+                ipcRenderer.send('finalize-live-record-session', {
+                    sessionId: retryState.sessionId,
+                    reason: 'member-removed'
+                });
+                autoLiveRecordRetryState.delete(liveId);
+                autoLiveRecordHandledLiveIds.delete(liveId);
+                autoLiveRecordMissingPolls.delete(liveId);
+            });
             autoLiveRecordMembers = autoLiveRecordMembers.filter(item => item.id !== normalizedId);
             persistAutoLiveRecordSettings();
             renderAutoLiveRecordMembers();
@@ -765,6 +791,15 @@
                     fileName: task.fileName
                 });
             });
+            autoLiveRecordRetryState.forEach(retryState => {
+                ipcRenderer.send('finalize-live-record-session', {
+                    sessionId: retryState.sessionId,
+                    reason: 'auto-record-disabled'
+                });
+            });
+            autoLiveRecordRetryState.clear();
+            autoLiveRecordHandledLiveIds.clear();
+            autoLiveRecordMissingPolls.clear();
         }
 
         function toggleAutoLiveRecording(enabled) {
@@ -802,18 +837,24 @@
         function scheduleAutoLiveRecordRetry(task, { resume = false } = {}) {
             if (!task?.liveId) return;
             const previous = autoLiveRecordRetryState.get(task.liveId);
-            const attempts = Math.min((previous?.attempts || 0) + 1, 5);
+            const stableRecordingMs = task.recordingStartedAt
+                ? Date.now() - task.recordingStartedAt
+                : 0;
+            const attempts = Math.min((stableRecordingMs >= 120_000 ? 0 : (previous?.attempts || 0)) + 1, 5);
             const baseDelay = 3_000;
             const maxDelay = 30_000;
             const delay = Math.min(baseDelay * (2 ** (attempts - 1)), maxDelay);
             autoLiveRecordRetryState.set(task.liveId, {
                 attempts,
-                nextRetryAt: Date.now() + delay
+                nextRetryAt: Date.now() + delay,
+                sessionId: task.sessionId,
+                fileName: task.fileName,
+                memberId: task.memberId
             });
             autoLiveRecordHandledLiveIds.delete(task.liveId);
             scheduleAutoLiveRecordPoll(delay);
             if (resume) {
-                showAutoLiveRecordToast(`直播流中断，已保存当前片段，${Math.ceil(delay / 1000)} 秒后自动续录`);
+                showAutoLiveRecordToast(`直播流中断，内容已暂存，${Math.ceil(delay / 1000)} 秒后继续录入同一文件`);
             }
         }
 
@@ -845,9 +886,10 @@
                     nickname: getAutoLiveRecordItemName(detail || liveItem, member.name)
                 };
                 const startedAt = new Date();
-                const fileName = buildLiveRecordFileName(item, startedAt);
+                const fileName = retryState?.fileName || buildLiveRecordFileName(item, startedAt);
+                const sessionId = retryState?.sessionId || `auto_live_session_${liveId}_${Date.now()}`;
                 const taskId = `auto_live_record_${member.id}_${Date.now()}`;
-                const task = { taskId, memberId: member.id, liveId, fileName };
+                const task = { taskId, memberId: member.id, liveId, fileName, sessionId, recordingStartedAt: 0 };
                 autoLiveRecordTasks.set(member.id, task);
                 autoLiveRecordTaskOwners.set(taskId, member.id);
                 ensureLiveRecordDownloadTask(taskId, fileName, '自动录制中，正在连接直播流...');
@@ -857,7 +899,8 @@
                     url: streamUrl,
                     taskId,
                     savePath: readStringSetting('yaya_path_live', ''),
-                    fileName
+                    fileName,
+                    recordingSessionId: sessionId
                 });
                 showAutoLiveRecordToast(`已开始自动录制：${member.name}`);
             } catch (error) {
@@ -887,14 +930,17 @@
 
                 const liveList = result.content.liveList;
                 const currentLiveIds = new Set(liveList.map(item => String(item?.liveId || '').trim()).filter(Boolean));
-                Array.from(autoLiveRecordHandledLiveIds).forEach(liveId => {
-                    if (!currentLiveIds.has(liveId)) {
-                        autoLiveRecordHandledLiveIds.delete(liveId);
-                        autoLiveRecordRetryState.delete(liveId);
+                const knownLiveIds = new Set([
+                    ...autoLiveRecordHandledLiveIds,
+                    ...autoLiveRecordRetryState.keys(),
+                    ...Array.from(autoLiveRecordTasks.values(), task => task.liveId)
+                ]);
+                knownLiveIds.forEach(liveId => {
+                    if (currentLiveIds.has(liveId)) {
+                        autoLiveRecordMissingPolls.delete(liveId);
+                        return;
                     }
-                });
-                Array.from(autoLiveRecordRetryState.keys()).forEach(liveId => {
-                    if (!currentLiveIds.has(liveId)) autoLiveRecordRetryState.delete(liveId);
+                    autoLiveRecordMissingPolls.set(liveId, (autoLiveRecordMissingPolls.get(liveId) || 0) + 1);
                 });
 
                 const selectedMembers = new Map(autoLiveRecordMembers.map(member => [member.id, member]));
@@ -908,12 +954,24 @@
 
                 autoLiveRecordTasks.forEach((task, memberId) => {
                     const liveItem = selectedLiveItems.get(memberId);
-                    if (!liveItem || String(liveItem.liveId || '') !== task.liveId) {
+                    const liveMissing = !liveItem || String(liveItem.liveId || '') !== task.liveId;
+                    if (liveMissing && (autoLiveRecordMissingPolls.get(task.liveId) || 0) >= 3) {
                         ipcRenderer.send('stop-record', {
                             taskId: task.taskId,
                             fileName: task.fileName
                         });
                     }
+                });
+
+                autoLiveRecordRetryState.forEach((retryState, liveId) => {
+                    if ((autoLiveRecordMissingPolls.get(liveId) || 0) < 3) return;
+                    ipcRenderer.send('finalize-live-record-session', {
+                        sessionId: retryState.sessionId,
+                        reason: 'live-ended'
+                    });
+                    autoLiveRecordRetryState.delete(liveId);
+                    autoLiveRecordHandledLiveIds.delete(liveId);
+                    autoLiveRecordMissingPolls.delete(liveId);
                 });
 
                 for (const [memberId, liveItem] of selectedLiveItems) {
@@ -932,7 +990,17 @@
             const autoMemberId = data ? autoLiveRecordTaskOwners.get(data.taskId) : '';
             if (!autoMemberId || data.status !== 'recording') return;
             const task = autoLiveRecordTasks.get(autoMemberId);
-            if (task?.taskId === data.taskId) autoLiveRecordRetryState.delete(task.liveId);
+            if (task?.taskId === data.taskId) {
+                task.recordingStartedAt = Date.now();
+                const previous = autoLiveRecordRetryState.get(task.liveId);
+                autoLiveRecordRetryState.set(task.liveId, {
+                    attempts: previous?.attempts || 0,
+                    nextRetryAt: 0,
+                    sessionId: task.sessionId,
+                    fileName: task.fileName,
+                    memberId: task.memberId
+                });
+            }
         });
 
         ipcRenderer.on('download-status', (event, data) => {

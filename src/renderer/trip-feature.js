@@ -111,6 +111,34 @@
             if (input) input.value = name || '';
             if (idInput) idInput.value = memberId || '';
             if (resultBox) resultBox.style.display = 'none';
+            if (memberId && typeof window.syncWebTripRoute === 'function') {
+                window.syncWebTripRoute(memberId);
+            }
+        }
+
+        async function openTripById(memberId) {
+            const normalizedMemberId = String(memberId || '').trim();
+            if (!/^\d{1,32}$/.test(normalizedMemberId)) return false;
+
+            selectTripMember('', normalizedMemberId);
+            if (!getMemberDataLoaded() && typeof loadMemberData === 'function') {
+                try {
+                    await loadMemberData();
+                } catch (error) {
+                    console.warn('按成员 ID 打开行程时加载成员资料失败:', error);
+                }
+            }
+
+            const memberList = Array.isArray(getMemberData()) ? getMemberData() : [];
+            const member = memberList.find(item => [
+                item?.id,
+                item?.userId,
+                item?.ownerId,
+                item?.memberId
+            ].some(value => String(value || '') === normalizedMemberId));
+            selectTripMember(member?.ownerName || member?.name || '', normalizedMemberId);
+            if (!tripLoading) setTimeout(() => fetchTripList(), 0);
+            return true;
         }
 
         function formatTripDate(item) {
@@ -206,11 +234,17 @@
         async function fetchTripList() {
             const token = getAppToken ? getAppToken() : '';
             const container = document.getElementById('trip-result-container');
+            const memberId = getMemberId();
             if (!token) {
                 showToast('请先在“账号设置”中登录');
                 return;
             }
             if (!container || tripLoading) return;
+            if (memberId && typeof window.syncWebTripRoute === 'function') {
+                window.syncWebTripRoute(memberId);
+            } else if (!memberId && typeof window.syncWebTripListRoute === 'function') {
+                window.syncWebTripListRoute();
+            }
 
             tripLoading = true;
             const button = document.getElementById('btn-trip-query');
@@ -225,7 +259,6 @@
 
             try {
                 const pa = typeof window.getPA === 'function' ? window.getPA() : null;
-                const memberId = getMemberId();
                 let hasRendered = false;
                 let isMore = false;
                 const seenCursors = new Set();
@@ -287,6 +320,7 @@
         return {
             handleTripSearch,
             selectTripMember,
+            openTripById,
             fetchTripList,
             ensureTripListLoaded
         };

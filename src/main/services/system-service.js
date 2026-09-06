@@ -161,7 +161,6 @@ function repositionDesktopToasts(mainWindow) {
     const aliveEntries = activeDesktopToasts.filter(entry => !entry.window.isDestroyed());
 
     aliveEntries.forEach((entry, index) => {
-        // 最新通知靠近底部，较早通知依次向上堆叠。
         const distanceFromBottom = aliveEntries.length - index - 1;
         const x = workArea.x + workArea.width - DESKTOP_TOAST_WIDTH - DESKTOP_TOAST_MARGIN;
         const y = workArea.y + workArea.height - DESKTOP_TOAST_HEIGHT - DESKTOP_TOAST_MARGIN
@@ -293,7 +292,6 @@ async function showSystemNotification(payload = {}, mainWindow) {
         && !entry.window.isDestroyed()
     ));
 
-    // 单弹窗模式下直接更新现有窗口，避免不同成员的新消息导致窗口关闭后重建而闪烁。
     if (existingEntry) {
         const existingWindow = existingEntry.window;
         existingEntry.memberKey = memberKey;

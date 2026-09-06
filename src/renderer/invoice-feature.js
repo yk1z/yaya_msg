@@ -141,10 +141,13 @@
 
     function getCurrentFormValues() {
         const savedForm = readStoredJson(INVOICE_FORM_KEY, {});
+        const yearMonthEl = $('invoice-year-month');
         const buyerTypeEl = $('invoice-buyer-type');
         const invoiceableOnlyEl = $('invoice-invoiceable-only');
         return {
-            yearMonth: $('invoice-year-month')?.value || savedForm.yearMonth || getDefaultYearMonth(),
+            yearMonth: yearMonthEl
+                ? String(yearMonthEl.value || '')
+                : String(savedForm.yearMonth || getDefaultYearMonth()),
             buyerType: buyerTypeEl ? buyerTypeEl.value : normalizeSavedBuyerType(savedForm),
             buyerName: $('invoice-buyer-name')?.value ?? savedForm.buyerName ?? '',
             notifyEmail: $('invoice-email')?.value ?? savedForm.notifyEmail ?? '',
@@ -570,6 +573,9 @@
                 ? orderResult.content.data.map(normalizeOrder)
                 : [];
             mergeInvoiceOrders(nextOrders, false);
+            if (nextOrders.length > 0) {
+                renderInvoicePage();
+            }
 
             const nextCursor = String(orderResult.content?.nextTime || '');
             if (!nextCursor || nextCursor === cursor || nextOrders.length === 0) {

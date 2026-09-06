@@ -13,6 +13,10 @@
             ipcRenderer,
             resetTimelinePanel,
             resetClipTool,
+            activateMediaPlaybackPage,
+            configurePlayerLayout,
+            destroyPlayers,
+            backToLiveList,
             setCurrentPlayingItem,
             setReturnToOpenLive,
             setReturnToPerformance,
@@ -597,6 +601,9 @@
             isLiveContent = false,
             participantGroupHint = ''
         ) {
+            if (typeof destroyPlayers === 'function') {
+                destroyPlayers({ clearTimeline: true, clearAuxPanels: true });
+            }
             const giftContainer = document.getElementById('live-gift-container');
             if (giftContainer) {
                 giftContainer.style.display = 'none';
@@ -611,19 +618,23 @@
             if (performanceView) performanceView.style.display = 'none';
 
             const mediaView = document.getElementById('view-media');
-            if (mediaView) {
-                mediaView.style.display = 'flex';
-                mediaView.style.flexDirection = 'column';
-            }
+            const targetPlayerPageId = sourceView === 'performance'
+                ? 'view-performance-player'
+                : (isLiveContent ? 'view-open-live-player' : 'view-open-live-record-player');
+            const targetPlayerPage = document.getElementById(targetPlayerPageId);
 
             const mediaListControls = document.getElementById('media-list-controls');
             const paginationControls = document.getElementById('vod-pagination-controls');
             const mediaListArea = document.getElementById('media-list-area');
             const liveControls = document.getElementById('live-list-controls');
+            const rankButton = document.getElementById('btn-player-rank');
+            const rankContainer = document.getElementById('live-rank-container');
             if (mediaListControls) mediaListControls.style.display = 'none';
             if (paginationControls) paginationControls.style.display = 'none';
             if (mediaListArea) mediaListArea.style.display = 'none';
             if (liveControls) liveControls.style.display = 'none';
+            if (rankButton) rankButton.style.display = 'none';
+            if (rankContainer) rankContainer.style.display = 'none';
 
             setReturnToOpenLive(sourceView === 'openlive');
             if (typeof setReturnToPerformance === 'function') {
@@ -631,7 +642,30 @@
             }
 
             const playerView = document.getElementById('live-player-view');
-            if (playerView) playerView.style.display = 'flex';
+            if (targetPlayerPage && playerView && typeof activateMediaPlaybackPage === 'function') {
+                activateMediaPlaybackPage(targetPlayerPage.id, playerView);
+            } else if (targetPlayerPage && playerView) {
+                if (playerView.parentElement !== targetPlayerPage) {
+                    targetPlayerPage.appendChild(playerView);
+                }
+                if (mediaView) mediaView.style.display = 'none';
+                document.querySelectorAll('.media-playback-page').forEach(page => {
+                    page.style.display = 'none';
+                });
+                targetPlayerPage.style.display = 'flex';
+                targetPlayerPage.style.flexDirection = 'column';
+                targetPlayerPage.scrollTop = 0;
+                playerView.style.display = 'flex';
+            } else {
+                if (mediaView) {
+                    mediaView.style.display = 'flex';
+                    mediaView.style.flexDirection = 'column';
+                }
+                if (playerView) playerView.style.display = 'flex';
+            }
+            if (typeof configurePlayerLayout === 'function') {
+                configurePlayerLayout(targetPlayerPage?.dataset.mediaPlaybackMode || (isLiveContent ? 'open-live' : 'open-live-record'));
+            }
 
             const authorEl = document.getElementById('current-live-author');
             if (authorEl) authorEl.textContent = nickname || '未知成员';
@@ -675,11 +709,12 @@
                 if (!streamUrl) {
                     console.warn(`[播放失败] liveId:${liveId} 无可用流`);
                     showToast('该场公演尚未开始或暂无播放源');
-                    queueParticipantLoad();
+                    if (typeof backToLiveList === 'function') backToLiveList();
                     return;
                 }
                 if (typeof startPlayer !== 'function') {
                     console.error('[公演记录] startPlayer 未就绪');
+                    if (typeof backToLiveList === 'function') backToLiveList();
                     return;
                 }
                 startPlayer(streamUrl, title, isLiveContent, null, [], { clearAuxPanels: true });
@@ -687,7 +722,7 @@
             } catch (error) {
                 console.error('[网络/系统错误]', error);
                 showToast('公演播放地址获取失败，请稍后重试');
-                queueParticipantLoad();
+                if (typeof backToLiveList === 'function') backToLiveList();
             }
         }
 
