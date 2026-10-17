@@ -17,6 +17,34 @@
 
         let liveGiftCacheSaveTimer = null;
         let liveGiftBalanceRequestId = 0;
+        let giftPopupListenersBound = false;
+        let liveGiftListRequestId = 0;
+        let liveGiftListLoading = false;
+        let liveGiftSending = false;
+        let liveGiftSendRevision = 0;
+        let renderedGiftContext = null;
+
+        function isCurrentGiftTarget(token, liveId) {
+            return token === getSafeToken()
+                && String(liveId || '') === String(getCurrentPlayingItem?.()?.liveId || '');
+        }
+
+        function closeGiftPopup() {
+            const panel = document.getElementById('live-gift-panel');
+            if (panel) panel.style.display = 'none';
+            const arrow = document.getElementById('gift-panel-arrow');
+            if (arrow) arrow.style.transform = 'rotate(0deg)';
+            document.querySelector('#live-gift-container .gift-control-bar')?.setAttribute('aria-expanded', 'false');
+        }
+
+        function positionGiftPopup() {
+            const panel = document.getElementById('live-gift-panel');
+            const host = document.getElementById('live-gift-container');
+            const player = document.getElementById('live-player-area');
+            if (!panel || !host || !player || panel.style.display === 'none') return;
+            const available = host.getBoundingClientRect().top - Math.max(0, player.getBoundingClientRect().top) - 8;
+            panel.style.setProperty('--live-gift-popup-max-height', `${Math.max(60, Math.floor(available))}px`);
+        }
 
         function getSafeToken() {
             if (typeof getAppToken === 'function') return getAppToken();
@@ -83,12 +111,15 @@
             };
         }
 
-        async function verifyOfficialGift(token, liveId, beforeState, response) {
+        async function verifyOfficialGift(token, liveId, beforeState, response, sendRevision) {
+            const isCurrent = () => sendRevision === liveGiftSendRevision && isCurrentGiftTarget(token, liveId);
             const delays = [1200, 3000];
             let afterState = null;
             for (const delay of delays) {
                 await new Promise(resolve => setTimeout(resolve, delay));
+                if (!isCurrent()) return;
                 afterState = await fetchOfficialGiftState(token, liveId).catch(() => null);
+                if (!isCurrent()) return;
                 const balanceDecreased = Number.isFinite(beforeState?.money)
                     && Number.isFinite(afterState?.money)
                     && afterState.money < beforeState.money;
@@ -112,11 +143,13 @@
                 responseGiftNum: Number(response?.content?.giftNum ?? response?.diagnostic?.content?.giftNum ?? 0)
             };
             saveLiveGiftDiagnostic(diagnostic);
-            if (confirmed) {
-                const balanceText = balanceDecreased ? `，余额 ${beforeState.money} → ${afterState.money}` : '';
-                notify(`🎁 官方已确认赠送${balanceText}`, 4000);
-            } else {
-                notify('官方余额和贡献榜均未变化，本次赠送未生效', 5000);
+            if (window.desktop?.platform === 'web') {
+                if (confirmed) {
+                    const balanceText = balanceDecreased ? `，余额 ${beforeState.money} → ${afterState.money}` : '';
+                    notify(`🎁 官方已确认赠送${balanceText}`, 4000);
+                } else {
+                    notify('暂未确认赠送结果，请先检查余额和礼物记录，勿重复发送', 5000);
+                }
             }
             void updateLiveBalance();
             if (typeof window.fetchLiveRank === 'function') void window.fetchLiveRank(liveId);
@@ -187,23 +220,44 @@
             const arrow = document.getElementById('gift-panel-arrow');
             const playerArea = document.getElementById('live-player-area');
             const playerWrapper = document.getElementById('player-combo-wrapper');
+            const isDesktop = window.desktop?.platform !== 'web';
 
             if (!panel) return;
+            if (isDesktop) {
+                const quantity = document.getElementById('live-gift-num');
+                if (quantity) quantity.max = '999';
+                panel.querySelector('#live-gift-hint')?.remove();
+                if (!giftPopupListenersBound) {
+                    giftPopupListenersBound = true;
+                    document.addEventListener('pointerdown', event => {
+                        if (!document.getElementById('live-gift-container')?.contains(event.target)) closeGiftPopup();
+                    });
+                    document.addEventListener('keydown', event => {
+                        if (event.key === 'Escape') closeGiftPopup();
+                    });
+                    window.addEventListener('resize', positionGiftPopup);
+                }
+            }
 
             if (panel.style.display === 'none' || panel.style.display === '') {
                 const playerHeight = Math.round(playerArea?.getBoundingClientRect().height || 0);
-                if (playerWrapper && playerHeight > 0) {
+                if (!isDesktop && playerWrapper && playerHeight > 0) {
                     playerWrapper.style.setProperty('--live-player-expanded-height', `${playerHeight}px`);
                     playerWrapper.classList.add('gift-panel-expanded');
                 }
                 panel.style.display = 'block';
                 if (arrow) arrow.style.transform = 'rotate(180deg)';
+                if (isDesktop) {
+                    document.querySelector('#live-gift-container .gift-control-bar')?.setAttribute('aria-expanded', 'true');
+                    positionGiftPopup();
+                }
 
                 void renderLiveGiftGrid();
                 void updateLiveBalance();
             } else {
                 panel.style.display = 'none';
                 if (arrow) arrow.style.transform = 'rotate(0deg)';
+                if (isDesktop) closeGiftPopup();
                 if (playerWrapper) {
                     playerWrapper.classList.remove('gift-panel-expanded');
                     playerWrapper.style.removeProperty('--live-player-expanded-height');
@@ -213,7 +267,18 @@
 
         async function renderLiveGiftGrid() {
             const container = document.getElementById('live-gift-grid');
-            if (!container) return;
+            if (!container || liveGiftSending) return;
+
+            const requestId = ++liveGiftListRequestId;
+            liveGiftListLoading = true;
+            renderedGiftContext = null;
+            if (typeof setSelectedLiveGiftId === 'function') setSelectedLiveGiftId(null);
+            const sendButton = document.getElementById('btn-confirm-send-gift');
+            if (sendButton) {
+                sendButton.disabled = true;
+                sendButton.innerText = window.YayaRendererUtils.t('发送');
+            }
+            container.querySelectorAll('.selected').forEach(card => card.classList.remove('selected'));
 
             if (container.children.length === 0) {
                 container.innerHTML = '<div style="padding:20px; text-align:center; color:#999; width:100%;">加载中...</div>';
@@ -269,6 +334,9 @@
                 useFallback = true;
             }
 
+            if (requestId !== liveGiftListRequestId || !isCurrentGiftTarget(token, liveId)) return;
+            liveGiftListLoading = false;
+            renderedGiftContext = { token, liveId };
             if (useFallback || giftList.length === 0) {
                 giftList = getGiftFallbackList();
             } else {
@@ -280,7 +348,7 @@
                 return;
             }
 
-            let html = '';
+            const cards = document.createDocumentFragment();
             giftList.forEach(gift => {
                 const id = gift.giftId || gift.id;
                 const name = gift.giftName || gift.name || '未知礼物';
@@ -291,23 +359,35 @@
                 else if (gift.canSendNum !== undefined) cost = gift.canSendNum;
                 else if (gift.cost !== undefined) cost = gift.cost;
 
-                const imgUrl = safeFixUrl(gift.picPath);
-
-                html += `
-            <div class="gift-item" id="gift-item-${id}" 
-                 data-name="${name}" data-cost="${cost}" data-is-pocket-gift="${isPocketGift}"
-                 data-pic-path="${encodeURIComponent(String(gift.picPath || ''))}"
-                 onclick="selectLiveGift('${id}')">
-                <img src="${imgUrl}" class="gift-img" onerror="this.src='./icon.png'" loading="lazy">
-                <div class="gift-name" title="${name}">${name}</div>
-                <div class="gift-cost">${cost} 🍗</div>
-            </div>
-        `;
+                const card = document.createElement('div');
+                card.className = 'gift-item';
+                card.id = `gift-item-${id}`;
+                Object.assign(card.dataset, { name, cost, isPocketGift, picPath: encodeURIComponent(String(gift.picPath || '')) });
+                card.addEventListener('click', () => selectLiveGift(String(id)));
+                const image = document.createElement('img');
+                image.className = 'gift-img';
+                image.loading = 'lazy';
+                image.alt = '';
+                image.addEventListener('error', () => { image.src = './icon.png'; }, { once: true });
+                image.src = safeFixUrl(gift.picPath);
+                const label = document.createElement('div');
+                label.className = 'gift-name';
+                label.textContent = name;
+                label.title = name;
+                const price = document.createElement('div');
+                price.className = 'gift-cost';
+                price.textContent = `${cost} 🍗`;
+                card.append(image, label, price);
+                cards.appendChild(card);
             });
-            container.innerHTML = html;
+            container.replaceChildren(cards);
         }
 
         function selectLiveGift(giftId) {
+            if (liveGiftSending || liveGiftListLoading) return;
+            if (renderedGiftContext && !isCurrentGiftTarget(renderedGiftContext.token, renderedGiftContext.liveId)) return;
+            const currentGift = document.getElementById(`gift-item-${giftId}`);
+            if (!currentGift) return;
             const previousGiftId = typeof getSelectedLiveGiftId === 'function' ? getSelectedLiveGiftId() : null;
             if (previousGiftId) {
                 const oldGift = document.getElementById(`gift-item-${previousGiftId}`);
@@ -317,9 +397,6 @@
             if (typeof setSelectedLiveGiftId === 'function') {
                 setSelectedLiveGiftId(giftId);
             }
-
-            const currentGift = document.getElementById(`gift-item-${giftId}`);
-            if (!currentGift) return;
 
             currentGift.classList.add('selected');
 
@@ -346,20 +423,21 @@
 
             try {
                 const res = await ipcRenderer.invoke('fetch-user-money', { token, pa: getSafePa() });
-                if (requestId !== liveGiftBalanceRequestId) return;
+                if (requestId !== liveGiftBalanceRequestId || token !== getSafeToken()) return;
                 if (res.success && res.content) {
                     balanceEl.innerText = res.content.moneyTotal;
                 } else {
                     balanceEl.innerText = window.YayaRendererUtils.t('获取失败');
                 }
             } catch (e) {
-                if (requestId !== liveGiftBalanceRequestId) return;
+                if (requestId !== liveGiftBalanceRequestId || token !== getSafeToken()) return;
                 console.error(e);
                 balanceEl.innerText = window.YayaRendererUtils.t('错误');
             }
         }
 
         async function executeSendLiveGift() {
+            if (liveGiftSending || liveGiftListLoading) return;
             const selectedLiveGiftId = typeof getSelectedLiveGiftId === 'function' ? getSelectedLiveGiftId() : null;
             if (!selectedLiveGiftId) {
                 notify('请先选择一个礼物', 2000);
@@ -377,14 +455,20 @@
                 return;
             }
 
+            if (renderedGiftContext && !isCurrentGiftTarget(renderedGiftContext.token, renderedGiftContext.liveId)) {
+                notify('直播或账号已变化，请重新打开礼物栏', 3000);
+                return;
+            }
+
             const giftEl = document.getElementById(`gift-item-${selectedLiveGiftId}`);
             if (!giftEl) return;
 
             const giftName = giftEl.dataset.name;
             const numInput = document.getElementById('live-gift-num');
-            const giftNum = numInput ? Math.floor(Number(numInput.value)) : 1;
-            if (giftNum < 1) {
-                notify('数量不能小于 1', 2000);
+            const giftNum = numInput ? Number(numInput.value) : 1;
+            const maxQuantity = window.desktop?.platform === 'web' ? 9999 : 999;
+            if (!Number.isInteger(giftNum) || giftNum < 1 || giftNum > maxQuantity) {
+                notify(`礼物数量须为 1–${maxQuantity} 的整数`, 3000);
                 return;
             }
 
@@ -392,28 +476,45 @@
             if (!btn) return;
 
             const originalText = btn.innerText;
+            liveGiftSending = true;
+            const sendRevision = ++liveGiftSendRevision;
             btn.disabled = true;
             btn.innerText = '...';
+            if (numInput) numInput.disabled = true;
+
+            const liveId = currentPlayingItem.liveId;
+            const sendToRoomId = currentPlayingItem.chatroomId || currentPlayingItem.roomId || '';
+            const acceptUserId = currentPlayingItem.userInfo
+                ? currentPlayingItem.userInfo.userId
+                : (currentPlayingItem.userId || '');
+            const crm = currentPlayingItem.crm || '';
+            const liveType = currentPlayingItem.liveType;
+            const isPocketGift = Number(giftEl.dataset.isPocketGift || 0) === 1 ? 1 : 0;
+            let paymentStarted = false;
+            let refreshGiftList = false;
 
             try {
-                const liveId = currentPlayingItem.liveId;
-                const sendToRoomId = currentPlayingItem.chatroomId || currentPlayingItem.roomId || '';
-                const acceptUserId = currentPlayingItem.userInfo
-                    ? currentPlayingItem.userInfo.userId
-                    : (currentPlayingItem.userId || '');
-
                 if (!acceptUserId) throw new Error('无法获取主播ID');
                 const beforeState = await fetchOfficialGiftState(token, liveId).catch(() => null);
+                if (!isCurrentGiftTarget(token, liveId)) return;
 
+                paymentStarted = true;
                 const res = await ipcRenderer.invoke('send-live-gift', {
                     token,
                     pa: getSafePa(),
                     giftId: selectedLiveGiftId,
                     liveId,
                     acceptUserId,
-                    giftNum
+                    giftNum,
+                    ...(window.desktop?.platform !== 'web' ? {
+                        crm,
+                        sendToRoomId,
+                        liveType,
+                        isPocketGift
+                    } : {})
                 });
 
+                if (!isCurrentGiftTarget(token, liveId)) return;
                 saveLiveGiftDiagnostic({
                     time: new Date().toISOString(),
                     request: {
@@ -421,8 +522,8 @@
                         giftId: String(selectedLiveGiftId || ''),
                         acceptUserId: String(acceptUserId || ''),
                         giftNum,
-                        isPocketGift: Number(giftEl.dataset.isPocketGift || 0) === 1 ? 1 : 0,
-                        route: 'contribution-api',
+                        isPocketGift,
+                        route: window.desktop?.platform === 'web' ? 'contribution-api' : 'live-room-api',
                         hasRoomId: Boolean(sendToRoomId)
                     },
                     response: {
@@ -440,46 +541,19 @@
                 });
 
                 if (res.success) {
-                    notify(`🎁 [${giftName}] 接口已受理，正在核对官方余额和贡献榜`, 3500);
-                    const acceptUser = currentPlayingItem.userInfo || {};
-                    if (window.desktop?.platform !== 'web') try {
-                        const eventResult = await ipcRenderer.invoke('send-live-gift-event', {
-                            liveId,
-                            giftId: selectedLiveGiftId,
-                            giftName,
-                            giftNum,
-                            money: Number(giftEl.dataset.cost || 0),
-                            picPath: decodeURIComponent(giftEl.dataset.picPath || ''),
-                            acceptUserId,
-                            acceptUserName: acceptUser.nickname || currentPlayingItem.nickname || '',
-                            acceptStarName: acceptUser.starName || '',
-                            acceptUserAvatar: acceptUser.avatar || ''
-                        });
-                        const diagnostic = readLiveGiftDiagnostic();
-                        diagnostic.chatEvent = {
-                            time: new Date().toISOString(),
-                            success: eventResult?.success === true,
-                            idClient: String(eventResult?.idClient || '')
-                        };
-                        saveLiveGiftDiagnostic(diagnostic);
-                    } catch (eventError) {
-                        const diagnostic = readLiveGiftDiagnostic();
-                        diagnostic.chatEvent = {
-                            time: new Date().toISOString(),
-                            success: false,
-                            message: String(eventError?.message || eventError || '未知错误')
-                        };
-                        saveLiveGiftDiagnostic(diagnostic);
-                        notify(`礼物已送出，但聊天室礼物弹幕发送失败：${eventError?.message || eventError}`, 5000);
+                    if (window.desktop?.platform === 'web') {
+                        notify(`🎁 [${giftName}] 接口已受理，正在核对官方余额和贡献榜`, 3500);
+                    } else {
+                        notify(`已送出 ${giftName} × ${giftNum}`, 3000);
                     }
                     if (typeof window.fetchLiveRank === 'function') void window.fetchLiveRank(liveId);
-                    void verifyOfficialGift(token, liveId, beforeState, res);
+                    void verifyOfficialGift(token, liveId, beforeState, res, sendRevision).catch(error => console.error('核对送礼结果失败:', error));
                 } else {
                     let errorMsg = res.msg || '未知错误';
 
                     if (errorMsg.includes('不存在') || errorMsg.includes('下架')) {
                         errorMsg = '失败';
-                        void renderLiveGiftGrid();
+                        refreshGiftList = true;
                     } else if (errorMsg.includes('余额') || errorMsg.includes('不足') || errorMsg.includes('钱')) {
                         errorMsg = '余额不足，请充值';
                     }
@@ -489,14 +563,19 @@
                     }
                 }
             } catch (e) {
+                if (!isCurrentGiftTarget(token, liveId)) return;
                 saveLiveGiftDiagnostic({
                     time: new Date().toISOString(),
                     response: { success: false, message: String(e?.message || e || '未知错误') }
                 });
-                notify(`出错: ${e.message}`, 3000);
+                notify(paymentStarted ? '送礼结果暂未确认，请先检查余额和礼物记录，勿重复发送' : `出错: ${e.message}`, 3000);
             } finally {
-                btn.disabled = false;
-                btn.innerText = originalText;
+                liveGiftSending = false;
+                if (numInput) numInput.disabled = false;
+                const selectionUnchanged = typeof getSelectedLiveGiftId === 'function' && getSelectedLiveGiftId() === selectedLiveGiftId;
+                btn.disabled = !selectionUnchanged || !isCurrentGiftTarget(token, liveId);
+                btn.innerText = btn.disabled ? window.YayaRendererUtils.t('发送') : originalText;
+                if (refreshGiftList && isCurrentGiftTarget(token, liveId)) void renderLiveGiftGrid();
             }
         }
 

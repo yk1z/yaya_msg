@@ -1,7 +1,8 @@
 'use strict';
 
-const { createNimCommonlinkQChatClient } = require('../../common/nim-commonlink-qchat');
+const { createSharedMemberRoomClient } = require('./member-room-transport');
 const { buildDeletePayload, buildReplyOptions, buildSendOptions } = require('../../common/member-room-message');
+const { applyCustomSenderProfile } = require('../../common/sender-profile');
 const pocketService = require('./pocket-service');
 const settingsService = require('./settings-service');
 const { ensureWasmLoaded, generatePa } = require('./wasm-service');
@@ -30,6 +31,7 @@ function isCurrentConnection(senderId, connectionId) {
 
 function sendToRenderer(sender, channel, connectionId, payload = {}) {
     if (!sender || sender.isDestroyed() || !isCurrentConnection(sender.id, connectionId)) return;
+    if (connections.get(sender.id)?.pocketToken !== settingsService.getToken()) return;
     sender.send(channel, { connectionId, ...payload });
 }
 
@@ -90,10 +92,12 @@ async function connectMemberRoom(sender, payload = {}) {
     if (!userInfo.userId) userInfo.userId = credentials.userId || '';
     const account = String(credentials.account || credentials.accid || '').trim();
     assertConnectionStillRequested();
-    const client = createNimCommonlinkQChatClient({
+    const client = createSharedMemberRoomClient({
         appKey: MEMBER_ROOM_APP_KEY,
         account,
         token: credentials.token,
+        serverId,
+        channelId,
         onConnected() {
             sendToRenderer(sender, 'member-room-status', connectionId, {
                 status: 'connected',
@@ -127,6 +131,7 @@ async function connectMemberRoom(sender, payload = {}) {
         connectionId,
         serverId,
         channelId,
+        pocketToken,
         account,
         userInfo,
         client,
@@ -144,6 +149,7 @@ async function connectMemberRoom(sender, payload = {}) {
             serverId,
             channelId,
             accountId: account,
+            userId: String(userInfo.userId || ''),
             accountName: String(userInfo.nickname || account)
         };
     } catch (error) {
@@ -159,7 +165,8 @@ async function connectMemberRoom(sender, payload = {}) {
 async function sendMemberRoomMessage(senderId, payload = {}) {
     const connectionId = normalizeConnectionId(payload.connectionId);
     const current = connections.get(senderId);
-    if (!current || current.connectionId !== connectionId || !current.client.connected) {
+    if (!current || current.connectionId !== connectionId || !current.client.connected
+        || current.pocketToken !== settingsService.getToken()) {
         throw new Error('成员房间连接已失效');
     }
     const serverId = normalizeId(payload.serverId, '成员房间服务器 ID');
@@ -170,17 +177,33 @@ async function sendMemberRoomMessage(senderId, payload = {}) {
     const now = Date.now();
     if (now - current.lastSentAt < SEND_INTERVAL_MS) throw new Error('发送太快，请稍后再试');
     const buildOptions = payload.reply ? buildReplyOptions : buildSendOptions;
+    const customSenderProfile = settingsService.getCustomSenderProfile();
+    const senderProfile = applyCustomSenderProfile(
+        current.userInfo,
+        customSenderProfile
+    );
     const options = buildOptions({
         serverId,
         channelId,
         text: payload.text,
         reply: payload.reply,
-        userInfo: current.userInfo,
-        bubbleId: '0'
+        userInfo: senderProfile,
+        channelRole: customSenderProfile.enabled && customSenderProfile.channelRole !== null
+            ? String(customSenderProfile.channelRole)
+            : '0',
+        bubbleId: customSenderProfile.enabled ? customSenderProfile.bubbleId || '0' : '0',
+        monthCardBadge: customSenderProfile.enabled ? customSenderProfile.monthCardBadge : null
     });
     current.lastSentAt = now;
     try {
-        return await current.client.sendMessage(options);
+        const result = await current.client.sendMessage(options);
+        return { ...result, message: {
+            serverId, channelId, fromAccount: current.account,
+            fromNick: String(senderProfile.nickname || senderProfile.nickName || ''),
+            type: options.type === 'custom' ? 100 : 0,
+            body: options.body || '', attachment: options.attachment || '', ext: options.ext || '',
+            msgIdClient: result.msgIdClient || '', msgIdServer: result.msgIdServer || '', time: result.time
+        } };
     } catch (error) {
         current.lastSentAt = 0;
         throw error;
@@ -190,12 +213,16 @@ async function sendMemberRoomMessage(senderId, payload = {}) {
 async function deleteMemberRoomMessage(senderId, payload = {}) {
     const connectionId = normalizeConnectionId(payload.connectionId);
     const current = connections.get(senderId);
-    if (!current || current.connectionId !== connectionId || !current.client.connected) {
+    if (!current || current.connectionId !== connectionId || !current.client.connected
+        || current.pocketToken !== settingsService.getToken()) {
         throw new Error('成员房间连接已失效');
     }
     const targetUserId = String(payload.senderUserId || '').trim();
-    const currentUserId = String(current.userInfo?.userId || '').trim();
-    if (!targetUserId || !currentUserId || targetUserId !== currentUserId) {
+    const currentIdentityIds = new Set([
+        current.userInfo?.userId,
+        current.account
+    ].map(value => String(value || '').trim()).filter(Boolean));
+    if (!targetUserId || !currentIdentityIds.has(targetUserId)) {
         throw new Error('只能删除当前账号自己发送的消息');
     }
     const deletePayload = buildDeletePayload({

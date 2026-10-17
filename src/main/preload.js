@@ -5,6 +5,8 @@ const https = require('https');
 const readline = require('readline');
 const { pathToFileURL } = require('url');
 const { ipcRenderer, shell, webFrame } = require('electron');
+
+window.getNetfaceRtcEngine = () => require('zego-express-engine-electron/ZegoExpressEngine');
 const { ensureStoragePaths } = require('../common/storage-paths');
 const { reportIgnoredError } = require('../common/error-utils');
 

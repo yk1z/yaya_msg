@@ -34,6 +34,10 @@
         let followedRoomNotificationRunning = false;
         let followedRoomNotificationEnabled = false;
         let followedRoomNotificationGeneration = 0;
+        let notificationRealtime = null;
+        let notificationWork = Promise.resolve();
+        let requestNotificationCatchup = null;
+        let notificationCatchupPending = false;
         let followedTeamDiscoveryAt = 0;
         let followedTeamDiscoveryPromise = null;
         const followedNotificationServerDetailCache = new Map();
@@ -287,6 +291,7 @@
                         ),
                         serverId: String(config.serverId),
                         memberId,
+                        ownerId: memberId || String(member?.id || member?.userId || ''),
                         memberName,
                         avatarUrl: String(config.avatarUrl || getFollowedNotificationAvatar(member || {}) || '')
                     };
@@ -477,6 +482,12 @@
             );
         }
 
+        function getFollowedMessageKeys(message = {}) {
+            const keys = [...new Set([message.msgidClient, message.msgIdClient, message.msgIdServer, message.msgId,
+                message.messageId].filter(value => value != null && String(value) !== '' && String(value) !== '0').map(String))];
+            return keys.length ? keys : [getFollowedMessageKey(message)];
+        }
+
         function getFollowedMessageTime(message = {}) {
             return Number(message.msgTime || message.messageTime || 0) || 0;
         }
@@ -590,9 +601,104 @@
             return String(matchedChannel?.channelName || room.roomLabel).trim() || room.roomLabel;
         }
 
+        function enqueueNotificationWork(work) {
+            const result = notificationWork.catch(() => {}).then(work);
+            notificationWork = result.catch(error => console.warn('[口袋通知] 处理失败:', error));
+            return result;
+        }
+
+        function isCurrentNotificationRealtime(state) {
+            return state && notificationRealtime === state && followedRoomNotificationEnabled
+                && state.generation === followedRoomNotificationGeneration
+                && state.account === getFollowedNotificationAccountSuffix()
+                && state.token === String(getAppToken() || '').trim();
+        }
+
+        function syncNotificationRealtime(rooms) {
+            if (isWebRuntime()) return;
+            const signature = rooms.map(room => `${room.serverId}:${room.channelId}`).sort().join(',');
+            if (notificationRealtime?.signature === signature && isCurrentNotificationRealtime(notificationRealtime)) return;
+            const previous = notificationRealtime;
+            notificationRealtime = null;
+            if (previous) void ipcRenderer.invoke('disconnect-room-notifications', { requestId: previous.id }).catch(() => {});
+            if (!rooms.length) return;
+            const cursors = readJsonSetting(FOLLOWED_NOTIFICATION_CURSORS_KEY, {});
+            const state = {
+                id: `notify_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+                signature, generation: followedRoomNotificationGeneration,
+                account: getFollowedNotificationAccountSuffix(), token: String(getAppToken() || '').trim(),
+                healthy: false, ownerFiltersReady: rooms.every(room => !!room.ownerId),
+                floors: new Map(rooms.map(room => [room.channelId, Number(cursors[room.channelId]?.msgTime) || Date.now()]))
+            };
+            notificationRealtime = state;
+            void ipcRenderer.invoke('configure-room-notifications', {
+                requestId: state.id, rooms: rooms.map(({ serverId, channelId }) => ({ serverId, channelId }))
+            }).then(result => {
+                if (result?.success === false && isCurrentNotificationRealtime(state)) notificationRealtime = null;
+            }).catch(() => {
+                if (isCurrentNotificationRealtime(state)) notificationRealtime = null;
+            });
+        }
+
+        ipcRenderer?.on?.('room-notification-status', (_event, payload = {}) => {
+            const state = notificationRealtime;
+            if (!isCurrentNotificationRealtime(state) || payload.requestId !== state.id) return;
+            const accepted = new Set((payload.accepted || []).map(room => `${room.serverId}:${room.channelId}`));
+            state.healthy = state.ownerFiltersReady && payload.status === 'connected'
+                && state.signature.split(',').every(key => accepted.has(key));
+            notificationCatchupPending = true;
+            requestNotificationCatchup?.();
+        });
+
+        ipcRenderer?.on?.('room-notification-message', (_event, payload = {}) => {
+            const state = notificationRealtime;
+            if (!isCurrentNotificationRealtime(state) || payload.requestId !== state.id) return;
+            void enqueueNotificationWork(async () => {
+                if (!isCurrentNotificationRealtime(state)) return;
+                const message = payload.message || {};
+                const room = getFollowedNotificationRooms().find(item => item.serverId === String(message.serverId)
+                    && item.channelId === String(message.channelId));
+                if (!room) return;
+                if (!room.ownerId) return;
+                const normalized = window.YayaRendererFeatures.memberRoomRealtime?.normalize(message);
+                if (!normalized?.handled) { notificationCatchupPending = true; requestNotificationCatchup?.(); return; }
+                const record = normalized.record;
+                if (!record || String(record.senderUserId || record.senderId) === '121569667') return;
+                if (!record.senderUserId) { notificationCatchupPending = true; requestNotificationCatchup?.(1000); return; }
+                if (record.senderUserId !== room.ownerId) return;
+                const cursors = readJsonSetting(FOLLOWED_NOTIFICATION_CURSORS_KEY, {});
+                const previous = cursors[room.channelId];
+                if (!previous || record.msgTime < state.floors.get(room.channelId)) return;
+                const keys = getFollowedMessageKeys(record);
+                const known = new Set([previous.messageKey, ...(previous.recentMessageKeys || [])].filter(Boolean));
+                if (keys.some(key => known.has(key))) return;
+                cursors[room.channelId] = {
+                    ...previous, baseline: true,
+                    messageKey: record.msgTime >= previous.msgTime ? getFollowedMessageKey(record) : previous.messageKey,
+                    msgTime: Math.max(Number(previous.msgTime) || 0, record.msgTime),
+                    recentMessageKeys: [...new Set([...keys, ...known])].slice(0, 300)
+                };
+                writeJsonSetting(FOLLOWED_NOTIFICATION_CURSORS_KEY, cursors);
+                if (!isCurrentNotificationRealtime(state)) return;
+                await ipcRenderer.invoke('show-system-notification', {
+                    title: `${room.memberName} · ${getCachedFollowedNotificationRoomName(room)}`,
+                    body: `${getFollowedMessageSenderName(record, room.memberName)}：${getFollowedMessagePreview(record)}`,
+                    iconUrl: getFollowedMessageSenderAvatar(record) || room.avatarUrl,
+                    memberName: room.memberName, channelId: room.channelId, mainChannelId: room.mainChannelId,
+                    serverId: room.serverId, roomType: room.roomType,
+                    theme: document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'
+                });
+            }).catch(() => {});
+        });
+
         function stopFollowedRoomNotificationPolling() {
             followedRoomNotificationGeneration += 1;
             followedRoomNotificationEnabled = false;
+            const realtime = notificationRealtime;
+            notificationRealtime = null;
+            requestNotificationCatchup = null;
+            notificationCatchupPending = false;
+            if (realtime) void ipcRenderer.invoke('disconnect-room-notifications', { requestId: realtime.id }).catch(() => {});
             if (followedRoomNotificationTimer) {
                 clearTimeout(followedRoomNotificationTimer);
                 followedRoomNotificationTimer = null;
@@ -612,13 +718,15 @@
                 if (!followedRoomNotificationEnabled
                     || pollingGeneration !== followedRoomNotificationGeneration) return;
                 const normalizedDelay = Number(delay);
+                clearTimeout(followedRoomNotificationTimer);
                 followedRoomNotificationTimer = setTimeout(
                     runPoll,
                     Math.max(0, Number.isFinite(normalizedDelay) ? normalizedDelay : FOLLOWED_NOTIFICATION_POLL_INTERVAL)
                 );
             };
 
-            const runPoll = async () => {
+            const runPoll = () => enqueueNotificationWork(async () => {
+                followedRoomNotificationTimer = null;
                 const pollStartedAt = Date.now();
                 if (!followedRoomNotificationEnabled
                     || pollingGeneration !== followedRoomNotificationGeneration) return;
@@ -628,6 +736,11 @@
                 }
 
                 const token = String(getAppToken() || '').trim();
+                const account = getFollowedNotificationAccountSuffix();
+                const isCurrentPoll = () => followedRoomNotificationEnabled
+                    && pollingGeneration === followedRoomNotificationGeneration
+                    && token === String(getAppToken() || '').trim()
+                    && account === getFollowedNotificationAccountSuffix();
                 const savedConfigs = readJsonSetting(FOLLOWED_NOTIFICATION_ROOMS_KEY, []);
                 if (!token || !Array.isArray(savedConfigs) || savedConfigs.length === 0) {
                     scheduleNext(10000);
@@ -646,6 +759,8 @@
                 }
 
                 followedRoomNotificationRunning = true;
+                notificationCatchupPending = false;
+                let pollSucceeded = false;
                 try {
                     const pa = window.getPA ? window.getPA() : null;
                     const serverIdList = [...new Set(rooms.map(room => room.serverId).filter(Boolean))];
@@ -654,8 +769,10 @@
                         pa,
                         serverIdList
                     });
-                    if (!followedRoomNotificationEnabled
-                        || pollingGeneration !== followedRoomNotificationGeneration) return;
+                    if (!isCurrentPoll()) return;
+                    if (latestResponse?.success === false || !Array.isArray(latestResponse?.content?.lastMsgList)) {
+                        throw new Error('获取房间最新消息失败');
+                    }
                     const lastMessages = latestResponse?.content?.lastMsgList || [];
                     const lastMessagesByChannel = new Map(lastMessages.map(message => [
                         String(message.channelId || ''),
@@ -670,9 +787,8 @@
                         const lastMessage = lastMessagesByChannel.get(room.channelId);
                         if (!lastMessage) return false;
                         const previous = cursors[room.channelId];
-                        const hasPreviousMessageCursor = !!previous
-                            && Array.isArray(previous.recentMessageKeys)
-                            && previous.recentMessageKeys.length > 0;
+                        const hasPreviousMessageCursor = !!previous && (previous.baseline === true
+                            || (Array.isArray(previous.recentMessageKeys) && previous.recentMessageKeys.length > 0));
                         if (silentInitialSyncPending || !hasPreviousMessageCursor) return true;
                         const previousPreviewKey = String(previous.previewKey || previous.key || '');
                         return getFollowedMessageKey(lastMessage) !== previousPreviewKey;
@@ -696,27 +812,24 @@
                             }
                         })
                     ]);
-                    if (!followedRoomNotificationEnabled
-                        || pollingGeneration !== followedRoomNotificationGeneration) return;
+                    if (!isCurrentPoll()) return;
 
                     for (const room of rooms) {
                         const lastMessage = lastMessagesByChannel.get(room.channelId);
-                        if (silentInitialSyncPending && !lastMessage) {
-                            if (Object.prototype.hasOwnProperty.call(cursors, room.channelId)) {
-                                delete cursors[room.channelId];
+                        if (!lastMessage) {
+                            if (silentInitialSyncPending || !cursors[room.channelId]) {
+                                cursors[room.channelId] = { baseline: true, msgTime: pollStartedAt, recentMessageKeys: [] };
                                 cursorChanged = true;
                             }
                             continue;
                         }
-                        if (!lastMessage) continue;
 
                         const nextTime = getFollowedMessageTime(lastMessage);
                         const nextKey = getFollowedMessageKey(lastMessage);
                         const previous = cursors[room.channelId];
 
-                        const hasPreviousMessageCursor = !!previous
-                            && Array.isArray(previous.recentMessageKeys)
-                            && previous.recentMessageKeys.length > 0;
+                        const hasPreviousMessageCursor = !!previous && (previous.baseline === true
+                            || (Array.isArray(previous.recentMessageKeys) && previous.recentMessageKeys.length > 0));
                         if (silentInitialSyncPending || !hasPreviousMessageCursor) {
                             try {
                                 const detailFetch = detailFetchesByChannel.get(room.channelId);
@@ -726,13 +839,14 @@
                                     getFollowedMessageTime(right) - getFollowedMessageTime(left)
                                 ))[0] || lastMessage;
                                 const initialMessageKeys = [...new Set(initialMessages
-                                    .map(message => getFollowedMessageKey(message))
+                                    .flatMap(message => getFollowedMessageKeys(message))
                                     .filter(Boolean))].slice(0, 100);
                                 const initialLatestTime = Math.max(
                                     nextTime,
                                     ...initialMessages.map(message => getFollowedMessageTime(message))
                                 );
                                 cursors[room.channelId] = {
+                                    baseline: true,
                                     previewKey: nextKey,
                                     messageKey: getFollowedMessageKey(newest),
                                     msgTime: initialLatestTime,
@@ -776,10 +890,11 @@
                             : []).map(message => getFollowedMessageKey(message)));
                         const freshMessages = detailMessages
                             .filter(message => {
-                                const senderId = String(message.senderUserId || message.senderId || message.uid || '');
+                                const senderId = String(getFollowedMessageExtUser(message)?.userId
+                                    || message.senderUserId || message.senderId || message.uid || '');
                                 if (senderId === '121569667') return false;
                                 const messageKey = getFollowedMessageKey(message);
-                                if (messageKey && knownMessageKeys.has(messageKey)) return false;
+                                if (getFollowedMessageKeys(message).some(key => knownMessageKeys.has(key))) return false;
                                 const messageTime = getFollowedMessageTime(message);
                                 if (messageTime > previousTime) return true;
                                 if (messageTime === previousTime && messageTime > 0) return true;
@@ -788,12 +903,12 @@
                             .sort((left, right) => getFollowedMessageTime(left) - getFollowedMessageTime(right));
 
                         const detailMessageKeys = [...new Set(detailMessages
-                            .map(message => getFollowedMessageKey(message))
+                            .flatMap(message => getFollowedMessageKeys(message))
                             .filter(Boolean))];
                         const recentMessageKeys = [...new Set([
                             ...detailMessageKeys,
                             ...knownMessageKeys
-                        ])].slice(0, 100);
+                        ])].slice(0, 300);
                         const newestDetailMessage = [...detailMessages].sort((left, right) => (
                             getFollowedMessageTime(right) - getFollowedMessageTime(left)
                         ))[0] || lastMessage;
@@ -804,6 +919,7 @@
                         );
 
                         cursors[room.channelId] = {
+                            baseline: true,
                             previewKey: nextKey,
                             messageKey: getFollowedMessageKey(newestDetailMessage),
                             msgTime: latestDetailTime,
@@ -837,8 +953,7 @@
                     }
 
                     for (const pendingNotification of pendingNotificationsByMember.values()) {
-                        if (!followedRoomNotificationEnabled
-                            || pollingGeneration !== followedRoomNotificationGeneration) return;
+                        if (!isCurrentPoll()) return;
                         const { room, senderName, messagePreview, iconUrl } = pendingNotification;
                         const roomName = getCachedFollowedNotificationRoomName(room);
                         try {
@@ -862,19 +977,31 @@
                     }
 
                     if (cursorChanged) {
+                        if (!isCurrentPoll()) return;
                         writeJsonSetting(FOLLOWED_NOTIFICATION_CURSORS_KEY, cursors);
                     }
                     silentInitialSyncPending = false;
+                    syncNotificationRealtime(rooms);
+                    pollSucceeded = ![...detailFetchesByChannel.values()].some(result => result.error);
                 } catch (error) {
                     console.warn('[口袋通知] 后台检查失败:', error);
                 } finally {
                     if (pollingGeneration !== followedRoomNotificationGeneration) return;
                     followedRoomNotificationRunning = false;
                     const elapsed = Date.now() - pollStartedAt;
-                    scheduleNext(Math.max(100, FOLLOWED_NOTIFICATION_POLL_INTERVAL - elapsed));
+                    if (notificationCatchupPending) scheduleNext(0);
+                    else if (!pollSucceeded || !isCurrentNotificationRealtime(notificationRealtime) || !notificationRealtime.healthy) {
+                        scheduleNext(Math.max(100, FOLLOWED_NOTIFICATION_POLL_INTERVAL - elapsed));
+                    } else {
+                        clearTimeout(followedRoomNotificationTimer);
+                        followedRoomNotificationTimer = null;
+                    }
                 }
-            };
+            });
 
+            requestNotificationCatchup = (delay = 0) => {
+                if (!followedRoomNotificationRunning) scheduleNext(delay);
+            };
             followedRoomNotificationTimer = setTimeout(runPoll, Math.max(0, Number(delayMs) || 0));
         }
 
@@ -896,6 +1023,7 @@
             if (cursorsChanged) {
                 writeJsonSetting(FOLLOWED_NOTIFICATION_CURSORS_KEY, cursors);
             }
+            if (followedRoomNotificationEnabled) startFollowedRoomNotificationPolling(0);
         }
 
         async function toggleFollowedRoomNotification(card) {

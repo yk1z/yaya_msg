@@ -2,6 +2,8 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 const settingsService = require('./settings-service');
 const { ensureWasmLoaded, generatePa } = require('./wasm-service');
+const { runLiveReadRequest } = require('./live-read-request');
+const { withDesktopLiveRoom } = require('./live-room-routing');
 
 const LIVE48_LOGIN_COOKIE_KEY = 'live48LoginCookie';
 const LIVE48_LOGIN_AT_KEY = 'live48LoginAt';
@@ -95,7 +97,19 @@ async function invoke(channel, payload = {}) {
             loadPocketRuntime(),
             preparePayload(channel, payload)
         ]);
-        return await runtime.invokePocketChannel(channel, preparedPayload);
+        if (channel === 'fetch-live-one') {
+            return withDesktopLiveRoom(await runLiveReadRequest('/live/api/v1/live/getLiveOne', preparedPayload, async attempt => {
+                const requestPayload = { ...preparedPayload };
+                if (attempt > 0) {
+                    await ensureWasmLoaded();
+                    requestPayload.pa = generatePa() || requestPayload.pa;
+                }
+                return runtime.invokePocketChannel(channel, requestPayload);
+            }));
+        }
+        return await runtime.invokePocketChannel(channel, preparedPayload, {
+            desktopLiveGift: channel === 'send-live-gift'
+        });
     } catch (error) {
         return {
             success: false,
@@ -136,28 +150,32 @@ function normalizePocketApiPostData(value) {
 
 async function fetchPocketApiPath({ path: apiPath, postData } = {}) {
     try {
-        const response = await fetch(`https://pocketapi.48.cn${normalizePocketApiPath(apiPath)}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json;charset=utf-8',
-                'User-Agent': 'PocketFans201807/7.1.35 (iPhone; iOS 16.3; Scale/3.00)',
-                'Accept-Language': 'zh-Hans-CN;q=1',
-                appInfo: JSON.stringify({
-                    vendor: 'apple',
-                    deviceId: '7B93DFD0-472F-4736-A628-E85FAE086486',
-                    appVersion: '7.1.35',
-                    appBuild: '25101021',
-                    osVersion: '16.3.0',
-                    osType: 'ios',
-                    deviceName: 'iPhone 14 Pro',
-                    os: 'ios'
-                })
-            },
-            body: JSON.stringify(normalizePocketApiPostData(postData))
+        const normalizedPath = normalizePocketApiPath(apiPath);
+        const requestPayload = normalizePocketApiPostData(postData);
+        return await runLiveReadRequest(normalizedPath, requestPayload, async () => {
+            const response = await fetch(`https://pocketapi.48.cn${normalizedPath}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json;charset=utf-8',
+                    'User-Agent': 'PocketFans201807/7.1.35 (iPhone; iOS 16.3; Scale/3.00)',
+                    'Accept-Language': 'zh-Hans-CN;q=1',
+                    appInfo: JSON.stringify({
+                        vendor: 'apple',
+                        deviceId: '7B93DFD0-472F-4736-A628-E85FAE086486',
+                        appVersion: '7.1.35',
+                        appBuild: '25101021',
+                        osVersion: '16.3.0',
+                        osType: 'ios',
+                        deviceName: 'iPhone 14 Pro',
+                        os: 'ios'
+                    })
+                },
+                body: JSON.stringify(requestPayload)
+            });
+            const text = await response.text();
+            if (!text) return { status: response.status || 500, content: {}, message: 'Pocket API 返回为空' };
+            return JSON.parse(text);
         });
-        const text = await response.text();
-        if (!text) return { status: response.status || 500, content: {}, message: 'Pocket API 返回为空' };
-        return JSON.parse(text);
     } catch (error) {
         return {
             status: 500,

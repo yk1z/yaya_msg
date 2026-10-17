@@ -727,8 +727,6 @@
         }
 
         async function openOpenLiveInPotPlayer(event, liveId) {
-            // Mobile web uses the card's normal click handler and stays in the
-            // site player. Desktop keeps the external-player shortcut.
             if (window.desktop?.platform === 'web'
                 && document.documentElement.classList.contains('web-mobile-device')) {
                 return false;

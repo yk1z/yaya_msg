@@ -1,4 +1,4 @@
-        function handleSearch(keyword) {
+function handleSearch(keyword) {
             const resultBox = document.getElementById('search-results');
             if (!keyword || !keyword.trim()) {
                 resultBox.style.display = 'none';
@@ -976,6 +976,7 @@
                 ...pages,
                 document.getElementById('view-downloads'),
                 document.getElementById('view-invoice'),
+                document.getElementById('view-netface'),
                 document.getElementById('view-database'),
                 document.getElementById('view-melee-rank'),
                 document.getElementById('view-official-site-music'),
@@ -1069,6 +1070,7 @@
             'trip',
             'room-radio',
             'invoice',
+            'netface',
             'private-messages',
             'followed-rooms',
             'community'
@@ -1337,6 +1339,7 @@
             messages: '消息检索',
             downloads: '下载管理',
             invoice: '开具发票',
+            netface: '云握手',
             database: '数据库',
             'melee-rank': '鸡腿榜',
             'official-site-music': '音乐',
@@ -1388,6 +1391,9 @@
 
         function switchView(viewName, mode = null) {
             try {
+                if (currentViewName === 'netface' && viewName !== 'netface'
+                    && typeof window.beforeLeaveNetfaceView === 'function'
+                    && !window.beforeLeaveNetfaceView(viewName, mode)) return;
                 if (viewName === 'openlive') viewName = 'performance';
                 if (viewName !== 'login' && !ensureLoginBeforeSwitchView(viewName)) {
                     return;
@@ -1405,6 +1411,11 @@
                 }
 
                 closeAllModalOverlays();
+                if (window.vodState && currentViewName === 'media' && isVodMediaMode(currentMode)
+                    && !(viewName === 'media' && isVodMediaMode(mode))) {
+                    window.vodState.requestVersion += 1;
+                    window.vodState.isLoading = false;
+                }
                 mediaPlaybackViewToken += 1;
                 if (viewName === 'media') {
                     activeMediaReturnView = pendingMediaReturnView;
@@ -1533,6 +1544,13 @@
                     const downloadModule = document.getElementById('sb-download');
                     if (downloadModule) downloadModule.style.display = 'flex';
 
+                } else if (viewName === 'netface') {
+                    setGlobalSidebarVisible(false);
+                    setSidebarHomeMode(false);
+                    toggleSidebarMode('login');
+                    const netfaceView = document.getElementById('view-netface');
+                    if (netfaceView) netfaceView.style.display = 'block';
+                    window.enterNetfaceView?.();
                 } else if (viewName === 'invoice') {
                     setGlobalSidebarVisible(false);
                     setSidebarHomeMode(false);
@@ -1620,6 +1638,9 @@
                         }
                         if (typeof loadWindowCloseBehaviorSetting === 'function') {
                             loadWindowCloseBehaviorSetting();
+                        }
+                        if (typeof loadCustomSenderProfileSetting === 'function') {
+                            loadCustomSenderProfileSetting();
                         }
                     }
 
@@ -2235,6 +2256,7 @@
             getPinyinInitials
         }));
         let currentMode = 'live';
+        let liveListRequest = null;
         class VODState {
             constructor() {
                 this.currentGroup = 0;
@@ -5133,7 +5155,9 @@
         }
 
         async function fetchVODPageInternal(requestVersion = vodState.requestVersion) {
-            const isStaleVodRequest = () => requestVersion !== vodState.requestVersion;
+            if (currentViewName !== 'media' || !isVodMediaMode()) return 0;
+            const isStaleVodRequest = () => requestVersion !== vodState.requestVersion
+                || currentViewName !== 'media' || !isVodMediaMode();
             const memberFilterInput = document.getElementById('vod-member-filter');
             let filterText = memberFilterInput ? memberFilterInput.value.trim() : '';
             const isMeetSource = vodState.source === 'meet48' || currentMode === 'meet-vod';
@@ -5208,8 +5232,10 @@
             return 0;
         }
         async function ensurePageData(page, options = {}) {
-            if (vodState.isLoading) return;
+            if (currentViewName !== 'media' || !isVodMediaMode() || vodState.isLoading) return;
             const requestVersion = vodState.requestVersion;
+            const isCurrentVodRequest = () => requestVersion === vodState.requestVersion
+                && currentViewName === 'media' && isVodMediaMode();
             const silent = !!options.silent;
             const targetCount = page * vodState.pageSize;
             if (getFilteredVODList().length >= targetCount || !vodState.hasMore) return;
@@ -5219,9 +5245,9 @@
             let loopSafety = 0;
             const MAX_LOOPS = 50;
             try {
-                while (requestVersion === vodState.requestVersion && getFilteredVODList().length < targetCount && vodState.hasMore && loopSafety < MAX_LOOPS) {
+                while (isCurrentVodRequest() && getFilteredVODList().length < targetCount && vodState.hasMore && loopSafety < MAX_LOOPS) {
                     const addedRaw = await fetchVODPageInternal(requestVersion);
-                    if (requestVersion !== vodState.requestVersion) break;
+                    if (!isCurrentVodRequest()) break;
                     if (addedRaw === 0) {
                         vodState.hasMore = false;
                         break;
@@ -5229,7 +5255,7 @@
                     loopSafety++;
                 }
             } catch (e) { window.YayaRendererUtils.reportIgnoredError(e, 'src/renderer/app-legacy.js'); } finally {
-                if (requestVersion === vodState.requestVersion) {
+                if (isCurrentVodRequest()) {
                     vodState.isLoading = false;
                     document.getElementById('vod-loading').style.display = 'none';
                     togglePagination(true);
@@ -5322,7 +5348,7 @@
         }
 
         window.renderVODListUI = function () {
-            if (!window.vodState) return;
+            if (!window.vodState || currentViewName !== 'media' || !isVodMediaMode()) return;
             const container = document.getElementById('vod-list-container');
             const filteredList = getFilteredVODList();
             const currentType = window.vodState.currentFilterType || '0';
@@ -5485,36 +5511,57 @@
             return '<button class="pagination-btn pagination-placeholder" disabled aria-hidden="true" tabindex="-1"></button>';
         }
         async function fetchLiveList() {
+            if (currentViewName !== 'media' || !isLiveMediaMode()) return;
+            const mode = currentMode;
+            const viewToken = mediaPlaybackViewToken;
+            const accountGeneration = pocketAccountSessionGeneration;
+            if (liveListRequest && liveListRequest.mode === mode && liveListRequest.viewToken === viewToken
+                && liveListRequest.accountGeneration === accountGeneration) return liveListRequest.promise;
             const vodLoading = document.getElementById('vod-loading');
             const liveListContainer = document.getElementById('live-list-container');
+            if (!vodLoading || !liveListContainer) return;
+            const request = { mode, viewToken, accountGeneration, promise: null };
+            liveListRequest = request;
+            const isCurrentRequest = () => liveListRequest === request && currentViewName === 'media'
+                && currentMode === mode && mediaPlaybackViewToken === viewToken
+                && pocketAccountSessionGeneration === accountGeneration;
 
+            vodLoading.textContent = window.YayaRendererUtils.t('正在加载直播列表…');
             vodLoading.style.display = 'block';
+            currentLiveListRaw = [];
             liveListContainer.replaceChildren();
 
-            try {
-                const res = currentMode === 'meet-live'
-                    ? await fetchMeet48ListPage({ next: 0, record: false })
-                    : await fetchPocketAPI('/live/api/v1/live/getLiveList', JSON.stringify({
-                        debug: true,
-                        next: 0,
-                        groupId: 0,
-                        record: false
-                    }));
+            request.promise = (async () => {
+                try {
+                    const res = mode === 'meet-live'
+                        ? await fetchMeet48ListPage({ next: 0, record: false })
+                        : await fetchPocketAPI('/live/api/v1/live/getLiveList', JSON.stringify({
+                            debug: true,
+                            next: 0,
+                            groupId: 0,
+                            record: false
+                        }));
+                    if (!isCurrentRequest()) return;
 
-                vodLoading.style.display = 'none';
-
-                if (res && res.status === 200 && res.content && res.content.liveList) {
-                    currentLiveListRaw = res.content.liveList;
-                    handleLiveFilter();
-                } else {
-                    currentLiveListRaw = [];
-                    liveListContainer.innerHTML = '<div style="width:100%; text-align:center; color:#888;">当前没有成员在直播</div>';
+                    if (res?.status === 200 && Array.isArray(res.content?.liveList)) {
+                        vodLoading.textContent = '';
+                        vodLoading.style.display = 'none';
+                        currentLiveListRaw = res.content.liveList;
+                        handleLiveFilter();
+                    } else {
+                        vodLoading.textContent = window.YayaRendererUtils.t(res?.message || res?.msg || '直播列表加载失败，请刷新重试');
+                        vodLoading.style.display = 'block';
+                    }
+                } catch (err) {
+                    if (!isCurrentRequest()) return;
+                    console.error(err);
+                    vodLoading.textContent = window.YayaRendererUtils.t(err?.message || '获取失败，请检查网络');
+                    vodLoading.style.display = 'block';
+                } finally {
+                    if (liveListRequest === request) liveListRequest = null;
                 }
-            } catch (err) {
-                console.error(err);
-                vodLoading.style.display = 'none';
-                vodLoading.textContent = window.YayaRendererUtils.t('获取失败，请检查网络');
-            }
+            })();
+            return request.promise;
         }
 
 
@@ -5554,6 +5601,11 @@
             const keyword = searchInput ? searchInput.value.trim().toLowerCase() : '';
 
             if (!currentLiveListRaw || currentLiveListRaw.length === 0) {
+                const loading = document.getElementById('vod-loading');
+                if (loading?.style.display === 'block' && loading.textContent) {
+                    container.replaceChildren();
+                    return;
+                }
                 container.innerHTML = '<div style="width:100%; text-align:center; color:#888;">当前没有成员在直播</div>';
                 return;
             }
@@ -5594,9 +5646,10 @@
                             return (memberId && ids.includes(memberId)) || (name && names.includes(name));
                         })
                         : null;
-                    const pinyin = String(member?.pinyin || '').toLowerCase();
+                    const rawPinyin = String(member?.pinyin || '');
+                    const pinyin = rawPinyin.toLowerCase();
                     const initials = typeof getPinyinInitials === 'function'
-                        ? getPinyinInitials(pinyin).toLowerCase()
+                        ? getPinyinInitials(rawPinyin).toLowerCase()
                         : '';
                     const searchText = [
                         name,
@@ -7688,6 +7741,7 @@
             if (typeof window.resetInvoiceAccountState === 'function') {
                 window.resetInvoiceAccountState();
             }
+            window.resetNetfaceAccountState?.();
             if (typeof window.invalidateAutoMessageFetchAccountState === 'function') {
                 window.invalidateAutoMessageFetchAccountState();
             }
@@ -8111,6 +8165,105 @@
             return value === 'quit' ? 'quit' : 'minimize-to-tray';
         }
 
+        function readCustomSenderProfileForm() {
+            const enabled = document.getElementById('custom-sender-profile-enabled')?.checked === true;
+            const readValue = id => String(document.getElementById(id)?.value || '')
+                .replace(/[\u0000-\u001f\u007f]/g, '')
+                .trim();
+            return window.YayaSenderProfile.normalizeCustomSenderProfile({
+                enabled,
+                userId: readValue('custom-sender-user-id'),
+                nickName: readValue('custom-sender-nickname'),
+                avatar: readValue('custom-sender-avatar'),
+                level: readValue('custom-sender-level'),
+                roleId: readValue('custom-sender-role-id'),
+                channelRole: readValue('custom-sender-channel-role'),
+                vip: document.getElementById('custom-sender-vip')?.checked === true,
+                teamLogo: readValue('custom-sender-team-logo'),
+                pfUrl: readValue('custom-sender-pf-url'),
+                badge: document.getElementById('custom-sender-badge')?.value || '',
+                bubbleId: readValue('custom-sender-bubble-id'),
+                sessionRole: readValue('custom-sender-session-role'),
+                inTop: document.getElementById('custom-sender-in-top')?.checked === true,
+                monthCardBadge: {
+                    img: readValue('custom-sender-month-img'),
+                    level: readValue('custom-sender-month-level'),
+                    levelColor: readValue('custom-sender-month-level-color'),
+                    setText: readValue('custom-sender-month-set-text'),
+                    textColor: readValue('custom-sender-month-text-color')
+                },
+                config: {
+                    version: readValue('custom-sender-config-version'),
+                    build: readValue('custom-sender-config-build'),
+                    phoneName: readValue('custom-sender-config-phone-name'),
+                    phoneSystemVersion: readValue('custom-sender-config-phone-system-version'),
+                    mobileOperators: readValue('custom-sender-config-mobile-operators'),
+                    ip: readValue('custom-sender-config-ip')
+                }
+            }, { strict: true });
+        }
+
+        function toggleCustomSenderProfileControls() {
+            const enabled = document.getElementById('custom-sender-profile-enabled')?.checked === true;
+            const card = document.getElementById('custom-sender-profile-card');
+            card?.classList.toggle('is-disabled', !enabled);
+            document.querySelectorAll('#custom-sender-profile-fields input, #custom-sender-profile-fields textarea').forEach(input => {
+                input.disabled = !enabled;
+            });
+        }
+
+        function loadCustomSenderProfileSetting() {
+            const stored = readStoredJsonSetting('customSenderProfile', {});
+            const profile = stored && typeof stored === 'object' && !Array.isArray(stored) ? stored : {};
+            const setValue = (id, value) => {
+                const input = document.getElementById(id);
+                if (input) input.value = value === null || value === undefined ? '' : String(value);
+            };
+
+            const enabledInput = document.getElementById('custom-sender-profile-enabled');
+            if (enabledInput) enabledInput.checked = profile.enabled === true;
+            setValue('custom-sender-user-id', profile.userId);
+            setValue('custom-sender-nickname', profile.nickName ?? profile.nickname);
+            setValue('custom-sender-avatar', profile.avatar);
+            setValue('custom-sender-level', profile.level);
+            setValue('custom-sender-role-id', profile.roleId);
+            setValue('custom-sender-channel-role', profile.channelRole);
+            const vipInput = document.getElementById('custom-sender-vip');
+            if (vipInput) vipInput.checked = profile.vip === true;
+            setValue('custom-sender-team-logo', profile.teamLogo);
+            setValue('custom-sender-pf-url', profile.pfUrl);
+            setValue('custom-sender-badge', Array.isArray(profile.badge) ? JSON.stringify(profile.badge, null, 2) : '');
+            setValue('custom-sender-bubble-id', profile.bubbleId);
+            setValue('custom-sender-session-role', profile.sessionRole);
+            const inTopInput = document.getElementById('custom-sender-in-top');
+            if (inTopInput) inTopInput.checked = profile.inTop === true;
+            for (const [field, id] of Object.entries({ img: 'img', level: 'level', levelColor: 'level-color', setText: 'set-text', textColor: 'text-color' })) {
+                setValue('custom-sender-month-' + id, profile.monthCardBadge?.[field]);
+            }
+            for (const [field, id] of Object.entries({ version: 'version', build: 'build', phoneName: 'phone-name', phoneSystemVersion: 'phone-system-version', mobileOperators: 'mobile-operators', ip: 'ip' })) {
+                setValue('custom-sender-config-' + id, profile.config?.[field]);
+            }
+            toggleCustomSenderProfileControls();
+        }
+
+        function saveCustomSenderProfileSetting() {
+            try {
+                const profile = readCustomSenderProfileForm();
+                writeStoredJsonSetting('customSenderProfile', profile);
+                if (typeof showToast === 'function') {
+                    showToast(profile.enabled ? '自定义发送资料已保存' : '已停用自定义发送资料');
+                }
+            } catch (error) {
+                if (typeof showToast === 'function') showToast(error?.message || '发送资料格式无效');
+            }
+        }
+
+        function resetCustomSenderProfileSetting() {
+            removeStoredSetting('customSenderProfile');
+            loadCustomSenderProfileSetting();
+            if (typeof showToast === 'function') showToast('已恢复使用口袋48账号资料');
+        }
+
         function loadWindowCloseBehaviorSetting() {
             const behavior = normalizeWindowCloseBehavior(
                 readStoredStringSetting('windowCloseBehavior', 'minimize-to-tray')
@@ -8306,4 +8459,3 @@
             e.preventDefault();
             switchView('home');
         });
-

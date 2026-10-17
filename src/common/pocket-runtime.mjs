@@ -1,5 +1,6 @@
 import pocketChannelConfig from './pocket-channel-config.js';
 import errorUtils from './error-utils.js';
+import { createNetfaceMethods } from './netface-api.mjs';
 
 const { POCKET_CHANNEL_METHODS } = pocketChannelConfig;
 const { reportIgnoredError } = errorUtils;
@@ -1622,8 +1623,23 @@ async function fetchMediaCollectionTotalCount({ token, pa }) {
     return apiError(response, '获取收藏统计失败');
 }
 
-async function sendLiveGift({ token, pa, giftId, liveId, acceptUserId, giftNum }) {
+async function sendLiveGift({ token, pa, giftId, liveId, acceptUserId, giftNum, crm, sendToRoomId, liveType, isPocketGift }, env = {}) {
     if (!token) return missingToken();
+    const desktopLiveGift = env.desktopLiveGift === true;
+    const roomRouting = {};
+    if (desktopLiveGift) {
+        if (![giftId, liveId, acceptUserId].every(value => /^\d{1,32}$/.test(String(value || '').trim()))
+            || !Number.isInteger(Number(giftNum)) || Number(giftNum) < 1 || Number(giftNum) > 999) {
+            return { success: false, msg: '礼物、直播、主播 ID 或礼物数量无效' };
+        }
+        const liveCrm = String(crm || '').trim();
+        const roomId = String(sendToRoomId || '').trim();
+        if (liveCrm) roomRouting.crm = liveCrm;
+        else if (/^\d{1,32}$/.test(roomId)) roomRouting.sendToRoomId = roomId;
+        else return { success: false, msg: '缺少直播聊天室信息，请重新打开直播后再送礼' };
+    } else {
+        roomRouting.crm = globalThis.crypto.randomUUID ? globalThis.crypto.randomUUID() : String(Date.now());
+    }
     const response = await postJson(
         'https://pocketapi.48.cn/gift/api/v1/gift/send',
         {
@@ -1631,13 +1647,13 @@ async function sendLiveGift({ token, pa, giftId, liveId, acceptUserId, giftNum }
             businessId: String(liveId),
             acceptUserId: String(acceptUserId),
             giftNum: Number(giftNum) || 1,
-            isPocketGift: 0,
-            businessCode: 0,
+            isPocketGift: desktopLiveGift && Number(isPocketGift) === 1 ? 1 : 0,
+            businessCode: desktopLiveGift && Number(liveType) === 5 ? 7 : 0,
             zip: 0,
             isCombo: 0,
             ruleId: 0,
             giftType: 1,
-            crm: globalThis.crypto.randomUUID ? globalThis.crypto.randomUUID() : String(Date.now())
+            ...roomRouting
         },
         createModernHeaders(token, pa)
     );
@@ -1645,7 +1661,7 @@ async function sendLiveGift({ token, pa, giftId, liveId, acceptUserId, giftNum }
         httpStatus: response.status,
         apiStatus: response.data?.status ?? null,
         apiSuccess: response.data?.success ?? null,
-        route: 'contribution-api',
+        route: desktopLiveGift ? 'live-room-api' : 'contribution-api',
         hasPa: Boolean(pa),
         contentKeys: response.data?.content && typeof response.data.content === 'object'
             ? Object.keys(response.data.content).sort()
@@ -1670,6 +1686,122 @@ async function sendLiveGift({ token, pa, giftId, liveId, acceptUserId, giftNum }
         msg: explicitZeroGift ? '官方接口未确认有效赠送，本次未扣款' : (response.data?.message || '送礼失败'),
         diagnostic
     };
+}
+
+function memberGiftId(value, label) {
+    const id = String(value ?? '').trim();
+    if (!/^[1-9]\d{0,31}$/.test(id)) throw new Error(`缺少有效的${label}`);
+    return id;
+}
+
+async function memberGiftRead(path, body, token, pa) {
+    const response = await postJson(`https://pocketapi.48.cn${path}`, body, createModernHeaders(token, pa), {
+        largeNumbers: true, timeoutMs: 15000
+    });
+    if (response.status !== 200 || response.data?.status !== 200 || response.data?.success === false) {
+        throw new Error(response.data?.message || '获取房间送礼信息失败');
+    }
+    return response.data.content;
+}
+
+export async function fetchMemberRoomGiftContext({ token, pa, serverId, channelId } = {}) {
+    if (!token) return missingToken();
+    try {
+        serverId = memberGiftId(serverId, '房间服务器 ID');
+        channelId = memberGiftId(channelId, '房间频道 ID');
+        const [room, account] = await Promise.all([
+            memberGiftRead('/im/api/v1/im/team/room/info', { channelId }, token, pa),
+            memberGiftRead('/user/api/v1/user/info/reload', { from: 'appstart' }, token, pa)
+        ]);
+        const info = room?.channelInfo;
+        if (!info || String(info.serverId) !== serverId
+            || (info.channelId != null && String(info.channelId) !== channelId)) {
+            throw new Error('房间信息已变化，请重新打开房间');
+        }
+        if (Number(info.serverType) === 0) throw new Error('队伍房间暂不支持选择收礼成员，请进入成员房间送礼');
+        if (room.userFunction?.sendGift === false) throw new Error('当前账号在此房间暂不能送礼');
+        const memberId = memberGiftId(info.ownerId, '收礼成员 ID');
+        const userRole = Number((account?.userInfo || account)?.userRole);
+        const [categories, receive, money] = await Promise.all([
+            memberGiftRead('/gift/api/v1/gift/list', { memberId, businessCode: 5 }, token, pa),
+            memberGiftRead('/gift/api/v1/gift/get_receive_gift_state', {
+                moduleType: 2, starIds: memberId, msgType: [2, 3, 4, 5].includes(userRole) ? 2 : 1
+            }, token, pa),
+            memberGiftRead('/user/api/v1/user/money', { token }, token, pa)
+        ]);
+        if (Number(receive?.receiveGiftStatus) !== 1) {
+            throw new Error(receive?.receiveGiftTips || '该成员暂不能接收礼物');
+        }
+        const balance = Number(money?.moneyTotal);
+        if (!Number.isFinite(balance) || balance < 0) throw new Error('暂时无法获取余额');
+        const gifts = [];
+        const seen = new Set();
+        const groups = Array.isArray(categories) ? categories : [categories];
+        for (const group of groups) {
+            if (!group || Number(group.typeId) === 888) continue;
+            for (const gift of group.giftList || []) {
+                const giftId = String(gift.giftId ?? '');
+                const price = Number(gift.money);
+                const isPocketGift = Number(gift.isPocketGift || 0);
+                const stock = Number(gift.giftTotal || 0);
+                const key = `${giftId}:${isPocketGift}`;
+                if (!/^[1-9]\d{0,31}$/.test(giftId) || seen.has(key)
+                    || Number(gift.typeId) === 888 || gift.isVote === true || gift.isVote === 1
+                    || !Number.isSafeInteger(price) || price < 0
+                    || ![0, 1].includes(isPocketGift) || (isPocketGift === 1 && !(stock > 0))) continue;
+                seen.add(key);
+                gifts.push({ giftId, giftName: String(gift.giftName || '礼物'), money: price,
+                    isPocketGift, stock, picPath: String(gift.picPath || '') });
+            }
+        }
+        return { success: true, content: { target: { serverId, channelId, memberId,
+            memberName: String(info.ownerName || room.ownerInfo?.nickname || room.ownerInfo?.nickName || '') }, gifts, balance } };
+    } catch (error) {
+        return { success: false, msg: error.message || '获取房间礼物失败' };
+    }
+}
+
+export async function sendMemberRoomGift(payload = {}) {
+    const { token, pa } = payload;
+    if (!token) return missingToken();
+    let context;
+    let gift;
+    const giftNum = Number(payload.giftNum);
+    try {
+        const giftId = memberGiftId(payload.giftId, '礼物 ID');
+        const memberId = memberGiftId(payload.acceptUserId, '收礼成员 ID');
+        if (!Number.isInteger(giftNum) || giftNum < 1 || giftNum > 999) throw new Error('礼物数量须为 1–999 的整数');
+        const result = await fetchMemberRoomGiftContext(payload);
+        if (!result.success) return result;
+        context = result.content;
+        if (memberId !== context.target.memberId) throw new Error('收礼成员已变化，请重新选择礼物');
+        gift = context.gifts.find(item => item.giftId === giftId && item.isPocketGift === Number(payload.isPocketGift));
+        if (!gift) throw new Error('该礼物已不可用，请重新打开礼物面板');
+        if (gift.money !== Number(payload.unitPrice)) throw new Error('礼物价格已变化，请重新选择');
+        if (gift.isPocketGift === 1 ? giftNum > gift.stock : gift.money * giftNum > context.balance) {
+            throw new Error(gift.isPocketGift === 1 ? '背包礼物数量不足' : '鸡腿余额不足');
+        }
+    } catch (error) {
+        return { success: false, msg: error.message || '无法发送礼物' };
+    }
+    try {
+        const response = await postJson('https://pocketapi.48.cn/gift/api/v1/gift/send', {
+            acceptUserId: context.target.memberId, giftId: gift.giftId, giftNum, businessCode: 5,
+            businessId: context.target.serverId, sendToRoomId: context.target.channelId, isPocketGift: gift.isPocketGift
+        }, createModernHeaders(token, pa), {
+            largeNumbers: true, rawNumericKeys: ['acceptUserId', 'giftId'], timeoutMs: 20000
+        });
+        const content = response.data?.content;
+        const explicitEmpty = content?.giftNum != null && !(Number(content.giftNum) > 0);
+        if (response.status === 200 && response.data?.status === 200 && response.data?.success !== false && !explicitEmpty) {
+            return { success: true, content: { balance: content?.money != null && Number.isFinite(Number(content.money))
+                ? Number(content.money) : null }, target: context.target };
+        }
+        return { success: false, msg: explicitEmpty ? '官方未确认有效赠送，请检查余额和房间记录'
+            : (response.data?.message || '送礼未成功，请检查余额和房间记录') };
+    } catch (error) {
+        return { success: false, uncertain: true, msg: '送礼结果暂未确认，请先检查余额和房间礼物记录，勿重复发送' };
+    }
 }
 
 async function fetchGiftList({ token, pa, liveId }) {
@@ -2542,6 +2674,7 @@ async function runScoreOfficialAction(payload = {}) {
 }
 
 const pocketMethods = Object.freeze({
+    ...createNetfaceMethods({ postJson, createHeaders: createPocketAndroidHeaders, apiError }),
     loginSendSms,
     loginByCode,
     loginCheckToken,

@@ -1,6 +1,8 @@
 const { ipcMain } = require('electron');
 const pocketService = require('../services/pocket-service');
 const settingsService = require('../services/settings-service');
+const { runLiveReadRequest } = require('../services/live-read-request');
+const { withDesktopLiveRoom } = require('../services/live-room-routing');
 const { POCKET_CHANNEL_METHODS } = require('../../common/pocket-channel-config');
 
 const YAYA_API_PROXY_SETTING_KEY = 'useYayaApiProxy';
@@ -167,6 +169,7 @@ async function invokeYayaPocketApiProxy(payload, baseUrl) {
 }
 
 async function handlePocketRequest(channel, payload, localHandler) {
+    if (channel === 'send-live-gift' || channel.includes('netface')) return localHandler(payload);
     const proxySettings = readYayaApiProxySettings();
     if (proxySettings.enabled) {
         try {
@@ -191,7 +194,7 @@ async function handlePocketApiPathRequest(payload) {
     const proxySettings = readYayaApiProxySettings();
     if (proxySettings.enabled) {
         try {
-            return await invokeYayaPocketApiProxy(payload, proxySettings.baseUrl);
+            return await runLiveReadRequest(payload?.path, payload?.postData, () => invokeYayaPocketApiProxy(payload, proxySettings.baseUrl));
         } catch (error) {
             return {
                 status: 500,
@@ -206,9 +209,10 @@ async function handlePocketApiPathRequest(payload) {
 
 function registerPocketIpc() {
     const handle = (channel) => {
-        ipcMain.handle(channel, (event, payload) => (
-            handlePocketRequest(channel, payload, preparedPayload => pocketService.invoke(channel, preparedPayload))
-        ));
+        ipcMain.handle(channel, async (event, payload) => {
+            const result = await handlePocketRequest(channel, payload, preparedPayload => pocketService.invoke(channel, preparedPayload));
+            return channel === 'fetch-live-one' ? withDesktopLiveRoom(result) : result;
+        });
     };
 
     ipcMain.handle('fetch-pocket-api', (event, payload) => handlePocketApiPathRequest(payload));

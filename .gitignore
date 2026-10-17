@@ -2,28 +2,24 @@ node_modules/
 dist/
 web-dist/
 .wrangler/
-.wrangler-dry-run/
+/.wrangler-*/
 html/
 tmp/
 reports/
-# Keep one-off/local scripts out of Git, but retain scripts referenced by
-# package.json or the application build.
+# Keep only desktop build scripts in Git.
 /scripts/*
 !/scripts/build-web.js
+!/scripts/build-desktop-gift-player.js
 !/scripts/copy-ffmpeg.js
 !/scripts/run-builder.js
 tools/
 .agents/
-.codex-tmp/
-.codex-logs/
-/.codex-work/
-/.codex-release-*/
-/.codex-hls-test/
-/.codex-data-work/
-/.codex-spreadsheet-work/
+/.codex-*/
 /outputs/
 /migrations/
 /test/
+/tests/
+/src/renderer/netface-fixtures.js
 dist-next/
 .npmrc
 .env
@@ -82,3 +78,9 @@ codex-start.out.log
 /wrangler.jsonc
 /web-icon.png
 /deploy/
+/_headers
+/_web-origin-bundle.mjs
+/message-site/
+/src/common/room-message-record.mjs
+/20260610.mp4
+/yaya-message-*.tgz

@@ -1174,6 +1174,7 @@
                 chatroomId: content.chatroomId || content.roomId || item.chatroomId || item.roomId,
                 roomId: content.roomId || content.chatroomId || item.roomId || item.chatroomId,
                 crm: content.crm || item.crm || '',
+                ...(window.desktop?.platform !== 'web' ? { liveType: content.liveType ?? item.liveType } : {}),
                 title: content.title || content.liveTitle || item.title || item.liveTitle,
                 liveTitle: content.liveTitle || content.title || item.liveTitle || item.title,
                 startTime: content.startTime || content.ctime || content.beginTime || item.startTime || item.ctime,

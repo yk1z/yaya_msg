@@ -38,7 +38,11 @@
         let sessionSequence = 0;
         let chatDiagnosticSaveTimer = null;
         let pendingChatDiagnostics = [];
-        const LIVE_DANMU_LIST_MAX_ITEMS = 80;
+        let liveDanmuList = null;
+        const giftEffectTimers = new Set();
+        const giftAnimationPlayer = window.desktop?.platform && window.desktop.platform !== 'web'
+            ? window.YayaRendererFeatures.createDesktopLiveGiftAnimation?.({ ipcRenderer, reportError: reportIgnoredError })
+            : null;
 
         function reportIgnoredError(error) {
             if (window.YayaRendererUtils?.reportIgnoredError) {
@@ -145,6 +149,11 @@
                 .map(value => readRawJsonId(value, 'sourceId'))
                 .find(Boolean) || '';
             if (rawSourceId) extension.__rawSourceId = rawSourceId;
+            const rawUserId = candidates
+                .filter(value => typeof value === 'string')
+                .map(value => readRawJsonId(value, 'userId'))
+                .find(Boolean) || '';
+            if (rawUserId) extension.__rawUserId = rawUserId;
             return extension;
         }
 
@@ -195,7 +204,8 @@
                     || msg?.nick
                     || ''
                 ).trim(),
-                userId: String(user.userId || user.id || extension.userId || '').trim()
+                userId: String(extension.__rawUserId || user.userId || user.id || extension.userId || msg?.from || '').trim(),
+                avatar: String(user.avatar || user.avatarUrl || msg?.fromAvatar || '').trim()
             };
         }
 
@@ -283,7 +293,14 @@
                     || extension.count
                     || extension.quantity
                     || 1
-                ) || 1
+                ) || 1,
+                animation: {
+                    url: String(giftInfo.animationpath || giftInfo.animationPath || giftInfo.zipPath || gift.animationpath || gift.zipPath || ''),
+                    md5: String(giftInfo.zipMd5 || giftInfo.animationMd5 || ''),
+                    resourceType: Number(giftInfo.resourceType || 0),
+                    switchTime: Number(giftInfo.switchTime || 0)
+                },
+                picPath: String(giftInfo.picPath || gift.picPath || '')
             };
         }
 
@@ -300,6 +317,42 @@
             ).trim();
         }
 
+        function parseWelcomeRichText(value, extension) {
+            const template = document.createElement('template');
+            template.innerHTML = String(value || '').slice(0, 12000);
+            const parts = [];
+            const badgeLabel = extension.seineZxNotify?.seineZxContentList?.[1]?.liveIntoText || '';
+            function visit(node, inheritedColor = '', depth = 0) {
+                if (depth > 16 || parts.length >= 200) return;
+                if (node.nodeType === 3) {
+                    if (node.textContent.trim()) parts.push({ text: node.textContent, color: inheritedColor });
+                    return;
+                }
+                if (node.nodeType !== 1 || /^(SCRIPT|STYLE|IFRAME|OBJECT|EMBED|SVG|MATH|LINK|META)$/.test(String(node.tagName).toUpperCase())) return;
+                const colorMatch = String(node.getAttribute('style') || '').match(/(?:^|;)\s*color\s*:\s*#?([a-f0-9]{6}|[a-f0-9]{3})\s*(?:;|$)/i);
+                const color = colorMatch ? `#${colorMatch[1]}` : inheritedColor;
+                if (node.tagName === 'IMG') {
+                    try {
+                        const url = new URL(node.getAttribute('src') || '', 'https://source.48.cn/');
+                        if (['https:', 'http:'].includes(url.protocol) && !url.username && !url.password && !url.port
+                            && (url.hostname === '48.cn' || url.hostname.endsWith('.48.cn'))
+                            && /\.(png|jpe?g|webp|gif)$/i.test(url.pathname)) {
+                            url.protocol = 'https:';
+                            parts.push({ image: url.href, alt: String(node.getAttribute('alt') || badgeLabel).slice(0, 60) });
+                        }
+                    } catch (_error) {}
+                    return;
+                }
+                for (const child of node.childNodes) visit(child, color, depth + 1);
+            }
+            for (const node of template.content.childNodes) visit(node);
+            return {
+                parts,
+                text: parts.map(part => part.text?.trim() || (part.alt ? `[${part.alt}]` : '')).filter(Boolean).join(' ')
+                    .replace(/\s+/g, ' ').trim()
+            };
+        }
+
         function normalizeChatroomMessage(msg, liveId) {
             if (!msg || typeof msg !== 'object') return null;
             const extension = parseMessageExtension(msg);
@@ -312,6 +365,15 @@
                 || ''
             ).trim().toUpperCase();
             const user = getMessageUser(msg, extension);
+            if (window.desktop?.platform && window.desktop.platform !== 'web' && messageType.startsWith('BARRAGE_NOTIFY')) {
+                const welcome = parseWelcomeRichText(getBarrageText(extension, msg), extension);
+                if (!welcome.text) return null;
+                return {
+                    kind: 'welcome', messageType, text: welcome.text, richText: welcome.parts,
+                    nick: user.nick, userId: user.userId, avatar: user.avatar,
+                    color: DANMU_COLORS.system, time: Number(msg.time || Date.now())
+                };
+            }
             const giftDetails = getGiftDetails(extension);
             const hasGiftPayload = Boolean(
                 extension.giftInfo
@@ -335,8 +397,13 @@
                     text: parseGiftText(extension, user),
                     nick: user.nick,
                     userId: user.userId,
+                    avatar: user.avatar,
                     giftName: giftDetails.giftName,
                     giftNum: giftDetails.giftNum,
+                    ...(window.desktop?.platform && window.desktop.platform !== 'web' ? {
+                        giftPicPath: giftDetails.picPath,
+                        giftAnimation: giftDetails.animation
+                    } : {}),
                     color: DANMU_COLORS.gift,
                     time: Number(msg.time || extension.time || Date.now())
                 };
@@ -366,6 +433,7 @@
                 text,
                 nick: user.nick,
                 userId: user.userId,
+                avatar: user.avatar,
                 color: DANMU_COLORS[messageType] || DANMU_COLORS.normal,
                 time: Number(msg.time || extension.time || Date.now())
             };
@@ -459,26 +527,60 @@
             if (!item?.text) return;
             const list = document.getElementById('live-danmu-list-body');
             if (!list) return;
-            const shouldFollow = list.scrollHeight - list.scrollTop - list.clientHeight < 56;
-            list.querySelector('.live-danmu-list-empty')?.remove();
+            if (liveDanmuList?.root !== list) {
+                liveDanmuList?.destroy();
+                liveDanmuList = window.YayaRendererFeatures.createLiveDanmuVirtualList(list, createLiveDanmuListRow);
+            }
+            liveDanmuList.append(item);
+        }
 
+        function createLiveDanmuListRow(item) {
             const row = document.createElement('div');
             row.className = 'live-danmu-list-row';
             row.dataset.kind = item.kind || 'barrage';
-            const nick = document.createElement('span');
+            const userId = String(item.userId || '').trim();
+            const canOpenProfile = Boolean(userId) && item.kind !== 'system';
+            const nick = document.createElement(canOpenProfile ? 'button' : 'span');
             nick.className = 'live-danmu-list-nick';
             nick.textContent = item.nick || (item.kind === 'system' ? '系统' : '礼物');
+            if (canOpenProfile) {
+                nick.type = 'button';
+                nick.title = window.YayaRendererUtils?.t('查看用户主页') || '查看用户主页';
+                nick.addEventListener('click', event => {
+                    event.stopPropagation();
+                    if (typeof window.openFollowedUserProfile !== 'function') {
+                        showToast?.('用户主页模块还没有准备好');
+                        return;
+                    }
+                    window.openFollowedUserProfile(userId, item.nick || '口袋用户', item.avatar || '', false);
+                });
+            }
             row.appendChild(nick);
             const text = document.createElement('span');
             text.className = 'live-danmu-list-text';
-            text.textContent = formatLiveDanmuDisplayText(item);
+            if (item.kind === 'welcome' && Array.isArray(item.richText)) {
+                item.richText.forEach((part, index) => {
+                    if (index) text.appendChild(document.createTextNode(' '));
+                    if (part.image) {
+                        const image = document.createElement('img');
+                        image.src = part.image;
+                        image.alt = part.alt || '';
+                        Object.assign(image.style, { height: '18px', width: 'auto', maxWidth: '64px', verticalAlign: 'middle', objectFit: 'contain' });
+                        image.addEventListener('error', () => image.replaceWith(document.createTextNode(part.alt ? `[${part.alt}]` : '')), { once: true });
+                        text.appendChild(image);
+                    } else {
+                        const span = document.createElement('span');
+                        span.textContent = part.text;
+                        if (part.color) {
+                            span.className = 'live-danmu-welcome-token';
+                            span.style.setProperty('--live-welcome-color', /^#(?:fff|ffffff)$/i.test(part.color) ? 'var(--text)' : part.color);
+                        }
+                        text.appendChild(span);
+                    }
+                });
+            } else text.textContent = formatLiveDanmuDisplayText(item);
             row.appendChild(text);
-            list.appendChild(row);
-
-            while (list.childElementCount > LIVE_DANMU_LIST_MAX_ITEMS) {
-                list.firstElementChild?.remove();
-            }
-            if (shouldFollow) list.scrollTop = list.scrollHeight;
+            return row;
         }
 
         function setLiveDanmuListStatus(status) {
@@ -508,6 +610,7 @@
                 const onMouseMove = moveEvent => {
                     const width = Math.max(minWidth, Math.min(startWidth + moveEvent.pageX - startX, maxWidth));
                     panel.style.setProperty('--live-danmu-name-width', `${Math.round(width)}px`);
+                    liveDanmuList?.invalidateMeasurements();
                 };
                 const onMouseUp = () => {
                     resizer.classList.remove('is-resizing');
@@ -524,7 +627,11 @@
         function resetLiveDanmuList() {
             const list = document.getElementById('live-danmu-list-body');
             if (list) {
-                list.innerHTML = '<div class="live-danmu-list-empty">等待实时弹幕</div>';
+                const empty = document.createElement('div');
+                empty.className = 'live-danmu-list-empty';
+                empty.textContent = '等待实时弹幕';
+                if (liveDanmuList?.root === list) liveDanmuList.clear(empty);
+                else list.replaceChildren(empty);
                 list.scrollTop = 0;
             }
             setLiveDanmuListStatus('connecting');
@@ -533,6 +640,8 @@
         function drawLiveDanmu(item, player, { emitToPlayer = true } = {}) {
             if (!item?.text) return;
             appendLiveDanmuListItem(item);
+            if (item.kind === 'gift') showDesktopGiftEffect(item, player);
+            if (item.kind === 'gift') giftAnimationPlayer?.enqueue(item, player);
             const plugin = player?.plugins?.artplayerPluginDanmuku;
             if (emitToPlayer && typeof plugin?.emit === 'function') {
                 void Promise.resolve(plugin.emit({
@@ -545,7 +654,71 @@
             window.dispatchEvent(new CustomEvent('yaya:live-chat-message', { detail: item }));
         }
 
+        function showDesktopGiftEffect(item, player) {
+            if (!window.desktop?.platform || window.desktop.platform === 'web') return;
+            const parent = player?.template?.$player || document.getElementById('live-player-container');
+            if (!parent) return;
+            if (!document.getElementById('yaya-desktop-gift-effect-style')) {
+                const style = document.createElement('style');
+                style.id = 'yaya-desktop-gift-effect-style';
+                style.textContent = `
+                    .yaya-desktop-gift-effects { position:absolute; inset:0; z-index:25; pointer-events:none;
+                        display:flex; flex-direction:column; justify-content:flex-end; align-items:flex-start;
+                        gap:6px; padding:12px 12px 64px; overflow:hidden; box-sizing:border-box; }
+                    .yaya-desktop-gift-effect { display:flex; align-items:center; gap:6px; max-width:min(100%,320px);
+                        box-sizing:border-box; padding:4px 10px 4px 6px; border-radius:20px;
+                        background:linear-gradient(110deg,rgba(103,48,126,.94),rgba(202,74,119,.90));
+                        border:1px solid rgba(255,210,230,.55); color:#fff; box-shadow:0 4px 20px #0004;
+                        animation:yayaDesktopGiftEnter .35s ease-out; font:12px/1.4 sans-serif; }
+                    .yaya-desktop-gift-effect img { width:24px; height:24px; flex-shrink:0; object-fit:contain; }
+                    .yaya-desktop-gift-effect span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+                    .yaya-desktop-gift-effect strong { color:#ffe38a; font-size:16px; white-space:nowrap; }
+                    @keyframes yayaDesktopGiftEnter { from { opacity:0; transform:translateX(-40px) scale(.9); }
+                        to { opacity:1; transform:translateX(0) scale(1); } }
+                    @media (prefers-reduced-motion:reduce) { .yaya-desktop-gift-effect { animation:none; } }
+                `;
+                document.head.appendChild(style);
+            }
+            let overlay = parent.querySelector('.yaya-desktop-gift-effects');
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.className = 'yaya-desktop-gift-effects';
+                parent.appendChild(overlay);
+            }
+            while (overlay.children.length >= 3) overlay.firstElementChild.remove();
+            const effect = document.createElement('div');
+            effect.className = 'yaya-desktop-gift-effect';
+            const imagePath = String(item.giftPicPath || '').trim();
+            if (imagePath) {
+                try {
+                    const url = new URL(imagePath, 'https://source.48.cn/');
+                    if (url.protocol === 'https:' || url.protocol === 'http:') {
+                        const image = document.createElement('img');
+                        image.src = url.href;
+                        image.alt = '';
+                        image.addEventListener('error', () => image.remove(), { once: true });
+                        effect.appendChild(image);
+                    }
+                } catch (_error) {}
+            }
+            const text = document.createElement('span');
+            text.textContent = `${item.nick || '用户'} 送出 ${item.giftName || '礼物'}`;
+            const count = document.createElement('strong');
+            count.textContent = `× ${Number(item.giftNum) || 1}`;
+            effect.append(text, count);
+            overlay.appendChild(effect);
+            const timer = setTimeout(() => {
+                giftEffectTimers.delete(timer);
+                effect.remove();
+            }, 4500);
+            giftEffectTimers.add(timer);
+        }
+
         function clearDanmuOverlay() {
+            giftAnimationPlayer?.clear();
+            giftEffectTimers.forEach(timer => clearTimeout(timer));
+            giftEffectTimers.clear();
+            document.querySelectorAll('.yaya-desktop-gift-effects').forEach(node => node.remove());
             resetLiveDanmuList();
         }
 

@@ -72,8 +72,6 @@
         }
 
         async function directToPotPlayer(e, liveId, source = 'pocket') {
-            // On mobile web, let the cover click bubble to the card so it opens
-            // the built-in player instead of navigating to the raw stream URL.
             if (isMobileWebDevice()) return false;
             if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
             const targetEl = (e && (e.currentTarget || e.target)) || null;

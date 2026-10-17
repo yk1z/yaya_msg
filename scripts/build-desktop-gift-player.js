@@ -1,0 +1,11 @@
+'use strict';
+const path = require('node:path');
+const fs = require('node:fs');
+const root = path.resolve(__dirname, '..');
+const vendor = path.join(root, 'src/renderer/vendor');
+fs.mkdirSync(vendor, { recursive: true });
+fs.copyFileSync(require.resolve('libpag/lib/libpag.min.js'), path.join(vendor, 'libpag-runtime.js'));
+fs.copyFileSync(require.resolve('lottie-web/build/player/lottie_light.min.js'), path.join(vendor, 'lottie-light-runtime.js'));
+fs.copyFileSync(require.resolve('libpag/LICENSE.txt'), path.join(vendor, 'libpag-LICENSE.txt'));
+fs.copyFileSync(require.resolve('lottie-web/LICENSE.md'), path.join(vendor, 'lottie-LICENSE.md'));
+console.log('Desktop gift players built');

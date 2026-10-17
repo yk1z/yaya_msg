@@ -33,6 +33,7 @@
 
         let followedAutoRefreshTimer = null;
         let followedAutoRefreshRunning = false;
+        let scheduleFollowedRoomPoll = null;
         let followedAutoRefreshCycle = 0;
         let activeFollowedMainChannel = '';
         let isFollowedSmallRoomMode = false;
@@ -44,6 +45,17 @@
         let followedPendingHtml = '';
         let followedPendingCount = 0;
         let followedPendingMessageIds = new Set();
+        const followedPendingAliasIds = new Set();
+        const memberRoomRealtimeQueue = [];
+        const memberRoomRecentMessages = new Map();
+        const memberRoomDeletedIds = new Set();
+        let memberRoomRealtimeFlushScheduled = false;
+        let memberRoomFallbackTimer = null;
+        let memberRoomReconnectTimer = null;
+        let memberRoomReconnectAttempt = 0;
+        let memberRoomNeedsCatchup = false;
+        const isDesktopRoom = Boolean(window.desktop?.platform && window.desktop.platform !== 'web');
+        const roomRealtime = window.YayaRendererFeatures.memberRoomRealtime;
         let followedRoomEssenceMessages = [];
         let followedRoomEssenceIndex = 0;
         let followedRoomEssenceRequestRevision = 0;
@@ -64,6 +76,7 @@
         let memberRoomConnected = false;
         let memberRoomConnectedAt = 0;
         let memberRoomAccountId = '';
+        let memberRoomUserId = '';
         let memberRoomAccountName = '';
         let memberRoomTargetServer = '';
         let memberRoomTargetChannel = '';
@@ -74,6 +87,21 @@
         let memberRoomReplyTarget = null;
         let memberRoomContextMenu = null;
         const memberRoomMessageActions = new Map();
+        const memberRoomGiftEffects = window.desktop?.platform && window.desktop.platform !== 'web'
+            ? window.YayaRendererFeatures.createMemberRoomGiftEffects?.({
+                ipcRenderer,
+                reportError: error => window.YayaRendererUtils?.reportIgnoredError(error, 'src/renderer/member-room-gift-effects.js')
+            }) : null;
+        const memberRoomGifts = window.desktop?.platform !== 'web'
+            ? window.YayaRendererFeatures.createMemberRoomGiftFeature?.({
+                ipcRenderer,
+                getTarget: () => ({ serverId: activeFollowedServer, channelId: activeFollowedChannel, name: activeFollowedName }),
+                getSessionKey: getAppToken,
+                onGiftSent: target => {
+                    scheduleMemberRoomHistoryRefresh(target.serverId, target.channelId, 350);
+                    scheduleMemberRoomHistoryRefresh(target.serverId, target.channelId, 1200);
+                }
+            }) : null;
 
         function isMemberRoomSendingAvailable() {
             return Boolean(ipcRenderer && typeof ipcRenderer.invoke === 'function');
@@ -161,6 +189,7 @@
                         type="submit" disabled>发送</button>
                 </div>`;
             composerHost.appendChild(form);
+            memberRoomGifts?.mount(form);
             form.addEventListener('submit', event => {
                 event.preventDefault();
                 void sendActiveMemberRoomMessage();
@@ -198,10 +227,19 @@
         }
 
         function getCurrentMemberRoomIdentityIds() {
-            return new Set([
+            const identityIds = new Set([
                 getCurrentUserId(),
+                memberRoomUserId,
                 memberRoomAccountId
             ].map(value => String(value || '').trim()).filter(Boolean));
+            const customProfile = typeof window.readStoredJsonSetting === 'function'
+                ? window.readStoredJsonSetting('customSenderProfile', {})
+                : {};
+            if (customProfile?.enabled === true) {
+                const customUserId = String(customProfile.userId || '').trim();
+                if (customUserId) identityIds.add(customUserId);
+            }
+            return identityIds;
         }
 
         function isOwnMemberRoomMessage(target) {
@@ -259,6 +297,14 @@
                 msgTime: target.msgTime
             });
             if (!result?.success) throw new Error(result?.msg || '删除失败');
+            if (isDesktopRoom && roomRealtime) {
+                const ids = roomRealtime.aliases(target);
+                ids.forEach(id => memberRoomDeletedIds.add(id));
+                while (memberRoomDeletedIds.size > 2000) memberRoomDeletedIds.delete(memberRoomDeletedIds.values().next().value);
+                memberRoomRecentMessages.forEach((record, key) => {
+                    if (roomRealtime.aliases(record).some(id => ids.includes(id))) memberRoomRecentMessages.delete(key);
+                });
+            }
             document.querySelector(`.msg-item[data-message-key="${CSS.escape(target.messageKey)}"]`)?.remove();
             memberRoomMessageActions.delete(target.messageKey);
             showToast('消息已删除');
@@ -297,6 +343,7 @@
             memberRoomConnected = false;
             memberRoomConnectedAt = 0;
             memberRoomAccountId = '';
+            memberRoomUserId = '';
             memberRoomAccountName = '';
             memberRoomTargetServer = '';
             memberRoomTargetChannel = '';
@@ -315,6 +362,96 @@
                     || String(activeFollowedChannel || '') !== String(channelId || '')) return;
                 void loadFollowedChatPage(false, true);
             }, delay);
+        }
+
+        function resetMemberRoomRealtime() {
+            clearTimeout(memberRoomFallbackTimer);
+            clearTimeout(memberRoomReconnectTimer);
+            memberRoomFallbackTimer = null;
+            memberRoomReconnectTimer = null;
+            memberRoomReconnectAttempt = 0;
+            memberRoomNeedsCatchup = false;
+            memberRoomRealtimeQueue.length = 0;
+            memberRoomRecentMessages.clear();
+            memberRoomDeletedIds.clear();
+        }
+
+        function scheduleMemberRoomFallback(delay = 1000) {
+            if (!isDesktopRoom || memberRoomFallbackTimer) return;
+            const serverId = String(activeFollowedServer || '');
+            const channelId = String(activeFollowedChannel || '');
+            memberRoomFallbackTimer = setTimeout(() => {
+                memberRoomFallbackTimer = null;
+                if (serverId !== String(activeFollowedServer) || channelId !== String(activeFollowedChannel)
+                    || document.getElementById('followed-room-composer')?.style.display === 'none'
+                    || document.getElementById('view-followed-rooms')?.style.display === 'none') return;
+                if (isFollowedChatLoading) { scheduleMemberRoomFallback(500); return; }
+                void loadFollowedChatPage(false, true);
+            }, delay);
+        }
+
+        function scheduleMemberRoomReconnect() {
+            if (!isDesktopRoom || memberRoomReconnectTimer || memberRoomConnected || !getAppToken()) return;
+            const serverId = String(activeFollowedServer || '');
+            const channelId = String(activeFollowedChannel || '');
+            const delay = [1000, 3000, 10000, 30000][Math.min(memberRoomReconnectAttempt++, 3)];
+            memberRoomReconnectTimer = setTimeout(async () => {
+                memberRoomReconnectTimer = null;
+                if (serverId !== String(activeFollowedServer) || channelId !== String(activeFollowedChannel)
+                    || document.getElementById('followed-room-composer')?.style.display === 'none') return;
+                try { await ensureMemberRoomConnection(); }
+                catch (_) { scheduleMemberRoomReconnect(); }
+            }, delay);
+        }
+
+        function flushMemberRoomRealtime() {
+            memberRoomRealtimeFlushScheduled = false;
+            if (isFollowedChatLoading || !memberRoomRealtimeQueue.length
+                || document.getElementById('view-followed-rooms')?.style.display === 'none') return;
+            const list = memberRoomRealtimeQueue.splice(0).filter(record => record.serverId === String(activeFollowedServer)
+                && record.channelId === String(activeFollowedChannel) && shouldShowMemberRoomRealtime(record) === true);
+            list.sort((a, b) => b.msgTime - a.msgTime);
+            if (list.length) {
+                try { renderFollowedChatMessages(list, { isAutoRefresh: true }); }
+                catch (error) {
+                    console.warn('[成员房间] 实时消息显示失败，切换 API 补齐:', error);
+                    scheduleMemberRoomFallback();
+                }
+            }
+        }
+
+        function shouldShowMemberRoomRealtime(record) {
+            if (isFollowedChatAllMode) return true;
+            const member = getMemberData().find(item => String(item.channelId || '') === String(activeFollowedMainChannel)
+                || item.ownerName === activeFollowedName);
+            const ownerId = String(activeFollowedMemberId || member?.id || member?.userId || '');
+            return ownerId ? record.senderUserId === ownerId : null;
+        }
+
+        function receiveMemberRoomRealtime(message) {
+            if (!isDesktopRoom || !roomRealtime) return false;
+            const result = roomRealtime.normalize(message);
+            if (!result.handled) return false;
+            const record = result.record;
+            if (!record) return true;
+            if (roomRealtime.aliases(record).some(id => memberRoomDeletedIds.has(id))) return true;
+            memberRoomRecentMessages.set(record.msgIdClient || record.msgIdServer, record);
+            while (memberRoomRecentMessages.size > 500) memberRoomRecentMessages.delete(memberRoomRecentMessages.keys().next().value);
+            const visible = shouldShowMemberRoomRealtime(record);
+            if (visible !== true) return visible !== null;
+            if (memberRoomRealtimeQueue.length >= 500) {
+                memberRoomRealtimeQueue.shift();
+                scheduleMemberRoomFallback();
+            }
+            memberRoomRealtimeQueue.push(record);
+            if (!memberRoomRealtimeFlushScheduled) {
+                memberRoomRealtimeFlushScheduled = true;
+                Promise.resolve().then(flushMemberRoomRealtime).catch(error => {
+                    console.warn('[成员房间] 实时消息显示失败，切换 API 补齐:', error);
+                    scheduleMemberRoomFallback();
+                });
+            }
+            return true;
         }
 
         function isExpiredWebMemberRoomConnection(error) {
@@ -402,9 +539,16 @@
                 memberRoomConnectionId = resolvedConnectionId;
                 memberRoomConnected = true;
                 memberRoomConnectedAt = Date.now();
+                memberRoomReconnectAttempt = 0;
+                if (isDesktopRoom) scheduleFollowedRoomPoll?.();
+                if (isDesktopRoom && memberRoomNeedsCatchup) {
+                    memberRoomNeedsCatchup = false;
+                    scheduleMemberRoomFallback(200);
+                }
                 memberRoomAccountId = String(
                     result.accountId || result.account || result.accountName || ''
                 ).trim();
+                memberRoomUserId = String(result.userId || getCurrentUserId() || '').trim();
                 memberRoomAccountName = String(result.accountName || '口袋账号');
                 setMemberRoomComposerState('connected', '已连接');
                 return resolvedConnectionId;
@@ -430,6 +574,8 @@
         }
 
         function activateMemberRoomComposer() {
+            memberRoomGifts?.close();
+            memberRoomGiftEffects?.setRoom({ serverId: activeFollowedServer, channelId: activeFollowedChannel });
             const form = ensureMemberRoomComposer();
             if (!form) return;
             form.style.display = '';
@@ -441,10 +587,21 @@
             }
             void ensureMemberRoomConnection().catch(error => {
                 console.warn('[成员房间] QChat 连接失败:', formatMemberRoomError(error));
+                scheduleMemberRoomReconnect();
             });
         }
 
         function hideMemberRoomComposer() {
+            resetMemberRoomRealtime();
+            if (isDesktopRoom) {
+                followedAutoRefreshEnabled = false;
+                followedAutoRefreshCycle++;
+                clearTimeout(followedAutoRefreshTimer);
+                followedAutoRefreshTimer = null;
+                scheduleFollowedRoomPoll = null;
+            }
+            memberRoomGifts?.close();
+            memberRoomGiftEffects?.clear();
             const form = document.getElementById('followed-room-composer');
             if (form) form.style.display = 'none';
             void destroyMemberRoomConnections();
@@ -455,6 +612,7 @@
             if (!elements.input || memberRoomComposerSending) return;
             const serverId = String(activeFollowedServer || '');
             const channelId = String(activeFollowedChannel || '');
+            const sendingRevision = followedChatRequestRevision;
             try {
                 memberRoomComposerSending = true;
                 setMemberRoomComposerState('connected', '正在发送');
@@ -470,12 +628,18 @@
                     } : null
                 });
                 if (!result?.success) throw new Error(result?.msg || '发送失败');
+                if (sendingRevision !== followedChatRequestRevision || serverId !== String(activeFollowedServer)
+                    || channelId !== String(activeFollowedChannel) || elements.form?.style.display === 'none') return;
                 elements.input.value = '';
                 clearMemberRoomReply();
                 setMemberRoomComposerState('connected', '已发送');
                 showToast('消息已发送到成员房间');
-                scheduleMemberRoomHistoryRefresh(serverId, channelId, 350);
-                scheduleMemberRoomHistoryRefresh(serverId, channelId, 1200);
+                if (isDesktopRoom && result.message) {
+                    if (!receiveMemberRoomRealtime(result.message)) scheduleMemberRoomFallback();
+                } else {
+                    scheduleMemberRoomHistoryRefresh(serverId, channelId, 350);
+                    scheduleMemberRoomHistoryRefresh(serverId, channelId, 1200);
+                }
             } catch (error) {
                 if (/连接已失效|重新连接/.test(String(error?.message || error?.msg || ''))) {
                     memberRoomConnected = false;
@@ -497,6 +661,14 @@
             if (payload.status === 'connected') {
                 memberRoomConnected = true;
                 memberRoomConnectedAt = Date.now();
+                clearTimeout(memberRoomReconnectTimer);
+                memberRoomReconnectTimer = null;
+                memberRoomReconnectAttempt = 0;
+                if (isDesktopRoom) scheduleFollowedRoomPoll?.();
+                if (isDesktopRoom && memberRoomNeedsCatchup) {
+                    memberRoomNeedsCatchup = false;
+                    scheduleMemberRoomFallback(200);
+                }
                 memberRoomAccountName = String(payload.accountName || memberRoomAccountName || '口袋账号');
                 setMemberRoomComposerState('connected', '已连接');
                 return;
@@ -504,6 +676,12 @@
             memberRoomConnected = false;
             memberRoomConnectedAt = 0;
             setMemberRoomComposerState('disconnected', payload.message || '成员房间连接已断开');
+            if (isDesktopRoom) {
+                memberRoomNeedsCatchup = true;
+                scheduleFollowedRoomPoll?.();
+                scheduleMemberRoomFallback(100);
+                scheduleMemberRoomReconnect();
+            }
         });
 
         ipcRenderer?.on?.('member-room-message', (_event, payload = {}) => {
@@ -512,7 +690,10 @@
             const channelId = payload.message?.channelId;
             if (String(serverId || '') === String(activeFollowedServer || '')
                 && String(channelId || '') === String(activeFollowedChannel || '')) {
-                scheduleMemberRoomHistoryRefresh(serverId, channelId, 200);
+                memberRoomGiftEffects?.receive(payload.message);
+                if (isDesktopRoom) {
+                    if (!receiveMemberRoomRealtime(payload.message)) scheduleMemberRoomFallback();
+                } else scheduleMemberRoomHistoryRefresh(serverId, channelId, 200);
             }
         });
 
@@ -679,7 +860,10 @@
                     avatar.src = './icon.png';
                 };
             }
-            if (sender) sender.textContent = item.sender;
+            if (sender) {
+                sender.textContent = item.sender;
+                if (isDesktopRoom) sender.style.color = item.isMember ? 'var(--msg-name-member)' : 'var(--msg-name-fan)';
+            }
             if (time) time.textContent = item.time || '';
             if (text) {
                 text.replaceChildren();
@@ -748,7 +932,7 @@
         function renderFollowedRoomEssence() {
             const elements = getFollowedRoomEssenceElements();
             if (!elements.panel) return;
-            elements.panel.hidden = false;
+            elements.panel.hidden = isDesktopRoom && !followedRoomEssenceMessages.length;
 
             if (!followedRoomEssenceMessages.length) {
                 if (elements.sender) elements.sender.textContent = '';
@@ -764,7 +948,10 @@
                 followedRoomEssenceMessages.length - 1
             ));
             const item = followedRoomEssenceMessages[followedRoomEssenceIndex];
-            if (elements.sender) elements.sender.textContent = item.sender;
+            if (elements.sender) {
+                elements.sender.textContent = item.sender;
+                if (isDesktopRoom) elements.sender.style.color = item.isMember ? 'var(--msg-name-member)' : 'var(--msg-name-fan)';
+            }
             if (elements.text) {
                 elements.text.textContent = item.text;
                 elements.text.title = item.text;
@@ -800,7 +987,7 @@
             const requestToken = ++followedRoomEssenceRequestRevision;
             const requestChannelId = String(activeFollowedChannel || '');
             const requestServerId = String(activeFollowedServer || '');
-            elements.panel.hidden = false;
+            elements.panel.hidden = isDesktopRoom;
             if (elements.sender) elements.sender.textContent = '';
             if (elements.text) elements.text.textContent = '正在加载精华消息...';
             if (elements.count) elements.count.textContent = '';
@@ -833,6 +1020,7 @@
                     || requestRevision !== followedChatRequestRevision) return;
                 followedRoomEssenceMessages = [];
                 followedRoomEssenceIndex = 0;
+                if (isDesktopRoom) elements.panel.hidden = true;
                 if (elements.sender) elements.sender.textContent = '';
                 if (elements.text) elements.text.textContent = '精华消息加载失败';
                 if (elements.count) elements.count.textContent = '';
@@ -3354,6 +3542,7 @@
             followedPendingHtml = '';
             followedPendingCount = 0;
             followedPendingMessageIds.clear();
+            followedPendingAliasIds.clear();
             updateFollowedPendingNotice();
         }
 
@@ -3363,11 +3552,15 @@
             if (container) {
                 container.querySelectorAll('.msg-item').forEach(el => {
                     if (el.dataset.msgid) ids.add(String(el.dataset.msgid));
+                    if (isDesktopRoom && el.dataset.messageAliases) {
+                        try { JSON.parse(el.dataset.messageAliases).forEach(id => ids.add(String(id))); } catch (_) {}
+                    }
                 });
             }
 
             if (includePending) {
                 followedPendingMessageIds.forEach(id => ids.add(String(id)));
+                followedPendingAliasIds.forEach(id => ids.add(String(id)));
             }
 
             return ids;
@@ -3378,13 +3571,14 @@
             container.querySelectorAll('.empty-state').forEach(el => el.remove());
         }
 
-        function queueFollowedPendingBatch(batchHtml, messageIds) {
+        function queueFollowedPendingBatch(batchHtml, messageIds, aliases = []) {
             if (!batchHtml || !messageIds || messageIds.length === 0) {
                 return;
             }
 
             followedPendingHtml += batchHtml;
             messageIds.forEach(id => followedPendingMessageIds.add(String(id)));
+            aliases.forEach(id => followedPendingAliasIds.add(String(id)));
             followedPendingCount = followedPendingMessageIds.size;
             updateFollowedPendingNotice();
         }
@@ -3484,6 +3678,7 @@
 
             const fragment = document.createRange().createContextualFragment(followedPendingHtml);
             msgBox.appendChild(fragment);
+            sortFollowedRoomMessages(msgBox);
             hydrateFollowedPreviewMedia(msgBox);
             resetFollowedPendingMessages();
             scrollFollowedToBottom(msgBox, false);
@@ -3694,6 +3889,8 @@
         }
 
         function openFollowedChat(ownerName, channelId, serverId, options = {}) {
+            resetMemberRoomRealtime();
+            scheduleFollowedRoomPoll = null;
             const requestRevision = ++followedChatRequestRevision;
             const refreshCycle = ++followedAutoRefreshCycle;
             isFollowedChatLoading = false;
@@ -3778,6 +3975,9 @@
 
                 const scheduleNext = () => {
                     if (!followedAutoRefreshEnabled || refreshCycle !== followedAutoRefreshCycle) return;
+                    clearTimeout(followedAutoRefreshTimer);
+                    followedAutoRefreshTimer = null;
+                    if (isDesktopRoom && memberRoomConnected) return;
                     followedAutoRefreshTimer = setTimeout(runPoll, getAdaptivePollDelay());
                 };
 
@@ -3798,6 +3998,7 @@
                     }
                 };
 
+                scheduleFollowedRoomPoll = scheduleNext;
                 scheduleNext();
             });
         };
@@ -3879,6 +4080,7 @@
 
         function toggleFollowedRoomType() {
             if (isFollowedChatLoading || !activeFollowedName) return;
+            resetMemberRoomRealtime();
 
             followedChatRequestRevision += 1;
             isFollowedChatLoading = false;
@@ -3956,6 +4158,7 @@
 
         function toggleFollowedChatMode() {
             if (isFollowedChatLoading) return;
+            memberRoomRealtimeQueue.length = 0;
 
             isFollowedChatAllMode = !isFollowedChatAllMode;
             followedChatRequestRevision += 1;
@@ -3985,6 +4188,388 @@
             });
         };
 
+        function sortFollowedRoomMessages(container) {
+            if (!isDesktopRoom) return;
+            const items = [...container.children].filter(node => node.classList.contains('msg-item'));
+            const sorted = [...items].sort((a, b) => Number(a.dataset.msgtime || 0) - Number(b.dataset.msgtime || 0));
+            if (items.every((node, index) => node === sorted[index])) return;
+            sorted.forEach(node => {
+                if (typeof container.moveBefore === 'function') container.moveBefore(node, null);
+                else container.appendChild(node);
+            });
+        }
+
+        function renderFollowedChatMessages(list, { isLoadMore = false, isAutoRefresh = true, requestRevision = followedChatRequestRevision } = {}) {
+            const msgBox = document.getElementById('followed-chat-messages');
+            if (!msgBox || requestRevision !== followedChatRequestRevision) return;
+            const oldScrollHeight = msgBox.scrollHeight;
+            const prependAnchor = isLoadMore ? captureFollowedPrependAnchor(msgBox) : null;
+            if (!isLoadMore && !isAutoRefresh) {
+                msgBox.replaceChildren();
+                memberRoomMessageActions.clear();
+            }
+            const oldBtn = document.getElementById('btn-load-more-followed');
+            if (oldBtn) oldBtn.remove();
+
+            if (list.length === 0 && !isLoadMore && !isAutoRefresh) {
+                msgBox.innerHTML = '<div class="empty-state" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--text-sub); font-size: 14px;">暂无新消息</div>';
+                isFollowedChatLoading = false;
+                return;
+            }
+
+            const reversedList = [...list].reverse();
+            const existingIds = isAutoRefresh || isLoadMore
+                ? collectFollowedRenderedMessageIds(msgBox, true)
+                : new Set();
+            const batchMessageIds = [];
+            const batchAliases = [];
+
+            const batchHtml = reversedList.map(m => {
+                if (window.desktop?.platform && window.desktop.platform !== 'web'
+                    && window.YayaRendererFeatures.isMemberRoomGiftAnimation?.(m)) return '';
+                const msgId = m.msgIdClient || m.msgidClient || m.msgIdServer || m.msgId || m.msgTime;
+                const aliases = isDesktopRoom && roomRealtime ? roomRealtime.aliases(m) : [String(msgId)];
+                if (isDesktopRoom && aliases.some(id => memberRoomDeletedIds.has(id))) return '';
+                const messageKey = `${String(msgId || 'message')}:${String(m.msgTime || '')}`;
+
+                if ((isAutoRefresh || isLoadMore) && (existingIds.has(String(msgId))
+                    || (isDesktopRoom && aliases.some(id => existingIds.has(id))))) {
+                    if (isDesktopRoom) {
+                        msgBox.querySelectorAll('.msg-item').forEach(node => {
+                            let previous = [node.dataset.msgid];
+                            try { previous = JSON.parse(node.dataset.messageAliases || '[]').concat(previous); } catch (_) {}
+                            if (aliases.some(id => previous.includes(id))) {
+                                node.dataset.messageAliases = JSON.stringify([...new Set([...previous, ...aliases])]);
+                            }
+                        });
+                        aliases.forEach(id => { existingIds.add(id); followedPendingAliasIds.add(id); });
+                    }
+                    return '';
+                }
+
+                batchMessageIds.push(String(msgId));
+                batchAliases.push(...aliases);
+                if (isDesktopRoom) aliases.forEach(id => existingIds.add(id));
+
+                let txt = '[不支持的消息格式]';
+                let isMember = false;
+                let displayName = m.senderName || '未知用户';
+                let senderId = m.senderUserId || m.senderId || m.uid || '';
+                const senderIdentityIds = new Set([
+                    m.senderUserId,
+                    m.senderId,
+                    m.uid
+                ].map(value => String(value || '').trim()).filter(Boolean));
+                let avatarUrl = './icon.png';
+                let body = m.bodys || m.msgContent || '';
+                let extraHtml = '';
+                let replyText = typeof body === 'string' ? body : '';
+                let giftInfo = null;
+                let actionType = String(m.msgType || '').toUpperCase();
+
+                const safeStr = (str) => String(str || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                const msgDate = new Date(m.msgTime);
+                const msgPad = (n) => String(n).padStart(2, '0');
+                const fallbackTimeStr = `${msgDate.getFullYear()}-${msgPad(msgDate.getMonth() + 1)}-${msgPad(msgDate.getDate())} ${msgPad(msgDate.getHours())}:${msgPad(msgDate.getMinutes())}:${msgPad(msgDate.getSeconds())}`;
+
+                if (m.extInfo) {
+                    try {
+                        const safeExtInfo = typeof m.extInfo === 'string' ? m.extInfo.replace(/:\s*([0-9]{16,})/g, ':"$1"') : m.extInfo;
+                        const ext = typeof safeExtInfo === 'string' ? JSON.parse(safeExtInfo) : safeExtInfo;
+                        if (ext && ext.user) {
+                            if (ext.user.roleId > 1) isMember = true;
+                            const extUserId = String(ext.user.userId || ext.user.id || '').trim();
+                            if (extUserId) senderIdentityIds.add(extUserId);
+                            if (!senderId) senderId = ext.user.userId || ext.user.id || '';
+                            if (ext.user.nickName) displayName = ext.user.nickName;
+                            if (ext.user.avatar) {
+                                avatarUrl = ext.user.avatar.startsWith('http') ? ext.user.avatar : `https://source.48.cn${ext.user.avatar}`;
+                            }
+                        }
+                    } catch (e) { console.warn('用户信息(extInfo)解析失败', e); }
+                }
+
+                try {
+                    let json = null;
+                    if (typeof body === 'string' && (body.startsWith('{') || body.startsWith('['))) {
+                        try {
+                            json = JSON.parse(body);
+                            if (typeof json === 'string') json = JSON.parse(json);
+                        } catch (parseErr) { window.YayaRendererUtils.reportIgnoredError(parseErr, 'src/renderer/followed-chat-feature.js'); }
+                    } else if (typeof body === 'object' && body !== null) {
+                        json = body;
+                    }
+
+                    if (json) {
+                        const msgType = (m.msgType || '').toUpperCase();
+                        const jsonType = (json.messageType || '').toUpperCase();
+                        actionType = msgType || jsonType;
+
+                        if (msgType === 'TEXT') {
+                            replyText = String(json.text || json.bodys || body || '');
+                            txt = `<p class="mb-2 template-pre">${safeStr(json.text || json.bodys || body)}</p>`;
+                        } else if (msgType === 'IMAGE') {
+                            const url = json.url.startsWith('http') ? json.url : `https://source3.48.cn${json.url}`;
+                        txt = `<div class="mb-2"><img class="template-media" src="${escapeFollowedHtml(url)}" loading="lazy" style="max-height: 250px; border-radius: 8px; cursor: zoom-in;" onclick="openImageModal(${toFollowedInlineArg(url)})"></div>`;
+                        } else if (msgType === 'EXPRESSIMAGE') {
+                            const url = json.expressImgInfo ? json.expressImgInfo.emotionRemote : json.url;
+                        txt = `<div class="mb-2"><img class="template-image-express-image" src="${escapeFollowedHtml(url.startsWith('http') ? url : 'https://source3.48.cn' + url)}"></div>`;
+                        } else if (msgType === 'REPLY' || msgType === 'GIFTREPLY') {
+                            let info = json.replyInfo || json.giftReplyInfo || (json.bodys && (json.bodys.replyInfo || json.bodys.giftReplyInfo));
+                            const rName = safeStr(info?.replyName || '用户');
+                            const rText = safeStr(info?.replyText || '消息');
+                            const myText = safeStr(info?.text || json.text || body);
+                            replyText = String(info?.text || json.text || body || '');
+                            txt = `<p class="mb-2 template-pre">${myText}</p>
+                                   <blockquote class="ml-2 mb-2 p-2" style="background: var(--blockquote-bg); border-left: 4px solid var(--border); color: var(--text-sub); border-radius: 0 4px 4px 0;">
+                                       ${rName}：${rText}
+                                   </blockquote>`;
+                        } else if (msgType === 'AUDIO') {
+                            let mediaUrl = json.url.startsWith('http') ? json.url : `https://mp4.48.cn${json.url.startsWith('/') ? '' : '/'}${json.url}`;
+                        txt = `<div class="mb-2 preview-media-placeholder" data-type="audio" data-src="${escapeFollowedHtml(mediaUrl)}"></div>`;
+                        } else if (msgType === 'VIDEO') {
+                            let mediaUrl = json.url.startsWith('http') ? json.url : `https://mp4.48.cn${json.url.startsWith('/') ? '' : '/'}${json.url}`;
+                        txt = `<div class="mb-2 preview-media-placeholder" data-type="video" data-src="${escapeFollowedHtml(mediaUrl)}"></div>`;
+                        } else if (['GIFT_TEXT', 'CHANNEL_PRESENT_TEXT', 'PRESENT_TEXT'].includes(jsonType)
+                            || ['GIFT_TEXT', 'CHANNEL_PRESENT_TEXT', 'PRESENT_TEXT'].includes(msgType)) {
+                            const info = json.giftInfo || json;
+                            giftInfo = json.giftInfo || null;
+                            replyText = String(json.giftText || info.giftText || info.giftName || '礼物消息');
+                            txt = renderFollowedPocketGiftCard(info);
+                        } else if (msgType.includes('FLIPCARD') || jsonType.includes('FLIPCARD')) {
+                            const possibleKeys = ['flipCardInfo', 'filpCardInfo', 'flipCardAudioInfo', 'filpCardAudioInfo', 'flipCardVideoInfo', 'filpCardVideoInfo'];
+                            let flipInfo = null;
+                            for (const key of possibleKeys) {
+                                if (json[key]) { flipInfo = json[key]; break; }
+                                if (json.bodys && json.bodys[key]) { flipInfo = json.bodys[key]; break; }
+                            }
+                            const qText = flipInfo?.question || json.question || '（无法解析的问题内容）';
+                            let aContent = flipInfo?.answer || json.answer || '';
+                            let ansHtml = '';
+                            if (msgType === 'FLIPCARD' || (jsonType === 'FLIPCARD' && typeof aContent === 'string' && !aContent.includes('url'))) {
+                                ansHtml = `<div style="font-size:14px; color:var(--text); line-height:1.6; padding:0 4px;">${safeStr(aContent)}</div>`;
+                            } else {
+                                try {
+                                    const ansObj = typeof aContent === 'string' ? JSON.parse(aContent) : aContent;
+                                    if (ansObj && ansObj.url) {
+                                        let mediaUrl = ansObj.url.startsWith('http') ? ansObj.url : `https://mp4.48.cn${ansObj.url.startsWith('/') ? '' : '/'}${ansObj.url}`;
+                                        const mType = (msgType.includes('AUDIO') || jsonType.includes('AUDIO')) ? 'audio' : 'video';
+                                        ansHtml = `<div class="preview-media-placeholder" data-type="${mType}" data-src="${mediaUrl}" style="margin-top:8px;"></div>`;
+                                    }
+                                } catch (e) { window.YayaRendererUtils.reportIgnoredError(e, 'src/renderer/followed-chat-feature.js'); }
+                            }
+                            txt = `<div style="margin-bottom: 8px;">
+                                        <span class="flip-label question-tag" style="margin-right:8px; transform:none; display:inline-flex;">翻牌提问</span>
+                                        <span style="font-size:14px; color:var(--text); line-height: 1.5;">${safeStr(qText)}</span>
+                                   </div>
+                                   <div style="margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 8px;">
+                                        <span class="flip-label answer-tag" style="margin-right:8px; transform:none; display:inline-flex;">成员回答</span>
+                                        ${ansHtml}
+                                   </div>`;
+                        } else if (msgType === 'LIVEPUSH' || msgType === 'LIVE_PUSH' || jsonType === 'LIVEPUSH') {
+                            const info = json.livePushInfo || json;
+                            const liveTitle = safeStr(info.liveTitle || '直播开始了');
+                            const liveId = info.liveId;
+                            const cover = info.liveCover ? (info.liveCover.startsWith('http') ? info.liveCover : `https://source.48.cn${info.liveCover}`) : './icon.png';
+                            const d = new Date(m.msgTime);
+                            const pad = (n) => String(n).padStart(2, '0');
+                            const tStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+                            const escapedTitle = liveTitle.replace(/'/g, "\\'");
+                            const escapedName = safeStr(displayName).replace(/'/g, "\\'");
+                            txt = `<div class="vod-card-row" style="margin-top: 8px; width: 100%; box-sizing: border-box; background: var(--bg); border: 1px solid var(--border); box-shadow: none; ${liveId ? 'cursor: pointer;' : 'cursor: default;'}"
+                                 ${liveId ? `onclick="event.stopPropagation(); playSharedLiveFromMessage('${liveId}', '${escapedName}', '${tStr}', '${escapedTitle}')"` : ''}>
+                                <div class="vod-row-cover-container" style="width: 100px; height: 56px; border-radius: 6px;">
+                                    <img src="${cover}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 6px;">
+                                    <div class="vod-badge" style="bottom: 4px; right: 4px; background-color: #722ed1;">通知</div>
+                                </div>
+                                <div class="vod-row-info" style="height: 56px; justify-content: space-between;">
+                                    <div class="vod-row-name" style="font-size: 14px; color: var(--text);">${safeStr(displayName)}</div>
+                                    <div class="vod-row-title" style="font-size: 12px; color: var(--text-sub);">${liveTitle}</div>
+                                    <div class="vod-row-time" style="font-size: 11px; color: var(--text-sub); opacity: 0.6;">${tStr}</div>
+                                </div>
+                            </div>`;
+                        } else if (msgType === 'SHARE_LIVE' || jsonType === 'SHARE_LIVE') {
+                            const info = json.shareInfo || {};
+                            const shareTitle = safeStr(info.shareTitle || '直播分享');
+                            const shareDesc = safeStr(info.shareDesc || '');
+                            const liveUserName = safeStr(info.liveUserName || displayName || '');
+                            const sharePicRaw = info.sharePic || '';
+                            const sharePic = sharePicRaw
+                                ? (sharePicRaw.startsWith('http') ? sharePicRaw : `https://source.48.cn${sharePicRaw}`)
+                                : './icon.png';
+                            let sharedLiveId = '';
+                            if (info.jumpPath) {
+                                const match = String(info.jumpPath).match(/id=(\d+)/);
+                                if (match) sharedLiveId = match[1];
+                            }
+
+                            const escapedTitle = shareTitle.replace(/'/g, "\\'");
+                            const escapedName = liveUserName.replace(/'/g, "\\'");
+                            const shareTime = shareDesc || fallbackTimeStr;
+
+                            txt = `<div class="vod-card-row" style="margin-top: 8px; width: 100%; box-sizing: border-box; background: var(--bg); border: 1px solid var(--border); box-shadow: none; ${sharedLiveId ? 'cursor: pointer;' : 'cursor: default;'}"
+                                 ${sharedLiveId ? `onclick="event.stopPropagation(); playSharedLiveFromMessage('${sharedLiveId}', '${escapedName}', '${shareTime}', '${escapedTitle}')"` : ''}>
+                                <div class="vod-row-cover-container" style="width: 100px; height: 56px; border-radius: 6px;">
+                                    <img src="${sharePic}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 6px;" onerror="this.src='./icon.png'">
+                                    <div class="vod-badge" style="bottom: 4px; right: 4px; background-color: #722ed1;">分享</div>
+                                </div>
+                                <div class="vod-row-info" style="height: 56px; justify-content: space-between;">
+                                    <div class="vod-row-name" style="font-size: 14px; color: var(--text);">${liveUserName || safeStr(displayName)}</div>
+                                    <div class="vod-row-title" style="font-size: 12px; color: var(--text-sub);">${shareTitle}</div>
+                                    <div class="vod-row-time" style="font-size: 11px; color: var(--text-sub); opacity: 0.6;">${shareTime}</div>
+                                </div>
+                            </div>`;
+                        } else if (jsonType.startsWith('RED_PACKET')) {
+                            const blessMessage = safeStr(json.blessMessage || '送来了红包祝福');
+                            const creatorName = safeStr(json.creatorName || displayName || '未知用户');
+                            const starName = safeStr(json.starName || '');
+                            const packetImageRaw = json.openImgUrl || json.coverUrl || '';
+                            const isDarkTheme = document.documentElement.getAttribute('data-theme') === 'dark';
+                            const packetMainTextColor = isDarkTheme ? 'rgba(255,255,255,0.96)' : 'var(--text)';
+                            const packetMetaTextColor = isDarkTheme ? 'rgba(255,255,255,0.82)' : 'var(--text)';
+                            const packetImage = packetImageRaw
+                                ? (packetImageRaw.startsWith('http') ? packetImageRaw : `https://source.48.cn${packetImageRaw}`)
+                                : './icon.png';
+                            txt = `<div style="display:flex; gap:8px; align-items:center; padding:6px 8px; border-radius:10px; background: linear-gradient(135deg, rgba(255,120,117,0.12) 0%, rgba(255,120,117,0.04) 100%), var(--input-bg); border:1px solid rgba(255,120,117,0.22); width: 220px; max-width: 220px; box-sizing: border-box;">
+                                <img src="${packetImage}" style="width:34px; height:34px; object-fit:cover; border-radius:6px; flex-shrink:0; box-shadow:0 2px 6px rgba(0,0,0,0.12);">
+                                <div style="min-width:0; flex:1;">
+                                    <div style="font-size:10px; color:#ff7875; font-weight:bold; margin-bottom:2px;">红包</div>
+                                    <div style="font-size:12px; color:${packetMainTextColor}; font-weight:bold; line-height:1.35; word-break:break-word;">${blessMessage}</div>
+                                    <div style="font-size:11px; color:${packetMetaTextColor}; margin-top:4px; line-height:1.35; word-break:break-word;">${creatorName}${starName ? ` · ${starName}` : ''}</div>
+                                </div>
+                            </div>`;
+                        } else if (
+                            msgType === 'AUDIO_GIFT_REPLY' ||
+                            jsonType === 'AUDIO_GIFT_REPLY' ||
+                            msgType === 'AUDIO_REPLY' ||
+                            jsonType === 'AUDIO_REPLY'
+                        ) {
+                            const info = json.replyInfo || json.giftReplyInfo || json;
+                            let voiceUrl = info.voiceUrl || '';
+                            if (voiceUrl && !voiceUrl.startsWith('http')) {
+                                voiceUrl = `https://mp4.48.cn${voiceUrl.startsWith('/') ? '' : '/'}${voiceUrl}`;
+                            }
+                            const rName = safeStr(info.replyName || '未知用户');
+                            const rText = safeStr(info.replyText || '');
+                            txt = '';
+                            extraHtml = `<div class="preview-media-placeholder" data-type="audio" data-src="${voiceUrl}" style="margin: 0 0 12px 0;"></div>
+                                    <div style="background: var(--blockquote-bg); padding: 8px 12px; border-radius: 6px; border-left: 3px solid var(--border); margin: 0 0 8px 0; color: var(--text-sub); font-size: 13px; line-height: 1.5;">
+                                        ${rName}：${rText}
+                                    </div>`;
+                        } else {
+                            txt = `<p class="mb-2 template-pre">${safeStr(body)}</p>`;
+                        }
+                    } else {
+                        txt = `<p class="mb-2 template-pre">${safeStr(body)}</p>`;
+                    }
+                    if (typeof replaceTencentEmoji === 'function' && txt) txt = replaceTencentEmoji(txt);
+                } catch (e) {
+                    txt = `<p class="mb-2 template-pre" style="color: #fa8c16;">[原生内容] ${safeStr(body)}</p>`;
+                }
+
+                const timeStr = fallbackTimeStr;
+
+                const nameColorVar = String(senderId) === '121569667'
+                    ? '#056de8'
+                    : (isMember ? 'var(--msg-name-member)' : 'var(--msg-name-fan)');
+
+                const currentIdentityIds = getCurrentMemberRoomIdentityIds();
+                const isOwnMessage = [...senderIdentityIds]
+                    .some(identityId => currentIdentityIds.has(identityId));
+                const matchedOwnIdentity = isOwnMessage
+                    ? [...senderIdentityIds].find(identityId => currentIdentityIds.has(identityId))
+                    : '';
+                const canReplyEligible = Boolean(String(m.msgIdClient || '').trim())
+                    && ['TEXT', 'REPLY', 'GIFTREPLY', 'GIFT_TEXT'].includes(actionType)
+                    && Boolean(String(replyText || '').trim());
+                const canDeleteEligible = Boolean(String(m.msgIdClient || '').trim())
+                    && Number(m.msgTime) > 0;
+                memberRoomMessageActions.set(messageKey, {
+                    messageKey,
+                    msgIdClient: String(m.msgIdClient || ''),
+                    msgIdServer: String(m.msgIdServer || ''),
+                    msgTime: Number(m.msgTime),
+                    msgType: actionType,
+                    senderUserId: String(
+                        (isOwnMessage && String(memberRoomUserId || getCurrentUserId() || '').trim())
+                        || matchedOwnIdentity
+                        || senderId
+                        || ''
+                    ),
+                    senderName: String(displayName || '用户'),
+                    text: String(replyText || '').trim(),
+                    giftInfo,
+                    senderIdentityIds: [...senderIdentityIds],
+                    canReplyEligible,
+                    canDeleteEligible
+                });
+
+                return `
+    <div class="msg-item" data-msgid="${escapeFollowedHtml(msgId)}" data-msgtime="${Number(m.msgTime) || 0}" ${isDesktopRoom ? `data-message-aliases="${escapeFollowedHtml(JSON.stringify(aliases))}"` : ''} data-message-key="${escapeFollowedHtml(messageKey)}" style="display: flex; padding: 8px 0; border-bottom: 1px solid var(--border);">
+<button type="button" class="followed-message-avatar-btn" title="查看用户主页"
+        onclick="openFollowedUserProfile(${toFollowedInlineArg(senderId)}, ${toFollowedInlineArg(displayName)}, ${toFollowedInlineArg(avatarUrl)}, ${isMember ? 'true' : 'false'})">
+    <img src="${escapeFollowedHtml(avatarUrl)}" class="avatar" alt="" onerror="this.src='./icon.png'">
+</button>
+<div style="flex: 1; min-width: 0;">
+    <div style="display: flex; align-items: center; margin-bottom: 2px;">
+        <span style="color: ${nameColorVar}; font-weight: bold; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 75%;">
+            ${safeStr(displayName)}
+        </span>
+
+        <span style="margin-left: auto; color: var(--text-sub); font-size: 10px; opacity: 0.5; flex-shrink: 0;">
+            ${timeStr}
+        </span>
+    </div>
+    <div style="color: var(--text); font-size: 13.5px; line-height: 1.4; word-break: break-all; margin-top: 2px;">
+        ${txt}
+        ${extraHtml}
+    </div>
+</div>
+   </div>`;
+            }).join('');
+
+            if (isAutoRefresh && !batchHtml) {
+                return;
+            }
+
+            if (isLoadMore && !batchHtml) {
+                activeFollowedNextTime = 0;
+                return;
+            }
+
+            const shouldAutoScrollNow = !isAutoRefresh || canFollowedAutoScroll(msgBox);
+            if (isAutoRefresh && !shouldAutoScrollNow) {
+                queueFollowedPendingBatch(batchHtml, batchMessageIds, batchAliases);
+                return;
+            }
+
+            removeFollowedEmptyState(msgBox);
+            const fragment = document.createRange().createContextualFragment(batchHtml);
+
+            if (isLoadMore) {
+                msgBox.prepend(fragment);
+                sortFollowedRoomMessages(msgBox);
+                if (!restoreFollowedPrependAnchor(msgBox, prependAnchor)) {
+                    const newScrollTop = msgBox.scrollHeight - oldScrollHeight;
+                    msgBox.scrollTop = newScrollTop <= 0 ? 1 : newScrollTop;
+                    followedLastScrollTop = msgBox.scrollTop;
+                }
+            } else {
+                msgBox.appendChild(fragment);
+                sortFollowedRoomMessages(msgBox);
+                if (shouldAutoScrollNow) {
+                    scrollFollowedToBottom(msgBox, isAutoRefresh);
+                }
+            }
+
+            if (activeFollowedNextTime > 0) {
+                const oldTip = document.getElementById('btn-load-more-followed');
+                if (oldTip) oldTip.remove();
+            }
+
+            hydrateFollowedPreviewMedia(msgBox);
+        }
+
         async function loadFollowedChatPage(isLoadMore, isAutoRefresh = false, requestRevision = followedChatRequestRevision) {
             if (requestRevision !== followedChatRequestRevision || isFollowedChatLoading) return;
             isFollowedChatLoading = true;
@@ -3995,9 +4580,8 @@
             const requestServerId = activeFollowedServer;
             const requestChannelId = activeFollowedChannel;
             const requestFetchAll = isFollowedChatAllMode;
+            let requestSucceeded = false;
 
-            const oldScrollHeight = msgBox.scrollHeight;
-            const prependAnchor = isLoadMore ? captureFollowedPrependAnchor(msgBox) : null;
             try {
                 const fetchNextTime = isAutoRefresh ? 0 : activeFollowedNextTime;
 
@@ -4029,349 +4613,8 @@
                             : 0;
                     }
 
-                    if (!isLoadMore && !isAutoRefresh) {
-                        msgBox.replaceChildren();
-                        memberRoomMessageActions.clear();
-                    }
-                    const oldBtn = document.getElementById('btn-load-more-followed');
-                    if (oldBtn) oldBtn.remove();
-
-                    if (list.length === 0 && !isLoadMore && !isAutoRefresh) {
-                        msgBox.innerHTML = '<div class="empty-state" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--text-sub); font-size: 14px;">暂无新消息</div>';
-                        isFollowedChatLoading = false;
-                        return;
-                    }
-
-                    const reversedList = [...list].reverse();
-                    const existingIds = isAutoRefresh || isLoadMore
-                        ? collectFollowedRenderedMessageIds(msgBox, true)
-                        : new Set();
-                    const batchMessageIds = [];
-
-                    const batchHtml = reversedList.map(m => {
-                        const msgId = m.msgIdClient || m.msgidClient || m.msgIdServer || m.msgId || m.msgTime;
-                        const messageKey = `${String(msgId || 'message')}:${String(m.msgTime || '')}`;
-
-                        if ((isAutoRefresh || isLoadMore) && existingIds.has(String(msgId))) {
-                            return '';
-                        }
-
-                        batchMessageIds.push(String(msgId));
-
-                        let txt = '[不支持的消息格式]';
-                        let isMember = false;
-                        let displayName = m.senderName || '未知用户';
-                        let senderId = m.senderUserId || m.senderId || m.uid || '';
-                        const senderIdentityIds = new Set([
-                            m.senderUserId,
-                            m.senderId,
-                            m.uid
-                        ].map(value => String(value || '').trim()).filter(Boolean));
-                        let avatarUrl = './icon.png';
-                        let body = m.bodys || m.msgContent || '';
-                        let extraHtml = '';
-                        let replyText = typeof body === 'string' ? body : '';
-                        let giftInfo = null;
-                        let actionType = String(m.msgType || '').toUpperCase();
-
-                        const safeStr = (str) => String(str || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                        const msgDate = new Date(m.msgTime);
-                        const msgPad = (n) => String(n).padStart(2, '0');
-                        const fallbackTimeStr = `${msgDate.getFullYear()}-${msgPad(msgDate.getMonth() + 1)}-${msgPad(msgDate.getDate())} ${msgPad(msgDate.getHours())}:${msgPad(msgDate.getMinutes())}:${msgPad(msgDate.getSeconds())}`;
-
-                        if (m.extInfo) {
-                            try {
-                                const safeExtInfo = typeof m.extInfo === 'string' ? m.extInfo.replace(/:\s*([0-9]{16,})/g, ':"$1"') : m.extInfo;
-                                const ext = typeof safeExtInfo === 'string' ? JSON.parse(safeExtInfo) : safeExtInfo;
-                                if (ext && ext.user) {
-                                    if (ext.user.roleId > 1) isMember = true;
-                                    const extUserId = String(ext.user.userId || ext.user.id || '').trim();
-                                    if (extUserId) senderIdentityIds.add(extUserId);
-                                    if (!senderId) senderId = ext.user.userId || ext.user.id || '';
-                                    if (ext.user.nickName) displayName = ext.user.nickName;
-                                    if (ext.user.avatar) {
-                                        avatarUrl = ext.user.avatar.startsWith('http') ? ext.user.avatar : `https://source.48.cn${ext.user.avatar}`;
-                                    }
-                                }
-                            } catch (e) { console.warn('用户信息(extInfo)解析失败', e); }
-                        }
-
-                        try {
-                            let json = null;
-                            if (typeof body === 'string' && (body.startsWith('{') || body.startsWith('['))) {
-                                try {
-                                    json = JSON.parse(body);
-                                    if (typeof json === 'string') json = JSON.parse(json);
-                                } catch (parseErr) { window.YayaRendererUtils.reportIgnoredError(parseErr, 'src/renderer/followed-chat-feature.js'); }
-                            } else if (typeof body === 'object' && body !== null) {
-                                json = body;
-                            }
-
-                            if (json) {
-                                const msgType = (m.msgType || '').toUpperCase();
-                                const jsonType = (json.messageType || '').toUpperCase();
-                                actionType = msgType || jsonType;
-
-                                if (msgType === 'TEXT') {
-                                    replyText = String(json.text || json.bodys || body || '');
-                                    txt = `<p class="mb-2 template-pre">${safeStr(json.text || json.bodys || body)}</p>`;
-                                } else if (msgType === 'IMAGE') {
-                                    const url = json.url.startsWith('http') ? json.url : `https://source3.48.cn${json.url}`;
-                                    txt = `<div class="mb-2"><img class="template-media" src="${url}" loading="lazy" style="max-height: 250px; border-radius: 8px; cursor: zoom-in;" onclick="openImageModal('${url}')"></div>`;
-                                } else if (msgType === 'EXPRESSIMAGE') {
-                                    const url = json.expressImgInfo ? json.expressImgInfo.emotionRemote : json.url;
-                                    txt = `<div class="mb-2"><img class="template-image-express-image" src="${url.startsWith('http') ? url : 'https://source3.48.cn' + url}"></div>`;
-                                } else if (msgType === 'REPLY' || msgType === 'GIFTREPLY') {
-                                    let info = json.replyInfo || json.giftReplyInfo || (json.bodys && (json.bodys.replyInfo || json.bodys.giftReplyInfo));
-                                    const rName = safeStr(info?.replyName || '用户');
-                                    const rText = safeStr(info?.replyText || '消息');
-                                    const myText = safeStr(info?.text || json.text || body);
-                                    replyText = String(info?.text || json.text || body || '');
-                                    txt = `<p class="mb-2 template-pre">${myText}</p>
-                                           <blockquote class="ml-2 mb-2 p-2" style="background: var(--blockquote-bg); border-left: 4px solid var(--border); color: var(--text-sub); border-radius: 0 4px 4px 0;">
-                                               ${rName}：${rText}
-                                           </blockquote>`;
-                                } else if (msgType === 'AUDIO') {
-                                    let mediaUrl = json.url.startsWith('http') ? json.url : `https://mp4.48.cn${json.url.startsWith('/') ? '' : '/'}${json.url}`;
-                                    txt = `<div class="mb-2 preview-media-placeholder" data-type="audio" data-src="${mediaUrl}"></div>`;
-                                } else if (msgType === 'VIDEO') {
-                                    let mediaUrl = json.url.startsWith('http') ? json.url : `https://mp4.48.cn${json.url.startsWith('/') ? '' : '/'}${json.url}`;
-                                    txt = `<div class="mb-2 preview-media-placeholder" data-type="video" data-src="${mediaUrl}"></div>`;
-                                } else if (jsonType === 'GIFT_TEXT' || msgType === 'GIFT_TEXT') {
-                                    const info = json.giftInfo || json;
-                                    giftInfo = json.giftInfo || null;
-                                    replyText = String(json.giftText || info.giftText || info.giftName || '礼物消息');
-                                    txt = renderFollowedPocketGiftCard(info);
-                                } else if (msgType.includes('FLIPCARD') || jsonType.includes('FLIPCARD')) {
-                                    const possibleKeys = ['flipCardInfo', 'filpCardInfo', 'flipCardAudioInfo', 'filpCardAudioInfo', 'flipCardVideoInfo', 'filpCardVideoInfo'];
-                                    let flipInfo = null;
-                                    for (const key of possibleKeys) {
-                                        if (json[key]) { flipInfo = json[key]; break; }
-                                        if (json.bodys && json.bodys[key]) { flipInfo = json.bodys[key]; break; }
-                                    }
-                                    const qText = flipInfo?.question || json.question || '（无法解析的问题内容）';
-                                    let aContent = flipInfo?.answer || json.answer || '';
-                                    let ansHtml = '';
-                                    if (msgType === 'FLIPCARD' || (jsonType === 'FLIPCARD' && typeof aContent === 'string' && !aContent.includes('url'))) {
-                                        ansHtml = `<div style="font-size:14px; color:var(--text); line-height:1.6; padding:0 4px;">${safeStr(aContent)}</div>`;
-                                    } else {
-                                        try {
-                                            const ansObj = typeof aContent === 'string' ? JSON.parse(aContent) : aContent;
-                                            if (ansObj && ansObj.url) {
-                                                let mediaUrl = ansObj.url.startsWith('http') ? ansObj.url : `https://mp4.48.cn${ansObj.url.startsWith('/') ? '' : '/'}${ansObj.url}`;
-                                                const mType = (msgType.includes('AUDIO') || jsonType.includes('AUDIO')) ? 'audio' : 'video';
-                                                ansHtml = `<div class="preview-media-placeholder" data-type="${mType}" data-src="${mediaUrl}" style="margin-top:8px;"></div>`;
-                                            }
-                                        } catch (e) { window.YayaRendererUtils.reportIgnoredError(e, 'src/renderer/followed-chat-feature.js'); }
-                                    }
-                                    txt = `<div style="margin-bottom: 8px;">
-                                                <span class="flip-label question-tag" style="margin-right:8px; transform:none; display:inline-flex;">翻牌提问</span>
-                                                <span style="font-size:14px; color:var(--text); line-height: 1.5;">${safeStr(qText)}</span>
-                                           </div>
-                                           <div style="margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 8px;">
-                                                <span class="flip-label answer-tag" style="margin-right:8px; transform:none; display:inline-flex;">成员回答</span>
-                                                ${ansHtml}
-                                           </div>`;
-                                } else if (msgType === 'LIVEPUSH' || msgType === 'LIVE_PUSH' || jsonType === 'LIVEPUSH') {
-                                    const info = json.livePushInfo || json;
-                                    const liveTitle = safeStr(info.liveTitle || '直播开始了');
-                                    const liveId = info.liveId;
-                                    const cover = info.liveCover ? (info.liveCover.startsWith('http') ? info.liveCover : `https://source.48.cn${info.liveCover}`) : './icon.png';
-                                    const d = new Date(m.msgTime);
-                                    const pad = (n) => String(n).padStart(2, '0');
-                                    const tStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-                                    const escapedTitle = liveTitle.replace(/'/g, "\\'");
-                                    const escapedName = safeStr(displayName).replace(/'/g, "\\'");
-                                    txt = `<div class="vod-card-row" style="margin-top: 8px; width: 100%; box-sizing: border-box; background: var(--bg); border: 1px solid var(--border); box-shadow: none; ${liveId ? 'cursor: pointer;' : 'cursor: default;'}" 
-                                         ${liveId ? `onclick="event.stopPropagation(); playSharedLiveFromMessage('${liveId}', '${escapedName}', '${tStr}', '${escapedTitle}')"` : ''}>
-                                        <div class="vod-row-cover-container" style="width: 100px; height: 56px; border-radius: 6px;">
-                                            <img src="${cover}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 6px;">
-                                            <div class="vod-badge" style="bottom: 4px; right: 4px; background-color: #722ed1;">通知</div>
-                                        </div>
-                                        <div class="vod-row-info" style="height: 56px; justify-content: space-between;">
-                                            <div class="vod-row-name" style="font-size: 14px; color: var(--text);">${safeStr(displayName)}</div>
-                                            <div class="vod-row-title" style="font-size: 12px; color: var(--text-sub);">${liveTitle}</div>
-                                            <div class="vod-row-time" style="font-size: 11px; color: var(--text-sub); opacity: 0.6;">${tStr}</div>
-                                        </div>
-                                    </div>`;
-                                } else if (msgType === 'SHARE_LIVE' || jsonType === 'SHARE_LIVE') {
-                                    const info = json.shareInfo || {};
-                                    const shareTitle = safeStr(info.shareTitle || '直播分享');
-                                    const shareDesc = safeStr(info.shareDesc || '');
-                                    const liveUserName = safeStr(info.liveUserName || displayName || '');
-                                    const sharePicRaw = info.sharePic || '';
-                                    const sharePic = sharePicRaw
-                                        ? (sharePicRaw.startsWith('http') ? sharePicRaw : `https://source.48.cn${sharePicRaw}`)
-                                        : './icon.png';
-                                    let sharedLiveId = '';
-                                    if (info.jumpPath) {
-                                        const match = String(info.jumpPath).match(/id=(\d+)/);
-                                        if (match) sharedLiveId = match[1];
-                                    }
-
-                                    const escapedTitle = shareTitle.replace(/'/g, "\\'");
-                                    const escapedName = liveUserName.replace(/'/g, "\\'");
-                                    const shareTime = shareDesc || fallbackTimeStr;
-
-                                    txt = `<div class="vod-card-row" style="margin-top: 8px; width: 100%; box-sizing: border-box; background: var(--bg); border: 1px solid var(--border); box-shadow: none; ${sharedLiveId ? 'cursor: pointer;' : 'cursor: default;'}"
-                                         ${sharedLiveId ? `onclick="event.stopPropagation(); playSharedLiveFromMessage('${sharedLiveId}', '${escapedName}', '${shareTime}', '${escapedTitle}')"` : ''}>
-                                        <div class="vod-row-cover-container" style="width: 100px; height: 56px; border-radius: 6px;">
-                                            <img src="${sharePic}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 6px;" onerror="this.src='./icon.png'">
-                                            <div class="vod-badge" style="bottom: 4px; right: 4px; background-color: #722ed1;">分享</div>
-                                        </div>
-                                        <div class="vod-row-info" style="height: 56px; justify-content: space-between;">
-                                            <div class="vod-row-name" style="font-size: 14px; color: var(--text);">${liveUserName || safeStr(displayName)}</div>
-                                            <div class="vod-row-title" style="font-size: 12px; color: var(--text-sub);">${shareTitle}</div>
-                                            <div class="vod-row-time" style="font-size: 11px; color: var(--text-sub); opacity: 0.6;">${shareTime}</div>
-                                        </div>
-                                    </div>`;
-                                } else if (jsonType.startsWith('RED_PACKET')) {
-                                    const blessMessage = safeStr(json.blessMessage || '送来了红包祝福');
-                                    const creatorName = safeStr(json.creatorName || displayName || '未知用户');
-                                    const starName = safeStr(json.starName || '');
-                                    const packetImageRaw = json.openImgUrl || json.coverUrl || '';
-                                    const isDarkTheme = document.documentElement.getAttribute('data-theme') === 'dark';
-                                    const packetMainTextColor = isDarkTheme ? 'rgba(255,255,255,0.96)' : 'var(--text)';
-                                    const packetMetaTextColor = isDarkTheme ? 'rgba(255,255,255,0.82)' : 'var(--text)';
-                                    const packetImage = packetImageRaw
-                                        ? (packetImageRaw.startsWith('http') ? packetImageRaw : `https://source.48.cn${packetImageRaw}`)
-                                        : './icon.png';
-                                    txt = `<div style="display:flex; gap:8px; align-items:center; padding:6px 8px; border-radius:10px; background: linear-gradient(135deg, rgba(255,120,117,0.12) 0%, rgba(255,120,117,0.04) 100%), var(--input-bg); border:1px solid rgba(255,120,117,0.22); width: 220px; max-width: 220px; box-sizing: border-box;">
-                                        <img src="${packetImage}" style="width:34px; height:34px; object-fit:cover; border-radius:6px; flex-shrink:0; box-shadow:0 2px 6px rgba(0,0,0,0.12);">
-                                        <div style="min-width:0; flex:1;">
-                                            <div style="font-size:10px; color:#ff7875; font-weight:bold; margin-bottom:2px;">红包</div>
-                                            <div style="font-size:12px; color:${packetMainTextColor}; font-weight:bold; line-height:1.35; word-break:break-word;">${blessMessage}</div>
-                                            <div style="font-size:11px; color:${packetMetaTextColor}; margin-top:4px; line-height:1.35; word-break:break-word;">${creatorName}${starName ? ` · ${starName}` : ''}</div>
-                                        </div>
-                                    </div>`;
-                                } else if (
-                                    msgType === 'AUDIO_GIFT_REPLY' ||
-                                    jsonType === 'AUDIO_GIFT_REPLY' ||
-                                    msgType === 'AUDIO_REPLY' ||
-                                    jsonType === 'AUDIO_REPLY'
-                                ) {
-                                    const info = json.replyInfo || json.giftReplyInfo || json;
-                                    let voiceUrl = info.voiceUrl || '';
-                                    if (voiceUrl && !voiceUrl.startsWith('http')) {
-                                        voiceUrl = `https://mp4.48.cn${voiceUrl.startsWith('/') ? '' : '/'}${voiceUrl}`;
-                                    }
-                                    const rName = safeStr(info.replyName || '未知用户');
-                                    const rText = safeStr(info.replyText || '');
-                                    txt = '';
-                                    extraHtml = `<div class="preview-media-placeholder" data-type="audio" data-src="${voiceUrl}" style="margin: 0 0 12px 0;"></div>
-                                            <div style="background: var(--blockquote-bg); padding: 8px 12px; border-radius: 6px; border-left: 3px solid var(--border); margin: 0 0 8px 0; color: var(--text-sub); font-size: 13px; line-height: 1.5;">
-                                                ${rName}：${rText}
-                                            </div>`;
-                                } else {
-                                    txt = `<p class="mb-2 template-pre">${safeStr(body)}</p>`;
-                                }
-                            } else {
-                                txt = `<p class="mb-2 template-pre">${safeStr(body)}</p>`;
-                            }
-                            if (typeof replaceTencentEmoji === 'function' && txt) txt = replaceTencentEmoji(txt);
-                        } catch (e) {
-                            txt = `<p class="mb-2 template-pre" style="color: #fa8c16;">[原生内容] ${safeStr(body)}</p>`;
-                        }
-
-                        const timeStr = fallbackTimeStr;
-
-                        const nameColorVar = String(senderId) === '121569667'
-                            ? '#056de8'
-                            : (isMember ? 'var(--msg-name-member)' : 'var(--msg-name-fan)');
-
-                        const currentIdentityIds = getCurrentMemberRoomIdentityIds();
-                        const isOwnMessage = [...senderIdentityIds]
-                            .some(identityId => currentIdentityIds.has(identityId));
-                        const matchedOwnIdentity = isOwnMessage
-                            ? [...senderIdentityIds].find(identityId => currentIdentityIds.has(identityId))
-                            : '';
-                        const canReplyEligible = Boolean(String(m.msgIdClient || '').trim())
-                            && ['TEXT', 'REPLY', 'GIFTREPLY', 'GIFT_TEXT'].includes(actionType)
-                            && Boolean(String(replyText || '').trim());
-                        const canDeleteEligible = Boolean(String(m.msgIdClient || '').trim())
-                            && Number(m.msgTime) > 0;
-                        memberRoomMessageActions.set(messageKey, {
-                            messageKey,
-                            msgIdClient: String(m.msgIdClient || ''),
-                            msgIdServer: String(m.msgIdServer || ''),
-                            msgTime: Number(m.msgTime),
-                            msgType: actionType,
-                            senderUserId: String(
-                                (isOwnMessage && String(getCurrentUserId() || '').trim())
-                                || matchedOwnIdentity
-                                || senderId
-                                || ''
-                            ),
-                            senderName: String(displayName || '用户'),
-                            text: String(replyText || '').trim(),
-                            giftInfo,
-                            senderIdentityIds: [...senderIdentityIds],
-                            canReplyEligible,
-                            canDeleteEligible
-                        });
-
-                        return `
-    <div class="msg-item" data-msgid="${escapeFollowedHtml(msgId)}" data-message-key="${escapeFollowedHtml(messageKey)}" style="display: flex; padding: 8px 0; border-bottom: 1px solid var(--border);">
-        <button type="button" class="followed-message-avatar-btn" title="查看用户主页"
-                onclick="openFollowedUserProfile(${toFollowedInlineArg(senderId)}, ${toFollowedInlineArg(displayName)}, ${toFollowedInlineArg(avatarUrl)}, ${isMember ? 'true' : 'false'})">
-            <img src="${avatarUrl}" class="avatar" alt="" onerror="this.src='./icon.png'">
-        </button>
-        <div style="flex: 1; min-width: 0;">
-            <div style="display: flex; align-items: center; margin-bottom: 2px;">
-                <span style="color: ${nameColorVar}; font-weight: bold; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 75%;">
-                    ${safeStr(displayName)}
-                </span>
-                
-                <span style="margin-left: auto; color: var(--text-sub); font-size: 10px; opacity: 0.5; flex-shrink: 0;">
-                    ${timeStr}
-                </span>
-            </div>
-            <div style="color: var(--text); font-size: 13.5px; line-height: 1.4; word-break: break-all; margin-top: 2px;">
-                ${txt}
-                ${extraHtml}
-            </div>
-        </div>
-   </div>`;
-                    }).join('');
-
-                    if (isAutoRefresh && !batchHtml) {
-                        return;
-                    }
-
-                    if (isLoadMore && !batchHtml) {
-                        activeFollowedNextTime = 0;
-                        return;
-                    }
-
-                    const shouldAutoScrollNow = !isAutoRefresh || canFollowedAutoScroll(msgBox);
-                    if (isAutoRefresh && !shouldAutoScrollNow) {
-                        queueFollowedPendingBatch(batchHtml, batchMessageIds);
-                        return;
-                    }
-
-                    removeFollowedEmptyState(msgBox);
-                    const fragment = document.createRange().createContextualFragment(batchHtml);
-
-                    if (isLoadMore) {
-                        msgBox.prepend(fragment);
-                        if (!restoreFollowedPrependAnchor(msgBox, prependAnchor)) {
-                            const newScrollTop = msgBox.scrollHeight - oldScrollHeight;
-                            msgBox.scrollTop = newScrollTop <= 0 ? 1 : newScrollTop;
-                            followedLastScrollTop = msgBox.scrollTop;
-                        }
-                    } else {
-                        msgBox.appendChild(fragment);
-                        if (shouldAutoScrollNow) {
-                            scrollFollowedToBottom(msgBox, isAutoRefresh);
-                        }
-                    }
-
-                    if (activeFollowedNextTime > 0) {
-                        const oldTip = document.getElementById('btn-load-more-followed');
-                        if (oldTip) oldTip.remove();
-                    }
-
-                    hydrateFollowedPreviewMedia(msgBox);
+                    renderFollowedChatMessages(list, { isLoadMore, isAutoRefresh, requestRevision });
+                    requestSucceeded = true;
                 }
             } catch (e) {
                 if (requestRevision === followedChatRequestRevision) {
@@ -4383,6 +4626,11 @@
             } finally {
                 if (requestRevision === followedChatRequestRevision) {
                     isFollowedChatLoading = false;
+                    if (isDesktopRoom && !isLoadMore && !requestSucceeded) scheduleMemberRoomFallback(2000);
+                    if (isDesktopRoom && !isAutoRefresh && !isLoadMore) {
+                        memberRoomRecentMessages.forEach(record => memberRoomRealtimeQueue.push(record));
+                    }
+                    flushMemberRoomRealtime();
 
                     const msgBox = document.getElementById('followed-chat-messages');
                     if (!isAutoRefresh) {
@@ -4406,6 +4654,10 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            const roomView = document.getElementById('view-followed-rooms');
+            if (isDesktopRoom && roomView) new MutationObserver(() => {
+                if (roomView.style.display !== 'none') flushMemberRoomRealtime();
+            }).observe(roomView, { attributes: true, attributeFilter: ['style', 'hidden'] });
             const essencePanel = document.getElementById('followed-room-essence');
             const essencePrevious = document.getElementById('followed-room-essence-prev');
             const essenceNext = document.getElementById('followed-room-essence-next');

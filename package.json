@@ -1,20 +1,21 @@
 {
   "name": "yaya_msg",
-  "version": "2.13.0",
+  "version": "2.14.0",
   "description": "牙牙消息",
   "homepage": "https://github.com/yk1z/yaya_msg",
   "main": "main.js",
   "scripts": {
     "database:build": "node scripts/build-web.js --database-runtime-only",
-    "start": "npm run database:build && electron .",
+    "gift-player:build": "node scripts/build-desktop-gift-player.js",
+    "start": "npm run gift-player:build && npm run database:build && electron .",
     "web:build": "node scripts/build-web.js",
     "web:dev": "npm run web:build && npx wrangler dev",
     "web:dev:lan": "npm run web:build && npx wrangler dev --ip 0.0.0.0 --port 8787",
     "web:deploy": "npm run web:build && npx wrangler deploy",
     "api:start": "node server/yaya-api.mjs",
     "search:start": "node server/search-api.mjs",
-    "pack": "npm run database:build && node scripts/run-builder.js --dir",
-    "dist": "npm run database:build && node scripts/run-builder.js",
+    "pack": "npm run gift-player:build && npm run database:build && node scripts/run-builder.js --dir",
+    "dist": "npm run gift-player:build && npm run database:build && node scripts/run-builder.js",
     "seine:export-all": "node scripts/export-all-member-channels.js",
     "seine:compare": "node scripts/compare-member-channels.js",
     "seine:compare-members": "python scripts/compare-member-profiles.py",
@@ -26,14 +27,18 @@
   "license": "GPL-3.0-only",
   "dependencies": {
     "axios": "^1.19.0",
+    "fflate": "0.8.3",
     "fluent-ffmpeg": "^2.1.3",
+    "libpag": "4.1.8",
+    "lottie-web": "5.13.0",
     "node-media-server": "^4.2.8",
-    "qrcode": "^1.5.4"
+    "qrcode": "^1.5.4",
+    "zego-express-engine-electron": "3.25.0-51516.1302",
+    "@yxim/nim-web-sdk": "9.21.14"
   },
   "devDependencies": {
     "@ffmpeg/core": "0.11.0",
     "@ffmpeg/ffmpeg": "0.11.6",
-    "@yxim/nim-web-sdk": "9.21.14",
     "artplayer": "5.4.0",
     "artplayer-plugin-danmuku": "5.3.0",
     "dplayer": "1.27.1",
@@ -76,7 +81,8 @@
     ],
     "asar": true,
     "asarUnpack": [
-      "**/*.node"
+      "**/*.node",
+      "node_modules/zego-express-engine-electron/**"
     ],
     "win": {
       "target": [

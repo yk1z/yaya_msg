@@ -30,10 +30,10 @@
         return Number.isSafeInteger(number) ? number : normalized;
     }
 
-    function buildExtension(userInfo = {}, bubbleId = '0') {
+    function buildExtension(userInfo = {}, bubbleId = '0', channelRole = '0', monthCardBadge = null) {
         return {
             module: 'QCHAT',
-            channelRole: '0',
+            channelRole: String(channelRole ?? '0'),
             user: {
                 userId: normalizeUserId(userInfo.userId || userInfo.id),
                 nickName: String(userInfo.nickname || userInfo.nickName || ''),
@@ -42,20 +42,22 @@
                 level: normalizeNumber(userInfo.level),
                 roleId: normalizeNumber(userInfo.roleId),
                 vip: userInfo.vip === true,
-                pfUrl: String(userInfo.pfUrl || '')
+                pfUrl: String(userInfo.pfUrl || ''),
+                ...(Array.isArray(userInfo.badge) ? { badge: [...userInfo.badge] } : {})
             },
+            ...(monthCardBadge ? { monthCardBadge: { ...monthCardBadge } } : {}),
             bubbleId: String(bubbleId || '0')
         };
     }
 
-    function buildSendOptions({ serverId, channelId, text, userInfo, bubbleId = '0' } = {}) {
+    function buildSendOptions({ serverId, channelId, text, userInfo, bubbleId = '0', channelRole = '0', monthCardBadge = null } = {}) {
         const normalizedText = normalizeText(text);
         return {
             serverId: normalizeId(serverId, 'Server ID'),
             channelId: normalizeId(channelId, 'Channel ID'),
             type: 'text',
             body: normalizedText,
-            ext: JSON.stringify(buildExtension(userInfo, bubbleId)),
+            ext: JSON.stringify(buildExtension(userInfo, bubbleId, channelRole, monthCardBadge)),
             env: 'QChat',
             historyEnable: true,
             pushEnable: true,
@@ -65,7 +67,7 @@
         };
     }
 
-    function buildReplyOptions({ serverId, channelId, text, reply, userInfo, bubbleId = '0' } = {}) {
+    function buildReplyOptions({ serverId, channelId, text, reply, userInfo, bubbleId = '0', channelRole = '0', monthCardBadge = null } = {}) {
         const normalizedText = normalizeText(text);
         const replyMessageId = String(reply?.msgIdClient || '').trim();
         if (!replyMessageId) throw new Error('缺少被回复消息 ID');
@@ -86,7 +88,7 @@
             attachment: JSON.stringify(hasGift
                 ? { giftReplyInfo: replyInfo, messageType: 'GIFTREPLY' }
                 : { replyInfo, messageType: 'REPLY' }),
-            ext: JSON.stringify(buildExtension(userInfo, bubbleId)),
+            ext: JSON.stringify(buildExtension(userInfo, bubbleId, channelRole, monthCardBadge)),
             env: 'QChat',
             historyEnable: true,
             pushEnable: true,

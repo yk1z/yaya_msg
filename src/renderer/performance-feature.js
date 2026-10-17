@@ -98,9 +98,19 @@
         }
 
         function hidePerformanceMemberResults() {
+            clearTimeout(memberSearchTimer);
+            memberSearchTimer = 0;
+            memberSuggestionRequestId += 1;
             const resultBox = getPerformanceMemberResultBox();
             if (resultBox) resultBox.style.display = 'none';
         }
+
+        document.addEventListener('pointerdown', event => {
+            const input = document.getElementById('performance-member-input');
+            const resultBox = getPerformanceMemberResultBox();
+            if (input?.contains(event.target) || resultBox?.contains(event.target)) return;
+            hidePerformanceMemberResults();
+        }, true);
 
         function resetPerformanceMemberSelection() {
             state.memberRequestId += 1;
@@ -167,13 +177,25 @@
                 return memberSearchIndexCache.get(member);
             }
             const name = String(member?.ownerName || member?.name || '');
-            const pinyin = String(member?.pinyin || '').toLocaleLowerCase();
+            const pinyin = String(member?.pinyin || '');
             const initials = typeof getPinyinInitials === 'function'
-                ? String(getPinyinInitials(pinyin)).toLocaleLowerCase()
+                ? String(getPinyinInitials(pinyin))
                 : '';
-            const index = { name, pinyin, initials };
+            const index = [name, pinyin, initials, member?.abbr, ...getSearchPinyinTerms(name, true)].map(normalizeSearchToken);
             if (member && typeof member === 'object') memberSearchIndexCache.set(member, index);
             return index;
+        }
+
+        function normalizeSearchToken(value) {
+            return String(value || '').normalize('NFKC').toLowerCase().replace(/[\s_-]+/g, '');
+        }
+
+        function getSearchPinyinTerms(value, surname = false) {
+            if (!window.pinyinPro?.pinyin || !value) return [];
+            const parts = window.pinyinPro.pinyin(String(value), {
+                toneType: 'none', type: 'array', ...(surname ? { surname: 'head' } : {})
+            });
+            return [parts.join(''), parts.map(part => part.charAt(0)).join('')];
         }
 
         async function runPerformanceMemberSearch(value, requestId) {
@@ -192,13 +214,11 @@
                     await loadMemberData();
                 }
                 if (requestId !== memberSuggestionRequestId) return;
-                const lowerKeyword = value.toLocaleLowerCase();
+                const lowerKeyword = normalizeSearchToken(value);
                 const members = Array.isArray(getMemberData?.()) ? getMemberData() : [];
                 const matches = members.filter(member => {
                     const index = getPerformanceMemberSearchIndex(member);
-                    return index.name.includes(value)
-                        || index.pinyin.includes(lowerKeyword)
-                        || index.initials.includes(lowerKeyword);
+                    return index.some(term => term.includes(lowerKeyword));
                 });
                 if (typeof memberSortLogic === 'function') matches.sort(memberSortLogic);
                 renderPerformanceMemberResults(matches);
@@ -816,6 +836,7 @@
             if (!searchableText) {
                 searchableText = [
                     item?.title,
+                    ...getSearchPinyinTerms(item?.title),
                     formatPerformanceTime(item?.startTime),
                     ...getPerformanceDateSearchTerms(item?.startTime)
                 ].map(value => String(value || '').toLocaleLowerCase()).join(' ');

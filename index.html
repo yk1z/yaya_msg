@@ -10,6 +10,7 @@
     <title>牙牙消息</title>
     <link rel="icon" href="./icon.png" type="image/x-icon">
     <link rel="stylesheet" href="style.css?v=__YAYA_BUILD_VERSION__">
+    <link rel="stylesheet" href="./src/renderer/netface.css">
     <link rel="stylesheet" href="./src/web/web-overrides.css?v=__YAYA_BUILD_VERSION__">
     <link rel="stylesheet" href="./src/web/pocket-home.css?v=__YAYA_BUILD_VERSION__">
 
@@ -59,7 +60,7 @@
                 </svg>
             </div>
             <img src="./icon.png" class="title-logo">
-            <span>牙牙消息 v2.13</span>
+            <span>牙牙消息 v2.14</span>
         </div>
         <div id="topbar-page-title" class="title-bar-center-title" aria-live="polite"></div>
         <div class="window-controls">
@@ -455,7 +456,7 @@
 
                         <div class="home-panel home-panel-flip">
                             <div class="home-panel-title">翻牌</div>
-                            <div class="home-panel-subtitle">翻牌、个人相册</div>
+                            <div class="home-panel-subtitle">翻牌、个人相册、云握手</div>
                             <div class="home-panel-actions home-card-grid">
                                 <button class="home-card home-card-primary" onclick="switchView('send-flip')">
                                     <span class="home-card-title">提问</span>
@@ -468,6 +469,10 @@
                                 <button class="home-card" onclick="switchView('photos')">
                                     <span class="home-card-title">个人相册</span>
                                     <span class="home-card-desc">浏览成员照片</span>
+                                </button>
+                                <button id="home-netface" class="home-card" onclick="switchView('netface')">
+                                    <span class="home-card-title">云握手</span>
+                                    <span class="home-card-desc">预约排队，与成员音视频互动</span>
                                 </button>
                             </div>
                         </div>
@@ -1018,7 +1023,7 @@
                                     <div id="live-gift-panel"
                                         style="display: none; padding: 10px; border-top: 1px solid var(--border); background: var(--bg);">
 
-                                        <div
+                                        <div id="live-gift-hint"
                                             style="font-size: 11px; color: #ff4d4f; margin-bottom: 8px; display: flex; align-items: center; justify-content: flex-start; background: rgba(255, 77, 79, 0.1); padding: 4px 8px; border-radius: 4px;">
                                             <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor"
                                                 stroke-width="2" fill="none" stroke-linecap="round"
@@ -2604,6 +2609,7 @@
                         </div>
                     </div>
 
+                    <div id="view-netface" style="display:none;"></div>
                     <div id="view-send-flip"
                         style="height: 100%; overflow-y: auto; display: none; padding: 20px 40px; box-sizing: border-box;">
                         <div class="list-container send-flip-page">
@@ -2970,14 +2976,14 @@
                                         aria-pressed="false" onclick="selectPerformanceGroup('other')">其它</button>
                                     <div class="performance-member-search">
                                         <input type="text" id="performance-member-input" class="performance-search-input"
-                                            placeholder="搜索成员" aria-label="搜索成员" autocomplete="off"
+                                            placeholder="成员名 / 拼音 / 首字母" aria-label="搜索成员姓名、拼音或首字母" autocomplete="off"
                                             oninput="handlePerformanceMemberSearch(this.value)"
                                             onfocus="handlePerformanceMemberSearch(this.value)">
                                         <div id="performance-member-results" class="suggestion-box"></div>
                                     </div>
                                     <label class="performance-search" for="performance-search-input">
                                         <input type="search" id="performance-search-input" class="performance-search-input"
-                                            placeholder="搜索公演或日期" aria-label="搜索公演或日期" autocomplete="off"
+                                            placeholder="公演名 / 拼音 / 首字母 / 日期" aria-label="搜索公演名称、拼音、首字母或日期" autocomplete="off"
                                             oninput="searchPerformanceList(this.value)">
                                     </label>
                                 </div>
@@ -3091,6 +3097,150 @@
                                         <button class="btn btn-secondary" onclick="resetBackground()"
                                             style="color: #ff4d4f;">恢复默认</button>
                                     </div>
+                                </div>
+                            </div>
+
+                            <div class="Box-row custom-sender-profile-card" id="custom-sender-profile-card">
+                                <div class="custom-sender-profile-head">
+                                    <div>
+                                        <h3 style="margin: 0; color: var(--text);">自定义发送资料</h3>
+                                        <div class="custom-sender-profile-desc">
+                                            覆盖成员房间消息和直播弹幕中的展示资料；云信登录账号和凭证不会改变
+                                        </div>
+                                    </div>
+                                    <label class="custom-sender-profile-toggle">
+                                        <input type="checkbox" id="custom-sender-profile-enabled"
+                                            onchange="toggleCustomSenderProfileControls()">
+                                        <span>启用</span>
+                                    </label>
+                                </div>
+
+                                <div class="custom-sender-profile-grid" id="custom-sender-profile-fields">
+                                    <label>
+                                        <span>userId</span>
+                                        <input type="text" id="custom-sender-user-id" class="input-control"
+                                            inputmode="numeric" maxlength="32" placeholder="留空使用账号资料">
+                                    </label>
+                                    <label>
+                                        <span>nickName</span>
+                                        <input type="text" id="custom-sender-nickname" class="input-control"
+                                            maxlength="50" placeholder="留空使用账号昵称">
+                                    </label>
+                                    <label class="custom-sender-profile-wide">
+                                        <span>avatar</span>
+                                        <input type="url" id="custom-sender-avatar" class="input-control"
+                                            maxlength="2048" placeholder="HTTP(S) URL 或 / 开头的资源路径">
+                                    </label>
+                                    <label>
+                                        <span>level</span>
+                                        <input type="number" id="custom-sender-level" class="input-control"
+                                            min="0" max="999" step="1" placeholder="留空使用账号等级">
+                                    </label>
+                                    <label>
+                                        <span>roleId</span>
+                                        <input type="number" id="custom-sender-role-id" class="input-control"
+                                            min="0" max="999" step="1" placeholder="留空使用账号身份">
+                                    </label>
+                                    <label>
+                                        <span>channelRole</span>
+                                        <input type="number" id="custom-sender-channel-role" class="input-control"
+                                            min="0" max="999" step="1" placeholder="留空使用 0">
+                                    </label>
+                                    <label class="custom-sender-profile-vip">
+                                        <span>vip</span>
+                                        <input type="checkbox" id="custom-sender-vip">
+                                        <span>设为 true</span>
+                                    </label>
+                                    <label class="custom-sender-profile-wide">
+                                        <span>teamLogo</span>
+                                        <input type="text" id="custom-sender-team-logo" class="input-control"
+                                            maxlength="2048" placeholder="HTTP(S) URL 或 / 开头的资源路径">
+                                    </label>
+                                    <label class="custom-sender-profile-wide">
+                                        <span>pfUrl</span>
+                                        <input type="text" id="custom-sender-pf-url" class="input-control"
+                                            maxlength="2048" placeholder="HTTP(S) URL 或 / 开头的资源路径">
+                                    </label>
+                                    <label>
+                                        <span>bubbleId · 聊天气泡</span>
+                                        <input type="text" id="custom-sender-bubble-id" class="input-control" inputmode="numeric" maxlength="32" placeholder="留空使用 0">
+                                    </label>
+                                    <label>
+                                        <span>sessionRole · 直播身份</span>
+                                        <input type="text" id="custom-sender-session-role" class="input-control" inputmode="numeric" maxlength="4" placeholder="留空使用 0">
+                                    </label>
+                                    <label class="custom-sender-profile-vip">
+                                        <span>inTop · 直播榜单标记</span>
+                                        <input type="checkbox" id="custom-sender-in-top">
+                                        <span>设为 true</span>
+                                    </label>
+                                    <label class="custom-sender-profile-wide">
+                                        <span>badge · 徽章列表</span>
+                                        <textarea id="custom-sender-badge" class="input-control" rows="3" maxlength="210000" placeholder="每行一个徽章资源地址，也可填写 JSON 字符串数组；留空使用账号徽章，[] 清空徽章"></textarea>
+                                    </label>
+                                    <details class="custom-sender-profile-section custom-sender-profile-wide">
+                                        <summary>monthCardBadge · 月卡徽章</summary>
+                                        <div class="custom-sender-profile-desc">以下五项需一起填写，或全部留空。</div>
+                                        <div class="custom-sender-profile-grid">
+                                    <label>
+                                        <span>img · 图片</span>
+                                        <input type="text" id="custom-sender-month-img" class="input-control" maxlength="2048" placeholder="HTTP(S) URL 或 / 开头的资源路径">
+                                    </label>
+                                    <label>
+                                        <span>level · 等级</span>
+                                        <input type="text" id="custom-sender-month-level" class="input-control" maxlength="50" placeholder="留空不覆盖">
+                                    </label>
+                                    <label>
+                                        <span>levelColor · 等级颜色</span>
+                                        <input type="text" id="custom-sender-month-level-color" class="input-control" maxlength="64" placeholder="例如 A675AC，填写 # 会自动去除">
+                                    </label>
+                                    <label>
+                                        <span>setText · 徽章文字</span>
+                                        <input type="text" id="custom-sender-month-set-text" class="input-control" maxlength="100" placeholder="留空不覆盖">
+                                    </label>
+                                    <label>
+                                        <span>textColor · 文字颜色</span>
+                                        <input type="text" id="custom-sender-month-text-color" class="input-control" maxlength="64" placeholder="例如 FFFFFF，填写 # 会自动去除">
+                                    </label>
+                                        </div>
+                                    </details>
+                                    <details class="custom-sender-profile-section custom-sender-profile-wide">
+                                        <summary>config · 直播客户端信息</summary>
+                                        <div class="custom-sender-profile-grid">
+                                    <label>
+                                        <span>version · 客户端版本</span>
+                                        <input type="text" id="custom-sender-config-version" class="input-control" maxlength="64" placeholder="留空使用软件默认值">
+                                    </label>
+                                    <label>
+                                        <span>build · 构建号</span>
+                                        <input type="text" id="custom-sender-config-build" class="input-control" maxlength="64" placeholder="留空使用软件默认值">
+                                    </label>
+                                    <label>
+                                        <span>phoneName · 设备名称</span>
+                                        <input type="text" id="custom-sender-config-phone-name" class="input-control" maxlength="128" placeholder="留空使用软件默认值">
+                                    </label>
+                                    <label>
+                                        <span>phoneSystemVersion · 系统版本</span>
+                                        <input type="text" id="custom-sender-config-phone-system-version" class="input-control" maxlength="128" placeholder="留空使用软件默认值">
+                                    </label>
+                                    <label>
+                                        <span>mobileOperators · 运营商</span>
+                                        <input type="text" id="custom-sender-config-mobile-operators" class="input-control" maxlength="128" placeholder="留空不添加">
+                                    </label>
+                                    <label>
+                                        <span>ip · IP 信息</span>
+                                        <input type="text" id="custom-sender-config-ip" class="input-control" maxlength="128" placeholder="留空不添加">
+                                    </label>
+                                        </div>
+                                    </details>
+
+                                </div>
+                                <div class="custom-sender-profile-actions">
+                                    <button class="btn btn-primary" onclick="saveCustomSenderProfileSetting()">保存发送资料</button>
+                                    <button class="btn btn-secondary" onclick="resetCustomSenderProfileSetting()">恢复账号资料</button>
+                                </div>
+                                <div class="custom-sender-profile-note">
+                                    留空使用账号资料或软件默认值；月卡徽章用于成员房间和直播，sessionRole、榜单标记和客户端信息用于直播。保存后对下一条消息生效。
                                 </div>
                             </div>
 
@@ -3425,12 +3575,20 @@
         <div class="modal-content">
             <div class="modal-header">
                 <span class="modal-title">本场贡献榜</span>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <button id="btn-live-rank-refresh" class="btn btn-secondary"
+                <div class="live-rank-header-actions">
+                    <button type="button" id="btn-live-rank-refresh" class="live-rank-header-button"
                         onclick="fetchLiveRank(null, 'live-rank-modal-list')"
-                        title="刷新贡献榜" aria-label="刷新贡献榜"
-                        style="width: 30px; height: 30px; min-width: 30px; padding: 0; border: 0; box-shadow: none; background: transparent; font-size: 14px;">↻</button>
-                    <span class="close-btn" onclick="closeLiveRankModal()">×</span>
+                        title="刷新贡献榜" aria-label="刷新贡献榜">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+                            <path d="M21 3v5h-5"/>
+                            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+                            <path d="M8 16H3v5"/>
+                        </svg>
+                    </button>
+                    <button type="button" class="live-rank-header-button" onclick="closeLiveRankModal()" title="关闭" aria-label="关闭">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+                    </button>
                 </div>
             </div>
             <div id="live-rank-modal-info" class="live-rank-modal-info">
@@ -3519,6 +3677,7 @@
             </div>
         </div>
     </div>
+    <script src="./src/common/sender-profile.js"></script>
     <script src="./src/renderer/bootstrap-shared.js"></script>
     <script src="./src/renderer/database-embed.js"></script>
     <script src="./src/renderer/theme-feature.js"></script>
@@ -3539,6 +3698,8 @@
     <script src="./src/renderer/member-weibo-feature.js"></script>
     <script src="./src/renderer/trip-feature.js"></script>
     <script src="./src/renderer/room-radio-feature.js"></script>
+    <script src="./src/renderer/live-danmu-virtual-list.js"></script>
+    <script src="./src/renderer/desktop-live-gift-animation.js"></script>
     <script src="./src/renderer/nim-chatroom-feature.js"></script>
     <script src="./src/renderer/danmu-timeline-feature.js"></script>
     <script src="./src/renderer/analysis-feature.js"></script>
@@ -3551,6 +3712,9 @@
     <script src="./src/renderer/player-core-feature.js"></script>
     <script src="./src/renderer/custom-media-player-feature.js"></script>
     <script src="./src/renderer/followed-rooms-feature.js"></script>
+    <script src="./src/renderer/member-room-gift-feature.js"></script>
+    <script src="./src/renderer/member-room-gift-effects.js"></script>
+    <script src="./src/renderer/member-room-realtime.js"></script>
     <script src="./src/renderer/followed-chat-feature.js"></script>
     <script src="./src/renderer/announcement-feature.js"></script>
     <script src="./src/renderer/avatar-cache-feature.js"></script>
@@ -3559,6 +3723,8 @@
     <script src="./src/renderer/app-legacy.js"></script>
     <script src="./src/web/web-navigation.js?v=__YAYA_BUILD_VERSION__"></script>
     <script src="./src/renderer/invoice-feature.js"></script>
+    <script src="./src/common/netface-model.js"></script>
+    <script src="./src/renderer/netface-feature.js"></script>
     <script type="module" src="./src/renderer/sdk-init.js"></script>
     <script src="./src/renderer/fetch-legacy.js"></script>
 
@@ -3607,4 +3773,3 @@
 </body>
 
 </html>
-

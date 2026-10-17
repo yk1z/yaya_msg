@@ -1,6 +1,17 @@
 'use strict';
 
 const POCKET_CHANNEL_METHODS = Object.freeze({
+    'fetch-netface-activities': 'fetchNetfaceActivities',
+    'fetch-netface-events': 'fetchNetfaceEvents',
+    'fetch-netface-balance': 'fetchNetfaceBalance',
+    'fetch-netface-wait': 'fetchNetfaceWait',
+    'reserve-netface': 'reserveNetface',
+    'cancel-netface': 'cancelNetface',
+    'join-netface': 'joinNetface',
+    'quit-netface': 'quitNetface',
+    'activate-netface-key': 'activateNetfaceKey',
+    'fetch-netface-history': 'fetchNetfaceHistory',
+    'fetch-netface-rtc-config': 'fetchNetfaceRtcConfig',
     'login-send-sms': 'loginSendSms',
     'login-by-code': 'loginByCode',
     'login-check-token': 'loginCheckToken',

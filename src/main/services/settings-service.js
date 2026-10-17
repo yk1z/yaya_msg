@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { ensureStoragePaths } = require('../../common/storage-paths');
+const { normalizeCustomSenderProfile } = require('../../common/sender-profile');
 
 function readJsonFileSafe(filePath, fallbackValue) {
     try {
@@ -88,6 +89,10 @@ function normalizeSettings(rawSettings) {
         }
     }
 
+    if (Object.prototype.hasOwnProperty.call(safeSettings, 'customSenderProfile')) {
+        safeSettings.customSenderProfile = normalizeCustomSenderProfile(safeSettings.customSenderProfile);
+    }
+
     return safeSettings;
 }
 
@@ -158,6 +163,10 @@ function clearToken() {
     return '';
 }
 
+function getCustomSenderProfile() {
+    return normalizeCustomSenderProfile(readSettings().customSenderProfile);
+}
+
 function handleSyncRequest(request = {}) {
     const { action, payload = {} } = request;
 
@@ -189,6 +198,7 @@ module.exports = {
     setSettingValue,
     removeSettingValue,
     getToken,
+    getCustomSenderProfile,
     setToken,
     clearToken,
     handleSyncRequest

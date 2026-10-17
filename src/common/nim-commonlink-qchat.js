@@ -435,6 +435,37 @@ function normalizeIncomingMessage(body) {
     };
 }
 
+function buildQChatSubscriptionBody(serverId, channelId, visitor = true, subscribe = true) {
+    if (!/^\d{1,32}$/.test(String(serverId || '')) || !/^\d{1,32}$/.test(String(channelId || ''))) {
+        throw new Error('缺少有效的云信订阅房间 ID');
+    }
+    return Buffer.concat([encodeProperties({ 1: visitor ? 6 : 1, 2: subscribe ? 1 : 2 }), encodeVarint(1),
+        encodeProperties({ 1: String(serverId), 2: String(channelId) })]);
+}
+
+function readPropertyList(buffer, offset = 0) {
+    const count = readVarint(buffer, offset);
+    if (!count || count.value > 10000) throw new Error('云信订阅响应无效');
+    offset += count.size;
+    const values = [];
+    for (let i = 0; i < count.value; i++) {
+        const start = offset;
+        const size = readVarint(buffer, offset);
+        if (!size || size.value > 10000) throw new Error('云信订阅属性无效');
+        offset += size.size;
+        for (let n = 0; n < size.value; n++) {
+            const key = readVarint(buffer, offset);
+            if (!key) throw new Error('云信订阅属性无效');
+            offset += key.size;
+            const length = readVarint(buffer, offset);
+            if (!length || offset + length.size + length.value > buffer.length) throw new Error('云信订阅响应不完整');
+            offset += length.size + length.value;
+        }
+        values.push(decodeProperties(buffer.subarray(start, offset)));
+    }
+    return { values, offset };
+}
+
 class NimCommonlinkQChatClient {
     constructor(options = {}) {
         this.appKey = String(options.appKey || '').trim();
@@ -446,6 +477,8 @@ class NimCommonlinkQChatClient {
         this.onDisconnected = options.onDisconnected;
         this.onMessage = options.onMessage;
         this.onError = options.onError;
+        this.serverId = String(options.serverId || '');
+        this.channelId = String(options.channelId || '');
         this.connected = false;
         this.destroyed = false;
     }
@@ -455,6 +488,7 @@ class NimCommonlinkQChatClient {
         if (typeof this.fetchImpl !== 'function') throw new Error('当前 Node.js 环境不支持云信地址请求');
         this.destroyed = false;
         const address = await this.#requestNimAddress();
+        if (this.destroyed) throw new Error('成员房间连接已取消');
         const nimDeviceId = crypto.randomUUID();
         this.nimSession = new CommonlinkSession({
             address,
@@ -464,6 +498,7 @@ class NimCommonlinkQChatClient {
             onClose: () => this.#handleClose('NIM')
         });
         await this.nimSession.connect();
+        if (this.destroyed) throw new Error('成员房间连接已取消');
         const addressResponse = await this.nimSession.request(
             24,
             1,
@@ -471,6 +506,7 @@ class NimCommonlinkQChatClient {
             '获取 QChat 地址失败'
         );
         const qchatAddresses = decodeStringArray(addressResponse.body).filter(Boolean);
+        if (this.destroyed) throw new Error('成员房间连接已取消');
         if (!qchatAddresses.length) throw new Error('云信没有返回 QChat 连接地址');
 
         const qchatDeviceId = crypto.randomUUID();
@@ -490,8 +526,36 @@ class NimCommonlinkQChatClient {
             }
         });
         await this.qchatSession.connect();
+        if (this.destroyed) throw new Error('成员房间连接已取消');
+        if (this.serverId && this.channelId) await this.subscribeChannel(this.serverId, this.channelId);
+        if (this.destroyed) throw new Error('成员房间连接已取消');
         this.connected = true;
         this.onConnected?.();
+    }
+
+    async subscribeChannel(serverId, channelId) {
+        const subscribe = async visitor => {
+            const response = await this.qchatSession.request(visitor ? 25 : 24, visitor ? 9 : 15,
+                buildQChatSubscriptionBody(serverId, channelId, visitor), '订阅成员房间实时消息失败');
+            const list = readPropertyList(response.body);
+            const failed = visitor ? list.values : (list.offset < response.body.length ? readPropertyList(response.body, list.offset).values : []);
+            if (failed.some(item => item.get(2) === String(channelId))) throw protocolError('订阅成员房间被拒绝', 403);
+            return { success: true, visitor };
+        };
+        try { return await subscribe(true); }
+        catch (error) {
+            if (![403, 404].includes(Number(error.code))) throw error;
+            return subscribe(false);
+        }
+    }
+
+    async unsubscribeChannel(serverId, channelId, visitor = true) {
+        const response = await this.qchatSession.request(visitor ? 25 : 24, visitor ? 9 : 15,
+            buildQChatSubscriptionBody(serverId, channelId, visitor, false), '取消成员房间订阅失败');
+        const list = readPropertyList(response.body);
+        const failed = visitor ? list.values : (list.offset < response.body.length ? readPropertyList(response.body, list.offset).values : []);
+        if (failed.some(item => item.get(2) === String(channelId))) throw protocolError('取消成员房间订阅被拒绝', 403);
+        return { success: true };
     }
 
     async sendMessage(options = {}) {
@@ -561,6 +625,7 @@ function createNimCommonlinkQChatClient(options) {
 module.exports = {
     NimCommonlinkQChatClient,
     buildQChatMessageProperties,
+    buildQChatSubscriptionBody,
     createNimCommonlinkQChatClient,
     decodeProperties,
     encodeProperties

@@ -51,6 +51,7 @@
         let privateMessageContextMenu = null;
         let privateMessageContextTarget = null;
         const deletingPrivateMessageIds = new Set();
+        const privateMessagePinyinCache = new Map();
 
         function capturePrivateMessageAccount(token = getPrivateMessagesToken(), targetUserId = '') {
             return {
@@ -1499,6 +1500,19 @@
             }
         }
 
+        function getPrivateMessageSearchPinyin(name) {
+            const raw = String(name || '').trim();
+            if (!raw || !window.pinyinPro?.pinyin) return [];
+            if (privateMessagePinyinCache.has(raw)) return privateMessagePinyinCache.get(raw);
+            try {
+                const parts = window.pinyinPro.pinyin(raw, { toneType: 'none', type: 'array' });
+                const values = [parts.join(' '), parts.join(''), parts.map(part => part.charAt(0)).join('')];
+                privateMessagePinyinCache.set(raw, values);
+                if (privateMessagePinyinCache.size > 256) privateMessagePinyinCache.delete(privateMessagePinyinCache.keys().next().value);
+                return values;
+            } catch (_) { return []; }
+        }
+
         function filterPrivateMessageList(keyword = '', options = {}) {
             const lower = String(keyword || '').trim().toLowerCase();
             if (!lower) {
@@ -1515,9 +1529,20 @@
                     normalizePrivateMessageName(user.nickname),
                     normalizePrivateMessageName(user.name),
                     item.newestMessage
-                ].filter(Boolean).map(v => String(v).toLowerCase());
+                ];
+                if (window.desktop?.platform !== 'web') {
+                    const names = [getPrivateMessageDisplayName(user), user.nickname, user.name, user.starName, user.realNickName].filter(Boolean);
+                    const id = getPrivateMessageConversationKey(item);
+                    const member = getPrivateMessageSourceMembers().find(record => (
+                        id && getPrivateMessageMemberRecordIds(record).includes(String(id))
+                    ));
+                    const pinyin = String(member?.pinyin || '');
+                    values.push(...names.flatMap(getPrivateMessageSearchPinyin),
+                        pinyin, pinyin.replace(/[\s_-]+/g, ''), pinyin.replace(/[^A-Z]/g, ''),
+                        member?.ownerName, member?.name);
+                }
 
-                return values.some(v => v.includes(lower));
+                return values.filter(Boolean).some(v => String(v).toLowerCase().includes(lower));
             });
 
             renderPrivateMessageList(filtered, options);

@@ -1,6 +1,7 @@
 'use strict';
 
 const { createNimCommonlinkChatroomClient } = require('../../common/nim-commonlink-chatroom');
+const { applyCustomSenderProfile, applyCustomLiveExtensions } = require('../../common/sender-profile');
 const pocketService = require('./pocket-service');
 const settingsService = require('./settings-service');
 const { ensureWasmLoaded, generatePa } = require('./wasm-service');
@@ -53,7 +54,15 @@ async function connectLiveDanmaku(sender, payload = {}) {
         pocketService.invoke('login-check-token', { token: pocketToken, pa })
     ]);
     if (!credentials?.success) throw new Error(credentials?.msg || '获取直播聊天室凭证失败');
-    if (!liveResult?.success) throw new Error(liveResult?.msg || '获取直播详情失败');
+    if (!liveResult?.success) {
+        console.warn('[直播弹幕] 连接前直播详情查询失败:', {
+            liveId,
+            requestedRoomId,
+            apiStatus: liveResult?.data?.status ?? liveResult?.data?.code ?? null,
+            message: liveResult?.msg || '获取直播详情失败'
+        });
+        throw new Error(liveResult?.msg || '获取直播详情失败');
+    }
 
     const verifiedRoomId = normalizeId(
         liveResult.content?.chatroomId || liveResult.content?.roomId,
@@ -157,8 +166,8 @@ function normalizeBarrageText(value) {
     return text;
 }
 
-function buildLocalBarrageMessage(current, text, custom, result = {}) {
-    const user = current.userInfo || {};
+function buildLocalBarrageMessage(current, text, custom, result = {}, senderProfile = null) {
+    const user = senderProfile || current.userInfo || {};
     return {
         uuid: String(result.idClient || ''),
         type: 'text',
@@ -186,8 +195,12 @@ async function sendLiveDanmaku(senderId, payload = {}) {
     if (now - current.lastSentAt < SEND_INTERVAL_MS) throw new Error('发送太快，请稍后再试');
     current.lastSentAt = now;
 
-    const user = current.userInfo || {};
-    const custom = {
+    const customSenderProfile = settingsService.getCustomSenderProfile();
+    const user = applyCustomSenderProfile(
+        current.userInfo,
+        customSenderProfile
+    );
+    const custom = applyCustomLiveExtensions({
         sourceId: current.liveId,
         roomId: current.roomId,
         messageType: 'BARRAGE_NORMAL',
@@ -214,13 +227,13 @@ async function sendLiveDanmaku(senderId, payload = {}) {
             phoneName: 'Yaya Desktop',
             phoneSystemVersion: process.platform
         }
-    };
+    }, customSenderProfile);
 
     try {
         const result = await current.client.sendText({ text, custom });
         return {
             ...result,
-            localMessage: buildLocalBarrageMessage(current, text, custom, result)
+            localMessage: buildLocalBarrageMessage(current, text, custom, result, user)
         };
     } catch (error) {
         current.lastSentAt = 0;
