@@ -5,6 +5,7 @@
         let currentFetchStoppedAtPrevious = false;
         let currentFetchedServerId = '';
         let currentFetchedChannelId = '';
+        let currentFetchedRoomType = '';
         let currentFetchedFetchAllMode = false;
         let pocketGiftCacheSaveTimer = null;
         const AUTO_CHECKIN_ENABLED_KEY = 'yaya_auto_checkin_enabled';
@@ -26,6 +27,7 @@
         let currentPocketUserId = '';
         let currentPocketProfile = { nickname: '', avatar: '', avatarUrl: '' };
         let accountValidationGeneration = 0;
+        let smsLoginBusy = false;
         let accountSwitchGeneration = 0;
         let selectedAccountAvatarFile = null;
         let selectedAccountAvatarDataUrl = '';
@@ -45,6 +47,91 @@
         function getAppCacheApi() {
             return window.desktop && window.desktop.appCache ? window.desktop.appCache : null;
         }
+
+        function readPocketClientProfile() {
+            const api = getAppSettingsApi();
+            const value = api?.getSettingValueSync?.('p48ClientProfile', '')
+                || localStorage.getItem('p48ClientProfile') || '';
+            return value === 'pocket48' || value === 'seine48' ? value : '';
+        }
+
+        function selectedPocketClientProfile() {
+            return document.getElementById('login-client-profile')?.value === 'seine48' ? 'seine48' : 'pocket48';
+        }
+
+        function savePocketClientProfile(value) {
+            const api = getAppSettingsApi();
+            if (api?.setSettingValueSync) {
+                api.setSettingValueSync('p48ClientProfile', value);
+                localStorage.removeItem('p48ClientProfile');
+            } else localStorage.setItem('p48ClientProfile', value);
+            const badge = document.getElementById('logged-in-client-profile');
+            if (badge) {
+                const profile = value === 'seine48' ? 'seine48' : 'pocket48';
+                badge.dataset.clientProfile = profile;
+                badge.textContent = window.YayaRendererUtils.t(profile === 'seine48' ? '塞纳河48' : '口袋48');
+            }
+        }
+
+        function updateLoginClientProfile(value) {
+            const profile = value === 'seine48' ? 'seine48' : 'pocket48';
+            const field = document.getElementById('login-client-profile');
+            const display = document.getElementById('login-client-profile-display');
+            if (field) field.value = profile;
+            if (display) display.textContent = window.YayaRendererUtils.t(profile === 'seine48' ? '塞纳河48' : '口袋48');
+            document.querySelectorAll('#login-client-profile-dropdown [data-profile]').forEach(option => {
+                option.setAttribute('aria-selected', String(option.dataset.profile === profile));
+            });
+        }
+
+        function closeLoginClientProfileDropdown() {
+            const dropdown = document.getElementById('login-client-profile-dropdown');
+            if (dropdown) dropdown.style.display = 'none';
+            document.getElementById('login-client-profile-trigger')?.setAttribute('aria-expanded', 'false');
+        }
+
+        function toggleLoginClientProfileDropdown() {
+            const dropdown = document.getElementById('login-client-profile-dropdown');
+            if (!dropdown) return;
+            const open = dropdown.style.display !== 'block';
+            dropdown.style.display = open ? 'block' : 'none';
+            document.getElementById('login-client-profile-trigger')?.setAttribute('aria-expanded', String(open));
+        }
+
+        function selectLoginClientProfile(value) {
+            window.YayaPocketRegistrationUi?.close();
+            window.YayaPocketSocialLoginUi?.cancel(false);
+            updateLoginClientProfile(value);
+            closeLoginClientProfileDropdown();
+            document.getElementById('login-client-profile-trigger')?.focus();
+        }
+
+        function handleLoginClientProfileKey(event) {
+            const dropdown = document.getElementById('login-client-profile-dropdown');
+            if (!dropdown) return;
+            if (event.key === 'Tab') { closeLoginClientProfileDropdown(); return; }
+            if (event.key === 'Escape') {
+                closeLoginClientProfileDropdown();
+                document.getElementById('login-client-profile-trigger')?.focus();
+            } else if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+                const options = Array.from(dropdown.querySelectorAll('[data-profile]'));
+                const index = options.indexOf(document.activeElement);
+                const selectedIndex = options.findIndex(option => option.dataset.profile === selectedPocketClientProfile());
+                const next = event.key === 'Home' ? 0 : event.key === 'End' ? options.length - 1
+                    : index < 0 ? selectedIndex : (index + (event.key === 'ArrowUp' ? -1 : 1) + options.length) % options.length;
+                dropdown.style.display = 'block';
+                document.getElementById('login-client-profile-trigger')?.setAttribute('aria-expanded', 'true');
+                options[next]?.focus();
+            } else return;
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
+        document.addEventListener('click', event => {
+            if (!event.target?.closest?.('.login-client-profile-picker')) closeLoginClientProfileDropdown();
+        });
+        if (document.getElementById('login-client-profile')) updateLoginClientProfile(readPocketClientProfile() || 'pocket48');
+        let lastSmsClientIdentity = '';
 
         function readStoredToken() {
             const settingsApi = getAppSettingsApi();
@@ -78,6 +165,8 @@
         }
 
         function clearStoredToken() {
+            lastSmsClientIdentity = '';
+            savePocketClientProfile('');
             const settingsApi = getAppSettingsApi();
             if (settingsApi && typeof settingsApi.clearTokenSync === 'function') {
                 settingsApi.clearTokenSync();
@@ -356,6 +445,7 @@
         }
 
         function invalidatePocketAccountRequestState() {
+            window.YayaPocketRegistrationUi?.close();
             stopAutoCheckinMidnightTimer();
             autoCheckinGeneration += 1;
             autoCheckinInFlight = false;
@@ -373,6 +463,7 @@
         window.invalidatePocketAccountRequestState = invalidatePocketAccountRequestState;
 
         function syncWebAccountButton(profile = currentPocketProfile, loggedIn = !!currentPocketUserId) {
+            window.dispatchEvent(new CustomEvent('yaya:account-state-changed', { detail: { loggedIn: !!loggedIn } }));
             if (!isWebRuntimeForAccountUi()) return;
             const button = document.getElementById('web-account-button');
             const avatar = document.getElementById('web-account-avatar');
@@ -905,48 +996,26 @@
             }, 500);
         }
 
-        function upsertPocketGiftData(giftInfo = {}, unitCost = 0) {
+        function upsertPocketGiftData(giftInfo = {}) {
             if (typeof POCKET_GIFT_DATA === 'undefined') return false;
-
-            const id = String(giftInfo.giftId || giftInfo.id || '').trim();
-            const name = String(giftInfo.giftName || giftInfo.name || '').trim();
-            const cost = Number(unitCost || giftInfo.money || giftInfo.cost || 0);
-            if ((!id && !name) || !cost) return false;
-
-            const existing = POCKET_GIFT_DATA.find(item => (id && String(item.id) === id) || (name && item.name === name));
-            if (existing) {
-                const changed = Number(existing.cost || 0) !== cost
-                    || (id && String(existing.id || '') !== id)
-                    || (name && existing.name !== name);
-                if (!changed) return false;
-
-                existing.cost = cost;
-                if (id) existing.id = id;
-                if (name) existing.name = name;
-            } else {
-                POCKET_GIFT_DATA.push({ id, name: name || id, cost });
-            }
-
+            if (!window.YayaGiftPricing.upsertObservedPrice(POCKET_GIFT_DATA, giftInfo)) return false;
             schedulePocketGiftCacheSave();
             return true;
         }
 
         function renderPocketGiftCard(giftInfo = {}) {
+            giftInfo = window.YayaGiftPricing.normalizeGiftInfo(giftInfo, { rules: window.YayaGiftPriceSnapshot.rules });
             const giftName = escapeFetchHtml(giftInfo.giftName || giftInfo.name || '未知礼物');
             const giftNum = Number(giftInfo.giftNum || giftInfo.num || giftInfo.count || 1) || 1;
             const giftImg = normalizePocketMediaUrl(giftInfo.picPath || giftInfo.giftPic || giftInfo.image || '');
-            let unitCost = Number(giftInfo.money || giftInfo.cost || 0);
-
-            if (!unitCost && typeof POCKET_GIFT_DATA !== 'undefined') {
-                const gift = POCKET_GIFT_DATA.find(item => item.id == (giftInfo.giftId || giftInfo.id) || item.name === (giftInfo.giftName || giftInfo.name));
-                if (gift) unitCost = Number(gift.cost || 0);
-            }
+            const unitCost = window.resolvePocketGiftPrice(giftInfo, { historical: true }).unitCost;
 
             upsertPocketGiftData(giftInfo, unitCost);
 
-            const costDisplay = unitCost
-                ? `<span style="margin-left:5px; color:#fa8c16; font-weight:bold;">(${unitCost * giftNum}🍗)</span>`
-                : '';
+            const costDisplay = window.YayaGiftPricing.isScoringGift(giftInfo)
+                ? `<span style="margin-left:5px; color:#fa8c16; font-weight:bold;">${window.YayaGiftPricing.giftScoreText(giftInfo, { rules: window.YayaGiftPriceSnapshot.rules })}</span>` : unitCost !== null
+                ? `<span style="margin-left:5px; color:#fa8c16; font-weight:bold;">${unitCost * giftNum} 🍗</span>`
+                : '<span style="margin-left:5px; color:var(--text-sub);">价格待核</span>';
 
             return `
         <div class="mb-2" style="display:flex; align-items:center; background:#fff0f6; padding:6px 8px; border-radius:6px; border:1px solid #ffadd2; max-width: 300px;">
@@ -1587,7 +1656,7 @@
             const saveResult = await ipcRenderer.invoke('save-export-jsonl', {
                 memberName: exportMeta.memberName,
                 fileName: `${exportPrefix}-${exportMeta.channelId}.jsonl`,
-                entries: buildFetchExportEntries(collectedMessages)
+                entries: buildFetchExportEntries(collectedMessages, { channelId, roomType })
             });
             if (!isCurrentRun()) throw new Error('account-changed');
 
@@ -2201,12 +2270,21 @@
         let live48QrPollCount = 0;
 
         function switchLoginTab(type) {
+            if (type === 'social' && !window.YayaPocketSocialLoginUi?.enabled) type = 'sms';
+            window.YayaPocketRegistrationUi?.close();
+            window.YayaPocketSocialLoginUi?.cancel(false);
+            closeLoginClientProfileDropdown();
+            const identityField = document.getElementById('login-client-profile-field');
+            const identitySlot = document.getElementById(type === 'social' ? 'social-login-client-profile-slot' : type === 'token' ? 'token-login-client-profile-slot' : 'sms-login-client-profile-slot');
+            if (identityField && identitySlot) identitySlot.appendChild(identityField);
             const tabSms = document.getElementById('tab-sms');
             const tabQr = document.getElementById('tab-qr');
             const tabToken = document.getElementById('tab-token');
+            const tabSocial = document.getElementById('tab-social');
             const formSms = document.getElementById('form-sms');
             const formQr = document.getElementById('form-qr');
             const formToken = document.getElementById('form-token');
+            const formSocial = document.getElementById('form-social');
             const msgDiv = document.getElementById('login-msg');
 
             msgDiv.innerText = '';
@@ -2216,7 +2294,8 @@
             [
                 { tab: tabSms, form: formSms, key: 'sms' },
                 { tab: tabQr, form: formQr, key: 'qr' },
-                { tab: tabToken, form: formToken, key: 'token' }
+                { tab: tabToken, form: formToken, key: 'token' },
+                { tab: tabSocial, form: formSocial, key: 'social' }
             ].forEach(item => {
                 const active = item.key === type;
                 if (item.tab) {
@@ -2419,6 +2498,7 @@
         async function handleSendSms(answer = null) {
             const mobile = document.getElementById('login-mobile').value.trim();
             const area = document.getElementById('login-area').value.trim() || '86';
+            const clientProfile = selectedPocketClientProfile();
             const btn = document.getElementById('btn-send-sms');
             const msgBox = document.getElementById('login-msg');
 
@@ -2440,9 +2520,10 @@
 
             try {
                 const pa = await getLoginPa();
-                const res = await ipcRenderer.invoke('login-send-sms', { mobile, area, answer, pa });
+                const res = await ipcRenderer.invoke('login-send-sms', { mobile, area, answer, pa, clientProfile });
 
                 if (res.success) {
+                    lastSmsClientIdentity = JSON.stringify([mobile, area, clientProfile]);
                     if (verifyArea) verifyArea.style.display = 'none';
 
                     let count = 60;
@@ -2525,8 +2606,36 @@
             }, 1000);
         }
 
+        function completeSmsLogin(res, clientProfile, loginGeneration) {
+            if (loginGeneration !== accountValidationGeneration) return;
+            savePocketClientProfile(clientProfile);
+            writeStoredToken(res.content.token);
+            const tokenInput = document.getElementById('login-token');
+            if (tokenInput) tokenInput.value = res.content.token;
+            const msgDiv = document.getElementById('login-msg');
+            msgDiv.style.color = '#28a745';
+            msgDiv.innerText = window.YayaRendererUtils.t('登录成功！正在跳转...');
+            setTimeout(() => { if (loginGeneration === accountValidationGeneration) checkToken(); }, 500);
+        }
+
+        function handleThirdPartyLogin(provider) {
+            window.YayaPocketRegistrationUi?.close();
+            const clientProfile = selectedPocketClientProfile();
+            const generation = ++accountValidationGeneration;
+            window.YayaPocketSocialLoginUi?.start(provider, {
+                clientProfile,
+                isCurrent: () => generation === accountValidationGeneration && selectedPocketClientProfile() === clientProfile,
+                complete: result => completeSmsLogin(result, clientProfile, generation)
+            });
+        }
+
         async function handleLoginByCode() {
+            if (smsLoginBusy) return;
+            window.YayaPocketRegistrationUi?.close();
+            window.YayaPocketSocialLoginUi?.cancel(false);
             const mobile = document.getElementById('login-mobile').value.trim();
+            const area = document.getElementById('login-area').value.trim() || '86';
+            const clientProfile = selectedPocketClientProfile();
             const code = document.getElementById('login-code').value.trim();
             const msgDiv = document.getElementById('login-msg');
 
@@ -2534,7 +2643,14 @@
                 msgDiv.innerText = window.YayaRendererUtils.t('请填写手机号和验证码');
                 return;
             }
+            if (lastSmsClientIdentity && lastSmsClientIdentity !== JSON.stringify([mobile, area, clientProfile])) {
+                msgDiv.innerText = window.YayaRendererUtils.t('手机号、区号或登录身份已变化，请重新获取验证码');
+                return;
+            }
             const loginGeneration = ++accountValidationGeneration;
+            smsLoginBusy = true;
+            const loginButton = document.getElementById('btn-login-by-code');
+            if (loginButton) loginButton.disabled = true;
 
             msgDiv.innerText = window.YayaRendererUtils.t('登录中...');
             msgDiv.style.color = 'var(--primary)';
@@ -2542,23 +2658,24 @@
             try {
                 const pa = await getLoginPa();
                 if (loginGeneration !== accountValidationGeneration) return;
-                const res = await ipcRenderer.invoke('login-by-code', { mobile, code, pa });
+                const res = await ipcRenderer.invoke('login-by-code', { mobile, code, area, pa, clientProfile });
                 if (loginGeneration !== accountValidationGeneration) return;
 
-                if (res.status === 200 && res.success) {
-                    const token = res.content.token;
-                    const userInfo = res.content.userInfo;
-
-                    writeStoredToken(token);
-                    const tokenInput = document.getElementById('login-token');
-                    if (tokenInput) tokenInput.value = token;
-
-                    msgDiv.style.color = '#28a745';
-                    msgDiv.innerText = window.YayaRendererUtils.t('登录成功！正在跳转...');
-
-                    setTimeout(() => {
-                        if (loginGeneration === accountValidationGeneration) checkToken();
-                    }, 500);
+                const kind = window.YayaPocketRegistration.loginResultKind(res, clientProfile);
+                if (kind === 'success') {
+                    completeSmsLogin(res, clientProfile, loginGeneration);
+                } else if (kind === 'register') {
+                    msgDiv.innerText = '';
+                    window.YayaPocketRegistrationUi.open({ mobile, code, area, clientProfile }, {
+                        isCurrent: () => loginGeneration === accountValidationGeneration
+                            && selectedPocketClientProfile() === clientProfile
+                            && document.getElementById('login-mobile').value.trim() === mobile
+                            && document.getElementById('login-code').value.trim() === code
+                            && (document.getElementById('login-area').value.trim() || '86') === area,
+                        getPa: getLoginPa,
+                        invoke: (channel, payload) => ipcRenderer.invoke(channel, payload),
+                        complete: result => completeSmsLogin(result, clientProfile, loginGeneration)
+                    });
                 } else {
                     throw new Error(res.message || '登录失败');
                 }
@@ -2566,9 +2683,14 @@
                 if (loginGeneration !== accountValidationGeneration) return;
                 msgDiv.style.color = '#ff4d4f';
                 msgDiv.innerText = window.YayaRendererUtils.t('登录失败: ' + err.message);
+            } finally {
+                smsLoginBusy = false;
+                if (loginButton) loginButton.disabled = false;
             }
         }
-        async function checkToken() {
+        async function checkToken(manualLogin = false) {
+            if (manualLogin === true) window.YayaPocketSocialLoginUi?.cancel(false);
+            const clientProfile = manualLogin === true ? selectedPocketClientProfile() : readPocketClientProfile();
             const tokenField = document.getElementById('login-token');
             const tokenInput = (tokenField && tokenField.value ? tokenField.value.trim() : '')
                 || (typeof appToken !== 'undefined' && appToken ? String(appToken).trim() : '')
@@ -2623,7 +2745,8 @@
                 const pa = window.getPA ? window.getPA() : null;
                 const res = await ipcRenderer.invoke('login-check-token', {
                     token: tokenInput,
-                    pa
+                    pa,
+                    clientProfile
                 });
                 if (!isCurrentValidation()) return;
                 if (typeof window.setWebAccountAuthPending === 'function') {
@@ -2631,6 +2754,13 @@
                 }
 
                 if (res.success) {
+                    savePocketClientProfile(clientProfile);
+                    if (clientProfile) updateLoginClientProfile(clientProfile);
+                    if (!isWebRuntimeForAccountUi()) {
+                        void ipcRenderer.invoke('connect-account-im').catch(error => {
+                            window.YayaRendererUtils.reportIgnoredError(error, 'src/renderer/fetch-legacy.js:connect-account-im');
+                        });
+                    }
                     if (panelInput) panelInput.style.display = 'none';
                     if (panelSuccess) panelSuccess.style.display = 'block';
 
@@ -2779,6 +2909,7 @@
         }
 
         async function handleSwitchAccount(targetUserId, targetName) {
+            window.YayaPocketSocialLoginUi?.cancel(false);
 
             const switchGeneration = ++accountSwitchGeneration;
             accountValidationGeneration += 1;
@@ -2851,6 +2982,7 @@
         }
 
         function logout() {
+            window.YayaPocketSocialLoginUi?.cancel(false);
             accountValidationGeneration += 1;
             accountSwitchGeneration += 1;
             clearStoredToken();
@@ -2925,6 +3057,7 @@
                 currentFetchStoppedAtPrevious = false;
                 currentFetchedServerId = serverId;
                 currentFetchedChannelId = channelId;
+                currentFetchedRoomType = isFetchSmallRoomMode ? 'small' : 'big';
                 currentFetchedFetchAllMode = isFetchAllMode;
                 const statusEl = document.getElementById('fetch-status');
                 if (statusEl) statusEl.replaceChildren();
@@ -3243,7 +3376,7 @@
             return `msg_${Math.abs(hash)}_${message.msgTime || 0}`;
         }
 
-        function buildFetchExportEntries(messages) {
+        function buildFetchExportEntries(messages, source = {}) {
             const exportEntries = [];
             for (const m of (Array.isArray(messages) ? messages : [])) {
                 const rawBody = m.bodys || m.msgContent || '';
@@ -3251,7 +3384,7 @@
 
                 if (typeof rawBody === 'string' && (rawBody.trim().startsWith('{') || rawBody.trim().startsWith('['))) {
                     try {
-                        structuredContent = JSON.parse(rawBody);
+                        structuredContent = window.YayaRendererFeatures.parseArchiveMessageJson(rawBody);
                     } catch (error) {
                         structuredContent = { text: rawBody };
                     }
@@ -3285,6 +3418,7 @@
                 const exportKey = buildFetchExportKey(m, exportUserId, rawBody);
 
                 exportEntries.push({
+                    ...window.YayaMessageRoomFilter.getMessageRoomMetadata(source),
                     schemaVersion: 1,
                     key: exportKey,
                     sortTime,
@@ -3304,7 +3438,9 @@
 
         async function exportMsgsToJsonl() {
             if (allFetchedMsgs.length === 0) return showToast('没有消息可导出');
-            const exportEntries = buildFetchExportEntries(allFetchedMsgs);
+            const exportEntries = buildFetchExportEntries(allFetchedMsgs, {
+                channelId: currentFetchedChannelId, roomType: currentFetchedRoomType
+            });
 
             const selectedMemberName = currentSelectedMemberName || document.getElementById('member-search').value.trim() || '未命名成员';
             const selectedChannelId = currentFetchedChannelId || document.getElementById('tool-channel').value.trim();

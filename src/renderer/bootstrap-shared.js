@@ -114,6 +114,9 @@
         function applyMemberDataList(list) {
             const normalized = Array.isArray(list) ? list.filter(Boolean) : [];
             if (!normalized.length) return false;
+            if (isMemberDataLoaded && JSON.stringify(normalized) === JSON.stringify(memberData)) return true;
+
+            rememberMessageRoomMembers(normalized);
 
             memberData = normalized;
             window.memberData = normalized;
@@ -135,13 +138,30 @@
         function writeCachedMemberDataPayload(data) {
             const members = normalizeMemberDataPayload(data);
             if (!members.length) return;
+            rememberMessageRoomMembers(members);
             writeRuntimeCacheValue(MEMBER_DATA_CACHE_KEY, {
                 updatedAt: Date.now(),
                 data
             });
         }
 
+        function rememberMessageRoomMembers(members) {
+            const rooms = window.YayaMessageRoomFilter;
+            if (!rooms) return;
+            const key = 'yaya_message_room_history_v1';
+            const previous = readRuntimeCacheValue(key, {}) || {};
+            const history = rooms.mergeMessageRoomHistory(previous, [
+                ...readCachedMemberDataList(), ...memberData, ...(Array.isArray(members) ? members : [])
+            ]);
+            if (JSON.stringify(previous) !== JSON.stringify(history)) writeRuntimeCacheValue(key, history);
+        }
+
         async function fetchMemberDataPayload() {
+            if (window.YayaDataSync) {
+                return window.YayaDataSync.read(MEMBER_DATA_URL, {
+                    force: true, validate: data => normalizeMemberDataPayload(data).length > 0
+                });
+            }
             const res = await fetch(`${MEMBER_DATA_URL}?t=${Date.now()}`, { cache: 'no-store' });
             if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
             const data = await res.json();
@@ -154,7 +174,7 @@
         async function loadMemberData(options = {}) {
             const forceRefresh = !!options.forceRefresh;
             if (isMemberDataLoaded && !forceRefresh) return memberData;
-            if (memberDataLoadPromise && !forceRefresh) return memberDataLoadPromise;
+            if (memberDataLoadPromise) return memberDataLoadPromise;
 
             const statusSpan = document.getElementById('sdk-status');
             if (statusSpan) statusSpan.innerText = window.YayaRendererUtils.t('正在更新成员列表...');
@@ -190,7 +210,7 @@
                 }
             })();
 
-            if (!forceRefresh) memberDataLoadPromise = loadTask;
+            memberDataLoadPromise = loadTask;
             return loadTask;
         }
 
@@ -202,6 +222,15 @@
             readCachedMemberDataList,
             writeCachedMemberDataPayload
         };
+
+        function bindMemberDataSync() {
+            window.YayaDataSync.subscribe(MEMBER_DATA_URL, data => {
+                writeCachedMemberDataPayload(data);
+                applyMemberDataList(normalizeMemberDataPayload(data));
+            }, { validate: data => normalizeMemberDataPayload(data).length > 0 });
+        }
+        if (window.YayaDataSync) bindMemberDataSync();
+        else window.addEventListener('yaya:data-sync-ready', bindMemberDataSync, { once: true });
 
         const TEAM_COLORS = {
             'SII': '#A1D5ED', 'TEAM SII': '#A1D5ED',
@@ -221,63 +250,26 @@
             '预备生': '#7B8493'
         };
 
-        var POCKET_GIFT_DATA = [
-            { name: "荧光棒-SII", cost: 5, id: "266592587658117120" },
-            { name: "荧光棒-NII", cost: 5, id: "266592588102713344" },
-            { name: "荧光棒-HII", cost: 5, id: "266592588543115264" },
-            { name: "荧光棒-X", cost: 5, id: "266592588983517184" },
-            { name: "荧光棒-G", cost: 5, id: "266592608512196608" },
-            { name: "荧光棒-NIII", cost: 5, id: "266592608860323840" },
-            { name: "荧光棒-Z", cost: 5, id: "266592610735177728" },
-            { name: "荧光棒-B", cost: 5, id: "266592593270095872" },
-            { name: "荧光棒-E", cost: 5, id: "266592593718886400" },
-            { name: "荧光棒-C", cost: 5, id: "266592630343548928" },
-            { name: "荧光棒-K", cost: 5, id: "266592630712647680" },
-            { name: "荧光棒-CII", cost: 5, id: "875790439471190016" },
-            { name: "荧光棒-GII", cost: 5, id: "875790628684632064" },
+        var POCKET_GIFT_DATA = [];
 
-            { name: "巧克力", cost: 10, id: "266592613964791808" },
-            { name: "玫瑰花", cost: 20, id: "266592591995027456" },
-            { name: "冰美式", cost: 48, id: "670237101300404224" },
-            { name: "秋天的奶茶", cost: 48, id: "517760052235145216", description: "普通礼物" },
-            { name: "生日礼物", cost: 48, id: "266592634915340288", description: "成员直播礼物" },
-            { name: "生日帽", cost: 48, id: "266592633254395904", description: "成员直播礼物" },
-
-            { name: "高级马卡龙", cost: 1048, id: "691322274260520960" },
-            { name: "夜蝶", cost: 1500, id: "566341364751339520", description: "qrlw" },
-            { name: "生日蛋糕", cost: 2880, id: "266592635540291584", description: "成员直播礼物" },
-            { name: "权杖", cost: 3000, id: "266592611095887872", description: "新权杖" },
-            { name: "皇冠", cost: 5000, id: "266592614883344384", description: "新皇冠" },
-            { name: "大饼", cost: 9999, id: "325232177465593856", description: "成员直播礼物" },
-            { name: "用爱发电", cost: 19999, id: "325233801525268480", description: "成员直播礼物" },
-
-            { name: "心锁", cost: 480, id: "1161700584686686208", description: "技能礼物" },
-
-            { name: "爱心礼盒", cost: 1200, id: "1223675156709052416", description: "2026情人节" },
-            { name: "恋人牌", cost: 1200, id: "1223674950697422848", description: "2026情人节" },
-            { name: "弦音予你", cost: 48, id: "1223674709768212480", description: "2026情人节" },
-            { name: "花束寄情", cost: 48, id: "1223674321786703872", description: "2026情人节" },
-            { name: "香入心扉", cost: 48, id: "1223674130916511744", description: "2026情人节" },
-            { name: "狂飙爱意", cost: 48, id: "1223673853681405952", description: "2026情人节" },
-
-            { name: "穹宇猫萌一", cost: 5050, id: "1159142638064832512", description: "张琼予定制" },
-            { name: "招财进宝", cost: 688, id: "1223654183268061184", description: "柏欣妤定制" },
-            { name: "豆鸡腿饱饱", cost: 5255, id: "1124398455441920000", description: "徐楚雯定制" },
-            { name: "鸟皇登基", cost: 11800, id: "1123956702633070592", description: "唐莉佳定制" },
-            { name: "宝宝是我", cost: 4545, id: "1123955157879296000", description: "方琪定制" },
-            { name: "第九次", cost: 9422, id: "1121167706391646208", description: "朱怡欣定制" },
-            { name: "圭矩", cost: 8888, id: "1120075775402119168", description: "韩家乐定制" },
-            { name: "怪可爱的", cost: 3689, id: "1117101004603330560", description: "刘力菲定制" },
-            { name: "沝啧", cost: 3726, id: "1104487300200206336", description: "杨冰怡定制" },
-            { name: "好想润", cost: 11150, id: "1104484678495965184", description: "张润定制" },
-            { name: "啵啵", cost: 5200, id: "1102284508739997696", description: "段艺璇定制" },
-            { name: "晴空霹雳掌", cost: 5280, id: "1101194508199858176", description: "林舒晴定制" },
-
-        ];
+        window.YayaGiftPricing.mergeSnapshot(POCKET_GIFT_DATA, window.YayaGiftPriceSnapshot);
+        window.resolvePocketGiftPrice = (gift, options = {}) => window.YayaGiftPricing.resolveGiftPrice(gift, {
+            prices: POCKET_GIFT_DATA, rules: window.YayaGiftPriceSnapshot.rules, ...options
+        });
 
         function updateLocalGiftDatabase() {
             try {
                 const cacheApi = window.desktop && window.desktop.appCache ? window.desktop.appCache : null;
+                const confirmedRaw = cacheApi?.getCacheValueSync
+                    ? cacheApi.getCacheValueSync('YAYA_GIFT_PRICE_SNAPSHOT', null) : localStorage.getItem('YAYA_GIFT_PRICE_SNAPSHOT');
+                if (confirmedRaw) {
+                    try {
+                        const confirmed = typeof confirmedRaw === 'string' ? JSON.parse(confirmedRaw) : confirmedRaw;
+                        if (Date.parse(confirmed.updatedAt) >= Date.parse(window.YayaGiftPriceSnapshot.updatedAt)) {
+                            window.YayaGiftPriceSnapshot = window.YayaGiftPricing.mergeSnapshot(POCKET_GIFT_DATA, confirmed);
+                        }
+                    } catch (_) { /* keep the bundled confirmed prices */ }
+                }
                 const cachedData = cacheApi && typeof cacheApi.getCacheValueSync === 'function'
                     ? cacheApi.getCacheValueSync('POCKET_GIFT_DATA_CACHE', null)
                     : localStorage.getItem('POCKET_GIFT_DATA_CACHE');
@@ -290,14 +282,9 @@
                             const cost = Number(g.cost || g.money || 0);
                             if ((!id && !name) || !cost) return;
 
-                            const existing = POCKET_GIFT_DATA.find(item => (id && String(item.id) === id) || (name && item.name === name));
-                            if (existing) {
-                                existing.id = id || existing.id;
-                                existing.name = name || existing.name;
-                                existing.cost = cost;
-                            } else {
-                                POCKET_GIFT_DATA.push({ id, name: name || id, cost });
-                            }
+                            const existing = window.YayaGiftPricing.findIdentity(POCKET_GIFT_DATA, { giftId: id, giftName: name });
+                            if (!existing && id && name) POCKET_GIFT_DATA.push({ id, name, cost, source: 'legacy-cache' });
+                            if (existing && g.requiresDateReview) existing.requiresDateReview = true;
                         });
                     }
                     if (cacheApi && typeof cacheApi.removeCacheValueSync === 'function') {

@@ -1,6 +1,10 @@
 import pocketChannelConfig from './pocket-channel-config.js';
 import errorUtils from './error-utils.js';
 import { createNetfaceMethods } from './netface-api.mjs';
+import { withPocketClient, applyPocketClientHeaders } from './pocket-client-context.mjs';
+import pocketClientProfiles from './pocket-client-profile.js';
+import pocketRegistration from './pocket-registration.js';
+import pocketSocialLogin from './pocket-social-login.js';
 
 const { POCKET_CHANNEL_METHODS } = pocketChannelConfig;
 const { reportIgnoredError } = errorUtils;
@@ -489,6 +493,7 @@ function parseJsonPreservingLargeNumbers(text) {
 }
 
 async function postJson(url, payload, headers, options = {}) {
+    if (new URL(url).hostname === 'pocketapi.48.cn') headers = applyPocketClientHeaders(headers);
     const timeoutMs = Math.max(0, Number(options.timeoutMs) || 0);
     const controller = timeoutMs > 0 ? new AbortController() : null;
     const timeoutId = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
@@ -537,6 +542,7 @@ async function postJson(url, payload, headers, options = {}) {
 }
 
 async function getText(url, headers) {
+    if (new URL(url).hostname === 'pocketapi.48.cn') headers = applyPocketClientHeaders(headers);
     const response = await fetch(url, { headers });
     return response.text();
 }
@@ -568,7 +574,7 @@ async function fetchPocketMaskWords({ token, pa, clientTime = 0 } = {}) {
 
     const url = new URL('https://pocketapi.48.cn/home/api/check/maskword');
     url.searchParams.set('clientTime', String(Number(clientTime) || 0));
-    const response = await fetch(url.toString(), { headers: createArea48Headers(token, pa) });
+    const response = await fetch(url.toString(), { headers: applyPocketClientHeaders(createArea48Headers(token, pa)) });
     const data = await response.json();
     if (!(response.status === 200 && (data?.status === 200 || data?.success))) {
         return apiError({ status: response.status, data }, '获取屏蔽词配置失败');
@@ -614,15 +620,24 @@ function getLoginRequestPa(pa) {
     return '';
 }
 
-async function loginSendSms({ mobile, area, answer, pa }) {
-    const payload = { mobile, area: area || '86' };
-    if (answer) payload.answer = answer;
+function createLoginHeaders(payload) {
+    const deviceId = /^[a-f0-9]{16}$/i.test(payload.deviceId || '')
+        ? payload.deviceId.toLowerCase()
+        : getDeviceId().replace(/[^a-f0-9]/gi, '').slice(0, 16).toLowerCase();
+    return pocketClientProfiles.createPocketClientHeaders({
+        clientProfile: payload.clientProfile, deviceId, pa: getLoginRequestPa(payload.pa)
+    });
+}
+
+async function loginSendSms({ mobile, area, answer, pa, intelligenceToken = '', clientProfile, deviceId }) {
+    const payload = answer ? { mobile, area: area || '86', answer }
+        : { mobile, area: area || '86', businessCode: 1, intelligenceToken };
     const response = await postJson(
-        'https://pocketapi.48.cn/user/api/v1/sms/send2',
+        'https://pocketapi.48.cn/user/api/v2/sms/send_sms',
         payload,
-        createHeaders(null, getLoginRequestPa(pa))
+        createLoginHeaders({ pa, clientProfile, deviceId })
     );
-    if (response.status === 200 && response.data?.status === 200) return { success: true };
+    if (response.status === 200 && response.data?.status === 200 && response.data?.success !== false) return { success: true };
     if (response.data?.status === 2001) {
         try {
             const verificationData = JSON.parse(response.data.message);
@@ -634,13 +649,34 @@ async function loginSendSms({ mobile, area, answer, pa }) {
     return { success: false, msg: response.data?.message || '发送失败' };
 }
 
-async function loginByCode({ mobile, code, pa }) {
+async function loginByCode({ mobile, code, area = '86', pa, clientProfile, deviceId }) {
     const response = await postJson(
-        'https://pocketapi.48.cn/user/api/v1/login/app/mobile/code',
-        { mobile, code },
-        createHeaders(null, getLoginRequestPa(pa))
+        'https://pocketapi.48.cn/user/api/v2/login/app/app_login',
+        { mobileCodeLogin: { mobile, code, area }, loginType: 'MOBILE_SMS_CODE', deviceToken: '' },
+        createLoginHeaders({ pa, clientProfile, deviceId })
     );
-    return response.data;
+    const data = response.data || {};
+    return { ...data, success: response.status === 200 && data.status === 200 && data.success !== false && Boolean(data.content?.token) };
+}
+
+async function registerByCode(payload = {}) {
+    const { path, body } = pocketRegistration.apiRequest('register-by-code', payload);
+    const response = await postJson('https://pocketapi.48.cn' + path, body, createLoginHeaders(payload), { timeoutMs: 12000 });
+    return pocketRegistration.apiResult('register-by-code', response.data || {}, response.status);
+}
+
+async function loginByPassword(payload = {}) {
+    const { path, body } = pocketRegistration.apiRequest('login-by-password', payload);
+    const response = await postJson('https://pocketapi.48.cn' + path, body, createLoginHeaders(payload), { timeoutMs: 12000 });
+    return pocketRegistration.apiResult('login-by-password', response.data || {}, response.status);
+}
+
+async function loginByThirdParty(payload = {}) {
+    if (!['pocket48', 'seine48'].includes(payload.clientProfile)) throw new Error('请选择登录身份');
+    const { path, body } = pocketSocialLogin.socialLoginRequest(payload.provider, payload.credentials);
+    const response = await postJson('https://pocketapi.48.cn' + path, body, createLoginHeaders(payload), { timeoutMs: 15000 });
+    // Return only the Pocket session or non-sensitive result metadata.
+    return pocketSocialLogin.socialLoginResult(payload.provider, response.data || {}, response.status);
 }
 
 async function loginCheckToken({ token, pa }) {
@@ -962,7 +998,11 @@ async function fetchRoomEssenceMessages({ channelId, serverId, token, pa, nextTi
     return apiError(response);
 }
 
-export async function deleteMemberRoomMessage({ token, pa, accId, msgIdClient, channelId, msgTime }) {
+export function deleteMemberRoomMessage(payload) {
+    return withPocketClient(payload, () => deleteMemberRoomMessageRequest(payload));
+}
+
+async function deleteMemberRoomMessageRequest({ token, pa, accId, msgIdClient, channelId, msgTime }) {
     if (!token) return missingToken();
     const response = await postJson(
         'https://pocketapi.48.cn/im/api/v1/team/msg/delete',
@@ -1287,9 +1327,9 @@ const openLiveParticipantsPending = new Map();
 const OPEN_LIVE_PARTICIPANTS_CACHE_TTL = 30 * 60 * 1000;
 const OPEN_LIVE_PARTICIPANTS_CACHE_LIMIT = 200;
 
-function cacheOpenLiveParticipants(liveId, result) {
-    openLiveParticipantsCache.delete(liveId);
-    openLiveParticipantsCache.set(liveId, {
+function cacheOpenLiveParticipants(cacheKey, result) {
+    openLiveParticipantsCache.delete(cacheKey);
+    openLiveParticipantsCache.set(cacheKey, {
         expiresAt: Date.now() + OPEN_LIVE_PARTICIPANTS_CACHE_TTL,
         result
     });
@@ -1299,16 +1339,52 @@ function cacheOpenLiveParticipants(liveId, result) {
     }
 }
 
-async function fetchOpenLiveParticipantsUncached({ liveId, title = '', dateHint = '', groupHint = '' }) {
+async function fetchOpenLiveParticipantsUncached({ token, pa, liveId, pageId = '', title = '', dateHint = '', groupHint = '' }) {
     const normalizedLiveId = String(liveId || '').trim();
     if (!normalizedLiveId) return { success: false, msg: '缺少 liveId' };
+
+    if (token) {
+        try {
+            const response = await postJson(
+                'https://pocketapi.48.cn/live/api/v1/live/getOpenLiveMemberRank',
+                { liveId: normalizedLiveId },
+                createHeaders(token, pa),
+                { largeNumbers: true, timeoutMs: 8000 }
+            );
+            const data = response.data;
+            if (response.status === 200 && (data?.status === 200 || data?.success === true) && data?.success !== false) {
+                const participants = (Array.isArray(data.content) ? data.content : [])
+                    .map(item => ({
+                        name: String(item?.user?.userName || item?.user?.nickName || '').trim(),
+                        memberId: String(item?.user?.userId || '').trim(),
+                        avatar: String(item?.user?.userAvatar || '').trim(),
+                        teamName: String(item?.userTeam?.teamName || '').trim(),
+                        teamColor: String(item?.userTeam?.teamColor || '').trim(),
+                        teamLogo: String(item?.userTeam?.teamLogo || '').trim(),
+                        teamId: String(item?.userTeam?.teamId || '').trim(),
+                        groupId: String(item?.userTeam?.groupId || '').trim(),
+                        hot: item?.melee ?? '',
+                        rank: item?.rank ?? '',
+                        position: item?.position ?? 0
+                    }))
+                    .filter(item => item.name && /^[1-9]\d{0,31}$/.test(item.memberId));
+                if (participants.length) {
+                    return { success: true, content: { participants, source: 'official-member-rank' } };
+                }
+            }
+        } catch (_) {
+            // Older performances may only expose their roster on live.48.cn.
+        }
+    }
+
+    const normalizedPageId = String(pageId || normalizedLiveId).trim();
     const pageHeaders = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/135.0.0.0 Safari/537.36',
         Referer: 'https://live.48.cn/'
     };
 
     try {
-        const livePageUrl = `https://live.48.cn/Index/inlive/id/${encodeURIComponent(normalizedLiveId)}`;
+        const livePageUrl = `https://live.48.cn/Index/inlive/id/${encodeURIComponent(normalizedPageId)}`;
         try {
             const html = await fetchOpenLivePageHtml(livePageUrl, pageHeaders);
             const videoId = extractInputValue(html, 'vedio_id');
@@ -1356,7 +1432,7 @@ async function fetchOpenLiveParticipantsUncached({ liveId, title = '', dateHint 
 
         for (const clubId of getReplayClubSearchOrder(groupHint, title)) {
             try {
-                const replayUrl = `https://live.48.cn/Index/invideo/club/${clubId}/id/${encodeURIComponent(normalizedLiveId)}`;
+                const replayUrl = `https://live.48.cn/Index/invideo/club/${clubId}/id/${encodeURIComponent(normalizedPageId)}`;
                 const participants = toParticipantList(extractParticipantNames(
                     await fetchOpenLivePageHtml(replayUrl, pageHeaders)
                 ));
@@ -1396,35 +1472,39 @@ async function fetchOpenLiveParticipantsUncached({ liveId, title = '', dateHint 
     }
 }
 
-async function fetchOpenLiveParticipants({ liveId, title = '', dateHint = '', groupHint = '' }) {
+async function fetchOpenLiveParticipants({ token, pa, liveId, pageId = '', title = '', dateHint = '', groupHint = '', clientProfile = '' }) {
     const normalizedLiveId = String(liveId || '').trim();
     if (!normalizedLiveId) return { success: false, msg: '缺少 liveId' };
 
-    const cached = openLiveParticipantsCache.get(normalizedLiveId);
+    const cacheKey = JSON.stringify([normalizedLiveId, pageId, token || '', clientProfile, title, dateHint, groupHint]);
+    const cached = openLiveParticipantsCache.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) {
         return cached.result;
     }
-    if (cached) openLiveParticipantsCache.delete(normalizedLiveId);
+    if (cached) openLiveParticipantsCache.delete(cacheKey);
 
-    const pending = openLiveParticipantsPending.get(normalizedLiveId);
+    const pending = openLiveParticipantsPending.get(cacheKey);
     if (pending) return pending;
 
     const request = fetchOpenLiveParticipantsUncached({
+        token,
+        pa,
         liveId: normalizedLiveId,
+        pageId,
         title,
         dateHint,
         groupHint
     }).then(result => {
         const participants = result?.content?.participants;
         if (result?.success && Array.isArray(participants) && participants.length > 0) {
-            cacheOpenLiveParticipants(normalizedLiveId, result);
+            cacheOpenLiveParticipants(cacheKey, result);
         }
         return result;
     }).finally(() => {
-        openLiveParticipantsPending.delete(normalizedLiveId);
+        openLiveParticipantsPending.delete(cacheKey);
     });
 
-    openLiveParticipantsPending.set(normalizedLiveId, request);
+    openLiveParticipantsPending.set(cacheKey, request);
     return request;
 }
 
@@ -1459,6 +1539,28 @@ async function operateFlipQuestion({ token, pa, questionId, operateType }) {
     );
     if (response.status === 200 && response.data?.status === 200) return { success: true, msg: '操作成功' };
     return apiError(response);
+}
+
+async function fetchRoomFlipUser({ token, pa, questionId, answerId }) {
+    if (!token) return missingToken();
+    if (!/^[1-9]\d{0,31}$/.test(String(questionId || '')) || !/^[1-9]\d{0,31}$/.test(String(answerId || ''))) {
+        return { success: false, msg: '缺少有效的翻牌问题或回答 ID' };
+    }
+    const response = await postJson(
+        'https://pocketapi.48.cn/idolanswer/api/idolanswer/v1/question_answer/detail',
+        { questionId: String(questionId), answerId: String(answerId) },
+        createHeaders(token, pa),
+        { largeNumbers: true, timeoutMs: 8000 }
+    );
+    if (response.status !== 200 || response.data?.status !== 200 || response.data?.success === false) return apiError(response);
+    const detail = response.data.content || {};
+    if (Number(detail.type) === 3) return { success: true, content: { visibility: 'anonymous' } };
+    if (Number(detail.type) !== 1) return { success: true, content: { visibility: 'private' } };
+    return { success: true, content: { visibility: 'public', user: {
+        userId: String(detail.userId || ''),
+        nickname: String(detail.userName || ''),
+        avatar: String(detail.userHeadimgurl || detail.headimgurl || '')
+    } } };
 }
 
 async function fetchMemberPhotos({ token, pa, memberId, page, size }) {
@@ -1535,7 +1637,7 @@ async function uploadPocketImage({ token, pa, fileName, mimeType, dataBase64, fr
 
     const response = await fetch('https://pfile.48.cn/filesystem/upload/image', {
         method: 'POST',
-        headers: headersFactory(token, pa),
+        headers: applyPocketClientHeaders(headersFactory(token, pa)),
         body: formData
     });
     const data = await response.json();
@@ -1704,7 +1806,11 @@ async function memberGiftRead(path, body, token, pa) {
     return response.data.content;
 }
 
-export async function fetchMemberRoomGiftContext({ token, pa, serverId, channelId } = {}) {
+export function fetchMemberRoomGiftContext(payload = {}) {
+    return withPocketClient(payload, () => fetchMemberRoomGiftContextRequest(payload));
+}
+
+async function fetchMemberRoomGiftContextRequest({ token, pa, serverId, channelId } = {}) {
     if (!token) return missingToken();
     try {
         serverId = memberGiftId(serverId, '房间服务器 ID');
@@ -1761,7 +1867,11 @@ export async function fetchMemberRoomGiftContext({ token, pa, serverId, channelI
     }
 }
 
-export async function sendMemberRoomGift(payload = {}) {
+export function sendMemberRoomGift(payload = {}) {
+    return withPocketClient(payload, () => sendMemberRoomGiftRequest(payload));
+}
+
+async function sendMemberRoomGiftRequest(payload = {}) {
     const { token, pa } = payload;
     if (!token) return missingToken();
     let context;
@@ -2206,7 +2316,7 @@ async function fetchFlipCustomIndexV1({ token, pa, memberId }) {
 async function fetchInvoiceTips({ token } = {}) {
     if (!token) return missingToken();
     const response = await fetch('https://pocketapi.48.cn/invoice/api/v1/invoice/tips', {
-        headers: createInvoiceHeaders()
+        headers: applyPocketClientHeaders(createInvoiceHeaders())
     });
     const text = await response.text();
     const data = text ? JSON.parse(text) : null;
@@ -2674,9 +2784,12 @@ async function runScoreOfficialAction(payload = {}) {
 }
 
 const pocketMethods = Object.freeze({
-    ...createNetfaceMethods({ postJson, createHeaders: createPocketAndroidHeaders, apiError }),
+    ...createNetfaceMethods({ postJson, createHeaders: (token, pa) => applyPocketClientHeaders(createPocketAndroidHeaders(token, pa)), apiError }),
     loginSendSms,
     loginByCode,
+    registerByCode,
+    loginByPassword,
+    loginByThirdParty,
     loginCheckToken,
     loginCreateQr,
     loginPollQr,
@@ -2691,6 +2804,7 @@ const pocketMethods = Object.freeze({
     deletePrivateMessage,
     sendPrivateMessageReply,
     fetchFlipList,
+    fetchRoomFlipUser,
     fetchStarArchives,
     fetchStarHistory,
     fetchOpenLive,
@@ -2791,5 +2905,5 @@ export async function invokePocketChannel(channel, payload = {}, env = {}) {
     if (!handler) {
         throw new Error(`不支持的 Pocket 通道: ${channel || '-'}`);
     }
-    return handler(payload || {}, env || {});
+    return withPocketClient(payload, () => handler(payload || {}, env || {}));
 }

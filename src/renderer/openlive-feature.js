@@ -139,7 +139,10 @@
             }
             if (statusEl) statusEl.textContent = text || '';
             if (listEl) listEl.replaceChildren();
-            if (!shouldShow) closeOpenLiveParticipantsModal();
+            if (!shouldShow) {
+                currentOpenLiveParticipantsRequestId = 0;
+                closeOpenLiveParticipantsModal();
+            }
         }
 
         function normalizeOpenLiveParticipantName(value) {
@@ -263,7 +266,7 @@
                 );
                 const team = getOpenLiveParticipantTeam(participant, member, participantGroup);
 
-                return { name, userId, avatar, team, teamLabel: team };
+                return { name, userId, avatar, team, teamLabel: team, teamColor: String(participant?.teamColor || '').trim() };
             }).filter(Boolean);
         }
 
@@ -307,7 +310,11 @@
                     const team = document.createElement('span');
                     team.className = 'team-tag openlive-participant-team';
                     team.textContent = participant.teamLabel;
-                    if (typeof getTeamStyle === 'function') {
+                    const officialColor = participant.teamColor.replace(/^#/, '');
+                    if (/^[0-9a-f]{6}$/i.test(officialColor)) {
+                        const rgb = [0, 2, 4].map(index => parseInt(officialColor.slice(index, index + 2), 16)).join(', ');
+                        team.style.setProperty('--team-rgb', rgb);
+                    } else if (typeof getTeamStyle === 'function') {
                         team.style.cssText = getTeamStyle(participant.team, false) || '';
                     }
                     details.appendChild(team);
@@ -339,7 +346,7 @@
             if (modalEl) modalEl.style.display = 'none';
         }
 
-        async function loadOpenLiveParticipants(liveId, title = '', startTime = '', groupHint = '') {
+        async function loadOpenLiveParticipants(liveId, title = '', startTime = '', groupHint = '', pageId = '') {
             if (!ENABLE_OPENLIVE_PARTICIPANTS) {
                 setOpenLiveParticipantsText('', false);
                 return;
@@ -357,7 +364,10 @@
 
             try {
                 const result = await ipcRenderer.invoke('fetch-open-live-participants', {
+                    token: getAppToken ? getAppToken() : '',
+                    pa: window.getPA ? window.getPA() : null,
                     liveId: normalizedLiveId,
+                    pageId: String(pageId || '').trim(),
                     title,
                     dateHint: startTime,
                     groupHint
@@ -373,7 +383,12 @@
                     return;
                 }
 
-                if (!getMemberDataLoaded() && typeof loadMemberData === 'function') {
+                const needsMemberData = participants.some(participant => (
+                    !(participant.memberId || participant.userId || participant.ownerId)
+                    || !(participant.avatar || participant.avatarUrl || participant.headImg || participant.headImgUrl)
+                    || !(participant.teamName || participant.team)
+                ));
+                if (needsMemberData && !getMemberDataLoaded() && typeof loadMemberData === 'function') {
                     try {
                         await loadMemberData();
                     } catch (error) {
@@ -692,17 +707,10 @@
                 resetClipTool();
             }
             setOpenLiveParticipantsText('', false);
-            const queueParticipantLoad = () => {
-                if (!ENABLE_OPENLIVE_PARTICIPANTS) return;
-                Promise.resolve()
-                    .then(() => loadOpenLiveParticipants(
-                        openLivePageId || liveId,
-                        title,
-                        startTime,
-                        participantGroupHint
-                    ))
+            if (ENABLE_OPENLIVE_PARTICIPANTS) {
+                void loadOpenLiveParticipants(liveId, title, startTime, participantGroupHint, openLivePageId)
                     .catch(error => console.error('[公演记录] 异步读取参与成员失败:', error));
-            };
+            }
 
             try {
                 const streamUrl = await fetchOpenLiveStreamUrl(liveId);
@@ -718,7 +726,6 @@
                     return;
                 }
                 startPlayer(streamUrl, title, isLiveContent, null, [], { clearAuxPanels: true });
-                queueParticipantLoad();
             } catch (error) {
                 console.error('[网络/系统错误]', error);
                 showToast('公演播放地址获取失败，请稍后重试');

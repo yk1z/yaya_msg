@@ -468,11 +468,12 @@
 
             const currentFilteredPosts = getCurrentFilteredPosts();
             const allPosts = getAllPosts();
-            const sourceData = currentFilteredPosts.length > 0 ? currentFilteredPosts : allPosts;
+            const sourceData = Array.isArray(currentFilteredPosts) ? currentFilteredPosts : allPosts;
             const pocketGiftData = getPocketGiftData();
 
             const userMap = {};
             let totalRevenue = 0;
+            let unknownRecords = 0;
 
             sourceData.forEach(post => {
                 if (!post.contentHtml.includes('送出礼物：') && !post.contentHtml.includes('🎁')) return;
@@ -486,13 +487,12 @@
                 const uid = post.userId || post.nameStr || '未知用户';
                 const postTime = new Date(post.timeStr).getTime();
 
-                let price = 0;
-                if (Array.isArray(pocketGiftData)) {
-                    const giftObj = pocketGiftData.find(gift => gift.name === giftName);
-                    if (giftObj) price = giftObj.cost;
-                }
-
-                const totalValue = price * count;
+                const gift = post.giftInfo || { giftName };
+                if (window.YayaGiftPricing.isScoringGift(gift)) return;
+                const price = window.resolvePocketGiftPrice(gift, { historical: true,
+                    ...window.YayaGiftPricing.messageContext(post) }).unitCost;
+                if (price === null) unknownRecords++;
+                const totalValue = price === null ? 0 : price * count;
 
                 if (!userMap[uid]) {
                     userMap[uid] = {
@@ -501,12 +501,14 @@
                         name: post.nameStr || '未知用户',
                         totalCost: 0,
                         totalCount: 0,
+                        unknownCount: 0,
                         avatar: post.avatarHtml,
                         latestTime: postTime
                     };
                 }
 
                 const user = userMap[uid];
+                if (price === null) user.unknownCount++;
                 user.totalCost += totalValue;
                 user.totalCount += count;
                 totalRevenue += totalValue;
@@ -528,7 +530,8 @@
             let html = `
         <div style="padding: 15px; background: rgba(250, 140, 22, 0.1); border-bottom: 1px solid #ffd591; margin-bottom: 10px; border-radius: 4px;">
             <div style="font-weight: bold; color: #d46b08; font-size: 14px; text-align: center;">
-                鸡腿总数: <span style="font-size: 18px;">${totalRevenue}</span> 🍗
+                已核价鸡腿: <span style="font-size: 18px;">${totalRevenue}</span> 🍗
+                ${unknownRecords ? `<div style="font-size:12px; color:var(--text-sub); margin-top:6px;">${unknownRecords} 条价格待核，未计入鸡腿合计</div>` : ''}
             </div>
         </div>
     `;
@@ -555,7 +558,7 @@
                     ${user.name}
                     ${user.realUserId ? `<span style="font-size:10px; color:#aaa; font-weight:normal;">(ID:${user.realUserId})</span>` : ''}
                 </span>
-                <span style="font-size: 11px; color: #999; line-height: 1.3;">送出 ${user.totalCount} 个礼物</span>
+                <span style="font-size: 11px; color: #999; line-height: 1.3;">送出 ${user.totalCount} 个礼物${user.unknownCount ? `，${user.unknownCount} 条价格待核` : ''}</span>
             </div>
             <div class="item-count" style="color: #fa8c16; font-size: 13px; font-weight:bold;">${user.totalCost} 🍗</div>
         </div>`;
@@ -582,7 +585,8 @@
             let html = `
                 <div style="padding: 15px; background: rgba(250, 140, 22, 0.1); border-bottom: 1px solid #ffd591; margin-bottom: 10px; border-radius: 4px;">
                     <div style="font-weight: bold; color: #d46b08; font-size: 14px; text-align: center;">
-                        鸡腿总数: <span style="font-size: 18px;">${Number(result.totalRevenue) || 0}</span> 🍗
+                        已核价鸡腿: <span style="font-size: 18px;">${Number(result.totalRevenue) || 0}</span> 🍗
+                        ${result.unknownRecords ? `<div style="font-size:12px; color:var(--text-sub); margin-top:6px;">${Number(result.unknownRecords)} 条价格待核，未计入鸡腿合计</div>` : ''}
                     </div>
                 </div>`;
             sortedList.forEach((user, index) => {
@@ -598,7 +602,7 @@
                                 ${escapeHtml(user.name || '未知用户')}
                                 ${user.realUserId ? `<span style="font-size:10px; color:#aaa; font-weight:normal;">(ID:${escapeHtml(user.realUserId)})</span>` : ''}
                             </span>
-                            <span style="font-size: 11px; color: #999; line-height: 1.3;">送出 ${Number(user.totalCount) || 0} 个礼物</span>
+                            <span style="font-size: 11px; color: #999; line-height: 1.3;">送出 ${Number(user.totalCount) || 0} 个礼物${user.unknownCount ? `，${Number(user.unknownCount)} 条价格待核` : ''}</span>
                         </div>
                         <div class="item-count" style="color: #fa8c16; font-size: 13px; font-weight:bold;">${Number(user.totalCost) || 0} 🍗</div>
                     </div>`;

@@ -1,4 +1,4 @@
-function handleSearch(keyword) {
+        function handleSearch(keyword) {
             const resultBox = document.getElementById('search-results');
             if (!keyword || !keyword.trim()) {
                 resultBox.style.display = 'none';
@@ -501,6 +501,17 @@ function handleSearch(keyword) {
             isRoomRadioSmallRoomMode = useSmallRoom === true;
             updateRoomRadioRoomTypeUi();
             applyRoomRadioChannelValue();
+        }
+
+        function openRoomRadioByChannelId(channelId) {
+            const id = String(channelId || '').trim();
+            if (!/^[1-9]\d{0,31}$/.test(id)) return false;
+            const member = (Array.isArray(memberData) ? memberData : []).find(item =>
+                [item.channelId, item.yklzId, item.smallChannelId, item.smallRoomId].some(value => String(value || '') === id));
+            const smallId = String(member?.yklzId || member?.smallChannelId || member?.smallRoomId || '');
+            selectRoomRadioMember(member?.ownerName || member?.name || '', String(member?.channelId || id), String(member?.serverId || ''), smallId);
+            setRoomRadioRoomType(Boolean(smallId && smallId === id));
+            return true;
         }
 
         updateFetchRoomTypeUi();
@@ -1423,6 +1434,7 @@ function handleSearch(keyword) {
                 }
                 currentViewName = viewName;
                 currentViewMode = mode;
+                window.dispatchEvent(new CustomEvent('yaya:view-changed', { detail: { view: viewName, mode } }));
                 updateTopbarPageTitle(viewName, mode);
                 if (window.YayaPlatformAdapter?.onViewChanged) {
                     window.YayaPlatformAdapter.onViewChanged(viewName, mode);
@@ -2101,6 +2113,7 @@ function handleSearch(keyword) {
                 openInBrowser,
                 switchView
             }));
+            if (window.desktop?.platform && window.desktop.platform !== 'web') initYk1zHomePanel();
         } else {
             console.warn('createYk1zHomeFeature 未加载，跳过 yk1z 首页模块');
             initYk1zHomePanel = function noopInitYk1zHomePanel() {};
@@ -2222,6 +2235,14 @@ function handleSearch(keyword) {
                 }
             }
         }
+
+        window.addEventListener('member-data-loaded', () => {
+            buildMemberCollectionsFromList(memberData);
+            if (typeof updateSearchSuggestions === 'function') updateSearchSuggestions();
+            if (typeof privateMessageListState !== 'undefined' && privateMessageListState?.items?.length) {
+                filterPrivateMessageList(document.getElementById('private-message-search')?.value || '', { preserveScroll: true });
+            }
+        });
 
         function initBestNames() {
             bestNameMapForDisplay.clear();
@@ -2580,6 +2601,7 @@ function handleSearch(keyword) {
             sync: () => ipcRenderer.invoke('message-index-sync'),
             getSummary: () => ipcRenderer.invoke('message-index-summary'),
             queryPage: filters => ipcRenderer.invoke('message-index-query-page', filters),
+            getContext: target => ipcRenderer.invoke('message-index-context', target),
             analyze: payload => ipcRenderer.invoke('message-index-analyze', payload),
             getAll: () => ipcRenderer.invoke('message-index-get-all')
         } : null;
@@ -2831,6 +2853,12 @@ function handleSearch(keyword) {
         window.openFollowedProfileRoom = openFollowedProfileRoom;
         window.openFollowedProfileVideo = openFollowedProfileVideo;
         window.openFollowedUserProfile = openFollowedUserProfile;
+        const archiveFlipUsers = window.YayaRendererFeatures.createArchiveFlipUserFeature({
+            ipcRenderer,
+            getToken: () => getCurrentAppToken(),
+            getPa: () => window.getPA ? window.getPA() : '',
+            openProfile: (...args) => window.openFollowedUserProfile(...args)
+        });
         window.loadMoreFollowedProfileDynamicComments = loadMoreFollowedProfileDynamicComments;
         window.sendFollowedProfileDynamicComment = sendFollowedProfileDynamicComment;
         window.closeFollowedUserProfile = closeFollowedUserProfile;
@@ -3500,6 +3528,7 @@ function handleSearch(keyword) {
         }));
         window.handleRoomRadioSearch = handleRoomRadioSearch;
         window.selectRoomRadioMember = selectRoomRadioMember;
+        window.openRoomRadioByChannelId = openRoomRadioByChannelId;
         window.connectRoomRadio = connectRoomRadio;
         window.openAutoRoomRadioRecordModal = openAutoRoomRadioRecordModal;
         window.closeAutoRoomRadioRecordModal = closeAutoRoomRadioRecordModal;
@@ -3633,6 +3662,10 @@ function handleSearch(keyword) {
         window.filterByUserId = filterByUserId;
         window.openDateAnalysis = openDateAnalysis;
         window.openGiftAnalysis = openGiftAnalysis;
+        window.addEventListener('yaya:gift-prices-updated', () => {
+            const modal = document.getElementById('giftAnalysisModal');
+            if (modal && modal.style.display === 'flex') void openGiftAnalysis();
+        });
         window.openSpeechAnalysis = openSpeechAnalysis;
         window.openUserAnalysis = openUserAnalysis;
         window.showInteractions = showInteractions;
@@ -3951,7 +3984,7 @@ function handleSearch(keyword) {
             });
         }
 
-        function parseWebMessageRecords(records) {
+        function parseWebMessageRecords(records, sortOrder = currentSortOrder) {
             const groupedRecords = new Map();
             (Array.isArray(records) ? records : []).forEach((record) => {
                 if (!record || (!record.itemHtml && !record.content && !record.contentHtml)) return;
@@ -3971,6 +4004,9 @@ function handleSearch(keyword) {
                 const parsedGroupPosts = parseHtmlContent(html, group.fileName, group.memberName);
                 posts.push(...parsedGroupPosts.map((post, index) => ({
                     ...post,
+                    ...window.YayaRendererFeatures.getArchiveFlipIds(group.records[index]),
+                    ...window.YayaMessageRoomFilter.getMessageRoomMetadata(group.records[index]),
+                    sortTime: Number(group.records[index]?.sortTime) || getMessagePostTimeMs(post),
                     sourcePath: group.records[index]?.sourcePath || sourcePath,
                     sourceFile: group.records[index]?.fileName || group.fileName,
                     indexId: group.records[index]?.indexId || ''
@@ -3978,7 +4014,7 @@ function handleSearch(keyword) {
             });
             posts.sort((a, b) => {
                 const difference = getMessagePostTimeMs(a) - getMessagePostTimeMs(b);
-                return currentSortOrder === 'desc' ? -difference : difference;
+                return sortOrder === 'desc' ? -difference : difference;
             });
             posts.forEach((post, index) => {
                 post.originalIndex = index;
@@ -3994,6 +4030,7 @@ function handleSearch(keyword) {
                 member: (groupValue === '全部成员' || !groupValue) ? 'all' : groupValue,
                 type: filterType,
                 drilldown: messageAnalysisDrilldown,
+                ...getMessageRoomFilter(),
                 fromTime: parseMessageFilterDate(getMessageDateValue('from'), false),
                 toTime: parseMessageFilterDate(getMessageDateValue('to'), true),
                 sortOrder: currentSortOrder
@@ -4173,7 +4210,9 @@ function handleSearch(keyword) {
                 ? POCKET_GIFT_DATA.map(gift => ({
                     id: gift.id,
                     name: gift.name,
-                    cost: Number(gift.cost) || 0
+                    cost: Number(gift.cost) || 0,
+                    source: gift.source,
+                    requiresDateReview: gift.requiresDateReview === true
                 }))
                 : [];
             return store.analyze({
@@ -4181,7 +4220,8 @@ function handleSearch(keyword) {
                 filters: getWebMessageFilterInput(),
                 memberNames: Array.from(memberNames),
                 memberIds,
-                giftPrices
+                giftPrices,
+                giftPriceRules: window.YayaGiftPriceSnapshot.rules
             });
         }
 
@@ -4309,6 +4349,7 @@ function handleSearch(keyword) {
                 }
 
                 window.__appStartupComplete = true;
+                window.dispatchEvent(new CustomEvent('yaya:app-startup-complete'));
             } catch (error) {
                 if (typeof reportFatalInitError === 'function') {
                     reportFatalInitError(error, '启动流程执行失败');
@@ -5873,7 +5914,7 @@ function handleSearch(keyword) {
                         giftInfo: {
                             giftName,
                             giftNum,
-                            money: totalCost ? totalCost / giftNum : 0,
+                            ...(totalCost ? { money: totalCost / giftNum } : {}),
                             image: String(giftContainer.querySelector('img')?.getAttribute('src') || '')
                         }
                     };
@@ -6072,24 +6113,21 @@ function handleSearch(keyword) {
             }
         }
 
-        function renderStructuredGiftContent(giftInfo = {}) {
+        function renderStructuredGiftContent(giftInfo = {}, record = {}) {
+            giftInfo = window.YayaGiftPricing.normalizeGiftInfo(giftInfo, { rules: window.YayaGiftPriceSnapshot.rules });
             const giftName = structuredJsonValueText(giftInfo.giftName || giftInfo.name, '未知礼物');
             const giftNum = Number(giftInfo.giftNum || giftInfo.num || giftInfo.count || 1) || 1;
             const giftImg = normalizeJsonMessageMediaUrl(giftInfo.picPath || giftInfo.giftPic || giftInfo.image || '');
-            let unitCost = Number(giftInfo.money || giftInfo.cost || 0);
+            const giftPrice = window.resolvePocketGiftPrice(giftInfo, { historical: true, ...window.YayaGiftPricing.messageContext(record) });
+            const unitCost = giftPrice.unitCost;
 
-            if (!unitCost && typeof POCKET_GIFT_DATA !== 'undefined') {
-                const giftId = giftInfo.giftId || giftInfo.id;
-                const gift = POCKET_GIFT_DATA.find(item => item.id == giftId || item.name === giftName);
-                if (gift) unitCost = Number(gift.cost || 0);
-            }
-
-            const costDisplay = unitCost
-                ? `<span style="margin-left:5px; color:#fa8c16; font-weight:bold;">(${unitCost * giftNum}🍗)</span>`
-                : '';
+            const costDisplay = window.YayaGiftPricing.isScoringGift(giftInfo)
+                ? `<span style="margin-left:5px; color:#fa8c16; font-weight:bold;">${window.YayaGiftPricing.giftScoreText(giftInfo, { rules: window.YayaGiftPriceSnapshot.rules })}</span>` : unitCost !== null
+                ? `<span style="margin-left:5px; color:#fa8c16; font-weight:bold;">${unitCost * giftNum} 🍗</span>`
+                : '<span style="margin-left:5px; color:var(--text-sub);">价格待核</span>';
 
             return `
-                <div class="mb-2" style="display:flex; align-items:center; background:#fff0f6; padding:6px 8px; border-radius:6px; border:1px solid #ffadd2; max-width: 300px;">
+                <div class="mb-2" data-gift-id="${escapeHtml(giftInfo.giftId || giftInfo.id || '')}" data-gift-name="${escapeHtml(giftName)}" data-gift-num="${giftNum}" data-gift-is-score="${window.YayaGiftPricing.isScoringGift(giftInfo) ? '1' : '0'}" data-gift-message-cost="${giftPrice.basis === 'message' ? unitCost : ''}" style="display:flex; align-items:center; background:#fff0f6; padding:6px 8px; border-radius:6px; border:1px solid #ffadd2; max-width: 300px;">
                     ${giftImg ? `<img src="${escapeHtml(giftImg)}" style="width: 25px !important; height: 25px !important; max-width: 32px !important; max-height: 32px !important; object-fit: contain !important; margin: 0 8px 0 0 !important; border-radius: 4px; box-shadow: none !important;">` : '<span style="font-size:24px; margin-right:8px;">🎁</span>'}
                     <div style="flex: 1; overflow: hidden;">
                         <div style="color:#eb2f96; font-weight:bold; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">送出礼物：${escapeHtml(giftName)}</div>
@@ -6116,7 +6154,7 @@ function handleSearch(keyword) {
             }
 
             if (messageType === 'GIFT_TEXT' || contentMessageType === 'GIFT_TEXT') {
-                return renderStructuredGiftContent(content.giftInfo || content);
+                return renderStructuredGiftContent(content.giftInfo || content, record);
             }
 
             if (messageType.startsWith('RED_PACKET') || contentMessageType.startsWith('RED_PACKET')) {
@@ -6283,7 +6321,7 @@ function handleSearch(keyword) {
             const records = [];
             if (/\.json$/i.test(String(fileName || ''))) {
                 try {
-                    const payload = JSON.parse(text);
+                    const payload = window.YayaRendererFeatures.parseArchiveMessageJson(text);
                     if (Array.isArray(payload)) {
                         records.push(...payload);
                     } else if (payload && Array.isArray(payload.messages)) {
@@ -6302,7 +6340,7 @@ function handleSearch(keyword) {
                     const trimmed = line.trim();
                     if (!trimmed) continue;
                     try {
-                        records.push(JSON.parse(trimmed));
+                        records.push(window.YayaRendererFeatures.parseArchiveMessageJson(trimmed));
                     } catch (error) { window.YayaRendererUtils.reportIgnoredError(error, 'src/renderer/app-legacy.js'); }
                 }
             }
@@ -6310,7 +6348,7 @@ function handleSearch(keyword) {
             const validRecords = records.filter(record => record && typeof record === 'object');
             if (!validRecords.length) return [];
 
-            const syntheticHtml = `<ul>${validRecords.map(jsonRecordToHtmlRow).join('\n')}</ul>`;
+            const syntheticHtml = `<ul>${validRecords.map(record => jsonRecordToHtmlRow({ ...record, fileName: record.fileName || fileName })).join('\n')}</ul>`;
             const parsedPosts = parseHtmlContent(syntheticHtml, fileName, groupName);
 
             return parsedPosts.map((post, index) => {
@@ -6329,6 +6367,10 @@ function handleSearch(keyword) {
 
                 return {
                     ...post,
+                    ...window.YayaRendererFeatures.getArchiveFlipIds(record),
+                    ...window.YayaMessageRoomFilter.getMessageRoomMetadata(record, fileName),
+                    sortTime: Number(record.sortTime || record.msgTime) || getMessagePostTimeMs(post),
+                    sourceFile: record.fileName || fileName,
                     groupName: String(record.groupName || post.groupName || groupName || ''),
                     hasImg: post.hasImg || recordLooksImage || (record.hasImg === true && !recordLooksExpress),
                     hasVideo: post.hasVideo || recordLooksVideo || record.hasVideo === true || !!record.videoUrl,
@@ -6427,13 +6469,10 @@ function handleSearch(keyword) {
                                 const gName = nameMatch[1].trim();
                                 const gNum = parseInt(numMatch[1]);
 
-                                if (typeof POCKET_GIFT_DATA !== 'undefined') {
-                                    const gift = POCKET_GIFT_DATA.find(x => x.name === gName);
-                                    if (gift) {
-                                        const total = gift.cost * gNum;
-                                        countDiv.innerHTML += ` <span style="margin-left:5px; color:#fa8c16; font-weight:bold;">(${total}🍗)</span>`;
-                                    }
-                                }
+                                const price = window.resolvePocketGiftPrice({
+                                    giftId: giftContainer.dataset.giftId || '', giftName: gName
+                                }, { historical: true }).unitCost;
+                                if (price !== null) countDiv.innerHTML += ` <span style="margin-left:5px; color:#fa8c16; font-weight:bold;">(${price * gNum}🍗)</span>`;
                             }
                         }
                     }
@@ -6506,6 +6545,14 @@ function handleSearch(keyword) {
                 extracted.push({
                     avatarHtml,
                     nameStr,
+                    giftInfo: giftContainer ? {
+                        giftId: giftContainer.dataset.giftId || '',
+                        giftName: giftContainer.dataset.giftName || '',
+                        giftNum: Number(giftContainer.dataset.giftNum) || 1,
+                        isScore: giftContainer.dataset.giftIsScore === '1',
+                        ...(giftContainer.dataset.giftMessageCost !== undefined && giftContainer.dataset.giftMessageCost !== ''
+                            ? { money: Number(giftContainer.dataset.giftMessageCost) } : {})
+                    } : null,
                     contentHtml: cleanRow.innerHTML,
                     text: stripAudioReplyPrefixes(cleanRow.innerText).toLowerCase(),
                     timeStr,
@@ -6778,6 +6825,7 @@ function handleSearch(keyword) {
                 content.appendChild(card);
             }
             if (post.audioUrl) insertAudioPlayerIntoMessage(content, post.audioUrl);
+            archiveFlipUsers.decorate(content, post, header.querySelector('img')?.getAttribute('src') || '');
             div.appendChild(header);
             div.appendChild(content);
             return div;
@@ -6809,6 +6857,7 @@ function handleSearch(keyword) {
                 return;
             }
             outputList.appendChild(fragment);
+            archiveFlipUsers.observe(scrollContainer);
             renderedCount += nextBatch.length;
             isRenderingBatch = false;
             if (isMessageViewVisible() && scrollContainer.scrollHeight <= scrollContainer.clientHeight) {
@@ -7253,16 +7302,48 @@ function handleSearch(keyword) {
             }
         });
 
+        function getMessageRoomFilter() {
+            const value = document.getElementById('message-room-type')?.value;
+            const roomType = value === 'big' || value === 'small' ? value : 'all';
+            return { roomType, channelIds: roomType === 'all' ? []
+                : window.YayaMessageRoomFilter.getMessageRoomChannelIds(memberData, roomType,
+                    readRuntimeCacheValue('yaya_message_room_history_v1', {}) || {}) };
+        }
+
+        window.toggleMessageRoomDropdown = function () {
+            const list = document.getElementById('message-room-dropdown');
+            const visible = list.style.display !== 'block';
+            list.style.display = visible ? 'block' : 'none';
+            document.getElementById('message-room-trigger').setAttribute('aria-expanded', String(visible));
+        };
+        window.selectMessageRoom = function (value) {
+            const type = value === 'big' || value === 'small' ? value : 'all';
+            document.getElementById('message-room-type').value = type;
+            document.getElementById('message-room-label').textContent = window.YayaRendererUtils.t(type === 'big' ? '大房间' : type === 'small' ? '小房间' : '全部房间');
+            document.getElementById('message-room-dropdown').style.display = 'none';
+            document.getElementById('message-room-trigger').setAttribute('aria-expanded', 'false');
+            messageAnalysisDrilldown = '';
+            applyFilters();
+        };
+        document.addEventListener('click', event => {
+            if (!document.getElementById('message-room-wrapper')?.contains(event.target)) {
+                document.getElementById('message-room-dropdown').style.display = 'none';
+                document.getElementById('message-room-trigger').setAttribute('aria-expanded', 'false');
+            }
+        });
+
         function filterMessagePostsInMemory(sourcePosts) {
             const contentKw = String(document.getElementById('search-content-input')?.value || '').trim().toLowerCase();
             const userKw = String(document.getElementById('search-user-input')?.value || '').trim().toLowerCase();
             const groupInputVal = String(document.getElementById('groupInput')?.value || '全部成员');
             const selectedGroup = (groupInputVal === '全部成员' || !groupInputVal) ? 'all' : groupInputVal;
+            const roomFilter = getMessageRoomFilter();
             const fromMs = parseMessageFilterDate(getMessageDateValue('from'), false);
             const toMs = parseMessageFilterDate(getMessageDateValue('to'), true);
 
             const filtered = (Array.isArray(sourcePosts) ? sourcePosts : []).filter(post => {
                 if (selectedGroup !== 'all' && post.groupName !== selectedGroup) return false;
+                if (!window.YayaMessageRoomFilter.matchesMessageRoom(post, roomFilter)) return false;
                 if (contentKw) {
                     const text = String(post.text || '').toLowerCase();
                     const title = String(post.liveTitle || '').toLowerCase();
@@ -7313,11 +7394,13 @@ function handleSearch(keyword) {
             const sortType = currentSortOrder;
             const groupInputVal = document.getElementById('groupInput').value;
             const selGroup = (groupInputVal === '全部成员' || groupInputVal === '') ? 'all' : groupInputVal;
+            const roomFilter = getMessageRoomFilter();
             const fromMs = parseMessageFilterDate(getMessageDateValue('from'), false);
             const toMs = parseMessageFilterDate(getMessageDateValue('to'), true);
 
             currentFilteredPosts = allPosts.filter(post => {
                 if (selGroup !== 'all' && post.groupName !== selGroup) return false;
+                if (!window.YayaMessageRoomFilter.matchesMessageRoom(post, roomFilter)) return false;
 
                 if (contentKw) {
                     const text = (post.text || '').toLowerCase();
@@ -7402,18 +7485,46 @@ function handleSearch(keyword) {
             else loadNextPagedMessageBatch();
         });
 
-        function openContextModal(targetGlobalIndex) {
-            contextListContainer.replaceChildren();
+        let messageContextRequest = 0;
+        async function openContextModal(targetGlobalIndex) {
             const targetPost = allPosts[targetGlobalIndex];
             if (!targetPost) return;
-            const groupPosts = allPosts.filter(p => p.groupName === targetPost.groupName),
-                indexInGroup = groupPosts.indexOf(targetPost);
-            const contextPosts = groupPosts.slice(Math.max(0, indexInGroup - 10), Math.min(groupPosts.length, indexInGroup + 11));
+            const request = ++messageContextRequest;
+            contextListContainer.textContent = window.YayaRendererUtils.t('正在读取上下文...');
+            document.querySelector('#contextModal .modal-title').innerText = window.YayaRendererUtils.t(`上下文: ${targetPost.groupName}`);
+            contextModal.style.display = 'flex';
+            let contextPosts;
+            let targetIndex;
+            try {
+                const store = getActiveMessageStore();
+                if (isPagedMessageRuntime && typeof store?.getContext === 'function') {
+                    const result = await store.getContext({ indexId: targetPost.indexId,
+                        memberName: targetPost.groupName, key: targetPost.exportKey, radius: 10 });
+                    if (request !== messageContextRequest) return;
+                    contextPosts = parseWebMessageRecords(result.records, 'asc');
+                    targetIndex = contextPosts.findIndex(post => targetPost.indexId
+                        ? String(post.indexId) === String(targetPost.indexId)
+                        : post.exportKey === targetPost.exportKey);
+                } else {
+                    const groupPosts = allPosts.filter(post => targetPost.sourcePath
+                        ? post.sourcePath === targetPost.sourcePath : post.groupName === targetPost.groupName)
+                        .sort((a, b) => getMessagePostTimeMs(a) - getMessagePostTimeMs(b));
+                    const index = groupPosts.indexOf(targetPost);
+                    const start = Math.max(0, index - 10);
+                    contextPosts = groupPosts.slice(start, index + 11);
+                    targetIndex = index - start;
+                }
+            } catch (error) {
+                if (request === messageContextRequest) contextListContainer.textContent = `读取上下文失败：${error.message || error}`;
+                return;
+            }
+            if (request !== messageContextRequest) return;
+            contextListContainer.replaceChildren();
             contextPosts.forEach(post => {
                 const div = document.createElement('div');
                 div.className = 'Box-row';
                 div.style.marginBottom = '10px';
-                if (post === targetPost) {
+                if (post === contextPosts[targetIndex]) {
                     div.classList.add('context-highlight');
                     div.id = 'target-message-scroll-anchor';
                 }
@@ -7517,12 +7628,14 @@ function handleSearch(keyword) {
                     content.appendChild(card);
                 }
                 if (post.audioUrl) insertAudioPlayerIntoMessage(content, post.audioUrl);
+                archiveFlipUsers.decorate(content, post, header.querySelector('img')?.getAttribute('src') || '');
                 div.appendChild(header);
                 div.appendChild(content);
                 contextListContainer.appendChild(div);
             });
             document.querySelector('#contextModal .modal-title').innerText = window.YayaRendererUtils.t(`上下文: ${targetPost.groupName}`);
             contextModal.style.display = 'flex';
+            archiveFlipUsers.observe(contextListContainer);
             setTimeout(() => {
                 const tEl = document.getElementById('target-message-scroll-anchor');
                 if (tEl) tEl.scrollIntoView({
@@ -7533,6 +7646,7 @@ function handleSearch(keyword) {
         }
 
         function closeContextModal() {
+            messageContextRequest++;
             contextModal.style.display = 'none';
             document.querySelector('#contextModal .modal-title').innerText = window.YayaRendererUtils.t(`消息上下文`);
             if (currentPlayingAudio) {

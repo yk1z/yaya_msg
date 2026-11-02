@@ -1336,6 +1336,23 @@
             renderFollowedRoomsList(filterFollowedRoomsByKeyword(sortedData), options);
         }
 
+        window.addEventListener('member-data-loaded', () => {
+            if (!currentFollowedData.length) return;
+            const members = getMemberData();
+            let changed = false;
+            currentFollowedData = currentFollowedData.map(room => {
+                const member = members.find(item => String(item.id || item.userId || '') === String(room.id || room.userId || ''));
+                if (!member) return room;
+                const next = { ...room };
+                for (const key of ['ownerName', 'team', 'teamId', 'groupName', 'pinyin', 'avatar', 'periodName', 'jtime', 'gtime', 'qtime']) {
+                    if (member[key] !== room[key]) { next[key] = member[key]; changed = true; }
+                }
+                next.bigDisplayName = String(next.ownerName || next.bigDisplayName || '').replace(/^(SNH48|GNZ48|BEJ48|CKG48|CGT48)-/, '');
+                return next;
+            });
+            if (changed) sortFollowedRooms({ preserveScroll: true });
+        });
+
         function openFollowedRoomByChannelId(channelId) {
             const normalizedChannelId = String(channelId || '').trim();
             if (!normalizedChannelId || typeof window.openFollowedChat !== 'function') return false;
@@ -1584,6 +1601,7 @@
 
         function startFollowedRoomsPolling() {
             stopFollowedRoomsPolling();
+            if (isWebRuntime()) return;
             followedRoomsAutoRefreshEnabled = true;
             const pollingGeneration = followedRoomsPollGeneration;
 

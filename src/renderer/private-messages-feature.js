@@ -52,6 +52,15 @@
         let privateMessageContextTarget = null;
         const deletingPrivateMessageIds = new Set();
         const privateMessagePinyinCache = new Map();
+        let privateMessageListRender = null;
+
+        function updatePrivateMessageListHtml(listEl, html) {
+            if (privateMessageListRender?.element === listEl
+                && privateMessageListRender.html === html
+                && privateMessageListRender.firstChild === listEl.firstChild) return;
+            listEl.innerHTML = html;
+            privateMessageListRender = { element: listEl, html, firstChild: listEl.firstChild };
+        }
 
         function capturePrivateMessageAccount(token = getPrivateMessagesToken(), targetUserId = '') {
             return {
@@ -1455,12 +1464,12 @@
             const previousScrollTop = listEl.scrollTop;
 
             if (!Array.isArray(items) || items.length === 0) {
-                listEl.innerHTML = '<div class="empty-state">暂无私信会话</div>';
+                updatePrivateMessageListHtml(listEl, '<div class="empty-state">暂无私信会话</div>');
                 return;
             }
 
             renderPrivateMessageList.lastRenderItems = items;
-            listEl.innerHTML = items.map(item => {
+            const html = items.map(item => {
                 const user = item.user || {};
                 const displayName = getPrivateMessageDisplayName(user);
                 const preview = formatPrivateMessagePreview(item.newestMessage);
@@ -1494,6 +1503,7 @@
                     </div>
                 `;
             }).join('');
+            updatePrivateMessageListHtml(listEl, html);
 
             if (preserveScroll) {
                 listEl.scrollTop = previousScrollTop;

@@ -160,6 +160,7 @@
     }
 
     async function loadMembers() {
+        if (window.YayaMemberDataStore) return window.YayaMemberDataStore.loadMemberData();
         if (!membersPromise) {
             membersPromise = fetch(`${MEMBER_DATA_URL}?t=${Date.now()}`)
                 .then(res => {

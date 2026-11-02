@@ -18,7 +18,7 @@
 
         const ROOM_RADIO_SCAN_CONCURRENCY = 24;
         const ROOM_RADIO_SCAN_REQUEST_GAP_MS = 20;
-        const ROOM_RADIO_AUTO_SCAN_INTERVAL_MS = 60000;
+        const ROOM_RADIO_AUTO_SCAN_INTERVAL_MS = 10 * 60 * 1000;
         const AUTO_ROOM_RADIO_RECORD_ENABLED_KEY = 'yaya_auto_room_radio_record_enabled';
         const AUTO_ROOM_RADIO_RECORD_MEMBERS_KEY = 'yaya_auto_room_radio_record_members';
         const AUTO_ROOM_RADIO_RECORD_POLL_INTERVAL_MS = 3000;
@@ -454,7 +454,9 @@
                 }
                 throw new Error(response?.message || response?.msg || '获取关注列表失败');
             } catch (error) {
-                console.warn('读取关注列表失败，将继续扫描全部成员:', error);
+                console.warn(IS_WEB_PLATFORM
+                    ? '读取关注列表失败，网页端不会扫描未关注成员:'
+                    : '读取关注列表失败，将继续扫描全部成员:', error);
                 return window.allFollowedIds instanceof Set
                     ? new Set([...window.allFollowedIds].map(id => String(id)).filter(Boolean))
                     : new Set();
@@ -826,6 +828,7 @@
                 preferredChannelId = '',
                 silent = false
             } = options;
+            const effectiveFollowedOnly = IS_WEB_PLATFORM || followedOnly;
             const token = getAppToken ? getAppToken() : (typeof window.getAppToken === 'function' ? window.getAppToken() : '');
             if (!token) {
                 if (!silent) showToast('请先在“账号设置”中登录');
@@ -851,13 +854,13 @@
             const followedMemberIds = await getRoomRadioFollowedMemberIds(token);
             const normalizedMemberList = Array.isArray(memberList) ? memberList : [];
             const normalizedPreferredChannelId = normalizeRoomRadioChannelId(preferredChannelId);
-            const scopedMemberList = followedOnly
+            const scopedMemberList = effectiveFollowedOnly
                 ? normalizedMemberList.filter(member => (
                     followedMemberIds.has(getRoomRadioMemberId(member))
-                    || [
+                    || (!IS_WEB_PLATFORM && [
                         normalizeRoomRadioChannelId(member.channelId),
                         normalizeRoomRadioChannelId(member.smallChannelId || member.yklzId)
-                    ].includes(normalizedPreferredChannelId)
+                    ].includes(normalizedPreferredChannelId))
                 ))
                 : normalizedMemberList.filter(member => member?.isInGroup !== false);
             const tasks = createRoomRadioScanTaskList(
@@ -867,7 +870,11 @@
             );
             if (!tasks.length) {
                 setRoomRadioScanButton();
-                if (!silent) showToast('成员列表中没有可扫描的房间 Channel ID');
+                if (!silent) {
+                    showToast(effectiveFollowedOnly
+                        ? '没有可扫描的已关注成员房间'
+                        : '成员列表中没有可扫描的房间 Channel ID');
+                }
                 return;
             }
 
@@ -885,7 +892,7 @@
             const followedMemberCount = scopedMemberList.reduce((count, member) => (
                 followedMemberIds.has(getRoomRadioMemberId(member)) ? count + 1 : count
             ), 0);
-            updateRoomRadioScanProgress(followedOnly
+            updateRoomRadioScanProgress(effectiveFollowedOnly
                 ? `正在扫描 ${followedMemberCount} 位已关注成员`
                 : (followedMemberCount > 0
                     ? `优先扫描 ${followedMemberCount} 位已关注成员，然后扫描其他成员`
@@ -944,12 +951,12 @@
 
             if (runId !== roomRadioScanRunId) return;
             isRoomRadioScanning = false;
-            if (!followedOnly) {
+            if (!effectiveFollowedOnly) {
                 const currentTaskKeys = new Set(tasks.map(getRoomRadioScanKey));
                 roomRadioScanResults = roomRadioScanResults.filter(item => currentTaskKeys.has(getRoomRadioScanKey(item)));
             }
             roomRadioScanCompletedAt = Date.now();
-            roomRadioScanCompletedScope = followedOnly ? 'followed' : 'all';
+            roomRadioScanCompletedScope = effectiveFollowedOnly ? 'followed' : 'all';
             setRoomRadioScanButton();
             updateRoomRadioScanProgress('扫描完成');
             renderRoomRadioScanResults({ finished: true });
@@ -1285,7 +1292,7 @@
             }, 1000);
         }
 
-        async function connectRoomRadio() {
+        async function connectRoomRadio(options = {}) {
             const container = document.getElementById('room-radio-result-container');
             const channelId = String(document.getElementById('room-radio-channel-id')?.value || '').trim();
             const serverId = String(document.getElementById('room-radio-server-id')?.value || '').trim() || 0;
@@ -1303,6 +1310,10 @@
             }
 
             stopRoomRadio(false);
+            const playbackRequestId = roomRadioPlaybackRequestId;
+            const isCurrent = () => playbackRequestId === roomRadioPlaybackRequestId
+                && token === (getAppToken ? getAppToken() : window.getAppToken?.())
+                && (typeof options.isCurrent !== 'function' || options.isCurrent());
 
             if (container) {
                 container.innerHTML = '<div class="empty-state">正在连接电台并启动音频引擎...</div>';
@@ -1320,6 +1331,7 @@
                     channelId,
                     serverId
                 });
+                if (!isCurrent()) return;
 
                 if (result.success && result.content) {
                     if (!result.content.streamUrl) {
@@ -1328,11 +1340,13 @@
                         }
                         return;
                     }
-                    playAudioOnlyStream(result.content.streamUrl, memberName, container, { channelId, serverId });
+                    await playAudioOnlyStream(result.content.streamUrl, memberName, container,
+                        { channelId, serverId, playbackRequestId, shouldStart: isCurrent });
                 } else if (container) {
                     container.innerHTML = `<div class="placeholder-tip"><h3>连接失败</h3><p>${result.msg}</p></div>`;
                 }
             } catch (error) {
+                if (!isCurrent()) return;
                 if (container) {
                     container.innerHTML = `<div class="placeholder-tip"><h3>发生错误</h3><p>${error.message}</p></div>`;
                 }
@@ -1344,6 +1358,7 @@
             const {
                 headless = false,
                 playbackRequestId = roomRadioPlaybackRequestId,
+                shouldStart = () => true,
                 channelId = '',
                 serverId = '0'
             } = options;
@@ -1366,8 +1381,19 @@
                     if (!activeRoomRadioScanKey) await ipcRenderer.invoke('stop-live-proxy');
                     return;
                 }
+                if (!shouldStart()) {
+                    stopRoomRadio(false);
+                    await ipcRenderer.invoke('stop-live-proxy');
+                    return;
+                }
                 if (!IS_WEB_PLATFORM) {
                     await new Promise(resolve => setTimeout(resolve, 700));
+                }
+                if (playbackRequestId !== roomRadioPlaybackRequestId) return;
+                if (!shouldStart()) {
+                    stopRoomRadio(false);
+                    await ipcRenderer.invoke('stop-live-proxy');
+                    return;
                 }
 
                 const recordButton = IS_WEB_PLATFORM
@@ -1436,6 +1462,8 @@
                     statusEl.append(copy, button);
                 };
                 const requestPlayback = () => {
+                    if (playbackRequestId !== roomRadioPlaybackRequestId) return;
+                    if (!hasStartedPlayback && !shouldStart()) { stopRoomRadio(false); return; }
                     const playPromise = attachedMediaElement.play();
                     if (playPromise && typeof playPromise.catch === 'function') {
                         playPromise.catch(error => {

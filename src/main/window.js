@@ -5,6 +5,8 @@ const settingsService = require('./services/settings-service');
 
 let mainWindow = null;
 let isAppQuitting = false;
+let deepLinkHandler = null;
+function setDeepLinkHandler(handler) { deepLinkHandler = handler; }
 const preloadPath = path.join(__dirname, 'preload.js');
 const SAFE_EXTERNAL_PROTOCOLS = new Set(['http:', 'https:', 'mailto:']);
 const PAGE_ZOOM_FACTOR = 1;
@@ -82,11 +84,13 @@ function createWindow() {
         resetPageZoom(mainWindow.webContents);
     });
     mainWindow.webContents.on('will-navigate', (event, url) => {
+        if (deepLinkHandler && deepLinkHandler(url)) { event.preventDefault(); return; }
         if (!url.startsWith('file://')) {
             event.preventDefault();
         }
     });
     mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+        if (deepLinkHandler && deepLinkHandler(url)) return { action: 'deny' };
         if (isSafeExternalUrl(url)) {
             shell.openExternal(url);
         }
@@ -125,5 +129,6 @@ module.exports = {
     createWindow,
     getMainWindow,
     markAppQuitting,
+    setDeepLinkHandler,
     requestWindowClose
 };

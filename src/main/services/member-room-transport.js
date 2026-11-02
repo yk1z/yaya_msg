@@ -23,13 +23,14 @@ function createMemberRoomTransport(createClient = createNimCommonlinkQChatClient
             get connected() { return !disposed && !!session?.client.connected && !session.closed; },
             async connect() {
                 if (disposed) throw new Error('成员房间连接已取消');
-                const key = `${options.appKey}:${options.account}`;
+                const key = JSON.stringify([options.appKey, options.account, options.clientProfile || 'seine48', options.deviceId || '']);
                 session = sessions.get(key);
                 if (!session) {
                     session = { key, consumers: new Set(), subscriptions: new Map(), closed: false, queue: Promise.resolve() };
                     const current = session;
                     current.client = createClient({
                         appKey: options.appKey, account: options.account, token: options.token,
+                        clientProfile: options.clientProfile, deviceId: options.deviceId,
                         onDisconnected: () => retire(current, true),
                         onError: error => {
                             for (const item of current.consumers) item.options.onError?.(error);
@@ -131,4 +132,11 @@ function createMemberRoomTransport(createClient = createNimCommonlinkQChatClient
 }
 
 const shared = createMemberRoomTransport();
-module.exports = { createMemberRoomTransport, createSharedMemberRoomClient: shared.create, closeMemberRoomTransport: shared.close };
+module.exports = { createMemberRoomTransport, createSharedMemberRoomClient: options => {
+    const settings = require('./settings-service').readSettings();
+    return shared.create({
+        ...options,
+        clientProfile: options.clientProfile || settings.p48ClientProfile || 'pocket48',
+        deviceId: options.deviceId || settings.p48ClientDeviceId || ''
+    });
+}, closeMemberRoomTransport: shared.close };

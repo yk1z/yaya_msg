@@ -14,7 +14,9 @@ async function invoke(method, payload) {
         await ensureWasmLoaded();
         runtimePromise ||= import(pathToFileURL(path.join(__dirname, '../../common/pocket-runtime.mjs')).href);
         const runtime = await runtimePromise;
-        return await runtime[method]({ ...payload, token, pa: generatePa() || '' });
+        const settings = settingsService.readSettings();
+        return await runtime[method]({ ...payload, token, pa: generatePa() || '',
+            clientProfile: settings.p48ClientProfile || '', deviceId: settings.p48ClientDeviceId || '' });
     } catch (error) {
         return { success: false, msg: error.message || '房间送礼暂不可用' };
     }

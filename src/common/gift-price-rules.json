@@ -1,0 +1,995 @@
+[
+  {
+    "id": "870723869627715584",
+    "name": "娃娃机",
+    "requiresDateReview": true,
+    "historicalCost": 1200,
+    "currentCost": 880,
+    "reason": "同一 ID 存在历史调价；没有原消息单价的历史记录需逐笔核实，不能统一套价。",
+    "recordPrices": [
+      {
+        "channelId": "1361137",
+        "time": 1685530836442,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1165008",
+        "time": 1685531355126,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1360944",
+        "time": 1685532101045,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1279498",
+        "time": 1685532634014,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1247180",
+        "time": 1685532798667,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1230636",
+        "time": 1685534854687,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1279299",
+        "time": 1685535039956,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1230636",
+        "time": 1685535809517,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1279495",
+        "time": 1685535964801,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1279287",
+        "time": 1685536942265,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1164560",
+        "time": 1685537965862,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1247180",
+        "time": 1685538264374,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1312244",
+        "time": 1685539220101,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1247180",
+        "time": 1685540024499,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1164574",
+        "time": 1685540955742,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "2491667",
+        "time": 1685543462653,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "2491667",
+        "time": 1685543526179,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "6194706",
+        "time": 1685548852690,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1279299",
+        "time": 1685548881280,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1279299",
+        "time": 1685548887083,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1279299",
+        "time": 1685548910377,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1279299",
+        "time": 1685548933869,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1279299",
+        "time": 1685548947247,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1279299",
+        "time": 1685548959707,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1312425",
+        "time": 1685549290790,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1360944",
+        "time": 1685549481979,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1279287",
+        "time": 1685550542351,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1311973",
+        "time": 1685552721416,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1311973",
+        "time": 1685556294551,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1361909",
+        "time": 1685578434482,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1360944",
+        "time": 1685579359129,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1360944",
+        "time": 1685582478517,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1360944",
+        "time": 1685585527447,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1164560",
+        "time": 1685586188526,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1360944",
+        "time": 1685586220713,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1164560",
+        "time": 1685587156728,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1312425",
+        "time": 1685588322957,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1360944",
+        "time": 1685595363909,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1360944",
+        "time": 1685595635637,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1312429",
+        "time": 1685601282075,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1360944",
+        "time": 1685601306742,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1312429",
+        "time": 1685605049628,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1360944",
+        "time": 1685605102016,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1247180",
+        "time": 1685606942269,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1361310",
+        "time": 1685610004519,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1164563",
+        "time": 1685624057902,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1360944",
+        "time": 1685717452361,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1361137",
+        "time": 1685721964052,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1361137",
+        "time": 1685725759153,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1361137",
+        "time": 1685928446829,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1361909",
+        "time": 1685933366473,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1165008",
+        "time": 1686022201629,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1312655",
+        "time": 1686045881192,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "2541543",
+        "time": 1686073509827,
+        "quantity": 1,
+        "cost": 1200,
+        "source": "user-confirmed"
+      }
+    ]
+  },
+  {
+    "id": "413653201038675968",
+    "name": "神奇魔方",
+    "recordPrices": [
+      {
+        "channelId": "1361137",
+        "time": 1661487553392,
+        "quantity": 1,
+        "cost": 0,
+        "source": "user-confirmed"
+      }
+    ]
+  },
+  {
+    "id": "413652908179787776",
+    "name": "跳动音符",
+    "recordPrices": [
+      {
+        "channelId": "1361137",
+        "time": 1661487603281,
+        "quantity": 1,
+        "cost": 0,
+        "source": "user-confirmed"
+      },
+      {
+        "channelId": "1311973",
+        "time": 1669128963407,
+        "quantity": 1,
+        "cost": 0,
+        "source": "user-confirmed"
+      }
+    ]
+  },
+  {
+    "id": "924388192337858560",
+    "name": "美味果汁",
+    "legacyImagePaths": [
+      "/backstage/2023/1026/2y68h8rm8hlpqh1g91y0pqt.png"
+    ]
+  },
+  {
+    "id": "961644550430724096",
+    "name": "爱心信箱",
+    "legacyImagePaths": [
+      "/backstage/2024/0206/5839cby8cpm8ic5y8p28ofj.png"
+    ]
+  },
+  {
+    "id": "1002640233975320576",
+    "name": "开心乐园",
+    "legacyImagePaths": [
+      "/backstage/2024/0529/93y3p9gnmnptabu89tdvxt0.png"
+    ]
+  },
+  {
+    "id": "1002639717622943744",
+    "name": "迎风奔跑",
+    "legacyImagePaths": [
+      "/backstage/2024/0529/9315pp5ge8l994y2hsy84ad.png"
+    ]
+  },
+  {
+    "id": "888010",
+    "name": "惊险海盗船",
+    "legacyImagePaths": [
+      "/backstage/2024/0606/8g10gg9udvfthjf5zt1ljox.png"
+    ],
+    "scorePerUnit": "999",
+    "scoreSource": "official-room-history"
+  },
+  {
+    "id": "888009",
+    "name": "旋转飞椅",
+    "legacyImagePaths": [
+      "/backstage/2024/0606/1b67gf612f07zsm8735g52a.png"
+    ],
+    "scorePerUnit": "99",
+    "scoreSource": "official-room-history"
+  },
+  {
+    "id": "1028383821275140096",
+    "name": "七夕快乐",
+    "legacyImagePaths": [
+      "/backstage/2024/0808/829bnii0ty70aj8pyz4hy11.png"
+    ]
+  },
+  {
+    "id": "1028384099600764928",
+    "name": "姻缘团扇",
+    "legacyImagePaths": [
+      "/backstage/2024/0808/z8us53rdmf9i3s8di1u4e2r.png"
+    ]
+  },
+  {
+    "id": "1055528038761828352",
+    "name": "万圣节快乐",
+    "legacyImagePaths": [
+      "/backstage/2024/1022/y2xq86k31gk35nwc0njk5ni.png"
+    ]
+  },
+  {
+    "id": "1055527837510733824",
+    "name": "不给糖就捣蛋",
+    "legacyImagePaths": [
+      "/backstage/2024/1022/u5nmms31j3dkcklgfqp8nu3.png"
+    ]
+  },
+  {
+    "id": "1074352684227432448",
+    "name": "圣诞花环",
+    "legacyImagePaths": [
+      "/backstage/2024/1213/0usnmbh271rod8d73l5oys5.png"
+    ]
+  },
+  {
+    "id": "1074352139303456768",
+    "name": "圣诞礼盒",
+    "legacyImagePaths": [
+      "/backstage/2024/1213/dwwroc0j09n0f46896r4lh4.png"
+    ]
+  },
+  {
+    "id": "1087093932231036928",
+    "name": "福袋",
+    "legacyImagePaths": [
+      "/backstage/2025/0117/317aifa11f748kc7d411gu0.png"
+    ]
+  },
+  {
+    "id": "1087094824716013568",
+    "name": "团圆饺子",
+    "legacyImagePaths": [
+      "/backstage/2025/0117/fsffuahckxp51mgh1g4qxxv.png",
+      "/backstage/2025/0121/3p4i68j11v21kv7wyf20jrq.png"
+    ]
+  },
+  {
+    "id": "1087096004871524352",
+    "name": "添祝华灯",
+    "legacyImagePaths": [
+      "/backstage/2025/0117/75d6r963n5q4b9424cebjqm.png"
+    ]
+  },
+  {
+    "id": "1094326688363122688",
+    "name": "流星雨",
+    "legacyImagePaths": [
+      "/backstage/2025/0206/g62im5yn932uz96svf6bn7k.png"
+    ]
+  },
+  {
+    "id": "1094326910405382144",
+    "name": "丘比特",
+    "legacyImagePaths": [
+      "/backstage/2025/0206/6xkz6835b0gnu5f3xly7jfg.png"
+    ]
+  },
+  {
+    "id": "1112840200039239680",
+    "name": "特辣棒棒糖",
+    "legacyImagePaths": [
+      "/backstage/2025/0329/uoh3h5udjfr4uzror8zg445.png"
+    ]
+  },
+  {
+    "id": "1112839566833553408",
+    "name": "怪味豆",
+    "legacyImagePaths": [
+      "/backstage/2025/0329/b0qn97tuuv8k2wni7vdmmug.png"
+    ]
+  },
+  {
+    "id": "1112839760081915904",
+    "name": "芥末饼干",
+    "legacyImagePaths": [
+      "/backstage/2025/0329/va7x8i3bh3eq25nhaar4roc.png"
+    ]
+  },
+  {
+    "id": "1112839946095104000",
+    "name": "惊吓薯片桶",
+    "legacyImagePaths": [
+      "/backstage/2025/0329/06nrn55vdn0z9sd8q8i3itv.png"
+    ]
+  },
+  {
+    "id": "1132659381504905216",
+    "name": "纸飞机",
+    "legacyImagePaths": [
+      "/backstage/2025/0523/54box90my1qw9q2j8fu58pq.png"
+    ]
+  },
+  {
+    "id": "1132657627585384448",
+    "name": "画笔",
+    "legacyImagePaths": [
+      "/backstage/2025/0523/f857eufjbxl7dzhztyktznk.png"
+    ]
+  },
+  {
+    "id": "1132658137377869824",
+    "name": "伙伴",
+    "legacyImagePaths": [
+      "/backstage/2025/0523/69c7r48l9urrdsl8mtb2xs7.png"
+    ]
+  },
+  {
+    "id": "1132657946138578944",
+    "name": "气球木屋",
+    "legacyImagePaths": [
+      "/backstage/2025/0523/8mnfh7uswfc9hgle27v1qe4.png"
+    ]
+  },
+  {
+    "id": "1132660454613389312",
+    "name": "苹果糖",
+    "legacyImagePaths": [
+      "/backstage/2025/0523/dhfsoz889rl5p535amqerd6.png"
+    ]
+  },
+  {
+    "id": "1132659805465153536",
+    "name": "风筝",
+    "legacyImagePaths": [
+      "/backstage/2025/0523/ymy27s9a82kmj7o6qwlz3d5.png"
+    ]
+  },
+  {
+    "id": "888012",
+    "name": "星光",
+    "legacyImagePaths": [
+      "/backstage/2025/0528/qdg02x2p6fpy6n619zz4vic.png"
+    ],
+    "scorePerUnit": "0.1",
+    "scoreSource": "official-room-history"
+  },
+  {
+    "id": "888013",
+    "name": "织梦",
+    "legacyImagePaths": [
+      "/backstage/2025/0528/ypynbcasp4izsybpnexq0m3.png"
+    ],
+    "scorePerUnit": "1",
+    "scoreSource": "official-room-history"
+  },
+  {
+    "id": "1160648774165270528",
+    "name": "照相机",
+    "legacyImagePaths": [
+      "/backstage/2025/0808/5w4781i48he2ue1a2897795.png"
+    ]
+  },
+  {
+    "id": "1085984418673004544",
+    "name": "发财猪咪",
+    "legacyImagePaths": [
+      "/backstage/2025/0115/azg1zvomwaqjnz68klljwtt.png"
+    ]
+  },
+  {
+    "id": "1164980296750010368",
+    "name": "七夕快乐",
+    "legacyImagePaths": [
+      "/backstage/2025/0820/zevir01iep31mhgxtiksyg3.png"
+    ]
+  },
+  {
+    "id": "1164980157608169472",
+    "name": "花灯",
+    "legacyImagePaths": [
+      "/backstage/2025/0820/4oc2ht5457r091ryinu3lz6.png"
+    ]
+  },
+  {
+    "id": "1164979820700700672",
+    "name": "荷包",
+    "legacyImagePaths": [
+      "/backstage/2025/0820/lk70mj58org8c8547zq5ku1.png"
+    ]
+  },
+  {
+    "id": "1176919349867122688",
+    "name": "轻罗小扇",
+    "legacyImagePaths": [
+      "/backstage/2025/0922/lylivczg25y8ng555i84fh8.png"
+    ]
+  },
+  {
+    "id": "1176919128982491136",
+    "name": "桂花茶",
+    "legacyImagePaths": [
+      "/backstage/2025/0922/dyw6ob1h8tirmuv8hyy3n2n.png"
+    ]
+  },
+  {
+    "id": "1176919504246870016",
+    "name": "金龙鱼",
+    "legacyImagePaths": [
+      "/backstage/2025/0922/kyf4od0r6uhptsh3i48jtca.png"
+    ]
+  },
+  {
+    "id": "1176919676389494784",
+    "name": "金桂",
+    "legacyImagePaths": [
+      "/backstage/2025/0922/66yxg1p40u3l7ufxyx848p9.png"
+    ]
+  },
+  {
+    "id": "1187435545855070208",
+    "name": "牙牙",
+    "legacyImagePaths": [
+      "/backstage/2025/1021/lw1m7snmq0mukq21t48j1s2.png"
+    ]
+  },
+  {
+    "id": "1187434274758660096",
+    "name": "不准捣蛋",
+    "legacyImagePaths": [
+      "/backstage/2025/1021/4bwsm0nj4ebc2p2dk9hux74.png"
+    ]
+  },
+  {
+    "id": "1206287228202717184",
+    "name": "草莓卷",
+    "legacyImagePaths": [
+      "/backstage/2025/1212/z3325s51pp4e0ugiuzuuwm5.png"
+    ]
+  },
+  {
+    "id": "1206288076379066368",
+    "name": "热红酒",
+    "legacyImagePaths": [
+      "/backstage/2025/1212/fqjt92miprhcxc62ap0qvk8.png"
+    ]
+  },
+  {
+    "id": "1206287929096081408",
+    "name": "温暖手套",
+    "legacyImagePaths": [
+      "/backstage/2025/1212/mlua9ukbi9nf0l1vjt09vb0.png"
+    ]
+  },
+  {
+    "id": "1206287605543276544",
+    "name": "松果",
+    "legacyImagePaths": [
+      "/backstage/2025/1212/zivr4ixs0usp8vywo26iebf.png"
+    ]
+  },
+  {
+    "id": "1206287039119298560",
+    "name": "苹果屋",
+    "legacyImagePaths": [
+      "/backstage/2025/1212/70pdk4zvvqbnpy6n95vrd7k.png"
+    ]
+  },
+  {
+    "id": "1226987816741572608",
+    "name": "新春福挂",
+    "legacyImagePaths": [
+      "/backstage/2026/0207/iz329fr8pi7bu46uo9pe0b3.png"
+    ]
+  },
+  {
+    "id": "1226988225086427136",
+    "name": "拂晦吉至",
+    "legacyImagePaths": [
+      "/backstage/2026/0207/40v00rsehr02jai6qpzr4va.png"
+    ]
+  },
+  {
+    "id": "1226987632066367488",
+    "name": "鸿运当头",
+    "legacyImagePaths": [
+      "/backstage/2026/0207/z433d8vgo4ru3kb3x3o1awt.png"
+    ]
+  },
+  {
+    "id": "1226988045473746944",
+    "name": "福树生金",
+    "legacyImagePaths": [
+      "/backstage/2026/0207/51726o543hsd07n1pay2x3s.png"
+    ]
+  },
+  {
+    "id": "1242906796735926272",
+    "name": "笑话糖果",
+    "legacyImagePaths": [
+      "/backstage/2026/0323/0tjrnz4hwmkqha6hgxdx7b0.png"
+    ]
+  },
+  {
+    "id": "1242906968752721920",
+    "name": "小丑捏捏",
+    "legacyImagePaths": [
+      "/backstage/2026/0323/u7b1qxjm96ss0rie6e6k586.png"
+    ]
+  },
+  {
+    "id": "888018",
+    "name": "午夜调频",
+    "legacyImagePaths": [
+      "/backstage/2026/0527/bf1lw9rj6fmcwc43uf3w39k.png"
+    ],
+    "scorePerUnit": "0.1",
+    "scoreSource": "official-room-history"
+  },
+  {
+    "id": "888019",
+    "name": "鎏光碟影",
+    "legacyImagePaths": [
+      "/backstage/2026/0527/0g15zps3cb8bgbqs4caq8gd.png"
+    ],
+    "scorePerUnit": "1",
+    "scoreSource": "official-room-history"
+  },
+  {
+    "id": "888021",
+    "name": "云境乐园",
+    "legacyImagePaths": [
+      "/backstage/2026/0527/nk3ilvt0mnm1afovvuqovza.png"
+    ],
+    "scorePerUnit": "99",
+    "scoreSource": "official-room-history"
+  },
+  {
+    "id": "888020",
+    "name": "迷迭音浪",
+    "legacyImagePaths": [
+      "/backstage/2026/0527/zc2f94n2mztajmqcgi8cgd8.png"
+    ],
+    "scorePerUnit": "9",
+    "scoreSource": "official-room-history"
+  },
+  {
+    "id": "505037658634653696",
+    "name": "七夕花签",
+    "legacyImagePaths": [
+      "/mediasource/gift/1598339927158m8BiSf6MmH.png"
+    ]
+  },
+  {
+    "id": "1164981174680752128",
+    "name": "流光瓶",
+    "legacyImagePaths": [
+      "/backstage/2025/0820/ar781s1t4ir8asoqjk9jjq8.png"
+    ]
+  },
+  {
+    "id": "1176918878687399936",
+    "name": "抓星星",
+    "legacyImagePaths": [
+      "/backstage/2025/0922/uxsc9zanms0ugf7vujm5f33.png"
+    ]
+  },
+  {
+    "id": "1206286639167246336",
+    "name": "姜饼人",
+    "legacyImagePaths": [
+      "/backstage/2025/1212/qp84cdcs7v1ean1gu8d5wsb.png"
+    ]
+  },
+  {
+    "id": "1206286858164441088",
+    "name": "圣诞花环",
+    "legacyImagePaths": [
+      "/backstage/2025/1212/f42qqndindr19t181zka0v6.png"
+    ]
+  },
+  {
+    "id": "1206286455054077952",
+    "name": "小冰雕",
+    "legacyImagePaths": [
+      "/backstage/2025/1212/v4ik3zyg3br57235s6ft76v.png"
+    ]
+  },
+  {
+    "id": "1226987080582500352",
+    "name": "马上来财",
+    "legacyImagePaths": [
+      "/backstage/2026/0207/cdp6chwcujlqk7ux003enig.png"
+    ]
+  },
+  {
+    "id": "1242906039055880192",
+    "name": "幸运机",
+    "legacyImagePaths": [
+      "/backstage/2026/0323/a004ak6fergccgdp0ox03q2.png"
+    ]
+  },
+  {
+    "id": "888014",
+    "name": "命定水晶",
+    "scorePerUnit": "9",
+    "scoreSource": "official-room-history"
+  },
+  {
+    "id": "888015",
+    "name": "心愿纸鹤",
+    "scorePerUnit": "99",
+    "scoreSource": "official-room-history"
+  },
+  {
+    "id": "888016",
+    "name": "夏日愿望",
+    "scorePerUnit": "999",
+    "scoreSource": "official-room-history"
+  },
+  {
+    "id": "888006",
+    "name": "旋转茶杯",
+    "scorePerUnit": "0.1",
+    "scoreSource": "official-room-history"
+  },
+  {
+    "id": "888007",
+    "name": "茶杯汪汪",
+    "scorePerUnit": "1",
+    "scoreSource": "official-room-history"
+  },
+  {
+    "id": "888008",
+    "name": "浪漫咖啡屋",
+    "scorePerUnit": "9",
+    "scoreSource": "official-room-history"
+  },
+  {
+    "id": "888003",
+    "name": "星光飞翼",
+    "scorePerUnit": "9",
+    "scoreSource": "official-room-history"
+  },
+  {
+    "id": "888001",
+    "name": "星光之翼",
+    "scorePerUnit": "0.1",
+    "scoreSource": "official-room-history"
+  },
+  {
+    "id": "888002",
+    "name": "星光翼展",
+    "scorePerUnit": "1",
+    "scoreSource": "official-room-history"
+  },
+  {
+    "id": "888004",
+    "name": "星光飞跃",
+    "scorePerUnit": "99",
+    "scoreSource": "official-room-history"
+  },
+  {
+    "id": "888002",
+    "name": "1分",
+    "scorePerUnit": "1",
+    "scoreSource": "official-room-history"
+  },
+  {
+    "id": "888003",
+    "name": "9分",
+    "scorePerUnit": "9",
+    "scoreSource": "official-room-history"
+  },
+  {
+    "id": "888001",
+    "name": "0.1分",
+    "scorePerUnit": "0.1",
+    "scoreSource": "official-room-history"
+  },
+  {
+    "id": "888022",
+    "name": "告白讯号",
+    "scorePerUnit": "999",
+    "scoreSource": "official-room-history"
+  },
+  {
+    "id": "888004",
+    "name": "99分",
+    "scorePerUnit": "99",
+    "scoreSource": "official-room-history"
+  },
+  {
+    "id": "888005",
+    "name": "星光翱翔",
+    "scorePerUnit": "999",
+    "scoreSource": "official-room-history"
+  },
+  {
+    "id": "888023",
+    "name": "暮色巡航",
+    "scorePerUnit": "9999",
+    "scoreSource": "official-room-history"
+  },
+  {
+    "id": "888017",
+    "name": "梦幻城堡",
+    "scorePerUnit": "9999",
+    "scoreSource": "official-room-history"
+  },
+  {
+    "id": "888005",
+    "name": "999分",
+    "scorePerUnit": "999",
+    "scoreSource": "official-room-history"
+  }
+]

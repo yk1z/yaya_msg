@@ -1,0 +1,1 @@
+(() => { let theme;try {theme=JSON.parse(localStorage.getItem('yaya_web_settings')||'{}').theme||localStorage.getItem('theme')}catch{}document.documentElement.dataset.theme=theme==='dark'?'dark':'light';})();

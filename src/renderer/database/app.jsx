@@ -1,14 +1,28 @@
         import React, { useState, useMemo, useRef, useEffect } from 'react';
         import { createRoot } from 'react-dom/client';
         import { pinyin } from 'pinyin-pro';
+        import { loadProfilePhotoHistory, selectProfilePhotoHistory } from './profile-photo-history.mjs';
         import { Search, Users, Upload, Heart, MapPin, Calendar, Hash, X, Layers, ChevronDown, Check, Cake, Trophy, FileText, Clock, ArrowUpCircle, LogOut, GraduationCap, Copy, Moon, Sun, List, UserSquare2, Sparkles, TrendingUp, TrendingDown, Minus, Music, Disc, AlertCircle, Mic2, Loader2, ExternalLink, ClipboardCopy, Star, Ruler, Droplet, UserCircle, CalendarDays, Activity } from 'lucide-react';
         const DEMO_DATA = [];
         const DATABASE_UI_STATE_KEY = 'yaya_database_ui_state_v1';
-        const t = (key, variables = {}) => window.YayaRendererUtils?.t?.(key, variables)
-            ?? Object.entries(variables).reduce(
+        const DATABASE_DEFAULT_MESSAGES = {
+            'database.showAllSongs': '查看全部 {count} 首',
+            'database.triedPath': '尝试路径：{path}',
+            'database.electionEdition': '{edition}选',
+            'database.searchResult': '搜索“{query}”的结果',
+            'database.memberCount': '{count} 人',
+            'database.electionResult': '第 {edition} 届总选结果',
+            'database.searchLyricsRepo': '在歌词仓库中搜索“{query}”'
+        };
+        const t = (key, variables = {}) => {
+            const translated = window.YayaRendererUtils?.t?.(key, variables);
+            const template = translated != null && translated !== key
+                ? translated : (DATABASE_DEFAULT_MESSAGES[key] ?? key);
+            return Object.entries(variables).reduce(
                 (text, [name, value]) => text.replaceAll(`{${name}}`, String(value)),
-                String(key)
+                String(template)
             );
+        };
 
         function useYayaLocale() {
             const [locale, setLocale] = useState(() => window.YayaI18n?.locale || 'zh-CN');
@@ -71,6 +85,7 @@
         };
 
         const fetchLyricsIndex = () => {
+            if (window.YayaDataSync) return window.YayaDataSync.read(LYRICS_INDEX_URL);
             if (!lyricsIndexPromise) {
                 lyricsIndexPromise = fetch(LYRICS_INDEX_URL)
                     .then(res => {
@@ -804,16 +819,58 @@
             </div>
         );
 
+        const HistoricalProfilePhotos = ({ member, onPreview }) => {
+            const [state, setState] = useState({ loading: true, photos: [], error: false });
+            const [attempt, setAttempt] = useState(0);
+            useEffect(() => {
+                let active = true;
+                setState({ loading: true, photos: [], error: false });
+                const applyIndex = index => {
+                    if (active) setState({ loading: false, photos: selectProfilePhotoHistory(index, member), error: false });
+                };
+                const unsubscribe = window.YayaDataSync?.subscribe('https://data.gnz.hk/profile-photos/index.json', applyIndex);
+                loadProfilePhotoHistory().then(applyIndex).catch(() => {
+                    if (active) setState({ loading: false, photos: [], error: true });
+                });
+                return () => { active = false; unsubscribe?.(); };
+            }, [member.ownerName, member.groupName, attempt]);
+            return (
+                <div>
+                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center dark:text-gray-500"><UserSquare2 className="w-3.5 h-3.5 mr-1.5" />{t('历史公式照')}</h4>
+                    {state.loading ? <p className="text-sm text-gray-500 dark:text-gray-400">{t('正在加载历史公式照…')}</p>
+                        : state.error ? <div className="text-sm text-gray-500 dark:text-gray-400">{t('历史公式照暂时无法加载')} <button type="button" onClick={() => setAttempt(value => value + 1)} className="font-bold text-purple-600 dark:text-purple-400">{t('重试')}</button></div>
+                        : state.photos.length === 0 ? <p className="text-sm text-gray-500 dark:text-gray-400">{t('暂无历史公式照')}</p>
+                        : <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                            {state.photos.map(photo => (
+                                <button type="button" key={`${photo.date}/${photo.path}`} onClick={() => onPreview(photo.date, photo.url)}
+                                    className="group block overflow-hidden rounded-xl border border-gray-100 bg-gray-50 dark:border-gray-700 dark:bg-gray-800"
+                                    title={`${photo.date} ${photo.group} ${photo.team || ''}`} aria-label={`${member.ownerName} ${photo.date}`}>
+                                    <div className="aspect-[3/4] overflow-hidden bg-gray-100 dark:bg-gray-900">
+                                        <img src={photo.url} alt={`${member.ownerName} ${photo.date}`} loading="lazy" decoding="async" className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-105" />
+                                    </div>
+                                    <div className="px-2 py-2 text-center text-xs font-bold text-gray-500 dark:text-gray-400">{photo.date}</div>
+                                </button>
+                            ))}
+                        </div>}
+                </div>
+            );
+        };
+
         const MemberDetailModal = ({ member, onClose }) => {
             if (!member) return null;
             const [previewPhoto, setPreviewPhoto] = useState(null);
             const isActive = checkIsActive(member);
-            const InfoItem = ({ icon: Icon, label, value, colorClass = "text-gray-800", isCopyable = false }) => {
+            const InfoItem = ({ icon: Icon, label, value, colorClass = "text-gray-800", isCopyable = false, href = '' }) => {
                 const [copied, setCopied] = useState(false);
                 const hasValue = value !== undefined && value !== null && value !== '';
                 const displayValue = typeof value === 'boolean' ? t(value ? '是' : '否') : (hasValue ? String(value) : '-');
-                const handleCopy = (e) => {
-                    if (!isCopyable || !hasValue) return;
+                const handleAction = (e) => {
+                    if (!hasValue) return;
+                    if (href) {
+                        window.open(href, '_blank', 'noopener,noreferrer');
+                        return;
+                    }
+                    if (!isCopyable) return;
                     e.stopPropagation();
                     const textArea = document.createElement("textarea");
                     textArea.value = displayValue;
@@ -823,12 +880,24 @@
                     document.body.removeChild(textArea);
                 };
                 return (
-                    <div onClick={handleCopy} className={`db-member-info-item bg-gray-50 p-3 rounded-lg border border-gray-100 transition-all relative overflow-hidden dark:bg-gray-800 dark:border-gray-700 ${isCopyable ? 'hover:bg-white hover:shadow-md cursor-pointer group dark:hover:bg-gray-750' : 'hover:bg-white hover:shadow-sm dark:hover:bg-gray-750'}`}>
+                    <div onClick={handleAction} className={`db-member-info-item bg-gray-50 p-3 rounded-lg border border-gray-100 transition-all relative overflow-hidden dark:bg-gray-800 dark:border-gray-700 ${isCopyable || href ? 'hover:bg-white hover:shadow-md cursor-pointer group dark:hover:bg-gray-750' : 'hover:bg-white hover:shadow-sm dark:hover:bg-gray-750'}`}>
                         <span className="text-xs text-gray-400 block mb-1.5 flex items-center justify-between dark:text-gray-500">
                             <span className="flex items-center"><Icon className="w-3 h-3 mr-1" />{label}</span>
-                            {isCopyable && <span className={`text-[10px] transition-opacity duration-300 ${copied ? 'text-green-500 opacity-100' : 'opacity-0 group-hover:opacity-100 text-gray-400 dark:text-gray-500'}`}>{t(copied ? '已复制' : '点击复制')}</span>}
+                            {(isCopyable || href) && <span className={`text-[10px] transition-opacity duration-300 ${copied ? 'text-green-500 opacity-100' : 'opacity-0 group-hover:opacity-100 text-gray-400 dark:text-gray-500'}`}>{t(href ? '点击跳转' : (copied ? '已复制' : '点击复制'))}</span>}
                         </span>
-                        <span className={`text-sm font-medium ${colorClass} break-words dark:text-gray-200`}>{displayValue}</span>
+                        {href ? (
+                            <a
+                                href={href}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="text-sm font-medium break-words text-blue-600 dark:text-blue-400"
+                            >
+                                {displayValue}
+                            </a>
+                        ) : (
+                            <span className={`text-sm font-medium ${colorClass} break-words dark:text-gray-200`}>{displayValue}</span>
+                        )}
                         {copied && <div className="absolute inset-0 border-2 border-green-400 rounded-lg pointer-events-none animate-pulse"></div>}
                     </div>
                 );
@@ -846,6 +915,10 @@
                 const mi = String(date.getMinutes()).padStart(2, '0');
                 return `${yyyy}.${mm}.${dd} ${hh}:${mi}`;
             };
+            const normalizedWeiboUid = String(member.wbUid || '').trim();
+            const weiboProfileUrl = /^\d+$/.test(normalizedWeiboUid)
+                ? `https://weibo.com/u/${normalizedWeiboUid}`
+                : '';
             const photoEntries = [
                 [t('头像'), member.avatar],
                 [t('全身照 1'), member.fullPhoto1],
@@ -915,13 +988,13 @@
                             </div>
 
                             <div className="animate-content" style={{ animationDelay: '0.15s' }}>
-                                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center dark:text-gray-500"><Hash className="w-3.5 h-3.5 mr-1.5" />{t('技术参数')}</h4>
+                                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center dark:text-gray-500"><Hash className="w-3.5 h-3.5 mr-1.5" />{t('具体参数')}</h4>
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                                     <InfoItem icon={Hash} label={t('口袋 ID')} value={member.id} colorClass="font-mono text-gray-600 dark:text-gray-300" isCopyable={true} />
                                     <InfoItem icon={Hash} label={t('服务器 ID')} value={member.serverId} colorClass="font-mono text-gray-600 dark:text-gray-300" isCopyable={true} />
                                     <InfoItem icon={Hash} label={t('大房间 ID')} value={member.channelId} colorClass="font-mono text-gray-600 dark:text-gray-300" isCopyable={true} />
                                     {member.yklzId && <InfoItem icon={Hash} label={t('小房间 ID')} value={member.yklzId} colorClass="font-mono text-gray-600 dark:text-gray-300" isCopyable={true} />}
-                                    {member.wbName && <InfoItem icon={UserCircle} label={t('微博名')} value={member.wbName} isCopyable={true} />}
+                                    {member.wbName && <InfoItem icon={UserCircle} label={t('微博')} value={member.wbName} href={weiboProfileUrl} />}
                                     {member.wbUid && <InfoItem icon={Hash} label={t('微博 UID')} value={member.wbUid} colorClass="font-mono text-gray-600 dark:text-gray-300" isCopyable={true} />}
                                 </div>
                             </div>
@@ -948,6 +1021,7 @@
                                     </div>
                                 </div>
                             )}
+                            <HistoricalProfilePhotos member={member} onPreview={openPhotoPreview} />
                             {member.note && (
                                 <div className="animate-content" style={{ animationDelay: '0.2s' }}>
                                     <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center dark:text-gray-500"><FileText className="w-3.5 h-3.5 mr-1.5" />{t('备注')}</h4>
@@ -1158,6 +1232,11 @@
                 };
 
                 const fetchJson = async (url) => {
+                    if (window.YayaDataSync) return window.YayaDataSync.read(url, {
+                        validate: data => url === DATA_URLS.members
+                            ? Array.isArray(data) ? data.length > 0 : Array.isArray(data?.roomId) && data.roomId.length > 0
+                            : Array.isArray(data)
+                    });
                     const res = await fetch(url);
                     if (!res.ok) {
                         throw new Error(`HTTP ${res.status}`);
@@ -1243,6 +1322,28 @@
                     }
                 };
 
+                const subscriptions = [];
+                if (window.YayaDataSync) {
+                    const updateStatus = (key, data) => setStatus(key, { status: 'success', count: data.length, error: '' });
+                    subscriptions.push(window.YayaDataSync.subscribe(DATA_URLS.members, data => {
+                        if (cancelled) return;
+                        const next = Array.isArray(data) ? data : data.roomId;
+                        setMembers(next);
+                        setIsDataLoaded(true);
+                        updateStatus('members', next);
+                        setSelectedMember(current => current ? next.find(member => current.id != null
+                            ? String(member.id) === String(current.id)
+                            : member.ownerName === current.ownerName && member.groupName === current.groupName) || current : current);
+                    }));
+                    for (const [url, key, setter] of [[DATA_URLS.zx, 'elections', setZxData], [DATA_URLS.stages, 'stages', setStagesData], [DATA_URLS.fxzp, 'albums', setFxzpData]]) {
+                        subscriptions.push(window.YayaDataSync.subscribe(url, data => {
+                            if (cancelled) return;
+                            setter(data);
+                            updateStatus(key, data);
+                            if (key === 'albums') setFxzpError(null);
+                        }));
+                    }
+                }
                 loadMembers();
                 loadElections();
                 loadStages();
@@ -1250,6 +1351,7 @@
 
                 return () => {
                     cancelled = true;
+                    subscriptions.forEach(unsubscribe => unsubscribe());
                 };
             }, [persistedUiState.selectedEdition]);
 

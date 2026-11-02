@@ -3,12 +3,9 @@
 const crypto = require('node:crypto');
 const net = require('node:net');
 const zlib = require('node:zlib');
+const { createNimClientIdentity } = require('./nim-client-identity');
 
 const DEFAULT_LBS_URL = 'https://lbs.netease.im/lbs/conf.jsp';
-const ANDROID_SDK_VERSION = 91701;
-const ANDROID_SDK_HUMAN_VERSION = '9.17.1';
-const ANDROID_USER_AGENT = 'Native/9.17.1.13231';
-const ANDROID_PACKAGE_NAME = 'com.seine48.app';
 const RSA_KEY_VERSION = 0;
 const RSA_PUBLIC_KEY = crypto.createPublicKey({
     key: Buffer.from(
@@ -362,36 +359,37 @@ function errorFromClose() {
     return new Error('云信连接已关闭');
 }
 
-function makeNimLoginPacket(appKey, account, token, deviceId) {
-    return makePacket(2, 2, 1, encodeProperties({
+function buildNimLoginProperties(appKey, account, token, identity) {
+    return {
         3: 1,
         4: '8.0.0',
-        6: ANDROID_SDK_VERSION,
+        6: identity.sdkVersion,
         8: 1,
         9: 1,
-        13: deviceId,
+        13: identity.deviceId,
         18: appKey,
         19: account,
-        25: ANDROID_PACKAGE_NAME,
-        40: ANDROID_SDK_HUMAN_VERSION,
-        42: ANDROID_USER_AGENT,
+        25: identity.packageName,
+        40: identity.sdkHumanVersion,
+        42: identity.userAgent,
         1000: token
-    }));
+    };
 }
 
-function makeQChatLoginPacket(appKey, account, token, deviceId) {
-    return makePacket(24, 2, 1, encodeProperties({
+function buildQChatLoginProperties(appKey, account, token, identity) {
+    return {
         1: appKey,
         2: account,
         3: 0,
         4: token,
         6: 1,
-        8: deviceId,
-        9: ANDROID_SDK_VERSION,
+        8: identity.deviceId,
+        9: identity.sdkVersion,
         10: 1,
-        11: ANDROID_USER_AGENT,
-        14: ANDROID_SDK_HUMAN_VERSION
-    }));
+        11: identity.userAgent,
+        14: identity.sdkHumanVersion,
+        32: identity.packageName
+    };
 }
 
 function buildQChatMessageProperties(options) {
@@ -471,6 +469,7 @@ class NimCommonlinkQChatClient {
         this.appKey = String(options.appKey || '').trim();
         this.account = String(options.account || '').trim();
         this.token = String(options.token || '').trim();
+        this.identity = createNimClientIdentity(options);
         this.lbsUrl = String(options.lbsUrl || DEFAULT_LBS_URL);
         this.fetchImpl = options.fetchImpl || globalThis.fetch;
         this.onConnected = options.onConnected;
@@ -489,10 +488,9 @@ class NimCommonlinkQChatClient {
         this.destroyed = false;
         const address = await this.#requestNimAddress();
         if (this.destroyed) throw new Error('成员房间连接已取消');
-        const nimDeviceId = crypto.randomUUID();
         this.nimSession = new CommonlinkSession({
             address,
-            loginPacket: makeNimLoginPacket(this.appKey, this.account, this.token, nimDeviceId),
+            loginPacket: makePacket(2, 2, 1, encodeProperties(buildNimLoginProperties(this.appKey, this.account, this.token, this.identity))),
             loginServiceId: 2,
             loginCommandId: 2,
             onClose: () => this.#handleClose('NIM')
@@ -509,10 +507,9 @@ class NimCommonlinkQChatClient {
         if (this.destroyed) throw new Error('成员房间连接已取消');
         if (!qchatAddresses.length) throw new Error('云信没有返回 QChat 连接地址');
 
-        const qchatDeviceId = crypto.randomUUID();
         this.qchatSession = new CommonlinkSession({
             address: qchatAddresses[0],
-            loginPacket: makeQChatLoginPacket(this.appKey, this.account, this.token, qchatDeviceId),
+            loginPacket: makePacket(24, 2, 1, encodeProperties(buildQChatLoginProperties(this.appKey, this.account, this.token, this.identity))),
             loginServiceId: 24,
             loginCommandId: 2,
             onClose: () => this.#handleClose('QChat'),
@@ -591,7 +588,7 @@ class NimCommonlinkQChatClient {
         url.search = new URLSearchParams({
             k: this.appKey,
             id: this.account,
-            v: String(ANDROID_SDK_VERSION),
+            v: String(this.identity.sdkVersion),
             tp: '1',
             dt: '0'
         }).toString();
@@ -624,6 +621,8 @@ function createNimCommonlinkQChatClient(options) {
 
 module.exports = {
     NimCommonlinkQChatClient,
+    buildNimLoginProperties,
+    buildQChatLoginProperties,
     buildQChatMessageProperties,
     buildQChatSubscriptionBody,
     createNimCommonlinkQChatClient,

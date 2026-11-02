@@ -20,6 +20,7 @@
         let currentMusicLyricsScrollListenersBound = false;
 
         function fetchMusicLyricsIndex() {
+            if (window.YayaDataSync) return window.YayaDataSync.read(MUSIC_LYRICS_INDEX_URL);
             if (!musicLyricsIndexPromise) {
                 musicLyricsIndexPromise = fetch(MUSIC_LYRICS_INDEX_URL)
                     .then(res => {

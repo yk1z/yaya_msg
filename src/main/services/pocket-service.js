@@ -4,6 +4,7 @@ const settingsService = require('./settings-service');
 const { ensureWasmLoaded, generatePa } = require('./wasm-service');
 const { runLiveReadRequest } = require('./live-read-request');
 const { withDesktopLiveRoom } = require('./live-room-routing');
+const { normalizePocketClientProfile, createPocketClientHeaders } = require('../../common/pocket-client-profile');
 
 const LIVE48_LOGIN_COOKIE_KEY = 'live48LoginCookie';
 const LIVE48_LOGIN_AT_KEY = 'live48LoginAt';
@@ -75,6 +76,11 @@ async function preparePayload(channel, payload) {
     const prepared = payload && typeof payload === 'object' && !Array.isArray(payload)
         ? { ...payload }
         : {};
+    const settings = settingsService.readSettings?.() || {};
+    if (prepared.clientProfile == null && prepared.token && prepared.token === settings.p48Token) {
+        prepared.clientProfile = settings.p48ClientProfile || '';
+        prepared.deviceId = prepared.deviceId || settings.p48ClientDeviceId || '';
+    }
 
     if (MEET48_CHANNELS.has(channel) && !prepared.meet48Auth) {
         const meet48Auth = readMeet48Auth();
@@ -83,7 +89,7 @@ async function preparePayload(channel, payload) {
         }
     }
 
-    if ((channel === 'login-send-sms' || channel === 'login-by-code' || channel === 'send-live-gift') && !prepared.pa) {
+    if ((channel === 'login-send-sms' || channel === 'login-by-code' || channel === 'register-by-code' || channel === 'login-by-password' || channel === 'login-by-thirdparty' || channel === 'send-live-gift') && !prepared.pa) {
         await ensureWasmLoaded();
         prepared.pa = generatePa() || '';
     }
@@ -148,7 +154,7 @@ function normalizePocketApiPostData(value) {
     }
 }
 
-async function fetchPocketApiPath({ path: apiPath, postData } = {}) {
+async function fetchPocketApiPath({ path: apiPath, postData, clientProfile, deviceId } = {}) {
     try {
         const normalizedPath = normalizePocketApiPath(apiPath);
         const requestPayload = normalizePocketApiPostData(postData);
@@ -168,7 +174,9 @@ async function fetchPocketApiPath({ path: apiPath, postData } = {}) {
                         osType: 'ios',
                         deviceName: 'iPhone 14 Pro',
                         os: 'ios'
-                    })
+                    }),
+                    ...(normalizePocketClientProfile(clientProfile)
+                        ? createPocketClientHeaders({ clientProfile, deviceId: deviceId || '' }) : {})
                 },
                 body: JSON.stringify(requestPayload)
             });

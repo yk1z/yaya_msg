@@ -9,6 +9,7 @@ const { ipcRenderer, shell, webFrame } = require('electron');
 window.getNetfaceRtcEngine = () => require('zego-express-engine-electron/ZegoExpressEngine');
 const { ensureStoragePaths } = require('../common/storage-paths');
 const { reportIgnoredError } = require('../common/error-utils');
+const { POCKET_CHANNEL_METHODS } = require('../common/pocket-channel-config');
 
 const appDir = path.join(__dirname, '../../');
 const platform = process.platform;
@@ -277,6 +278,16 @@ window.desktop = {
             ipcRenderer.send(channel, payload);
         },
         invoke(channel, payload) {
+            if (Object.prototype.hasOwnProperty.call(POCKET_CHANNEL_METHODS, channel) || channel === 'fetch-pocket-api' || channel === 'pocket-social-login-start') {
+                payload = { ...payload };
+                if (payload.clientProfile == null) payload.clientProfile = getSettingValueSync('p48ClientProfile', '');
+                let deviceId = getSettingValueSync('p48ClientDeviceId', '');
+                if (!/^[a-f0-9]{16}$/.test(deviceId)) {
+                    deviceId = crypto.randomBytes(8).toString('hex');
+                    setSettingValueSync('p48ClientDeviceId', deviceId);
+                }
+                payload.deviceId = deviceId;
+            }
             return ipcRenderer.invoke(channel, payload);
         },
         on(channel, listener) {

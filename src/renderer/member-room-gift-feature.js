@@ -224,7 +224,8 @@
             panel.setAttribute('role', 'region');
             panel.setAttribute('aria-label', '赠送礼物');
             panel.innerHTML = `<div class="member-room-gift-header">
-                <div class="member-room-gift-summary"><strong>赠送礼物</strong><span class="member-room-gift-balance-label">余额 <b class="member-room-gift-balance">—</b> 🍗</span></div>
+                <div class="member-room-gift-summary"><strong>赠送礼物</strong><span class="member-room-gift-balance-label">余额 <b class="member-room-gift-balance">—</b> 🍗</span>
+                <a class="member-room-gift-recharge recharge-link" href="https://live.48.cn/Recharge/" target="_blank" rel="noopener noreferrer">充值</a></div>
                 <div class="member-room-gift-status" role="status" aria-live="polite"></div>
                 <div class="member-room-gift-actions"><label>数量 <input class="member-room-gift-quantity" aria-label="礼物数量" type="number" min="1" max="999" step="1" value="1"></label>
                 <button type="button" class="btn btn-primary member-room-gift-send" disabled>赠送</button><button type="button" class="member-room-gift-close" aria-label="关闭礼物面板">×</button></div></div>
@@ -239,7 +240,9 @@
             panel.querySelector('.member-room-gift-close').addEventListener('click', close);
             toggle.addEventListener('click', () => panel.hidden ? void open() : close());
             quantity.addEventListener('input', update);
-            panel.addEventListener('keydown', event => { if (event.key === 'Enter') event.preventDefault(); });
+            panel.addEventListener('keydown', event => {
+                if (event.key === 'Enter' && !event.target.closest('a[href]')) event.preventDefault();
+            });
             document.addEventListener('pointerdown', event => {
                 if (!panel.hidden && !panel.contains(event.target) && !toggle.contains(event.target)) close();
             });

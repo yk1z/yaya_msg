@@ -2,6 +2,8 @@ const fs = require('fs');
 const path = require('path');
 const { ensureStoragePaths } = require('../../common/storage-paths');
 const { normalizeCustomSenderProfile } = require('../../common/sender-profile');
+const authChangeListeners = new Set();
+const AUTH_KEYS = ['p48Token', 'p48ClientProfile', 'p48ClientDeviceId'];
 
 function readJsonFileSafe(filePath, fallbackValue) {
     try {
@@ -102,8 +104,17 @@ function readSettings() {
 
 function writeSettings(nextSettings) {
     const normalized = normalizeSettings(nextSettings);
+    const previous = authChangeListeners.size ? readSettings() : null;
     writeJsonFileSafe(ensureStoragePaths().settingsFile, normalized);
+    if (previous && AUTH_KEYS.some(key => previous[key] !== normalized[key])) {
+        for (const listener of authChangeListeners) listener();
+    }
     return normalized;
+}
+
+function onAuthChange(listener) {
+    authChangeListeners.add(listener);
+    return () => authChangeListeners.delete(listener);
 }
 
 function updateSettings(updater) {
@@ -191,6 +202,7 @@ function handleSyncRequest(request = {}) {
 }
 
 module.exports = {
+    onAuthChange,
     readSettings,
     writeSettings,
     updateSettings,

@@ -182,37 +182,10 @@
         }
 
         function persistGiftListToCache(giftList = []) {
-            const pocketGiftData = typeof getPocketGiftData === 'function' ? getPocketGiftData() : [];
+            const prices = typeof getPocketGiftData === 'function' ? getPocketGiftData() : [];
             let changed = false;
-
-            giftList.forEach((gift) => {
-                const id = String(gift.giftId || gift.id || '').trim();
-                const name = String(gift.giftName || gift.name || '').trim();
-                const cost = Number(gift.money || gift.cost || 0);
-                if ((!id && !name) || !cost) return;
-
-                const normalizedGift = { id, name: name || id, cost };
-
-                const existing = pocketGiftData.find(item => (id && String(item.id) === id) || (name && item.name === name));
-                if (existing) {
-                    const itemChanged = Number(existing.cost || 0) !== cost
-                        || (id && String(existing.id || '') !== id)
-                        || (name && existing.name !== name);
-                    if (!itemChanged) return;
-
-                    existing.id = id || existing.id;
-                    existing.name = name || existing.name;
-                    existing.cost = cost;
-                    changed = true;
-                } else {
-                    pocketGiftData.push(normalizedGift);
-                    changed = true;
-                }
-            });
-
-            if (!changed) return;
-
-            scheduleLiveGiftCacheSave(pocketGiftData);
+            for (const gift of giftList) changed = window.YayaGiftPricing.upsertObservedPrice(prices, gift) || changed;
+            if (changed) scheduleLiveGiftCacheSave(prices);
         }
 
         function toggleGiftPanel() {

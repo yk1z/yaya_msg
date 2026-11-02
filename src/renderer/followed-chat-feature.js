@@ -55,6 +55,7 @@
         let memberRoomReconnectAttempt = 0;
         let memberRoomNeedsCatchup = false;
         const isDesktopRoom = Boolean(window.desktop?.platform && window.desktop.platform !== 'web');
+        const supportsMemberRoomRealtime = isDesktopRoom || window.desktop?.capabilities?.memberRoomRealtime === true;
         const roomRealtime = window.YayaRendererFeatures.memberRoomRealtime;
         let followedRoomEssenceMessages = [];
         let followedRoomEssenceIndex = 0;
@@ -102,6 +103,13 @@
                     scheduleMemberRoomHistoryRefresh(target.serverId, target.channelId, 1200);
                 }
             }) : null;
+
+        const roomFlipUsers = window.YayaRendererFeatures.createRoomFlipUserFeature?.({
+            ipcRenderer,
+            getToken: () => getAppToken ? getAppToken() : '',
+            getPa: () => window.getPA ? window.getPA() : '',
+            openProfile: (...args) => openFollowedUserProfile(...args)
+        });
 
         function isMemberRoomSendingAvailable() {
             return Boolean(ipcRenderer && typeof ipcRenderer.invoke === 'function');
@@ -195,6 +203,22 @@
                 void sendActiveMemberRoomMessage();
             });
             const input = form.querySelector('.followed-room-message-input');
+            input?.addEventListener('keydown', event => {
+                if (event.key !== 'Enter' || event.isComposing || event.keyCode === 229) return;
+                if (event.ctrlKey || event.metaKey) {
+                    event.preventDefault();
+                    if (!input.disabled && !input.readOnly) {
+                        input.setRangeText('\n', input.selectionStart, input.selectionEnd, 'end');
+                        input.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                    return;
+                }
+                if (event.shiftKey) return;
+                event.preventDefault();
+                if (!event.repeat && !form.querySelector('#followed-room-message-send')?.disabled) {
+                    form.requestSubmit();
+                }
+            });
             input?.addEventListener('pointerdown', reconnectMemberRoomFromComposer);
             input?.addEventListener('focus', reconnectMemberRoomFromComposer);
             form.querySelector('.followed-room-reply-close')?.addEventListener('click', clearMemberRoomReply);
@@ -297,7 +321,7 @@
                 msgTime: target.msgTime
             });
             if (!result?.success) throw new Error(result?.msg || '删除失败');
-            if (isDesktopRoom && roomRealtime) {
+            if (supportsMemberRoomRealtime && roomRealtime) {
                 const ids = roomRealtime.aliases(target);
                 ids.forEach(id => memberRoomDeletedIds.add(id));
                 while (memberRoomDeletedIds.size > 2000) memberRoomDeletedIds.delete(memberRoomDeletedIds.values().next().value);
@@ -377,7 +401,7 @@
         }
 
         function scheduleMemberRoomFallback(delay = 1000) {
-            if (!isDesktopRoom || memberRoomFallbackTimer) return;
+            if (!supportsMemberRoomRealtime || memberRoomFallbackTimer) return;
             const serverId = String(activeFollowedServer || '');
             const channelId = String(activeFollowedChannel || '');
             memberRoomFallbackTimer = setTimeout(() => {
@@ -391,7 +415,7 @@
         }
 
         function scheduleMemberRoomReconnect() {
-            if (!isDesktopRoom || memberRoomReconnectTimer || memberRoomConnected || !getAppToken()) return;
+            if (!supportsMemberRoomRealtime || memberRoomReconnectTimer || memberRoomConnected || !getAppToken()) return;
             const serverId = String(activeFollowedServer || '');
             const channelId = String(activeFollowedChannel || '');
             const delay = [1000, 3000, 10000, 30000][Math.min(memberRoomReconnectAttempt++, 3)];
@@ -429,7 +453,7 @@
         }
 
         function receiveMemberRoomRealtime(message) {
-            if (!isDesktopRoom || !roomRealtime) return false;
+            if (!supportsMemberRoomRealtime || !roomRealtime) return false;
             const result = roomRealtime.normalize(message);
             if (!result.handled) return false;
             const record = result.record;
@@ -540,8 +564,8 @@
                 memberRoomConnected = true;
                 memberRoomConnectedAt = Date.now();
                 memberRoomReconnectAttempt = 0;
-                if (isDesktopRoom) scheduleFollowedRoomPoll?.();
-                if (isDesktopRoom && memberRoomNeedsCatchup) {
+                if (supportsMemberRoomRealtime) scheduleFollowedRoomPoll?.();
+                if (supportsMemberRoomRealtime && memberRoomNeedsCatchup) {
                     memberRoomNeedsCatchup = false;
                     scheduleMemberRoomFallback(200);
                 }
@@ -593,7 +617,7 @@
 
         function hideMemberRoomComposer() {
             resetMemberRoomRealtime();
-            if (isDesktopRoom) {
+            if (supportsMemberRoomRealtime) {
                 followedAutoRefreshEnabled = false;
                 followedAutoRefreshCycle++;
                 clearTimeout(followedAutoRefreshTimer);
@@ -633,8 +657,7 @@
                 elements.input.value = '';
                 clearMemberRoomReply();
                 setMemberRoomComposerState('connected', '已发送');
-                showToast('消息已发送到成员房间');
-                if (isDesktopRoom && result.message) {
+                if (supportsMemberRoomRealtime && result.message) {
                     if (!receiveMemberRoomRealtime(result.message)) scheduleMemberRoomFallback();
                 } else {
                     scheduleMemberRoomHistoryRefresh(serverId, channelId, 350);
@@ -647,7 +670,6 @@
                 }
                 const message = formatMemberRoomError(error, '发送失败', { sending: true });
                 setMemberRoomComposerState(memberRoomConnected ? 'connected' : 'error', message);
-                showToast(message);
             } finally {
                 memberRoomComposerSending = false;
                 const state = memberRoomConnected ? 'connected' : 'error';
@@ -664,8 +686,8 @@
                 clearTimeout(memberRoomReconnectTimer);
                 memberRoomReconnectTimer = null;
                 memberRoomReconnectAttempt = 0;
-                if (isDesktopRoom) scheduleFollowedRoomPoll?.();
-                if (isDesktopRoom && memberRoomNeedsCatchup) {
+                if (supportsMemberRoomRealtime) scheduleFollowedRoomPoll?.();
+                if (supportsMemberRoomRealtime && (memberRoomNeedsCatchup || payload.catchup)) {
                     memberRoomNeedsCatchup = false;
                     scheduleMemberRoomFallback(200);
                 }
@@ -676,7 +698,7 @@
             memberRoomConnected = false;
             memberRoomConnectedAt = 0;
             setMemberRoomComposerState('disconnected', payload.message || '成员房间连接已断开');
-            if (isDesktopRoom) {
+            if (supportsMemberRoomRealtime) {
                 memberRoomNeedsCatchup = true;
                 scheduleFollowedRoomPoll?.();
                 scheduleMemberRoomFallback(100);
@@ -691,7 +713,7 @@
             if (String(serverId || '') === String(activeFollowedServer || '')
                 && String(channelId || '') === String(activeFollowedChannel || '')) {
                 memberRoomGiftEffects?.receive(payload.message);
-                if (isDesktopRoom) {
+                if (supportsMemberRoomRealtime) {
                     if (!receiveMemberRoomRealtime(payload.message)) scheduleMemberRoomFallback();
                 } else scheduleMemberRoomHistoryRefresh(serverId, channelId, 200);
             }
@@ -3453,48 +3475,26 @@
             }, 500);
         }
 
-        function upsertFollowedPocketGiftData(giftInfo = {}, unitCost = 0) {
+        function upsertFollowedPocketGiftData(giftInfo = {}) {
             if (typeof POCKET_GIFT_DATA === 'undefined') return false;
-
-            const id = String(giftInfo.giftId || giftInfo.id || '').trim();
-            const name = String(giftInfo.giftName || giftInfo.name || '').trim();
-            const cost = Number(unitCost || giftInfo.money || giftInfo.cost || 0);
-            if ((!id && !name) || !cost) return false;
-
-            const existing = POCKET_GIFT_DATA.find(item => (id && String(item.id) === id) || (name && item.name === name));
-            if (existing) {
-                const changed = Number(existing.cost || 0) !== cost
-                    || (id && String(existing.id || '') !== id)
-                    || (name && existing.name !== name);
-                if (!changed) return false;
-
-                existing.id = id || existing.id;
-                existing.name = name || existing.name;
-                existing.cost = cost;
-            } else {
-                POCKET_GIFT_DATA.push({ id, name: name || id, cost });
-            }
-
+            if (!window.YayaGiftPricing.upsertObservedPrice(POCKET_GIFT_DATA, giftInfo)) return false;
             scheduleFollowedGiftCacheSave();
             return true;
         }
 
         function renderFollowedPocketGiftCard(giftInfo = {}) {
+            giftInfo = window.YayaGiftPricing.normalizeGiftInfo(giftInfo, { rules: window.YayaGiftPriceSnapshot.rules });
             const giftName = escapeFollowedHtml(giftInfo.giftName || giftInfo.name || '未知礼物');
             const giftNum = Number(giftInfo.giftNum || giftInfo.num || giftInfo.count || 1) || 1;
             const giftImg = normalizeFollowedPocketMediaUrl(giftInfo.picPath || giftInfo.giftPic || giftInfo.image || '');
-            let unitCost = Number(giftInfo.money || giftInfo.cost || 0);
-
-            if (!unitCost && typeof POCKET_GIFT_DATA !== 'undefined') {
-                const gift = POCKET_GIFT_DATA.find(item => item.id == (giftInfo.giftId || giftInfo.id) || item.name === (giftInfo.giftName || giftInfo.name));
-                if (gift) unitCost = Number(gift.cost || 0);
-            }
+            const unitCost = window.resolvePocketGiftPrice(giftInfo, { historical: true }).unitCost;
 
             upsertFollowedPocketGiftData(giftInfo, unitCost);
 
-            const costDisplay = unitCost
-                ? `<span style="margin-left:5px; color:#fa8c16; font-weight:bold;">(${unitCost * giftNum}🍗)</span>`
-                : '';
+            const costDisplay = window.YayaGiftPricing.isScoringGift(giftInfo)
+                ? `<span style="margin-left:5px; color:#fa8c16; font-weight:bold;">${window.YayaGiftPricing.giftScoreText(giftInfo, { rules: window.YayaGiftPriceSnapshot.rules })}</span>` : unitCost !== null
+                ? `<span style="margin-left:5px; color:#fa8c16; font-weight:bold;">${unitCost * giftNum} 🍗</span>`
+                : '<span style="margin-left:5px; color:var(--text-sub);">价格待核</span>';
 
             return `
                 <div class="mb-2" style="display:flex; align-items:center; background:#fff0f6; padding:6px 8px; border-radius:6px; border:1px solid #ffadd2; max-width: 300px;">
@@ -3552,7 +3552,7 @@
             if (container) {
                 container.querySelectorAll('.msg-item').forEach(el => {
                     if (el.dataset.msgid) ids.add(String(el.dataset.msgid));
-                    if (isDesktopRoom && el.dataset.messageAliases) {
+                    if (supportsMemberRoomRealtime && el.dataset.messageAliases) {
                         try { JSON.parse(el.dataset.messageAliases).forEach(id => ids.add(String(id))); } catch (_) {}
                     }
                 });
@@ -3584,6 +3584,7 @@
         }
 
         function hydrateFollowedPreviewMedia(container) {
+            roomFlipUsers?.observe(container);
             if (!container) return;
 
             container.querySelectorAll('.preview-media-placeholder').forEach(el => {
@@ -3977,14 +3978,16 @@
                     if (!followedAutoRefreshEnabled || refreshCycle !== followedAutoRefreshCycle) return;
                     clearTimeout(followedAutoRefreshTimer);
                     followedAutoRefreshTimer = null;
-                    if (isDesktopRoom && memberRoomConnected) return;
-                    followedAutoRefreshTimer = setTimeout(runPoll, getAdaptivePollDelay());
+                    if (supportsMemberRoomRealtime && memberRoomConnected) return;
+                    followedAutoRefreshTimer = setTimeout(runPoll, window.desktop?.platform === 'web'
+                        ? Math.max(document.hidden ? 60000 : 15000, getAdaptivePollDelay()) : getAdaptivePollDelay());
                 };
 
                 const runPoll = async () => {
                     if (!followedAutoRefreshEnabled || refreshCycle !== followedAutoRefreshCycle) return;
                     const view = document.getElementById('view-followed-rooms');
-                    if ((view && view.style.display === 'none') || followedAutoRefreshRunning) {
+                    if ((view && view.style.display === 'none') || followedAutoRefreshRunning
+                        || (window.desktop?.platform === 'web' && navigator.onLine === false)) {
                         scheduleNext();
                         return;
                     }
@@ -4189,7 +4192,7 @@
         };
 
         function sortFollowedRoomMessages(container) {
-            if (!isDesktopRoom) return;
+            if (!supportsMemberRoomRealtime) return;
             const items = [...container.children].filter(node => node.classList.contains('msg-item'));
             const sorted = [...items].sort((a, b) => Number(a.dataset.msgtime || 0) - Number(b.dataset.msgtime || 0));
             if (items.every((node, index) => node === sorted[index])) return;
@@ -4228,13 +4231,13 @@
                 if (window.desktop?.platform && window.desktop.platform !== 'web'
                     && window.YayaRendererFeatures.isMemberRoomGiftAnimation?.(m)) return '';
                 const msgId = m.msgIdClient || m.msgidClient || m.msgIdServer || m.msgId || m.msgTime;
-                const aliases = isDesktopRoom && roomRealtime ? roomRealtime.aliases(m) : [String(msgId)];
-                if (isDesktopRoom && aliases.some(id => memberRoomDeletedIds.has(id))) return '';
+                const aliases = supportsMemberRoomRealtime && roomRealtime ? roomRealtime.aliases(m) : [String(msgId)];
+                if (supportsMemberRoomRealtime && aliases.some(id => memberRoomDeletedIds.has(id))) return '';
                 const messageKey = `${String(msgId || 'message')}:${String(m.msgTime || '')}`;
 
                 if ((isAutoRefresh || isLoadMore) && (existingIds.has(String(msgId))
-                    || (isDesktopRoom && aliases.some(id => existingIds.has(id))))) {
-                    if (isDesktopRoom) {
+                    || (supportsMemberRoomRealtime && aliases.some(id => existingIds.has(id))))) {
+                    if (supportsMemberRoomRealtime) {
                         msgBox.querySelectorAll('.msg-item').forEach(node => {
                             let previous = [node.dataset.msgid];
                             try { previous = JSON.parse(node.dataset.messageAliases || '[]').concat(previous); } catch (_) {}
@@ -4249,7 +4252,7 @@
 
                 batchMessageIds.push(String(msgId));
                 batchAliases.push(...aliases);
-                if (isDesktopRoom) aliases.forEach(id => existingIds.add(id));
+                if (supportsMemberRoomRealtime) aliases.forEach(id => existingIds.add(id));
 
                 let txt = '[不支持的消息格式]';
                 let isMember = false;
@@ -4293,8 +4296,8 @@
                     let json = null;
                     if (typeof body === 'string' && (body.startsWith('{') || body.startsWith('['))) {
                         try {
-                            json = JSON.parse(body);
-                            if (typeof json === 'string') json = JSON.parse(json);
+                            json = JSON.parse(body.replace(/:\s*([0-9]{16,})/g, ':"$1"'));
+                            if (typeof json === 'string') json = JSON.parse(json.replace(/:\s*([0-9]{16,})/g, ':"$1"'));
                         } catch (parseErr) { window.YayaRendererUtils.reportIgnoredError(parseErr, 'src/renderer/followed-chat-feature.js'); }
                     } else if (typeof body === 'object' && body !== null) {
                         json = body;
@@ -4344,27 +4347,44 @@
                                 if (json.bodys && json.bodys[key]) { flipInfo = json.bodys[key]; break; }
                             }
                             const qText = flipInfo?.question || json.question || '（无法解析的问题内容）';
+                            const questionUser = flipInfo?.questionId && flipInfo?.answerId
+                                ? `<span class="room-flip-question-user-slot" data-question-id="${escapeFollowedHtml(flipInfo.questionId)}" data-answer-id="${escapeFollowedHtml(flipInfo.answerId)}">用户</span>` : '<span>用户</span>';
+                            const flipMemberName = escapeFollowedHtml(displayName || activeFollowedName || '成员');
                             let aContent = flipInfo?.answer || json.answer || '';
                             let ansHtml = '';
                             if (msgType === 'FLIPCARD' || (jsonType === 'FLIPCARD' && typeof aContent === 'string' && !aContent.includes('url'))) {
-                                ansHtml = `<div style="font-size:14px; color:var(--text); line-height:1.6; padding:0 4px;">${safeStr(aContent)}</div>`;
+                                ansHtml = safeStr(aContent);
                             } else {
                                 try {
                                     const ansObj = typeof aContent === 'string' ? JSON.parse(aContent) : aContent;
                                     if (ansObj && ansObj.url) {
                                         let mediaUrl = ansObj.url.startsWith('http') ? ansObj.url : `https://mp4.48.cn${ansObj.url.startsWith('/') ? '' : '/'}${ansObj.url}`;
                                         const mType = (msgType.includes('AUDIO') || jsonType.includes('AUDIO')) ? 'audio' : 'video';
-                                        ansHtml = `<div class="preview-media-placeholder" data-type="${mType}" data-src="${mediaUrl}" style="margin-top:8px;"></div>`;
+                                        ansHtml = `<div class="preview-media-placeholder" data-type="${mType}" data-src="${mediaUrl}"></div>`;
                                     }
                                 } catch (e) { window.YayaRendererUtils.reportIgnoredError(e, 'src/renderer/followed-chat-feature.js'); }
                             }
-                            txt = `<div style="margin-bottom: 8px;">
-                                        <span class="flip-label question-tag" style="margin-right:8px; transform:none; display:inline-flex;">翻牌提问</span>
-                                        <span style="font-size:14px; color:var(--text); line-height: 1.5;">${safeStr(qText)}</span>
-                                   </div>
-                                   <div style="margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 8px;">
-                                        <span class="flip-label answer-tag" style="margin-right:8px; transform:none; display:inline-flex;">成员回答</span>
-                                        ${ansHtml}
+                            txt = `<div class="room-flip-message">
+                                       <div class="room-flip-section">
+                                           <div class="room-flip-section-header">
+                                               <span class="flip-label question-tag">翻牌提问</span>
+                                               <div class="room-flip-section-title">${questionUser}<span>向</span><strong>${flipMemberName}</strong><span>提问</span></div>
+                                           </div>
+                                           <div class="room-flip-section-body">${safeStr(qText)}</div>
+                                       </div>
+                                       <div class="room-flip-section room-flip-answer-section">
+                                           <div class="room-flip-section-header">
+                                               <span class="flip-label answer-tag">成员回答</span>
+                                               <div class="room-flip-section-title">
+                                                   <button type="button" class="room-flip-question-user room-flip-answer-user"
+                                                       ${senderId ? `onclick="openFollowedUserProfile(${toFollowedInlineArg(senderId)}, ${toFollowedInlineArg(displayName)}, ${toFollowedInlineArg(avatarUrl)}, ${isMember})"` : 'disabled'}>
+                                                       <img class="avatar room-flip-question-user-avatar" src="${escapeFollowedHtml(avatarUrl)}" alt="" onerror="this.style.visibility='hidden'">
+                                                       <span>${flipMemberName}</span>
+                                                   </button><span>的回复</span>
+                                               </div>
+                                           </div>
+                                           <div class="room-flip-section-body">${ansHtml}</div>
+                                       </div>
                                    </div>`;
                         } else if (msgType === 'LIVEPUSH' || msgType === 'LIVE_PUSH' || jsonType === 'LIVEPUSH') {
                             const info = json.livePushInfo || json;
@@ -4505,7 +4525,7 @@
                 });
 
                 return `
-    <div class="msg-item" data-msgid="${escapeFollowedHtml(msgId)}" data-msgtime="${Number(m.msgTime) || 0}" ${isDesktopRoom ? `data-message-aliases="${escapeFollowedHtml(JSON.stringify(aliases))}"` : ''} data-message-key="${escapeFollowedHtml(messageKey)}" style="display: flex; padding: 8px 0; border-bottom: 1px solid var(--border);">
+    <div class="msg-item" data-msgid="${escapeFollowedHtml(msgId)}" data-msgtime="${Number(m.msgTime) || 0}" ${supportsMemberRoomRealtime ? `data-message-aliases="${escapeFollowedHtml(JSON.stringify(aliases))}"` : ''} data-message-key="${escapeFollowedHtml(messageKey)}" style="display: flex; padding: 8px 0; border-bottom: 1px solid var(--border);">
 <button type="button" class="followed-message-avatar-btn" title="查看用户主页"
         onclick="openFollowedUserProfile(${toFollowedInlineArg(senderId)}, ${toFollowedInlineArg(displayName)}, ${toFollowedInlineArg(avatarUrl)}, ${isMember ? 'true' : 'false'})">
     <img src="${escapeFollowedHtml(avatarUrl)}" class="avatar" alt="" onerror="this.src='./icon.png'">
@@ -4626,8 +4646,8 @@
             } finally {
                 if (requestRevision === followedChatRequestRevision) {
                     isFollowedChatLoading = false;
-                    if (isDesktopRoom && !isLoadMore && !requestSucceeded) scheduleMemberRoomFallback(2000);
-                    if (isDesktopRoom && !isAutoRefresh && !isLoadMore) {
+                    if (supportsMemberRoomRealtime && !isLoadMore && !requestSucceeded) scheduleMemberRoomFallback(2000);
+                    if (supportsMemberRoomRealtime && !isAutoRefresh && !isLoadMore) {
                         memberRoomRecentMessages.forEach(record => memberRoomRealtimeQueue.push(record));
                     }
                     flushMemberRoomRealtime();
@@ -4655,7 +4675,7 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             const roomView = document.getElementById('view-followed-rooms');
-            if (isDesktopRoom && roomView) new MutationObserver(() => {
+            if (supportsMemberRoomRealtime && roomView) new MutationObserver(() => {
                 if (roomView.style.display !== 'none') flushMemberRoomRealtime();
             }).observe(roomView, { attributes: true, attributeFilter: ['style', 'hidden'] });
             const essencePanel = document.getElementById('followed-room-essence');

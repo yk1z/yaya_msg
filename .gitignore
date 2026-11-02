@@ -12,6 +12,7 @@ reports/
 !/scripts/build-desktop-gift-player.js
 !/scripts/copy-ffmpeg.js
 !/scripts/run-builder.js
+!/scripts/build-profile-photo-history.py
 tools/
 .agents/
 /.codex-*/

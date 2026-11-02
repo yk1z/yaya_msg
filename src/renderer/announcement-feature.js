@@ -219,6 +219,10 @@
 
         async function checkGitHubNotice() {
             try {
+                if (window.YayaDataSync) {
+                    handleNoticeDisplay(await window.YayaDataSync.read(`${DATA_BASE_URL}/notice.json`));
+                    return;
+                }
                 const res = await fetch(`${DATA_BASE_URL}/notice.json?t=${Date.now()}`, {
                     method: 'GET',
                     cache: 'no-store'
@@ -244,6 +248,7 @@
             }
         }
 
+        window.YayaDataSync?.subscribe(`${DATA_BASE_URL}/notice.json`, handleNoticeDisplay);
         return {
             checkGitHubNotice,
             closeAnnouncement

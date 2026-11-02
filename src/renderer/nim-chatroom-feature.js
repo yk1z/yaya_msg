@@ -108,7 +108,12 @@
             if (typeof value === 'object' && !Array.isArray(value)) return value;
             if (typeof value !== 'string') return null;
             try {
-                const parsed = JSON.parse(value);
+                // Preserve long IDs at their actual object paths. A gift can contain
+                // both giftInfo.acceptUser.userId and user.userId (the sender).
+                const parsed = JSON.parse(value.replace(
+                    /("(?:userId|sourceId|liveId|id)"\s*:\s*)(-?\d{16,})(?=\s*[,}])/g,
+                    '$1"$2"'
+                ));
                 return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
             } catch (error) {
                 return null;
@@ -149,11 +154,6 @@
                 .map(value => readRawJsonId(value, 'sourceId'))
                 .find(Boolean) || '';
             if (rawSourceId) extension.__rawSourceId = rawSourceId;
-            const rawUserId = candidates
-                .filter(value => typeof value === 'string')
-                .map(value => readRawJsonId(value, 'userId'))
-                .find(Boolean) || '';
-            if (rawUserId) extension.__rawUserId = rawUserId;
             return extension;
         }
 
@@ -204,7 +204,7 @@
                     || msg?.nick
                     || ''
                 ).trim(),
-                userId: String(extension.__rawUserId || user.userId || user.id || extension.userId || msg?.from || '').trim(),
+                userId: String(user.userId || user.id || extension.userId || msg?.from || '').trim(),
                 avatar: String(user.avatar || user.avatarUrl || msg?.fromAvatar || '').trim()
             };
         }

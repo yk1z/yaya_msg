@@ -8,6 +8,7 @@ const { ensureWasmLoaded, generatePa } = require('./wasm-service');
 
 const CHATROOM_APP_KEY = '632feff1f4c838541ab75195d1ceb3fa';
 const connections = new Map();
+const pendingConnections = new Map();
 const observedSenders = new WeakSet();
 const SEND_INTERVAL_MS = 2000;
 const ONLINE_REFRESH_INTERVAL_MS = 10_000;
@@ -24,10 +25,13 @@ function isCurrentConnection(senderId, connectionId) {
 
 function sendToRenderer(sender, channel, connectionId, payload = {}) {
     if (!sender || sender.isDestroyed() || !isCurrentConnection(sender.id, connectionId)) return;
+    if (connections.get(sender.id)?.pocketToken !== settingsService.getToken()) return;
     sender.send(channel, { connectionId, ...payload });
 }
 
 function disconnectLiveDanmaku(senderId, connectionId = '') {
+    const pending = pendingConnections.get(senderId);
+    if (!connectionId || pending?.connectionId === connectionId) pendingConnections.delete(senderId);
     const current = connections.get(senderId);
     if (!current || (connectionId && current.connectionId !== connectionId)) return false;
     connections.delete(senderId);
@@ -45,117 +49,136 @@ async function connectLiveDanmaku(sender, payload = {}) {
     disconnectLiveDanmaku(sender.id);
     const pocketToken = settingsService.getToken();
     if (!pocketToken) throw new Error('请先登录口袋48账号后再连接实时弹幕');
+    const savedIdentity = settingsService.readSettings();
 
-    await ensureWasmLoaded();
-    const pa = generatePa() || '';
-    const [credentials, liveResult, accountResult] = await Promise.all([
-        pocketService.invoke('get-nim-login-info', { token: pocketToken, pa }),
-        pocketService.invoke('fetch-live-one', { token: pocketToken, pa, liveId }),
-        pocketService.invoke('login-check-token', { token: pocketToken, pa })
-    ]);
-    if (!credentials?.success) throw new Error(credentials?.msg || '获取直播聊天室凭证失败');
-    if (!liveResult?.success) {
-        console.warn('[直播弹幕] 连接前直播详情查询失败:', {
-            liveId,
-            requestedRoomId,
-            apiStatus: liveResult?.data?.status ?? liveResult?.data?.code ?? null,
-            message: liveResult?.msg || '获取直播详情失败'
-        });
-        throw new Error(liveResult?.msg || '获取直播详情失败');
-    }
-
-    const verifiedRoomId = normalizeId(
-        liveResult.content?.chatroomId || liveResult.content?.roomId,
-        '聊天室 ID'
-    );
-    if (requestedRoomId !== verifiedRoomId) {
-        console.warn('[直播弹幕] 页面聊天室 ID 已过期，使用直播详情中的最新 ID');
-    }
-
-    const client = createNimCommonlinkChatroomClient({
-        appKey: CHATROOM_APP_KEY,
-        account: credentials.account || credentials.accid,
-        token: credentials.token,
-        roomId: verifiedRoomId,
-        onConnected() {
-            sendToRenderer(sender, 'live-danmaku-status', connectionId, {
-                liveId,
-                roomId: verifiedRoomId,
-                status: 'connected'
-            });
-            void refreshOnlineMemberNum();
-        },
-        onReconnecting() {
-            sendToRenderer(sender, 'live-danmaku-status', connectionId, {
-                liveId,
-                roomId: verifiedRoomId,
-                status: 'reconnecting'
-            });
-        },
-        onDisconnected() {
-            sendToRenderer(sender, 'live-danmaku-status', connectionId, {
-                liveId,
-                roomId: verifiedRoomId,
-                status: 'reconnecting'
-            });
-        },
-        onError(error) {
-            sendToRenderer(sender, 'live-danmaku-status', connectionId, {
-                liveId,
-                roomId: verifiedRoomId,
-                status: client.connected ? 'reconnecting' : 'disconnected',
-                message: String(error?.message || '')
-            });
-        },
-        onMessage(message) {
-            sendToRenderer(sender, 'live-danmaku-message', connectionId, {
-                liveId,
-                roomId: verifiedRoomId,
-                messages: [message]
-            });
-        }
-    });
-
-    connections.set(sender.id, {
-        connectionId,
-        client,
-        liveId,
-        roomId: verifiedRoomId,
-        userInfo: accountResult?.success ? accountResult.userInfo || {} : {},
-        lastSentAt: 0,
-        onlineRefreshTimer: null
-    });
-
-    async function refreshOnlineMemberNum() {
-        if (!isCurrentConnection(sender.id, connectionId) || !client.connected) return;
-        try {
-            const info = await client.getChatroomInfo();
-            sendToRenderer(sender, 'live-danmaku-online', connectionId, {
-                liveId,
-                roomId: verifiedRoomId,
-                onlineMemberNum: info.onlineMemberNum
-            });
-        } catch (error) {
-            console.warn('[直播弹幕] 读取聊天室在线人数失败:', error?.message || error);
-        }
-    }
+    const request = { connectionId };
+    pendingConnections.set(sender.id, request);
     if (!observedSenders.has(sender)) {
         observedSenders.add(sender);
         sender.once('destroyed', () => disconnectLiveDanmaku(sender.id));
     }
+    function assertCurrentRequest() {
+        if (pendingConnections.get(sender.id) !== request || sender.isDestroyed()
+            || pocketToken !== settingsService.getToken()) {
+            throw new Error('直播弹幕连接已取消');
+        }
+    }
 
     try {
-        await client.connect();
-        const current = connections.get(sender.id);
-        if (current?.connectionId === connectionId) {
-            current.onlineRefreshTimer = setInterval(refreshOnlineMemberNum, ONLINE_REFRESH_INTERVAL_MS);
-            current.onlineRefreshTimer.unref?.();
+        await ensureWasmLoaded();
+        assertCurrentRequest();
+        const pa = generatePa() || '';
+        const [credentials, liveResult, accountResult] = await Promise.all([
+            pocketService.invoke('get-nim-login-info', { token: pocketToken, pa }),
+            pocketService.invoke('fetch-live-one', { token: pocketToken, pa, liveId }),
+            pocketService.invoke('login-check-token', { token: pocketToken, pa })
+        ]);
+        assertCurrentRequest();
+        if (!credentials?.success) throw new Error(credentials?.msg || '获取直播聊天室凭证失败');
+        if (!liveResult?.success) {
+            console.warn('[直播弹幕] 连接前直播详情查询失败:', {
+                liveId,
+                requestedRoomId,
+                apiStatus: liveResult?.data?.status ?? liveResult?.data?.code ?? null,
+                message: liveResult?.msg || '获取直播详情失败'
+            });
+            throw new Error(liveResult?.msg || '获取直播详情失败');
         }
-        return { success: true, connectionId, liveId, roomId: verifiedRoomId };
-    } catch (error) {
-        if (isCurrentConnection(sender.id, connectionId)) connections.delete(sender.id);
-        client.destroy();
-        throw error;
+
+        const verifiedRoomId = normalizeId(
+            liveResult.content?.chatroomId || liveResult.content?.roomId,
+            '聊天室 ID'
+        );
+        if (requestedRoomId !== verifiedRoomId) {
+            console.warn('[直播弹幕] 页面聊天室 ID 已过期，使用直播详情中的最新 ID');
+        }
+
+        const client = createNimCommonlinkChatroomClient({
+            appKey: CHATROOM_APP_KEY,
+            account: credentials.account || credentials.accid,
+            token: credentials.token,
+            clientProfile: savedIdentity.p48ClientProfile || 'pocket48',
+            deviceId: savedIdentity.p48ClientDeviceId,
+            roomId: verifiedRoomId,
+            onConnected() {
+                sendToRenderer(sender, 'live-danmaku-status', connectionId, {
+                    liveId,
+                    roomId: verifiedRoomId,
+                    status: 'connected'
+                });
+                void refreshOnlineMemberNum();
+            },
+            onReconnecting() {
+                sendToRenderer(sender, 'live-danmaku-status', connectionId, {
+                    liveId,
+                    roomId: verifiedRoomId,
+                    status: 'reconnecting'
+                });
+            },
+            onDisconnected() {
+                sendToRenderer(sender, 'live-danmaku-status', connectionId, {
+                    liveId,
+                    roomId: verifiedRoomId,
+                    status: 'reconnecting'
+                });
+            },
+            onError(error) {
+                sendToRenderer(sender, 'live-danmaku-status', connectionId, {
+                    liveId,
+                    roomId: verifiedRoomId,
+                    status: client.connected ? 'reconnecting' : 'disconnected',
+                    message: String(error?.message || '')
+                });
+            },
+            onMessage(message) {
+                sendToRenderer(sender, 'live-danmaku-message', connectionId, {
+                    liveId,
+                    roomId: verifiedRoomId,
+                    messages: [message]
+                });
+            }
+        });
+
+        connections.set(sender.id, {
+            connectionId,
+            pocketToken,
+            client,
+            liveId,
+            roomId: verifiedRoomId,
+            userInfo: accountResult?.success ? accountResult.userInfo || {} : {},
+            lastSentAt: 0,
+            onlineRefreshTimer: null
+        });
+
+        async function refreshOnlineMemberNum() {
+            if (!isCurrentConnection(sender.id, connectionId) || !client.connected) return;
+            try {
+                const info = await client.getChatroomInfo();
+                sendToRenderer(sender, 'live-danmaku-online', connectionId, {
+                    liveId,
+                    roomId: verifiedRoomId,
+                    onlineMemberNum: info.onlineMemberNum
+                });
+            } catch (error) {
+                console.warn('[直播弹幕] 读取聊天室在线人数失败:', error?.message || error);
+            }
+        }
+        try {
+            await client.connect();
+            assertCurrentRequest();
+            const current = connections.get(sender.id);
+            if (current?.connectionId === connectionId) {
+                current.onlineRefreshTimer = setInterval(refreshOnlineMemberNum, ONLINE_REFRESH_INTERVAL_MS);
+                current.onlineRefreshTimer.unref?.();
+            }
+            return { success: true, connectionId, liveId, roomId: verifiedRoomId };
+        } catch (error) {
+            if (connections.get(sender.id)?.client === client) connections.delete(sender.id);
+            client.destroy();
+            throw error;
+        }
+    } finally {
+        if (pendingConnections.get(sender.id) === request) pendingConnections.delete(sender.id);
     }
 }
 
@@ -320,6 +343,7 @@ async function sendLiveGiftEvent(senderId, payload = {}) {
 }
 
 function closeAllLiveDanmakuConnections() {
+    pendingConnections.clear();
     for (const { client, onlineRefreshTimer } of connections.values()) {
         clearInterval(onlineRefreshTimer);
         client.destroy();

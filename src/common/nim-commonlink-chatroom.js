@@ -3,10 +3,9 @@
 const crypto = require('node:crypto');
 const net = require('node:net');
 const zlib = require('node:zlib');
+const { createNimClientIdentity } = require('./nim-client-identity');
 
 const DEFAULT_LBS_URL = 'https://lbs.netease.im/lbs/chat.jsp';
-const ANDROID_SDK_VERSION = 92110;
-const ANDROID_PACKAGE_NAME = 'com.seine48.app';
 const RSA_KEY_VERSION = 0;
 const RSA_PUBLIC_KEY = crypto.createPublicKey({
     key: Buffer.from(
@@ -258,6 +257,31 @@ function normalizeMessage(properties) {
     };
 }
 
+function decodeHistoryMessages(body) {
+    let offset = 0;
+    const count = readVarint(body, offset);
+    if (!count || count.value > 1000) throw new Error('聊天室历史数量无效');
+    offset += count.size;
+    const messages = [];
+    for (let i = 0; i < count.value; i++) {
+        const start = offset;
+        const fields = readVarint(body, offset);
+        if (!fields || fields.value > 1024) throw new Error('聊天室历史属性无效');
+        offset += fields.size;
+        for (let j = 0; j < fields.value; j++) {
+            const key = readVarint(body, offset);
+            if (!key) throw new Error('聊天室历史属性编号无效');
+            offset += key.size;
+            const length = readVarint(body, offset);
+            if (!length || offset + length.size + length.value > body.length) throw new Error('聊天室历史内容不完整');
+            offset += length.size + length.value;
+        }
+        messages.push(normalizeMessage(decodeProperties(body.subarray(start, offset))));
+    }
+    if (offset !== body.length) throw new Error('聊天室历史存在尾部数据');
+    return messages;
+}
+
 function parseTcpAddress(value) {
     const address = String(value || '').trim();
     const separator = address.lastIndexOf(':');
@@ -274,6 +298,7 @@ class NimCommonlinkChatroomClient {
         this.appKey = String(options.appKey || '').trim();
         this.account = String(options.account || '').trim();
         this.token = String(options.token || '').trim();
+        this.identity = createNimClientIdentity(options);
         this.roomId = String(options.roomId || '').trim();
         this.fetchImpl = options.fetchImpl || globalThis.fetch;
         this.lbsUrl = String(options.lbsUrl || DEFAULT_LBS_URL);
@@ -289,6 +314,7 @@ class NimCommonlinkChatroomClient {
         this.seenMessageIds = new Set();
         this.pendingRequests = new Map();
         this.pendingRoomInfoRequests = new Map();
+        this.pendingHistoryRequests = new Map();
     }
 
     async connect() {
@@ -339,6 +365,27 @@ class NimCommonlinkChatroomClient {
             text: '',
             timeoutMessage: '发送礼物事件超时',
             failureMessage: '发送礼物事件失败'
+        });
+    }
+
+    async getHistoryMessages({ timetag = Date.now(), limit = 100 } = {}) {
+        if (!this.connected || !this.socket || this.socket.destroyed || !this.encryptor) throw new Error('直播聊天室尚未连接');
+        if (!Number.isSafeInteger(timetag) || timetag < 0 || !Number.isInteger(limit) || limit < 1 || limit > 100) throw new Error('聊天室历史查询参数无效');
+        const serial = this.#nextSerial();
+        const body = Buffer.alloc(13);
+        body.writeBigInt64LE(BigInt(timetag), 0);
+        body.writeInt32LE(limit, 8);
+        body[12] = 0;
+        return new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => { this.pendingHistoryRequests.delete(serial); reject(new Error('读取聊天室历史超时')); }, 12_000);
+            timeout.unref?.();
+            this.pendingHistoryRequests.set(serial, { resolve, reject, timeout });
+            this.socket.write(this.encryptor.apply(makePacket(13, 9, serial, body)), error => {
+                if (!error) return;
+                const pending = this.pendingHistoryRequests.get(serial);
+                if (!pending) return;
+                this.pendingHistoryRequests.delete(serial); clearTimeout(pending.timeout); reject(error);
+            });
         });
     }
 
@@ -418,7 +465,7 @@ class NimCommonlinkChatroomClient {
             k: this.appKey,
             id: this.account,
             rid: this.roomId,
-            v: String(ANDROID_SDK_VERSION),
+            v: String(this.identity.sdkVersion),
             tp: '1',
             dt: '0',
             nt: '2'
@@ -446,12 +493,12 @@ class NimCommonlinkChatroomClient {
         const authentication = encodeProperties({
             3: 1,
             4: '8.0.0',
-            6: ANDROID_SDK_VERSION,
+            6: this.identity.sdkVersion,
             9: 1,
             13: deviceId,
             18: this.appKey,
             19: this.account,
-            25: ANDROID_PACKAGE_NAME,
+            25: this.identity.packageName,
             1000: this.token
         });
         return makePacket(13, 2, this.#nextSerial(), Buffer.concat([Buffer.from([2]), login, authentication]));
@@ -468,7 +515,7 @@ class NimCommonlinkChatroomClient {
     async #openConnection() {
         const address = await this.#requestAddress();
         const encryptionKey = crypto.randomBytes(16);
-        const enterPacket = this.#makeEnterPacket(crypto.randomUUID());
+        const enterPacket = this.#makeEnterPacket(this.identity.deviceId);
         const handshake = this.#makeHandshake(encryptionKey, enterPacket);
         this.encryptor = new Rc4Stream(encryptionKey);
         this.decryptor = new Rc4Stream(encryptionKey);
@@ -551,6 +598,17 @@ class NimCommonlinkChatroomClient {
                         }
                         if (response.serviceId === 13 && response.commandId === 13) {
                             this.#handleChatroomInfoResult(response);
+                        }
+                        if (response.serviceId === 13 && response.commandId === 9) {
+                            const pending = this.pendingHistoryRequests.get(response.serial);
+                            if (!pending) continue;
+                            this.pendingHistoryRequests.delete(response.serial); clearTimeout(pending.timeout);
+                            if (response.resultCode !== 200) {
+                                const error = new Error(`读取聊天室历史失败：${response.resultCode}`);
+                                error.code = response.resultCode; pending.reject(error);
+                            } else {
+                                try { pending.resolve(decodeHistoryMessages(response.body)); } catch (error) { pending.reject(error); }
+                            }
                         }
                     }
                 } catch (error) {
@@ -654,6 +712,8 @@ class NimCommonlinkChatroomClient {
             pending.reject(error);
         }
         this.pendingRoomInfoRequests.clear();
+        for (const pending of this.pendingHistoryRequests.values()) { clearTimeout(pending.timeout); pending.reject(error); }
+        this.pendingHistoryRequests.clear();
     }
 
     #startHeartbeat() {
@@ -695,5 +755,6 @@ function createNimCommonlinkChatroomClient(options) {
 module.exports = {
     NimCommonlinkChatroomClient,
     createNimCommonlinkChatroomClient,
-    extractOnlineMemberNum
+    extractOnlineMemberNum,
+    decodeHistoryMessages
 };

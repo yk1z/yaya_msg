@@ -1,6 +1,6 @@
 {
   "name": "yaya_msg",
-  "version": "2.14.0",
+  "version": "2.15.0",
   "description": "牙牙消息",
   "homepage": "https://github.com/yk1z/yaya_msg",
   "main": "main.js",
@@ -14,6 +14,9 @@
     "web:deploy": "npm run web:build && npx wrangler deploy",
     "api:start": "node server/yaya-api.mjs",
     "search:start": "node server/search-api.mjs",
+    "search:collect": "node scripts/collect-message-search.mjs --mode incremental",
+    "search:backfill": "node scripts/collect-message-search.mjs --mode backfill --max-pages 10",
+    "search:test": "node --test test/message-search.test.mjs",
     "pack": "npm run gift-player:build && npm run database:build && node scripts/run-builder.js --dir",
     "dist": "npm run gift-player:build && npm run database:build && node scripts/run-builder.js",
     "seine:export-all": "node scripts/export-all-member-channels.js",
@@ -26,6 +29,7 @@
   "author": "yk1z <yk1z@users.noreply.github.com>",
   "license": "GPL-3.0-only",
   "dependencies": {
+    "@yxim/nim-web-sdk": "9.21.14",
     "axios": "^1.19.0",
     "fflate": "0.8.3",
     "fluent-ffmpeg": "^2.1.3",
@@ -33,8 +37,7 @@
     "lottie-web": "5.13.0",
     "node-media-server": "^4.2.8",
     "qrcode": "^1.5.4",
-    "zego-express-engine-electron": "3.25.0-51516.1302",
-    "@yxim/nim-web-sdk": "9.21.14"
+    "zego-express-engine-electron": "3.25.0-51516.1302"
   },
   "devDependencies": {
     "@ffmpeg/core": "0.11.0",
@@ -58,6 +61,7 @@
   },
   "build": {
     "appId": "com.yaya.message",
+    "protocols": [{ "name": "牙牙消息", "schemes": ["yayamsg"] }],
     "productName": "牙牙消息",
     "executableName": "牙牙消息",
     "afterPack": "scripts/copy-ffmpeg.js",

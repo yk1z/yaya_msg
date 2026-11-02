@@ -1,5 +1,6 @@
-const { app, globalShortcut } = require('electron');
-const { createWindow, getMainWindow, markAppQuitting } = require('./window');
+const { app, globalShortcut, ipcMain } = require('electron');
+const { createWindow, getMainWindow, markAppQuitting, setDeepLinkHandler } = require('./window');
+const { registerDeepLinkProtocol, createDeepLinkController } = require('./services/deep-link-service');
 const { createTray, destroyTray } = require('./tray');
 const { ensureWasmLoaded } = require('./services/wasm-service');
 const {
@@ -21,6 +22,7 @@ const { closeMessageIndex, startMessageIndexWatcher } = require('./services/mess
 const { closeAllLiveDanmakuConnections } = require('./services/danmaku-service');
 const { closeAllMemberRoomConnections } = require('./services/member-room-service');
 const roomNotificationService = require('./services/room-notification-service');
+const accountImService = require('./services/account-im-service');
 const { closeMemberRoomTransport } = require('./services/member-room-transport');
 const { ensureStoragePaths } = require('../common/storage-paths');
 
@@ -75,6 +77,7 @@ function performFinalCleanup() {
     markAppQuitting();
     destroyTray();
     cleanupMediaTasks();
+    accountImService.closeAll();
     closeAllLiveDanmakuConnections();
     closeAllMemberRoomConnections();
     roomNotificationService.closeAll();
@@ -111,8 +114,14 @@ if (process.platform === 'win32') {
 if (!gotSingleInstanceLock) {
     app.quit();
 } else {
-    app.on('second-instance', showMainWindow);
+    const deepLinks = createDeepLinkController({ app, ipcMain, getMainWindow, showMainWindow });
+    setDeepLinkHandler(deepLinks.accept);
+    deepLinks.acceptArguments(process.argv);
+    app.on('second-instance', (_event, args) => {
+        if (!deepLinks.acceptArguments(args)) showMainWindow();
+    });
     app.whenReady().then(() => {
+        registerDeepLinkProtocol(app);
         ensureStoragePaths();
         createWindow();
         createTray();

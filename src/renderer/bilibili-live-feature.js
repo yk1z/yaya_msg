@@ -176,6 +176,7 @@
         }
 
         function fetchBilibiliLiveConfig() {
+            if (window.YayaDataSync) return window.YayaDataSync.read(BILIBILI_LIVE_CONFIG_URL).then(normalizeBilibiliLiveConfig);
             if (!bilibiliLiveConfigPromise) {
                 bilibiliLiveConfigPromise = fetch(`${BILIBILI_LIVE_CONFIG_URL}?t=${Date.now()}`, {
                     method: 'GET',
@@ -380,6 +381,11 @@
         }
 
         function initBilibiliLiveConfig() {
+            window.YayaDataSync?.subscribe(BILIBILI_LIVE_CONFIG_URL, raw => {
+                const config = normalizeBilibiliLiveConfig(raw);
+                writeBilibiliLiveConfigCache(config);
+                applyBilibiliLiveConfig(config);
+            });
             const cachedConfig = readBilibiliLiveConfigCache();
             if (cachedConfig) {
                 applyBilibiliLiveConfig(cachedConfig);

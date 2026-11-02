@@ -4,6 +4,7 @@ const path = require('path');
 const esbuild = require('esbuild');
 const postcss = require('postcss');
 const tailwindcss = require('tailwindcss');
+const { brotliCompressSync, gzipSync, constants: zlibConstants } = require('zlib');
 
 const scopeDatabaseTailwind = {
     postcssPlugin: 'scope-database-tailwind',
@@ -255,7 +256,8 @@ function configureLazyWebMediaVendors(indexHtml) {
     fs.copyFileSync(mediaVendorsPath, path.join(outputDir, versionedRelativePath));
 
     const browserShimTag = '    <script src="./src/web/browser-shim.js?v=__YAYA_BUILD_VERSION__"></script>';
-    const lazyBrowserShimTag = `    <script src="./src/web/browser-shim.js?v=__YAYA_BUILD_VERSION__" data-media-vendors-url="./${versionedRelativePath}"></script>`;
+    const lazyBrowserShimTag = `    <script src="./src/web/member-room-client.js?v=__YAYA_BUILD_VERSION__"></script>
+    <script src="./src/web/browser-shim.js?v=__YAYA_BUILD_VERSION__" data-media-vendors-url="./${versionedRelativePath}"></script>`;
     return indexHtml
         .replace(/^[ \t]*<script src="\.\/src\/renderer\/vendor\/media-vendors\.js\?v=__YAYA_BUILD_VERSION__"><\/script>\r?\n/m, '')
         .replace(browserShimTag, lazyBrowserShimTag);
@@ -282,13 +284,13 @@ function configureSolidWebBackground(indexHtml) {
         .replace(rendererThemeTag, webThemeTag);
 }
 
-function configureWebFeedbackContentSecurityPolicy(indexHtml) {
+function configureWebContentSecurityPolicy(indexHtml) {
     const originalPolicy = "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' file: https: data: blob:; media-src 'self' file: https: http: data: blob:; connect-src 'self' file: https: http: ws: wss: data: blob:; font-src 'self' data:;";
-    const feedbackPolicy = "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: https://*.tawk.to https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://*.tawk.to https://fonts.googleapis.com https://cdn.jsdelivr.net; img-src 'self' file: https: data: blob:; media-src 'self' file: https: http: data: blob:; connect-src 'self' file: https: http: ws: wss: data: blob:; font-src 'self' data: https://*.tawk.to https://fonts.gstatic.com; frame-src https://*.tawk.to; form-action 'self' https://*.tawk.to;";
+    const webPolicy = "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net https://cdn.dingxiang-inc.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; img-src 'self' file: https: data: blob:; media-src 'self' file: https: http: data: blob:; connect-src 'self' file: https: http: ws: wss: data: blob:; font-src 'self' data: https://fonts.gstatic.com; frame-src https://*.dingxiang-inc.com; form-action 'self';";
     if (!indexHtml.includes(originalPolicy)) {
         throw new Error('Web Content Security Policy block not found');
     }
-    return indexHtml.replace(originalPolicy, feedbackPolicy);
+    return indexHtml.replace(originalPolicy, webPolicy);
 }
 
 function configureEarlyWebLocale(indexHtml) {
@@ -296,9 +298,14 @@ function configureEarlyWebLocale(indexHtml) {
     if (!indexHtml.includes(titleTag)) {
         throw new Error('Web document title tag not found');
     }
+    const localeAssets = Object.fromEntries(['zh-CN', 'zh-TW', 'zh-HK', 'en', 'ko', 'ja'].map(locale => {
+        const asset = `src/web/i18n/${locale}.js`;
+        return [locale, `./${asset}?v=${getFileVersion(path.join(outputDir, asset))}`];
+    }));
     const bootstrap = `    <title></title>
     <script>
         (() => {
+            window.YayaLocaleAssets = ${JSON.stringify(localeAssets)};
             const normalizeLocale = (value) => {
                 const locale = String(value || '').trim().replace('_', '-');
                 if (/^zh-(?:Hant-)?(?:HK|MO)$/i.test(locale)) return 'zh-HK';
@@ -331,9 +338,18 @@ function configureEarlyWebLocale(indexHtml) {
                 ja: 'yaya msg'
             };
             document.documentElement.dataset.initialLocale = locale;
+            document.documentElement.dataset.platform = 'web';
+            document.documentElement.classList.add('web-shell-pending');
             document.documentElement.lang = locale;
             if (locale !== 'zh-CN') document.documentElement.classList.add('web-i18n-pending');
             document.title = titles[locale] || titles['zh-CN'];
+            if (locale !== 'zh-CN') {
+                const preload = document.createElement('link');
+                preload.rel = 'preload';
+                preload.as = 'script';
+                preload.href = window.YayaLocaleAssets[locale];
+                document.head.appendChild(preload);
+            }
         })();
     </script>`;
     return indexHtml.replace(titleTag, bootstrap);
@@ -345,13 +361,67 @@ function configureWebLocalePacks(indexHtml) {
     if (!indexHtml.includes(shellTag) || !indexHtml.includes(homeTag)) {
         throw new Error('Web locale script anchors not found');
     }
-    const packTags = ['zh-CN', 'zh-TW', 'zh-HK', 'en', 'ko', 'ja']
+    const packTags = ['zh-CN']
         .map((locale) => `    <script src="./src/web/i18n/${locale}.js?v=__YAYA_BUILD_VERSION__"></script>`)
         .join('\n');
     const translatorTag = '    <script src="./src/web/i18n/page-translator.js?v=__YAYA_BUILD_VERSION__"></script>';
     return indexHtml
         .replace(shellTag, `${packTags}\n${shellTag}`)
         .replace(homeTag, `${homeTag}\n${translatorTag}`);
+}
+
+// Keep classic-script order while letting the browser fetch the entire startup
+// chain in parallel. The tiny theme bootstrap stays synchronous to avoid flashing.
+function configureDeferredWebScripts(indexHtml) {
+    return indexHtml.replace(/<script\b([^>]*\bsrc="([^"]+)"[^>]*)>/g, (tag, attributes, source) => {
+        if (/(?:\b(?:defer|async)(?:\s|=|$)|\btype\s*=)/.test(attributes)
+            || source.includes('/solid-background.js')) return tag;
+        return `<script defer${attributes}>`;
+    }).replace("const platform = (window.desktop && window.desktop.platform) || '';",
+        "const platform = (window.desktop && window.desktop.platform) || document.documentElement.dataset.platform || '';"
+    );
+}
+
+async function optimizeWebTextAssets() {
+    // Optimize only the web copies; the desktop sources keep their current form.
+    const assets = ['style.css', ...collectFiles('src/web'), ...collectFiles('src/renderer')]
+        .map(file => path.isAbsolute(file) ? path.relative(projectRoot, file) : file)
+        .filter(file => /\.(?:js|css)$/.test(file));
+    for (const relativePath of assets) {
+        const target = path.join(outputDir, relativePath);
+        if (!fs.existsSync(target)) continue;
+        let source = fs.readFileSync(target, 'utf8');
+        if (relativePath.replaceAll('\\', '/') === 'src/web/pocket-home.css') {
+            source = source.replace(/^@import[^;]+;\s*/, '');
+        }
+        if (relativePath.replaceAll('\\', '/') === 'src/web/vendor/phosphor/style.css') {
+            source = source.replace('font-display: block', 'font-display: swap');
+        }
+        const result = await esbuild.transform(source, {
+            loader: relativePath.endsWith('.css') ? 'css' : 'js',
+            minifyWhitespace: true,
+            // Some legacy scripts share top-level names across files.
+            minifyIdentifiers: false,
+            minifySyntax: false,
+            legalComments: 'none'
+        });
+        fs.writeFileSync(target, result.code);
+    }
+}
+
+function precompressWebAssets() {
+    const walk = directory => fs.readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
+        const target = path.join(directory, entry.name);
+        return entry.isDirectory() ? walk(target) : [target];
+    });
+    for (const target of walk(outputDir).filter(file => /\.(?:js|css)$/.test(file))) {
+        const source = fs.readFileSync(target);
+        if (source.length < 1024) continue;
+        fs.writeFileSync(`${target}.br`, brotliCompressSync(source, {
+            params: { [zlibConstants.BROTLI_PARAM_QUALITY]: 4 }
+        }));
+        fs.writeFileSync(`${target}.gz`, gzipSync(source));
+    }
 }
 
 function versionWebIndexAssets(indexHtml, fallbackVersion) {
@@ -365,15 +435,51 @@ function versionWebIndexAssets(indexHtml, fallbackVersion) {
     return withPerFileVersions.replaceAll('__YAYA_BUILD_VERSION__', fallbackVersion);
 }
 
+function configureWebHomeMarkup(indexHtml) {
+    const links = JSON.parse(fs.readFileSync(path.join(projectRoot, 'src/web/home-links.json'), 'utf8'));
+    links.forEach(({ title, description, url }) => {
+        if (!title || !description || new URL(url).protocol !== 'https:') {
+            throw new Error('Invalid Web homepage link');
+        }
+    });
+    const start = indexHtml.indexOf('<div id="view-home"');
+    const end = indexHtml.indexOf('<div id="view-followed-rooms"', start);
+    if (start < 0 || end < 0) throw new Error('Web homepage boundaries not found');
+    // The Web homepage owns its components; no desktop homepage markup is shipped.
+    const data = JSON.stringify(links).replace(/</g, '\\u003c');
+    const home = `<div id="view-home" class="web-home-view">
+                <script type="application/json" id="web-home-links">${data}</script>
+            </div>\n\n            `;
+    return indexHtml.slice(0, start) + home + indexHtml.slice(end);
+}
+
+function configureWebDesktopDownload(indexHtml) {
+    const shell = fs.readFileSync(path.join(projectRoot, 'src/web/web-shell.js'), 'utf8');
+    const version = shell.match(/const DESKTOP_VERSION = '([^']+)'/)[1];
+    const stamp = shell.match(/Windows: '([^']+)'/)[1];
+    const href = `https://gnz.hk/downloads/yaya_msg-${version}-win.zip?v=${stamp}`;
+    const pattern = /(<span id="sms-limit-download-links">[\s\S]*?\bhref=")[^"]+/g;
+    if ([...indexHtml.matchAll(pattern)].length !== 1) throw new Error('Desktop download fallback link not found');
+    return indexHtml.replace(pattern, (_, prefix) => prefix + href);
+}
+
 async function buildWebAssets() {
     await buildDesktopRuntime();
     fs.rmSync(outputDir, { recursive: true, force: true });
     fs.mkdirSync(outputDir, { recursive: true });
-    ['index.html', 'style.css', 'web-icon.png', '2.wasm', 'rust-wasm-browser.js']
+    ['index.html', 'style.css', 'web-icon.png', '2.wasm', 'rust-wasm-browser.js', '_headers']
         .forEach((relativePath) => copyFile(relativePath));
     copyFile('web-icon.png', 'icon.png');
     copyDir('src/renderer');
     copyDir('src/web');
+    copyFile('src/common/sender-profile.js');
+    copyFile('src/common/gift-pricing.js');
+    copyFile('src/common/gift-prices.snapshot.js');
+    copyFile('src/common/message-room-filter.js');
+    copyFile('src/common/deep-link.js');
+    copyFile('src/common/pocket-registration.js');
+    copyFile('src/common/netface-model.js');
+    copyFile('src/web/yk1z-home-feature.js', 'src/renderer/yk1z-home-feature.js');
     copyFile('src/web/service-worker.js', 'service-worker.js');
     copyFile('node_modules/@ffmpeg/ffmpeg/dist/ffmpeg.min.js', 'src/renderer/vendor/ffmpeg/ffmpeg.min.js');
     copyFile('node_modules/@ffmpeg/core/dist/ffmpeg-core.js', 'src/renderer/vendor/ffmpeg/ffmpeg-core.js');
@@ -385,6 +491,11 @@ async function buildWebAssets() {
         path.join(outputDir, 'src', 'renderer', 'database', 'runtime.js'),
         '// Generated with esbuild by scripts/build-web.js. Do not edit web-dist output directly.'
     );
+
+    const { prepareWebIconAssets, versionWebStaticDependencies } = require('./web-icon-assets.cjs');
+    prepareWebIconAssets(projectRoot, outputDir);
+    const staticDependencies = versionWebStaticDependencies(outputDir);
+    await optimizeWebTextAssets();
 
     const buildVersion = getBuildVersion();
     const onlineAssetDir = path.join(outputDir, 'src', 'web');
@@ -403,13 +514,39 @@ async function buildWebAssets() {
     let indexHtml = fs.readFileSync(indexPath, 'utf8');
     indexHtml = configureWebDocumentBase(indexHtml);
     indexHtml = configureSolidWebBackground(indexHtml);
-    indexHtml = configureWebFeedbackContentSecurityPolicy(indexHtml);
+    indexHtml = configureWebContentSecurityPolicy(indexHtml);
     indexHtml = configureEarlyWebLocale(indexHtml);
     indexHtml = configureWebLocalePacks(indexHtml);
+    indexHtml = configureWebHomeMarkup(indexHtml);
+    indexHtml = configureWebDesktopDownload(indexHtml);
     indexHtml = configureLazyWebMediaVendors(indexHtml);
     indexHtml = await bundleRenderer(indexHtml);
+    indexHtml = configureDeferredWebScripts(indexHtml);
+    indexHtml = indexHtml.replace('<link rel="stylesheet" href="./src/web/pocket-home.css',
+        `<link rel="stylesheet" href="./src/web/vendor/phosphor/style.css?v=__YAYA_BUILD_VERSION__">\n    <link rel="preload" as="image" href="${staticDependencies.poster}">\n    <link rel="stylesheet" href="./src/web/pocket-home.css`);
     indexHtml = versionWebIndexAssets(indexHtml, buildVersion);
     fs.writeFileSync(indexPath, indexHtml, 'utf8');
+    const statusPath = path.join(outputDir, 'src', 'web', 'status-page.txt');
+    if (fs.existsSync(statusPath)) {
+        const { STATUS_SERVICES, STATUS_HISTORY } = await import('../workers/api-status.mjs');
+        const escapeHtml = value => String(value).replace(/[&<>"']/g, char => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        })[char]);
+        const bars = '<span class="day-bar" data-state="unknown" aria-hidden="true"></span>'
+            .repeat(STATUS_HISTORY.days * 24 / STATUS_HISTORY.intervalHours);
+        const placeholder = [...new Set(STATUS_SERVICES.map(service => service.group))].map(group =>
+            `<section class="service-group"><h3 class="group-title">${escapeHtml(group)}</h3>`
+            + STATUS_SERVICES.filter(service => service.group === group).map(service =>
+                `<article class="service"><button class="service-toggle" type="button" disabled aria-expanded="false">`
+                + `<span class="service-name"><span class="chevron">›</span><span>${escapeHtml(service.name)}</span></span>`
+                + '<span class="service-state" data-state="unknown"><span class="status-dot" data-state="unknown"></span><span>暂无请求记录</span></span></button>'
+                + `<div class="history-bars" role="group" aria-label="${escapeHtml(service.name)}最近${STATUS_HISTORY.days}天历史，每格${STATUS_HISTORY.intervalHours}小时">${bars}</div>`
+                + `<div class="history-caption"><span>${STATUS_HISTORY.days} 天前</span><span>现在</span></div></article>`
+            ).join('') + '</section>'
+        ).join('');
+        const statusHtml = fs.readFileSync(statusPath, 'utf8').replace('<!-- STATUS_SERVICE_PLACEHOLDER -->', placeholder);
+        fs.writeFileSync(statusPath, versionWebIndexAssets(statusHtml, buildVersion), 'utf8');
+    }
     const onlinePath = path.join(outputDir, 'src', 'web', 'online-page.txt');
     if (fs.existsSync(onlinePath)) {
         const onlineHtml = fs.readFileSync(onlinePath, 'utf8')
@@ -421,10 +558,13 @@ async function buildWebAssets() {
             'utf8'
         );
     }
+    precompressWebAssets();
     console.log(`Web assets built with esbuild (${buildVersion}) at ${outputDir}`);
 }
 
-const buildTask = buildDesktopRuntimeOnly ? buildDesktopRuntime() : buildWebAssets();
+const buildTask = import('./sync-gift-price-catalog.mjs')
+    .then(module => module.syncGiftPriceCatalog())
+    .then(() => buildDesktopRuntimeOnly ? buildDesktopRuntime() : buildWebAssets());
 buildTask
     .then(() => console.log(buildDesktopRuntimeOnly ? 'Local runtime assets built' : 'Web build completed'))
     .catch((error) => {

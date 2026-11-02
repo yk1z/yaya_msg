@@ -1,0 +1,269 @@
+/* Date panel adapted from the application's flip/message calendar. */
+.flip-date-panel {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: linear-gradient(180deg, rgba(30, 34, 46, 0.97), rgba(20, 23, 33, 0.985));
+    backdrop-filter: blur(18px);
+}
+
+.flip-date-field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.flip-date-field-card {
+    border: 1px solid var(--border);
+    background: var(--panel);
+    border-radius: 14px;
+    padding: 11px 13px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    text-align: left;
+    cursor: pointer;
+    color: var(--text);
+    transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.flip-date-field-card:hover {
+    border-color: rgba(155, 106, 156, 0.5);
+    transform: translateY(-1px);
+}
+
+.flip-date-field-card.is-active {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px rgba(155, 106, 156, 0.18);
+}
+
+.flip-date-field-card-label {
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+}
+
+.flip-date-field-card-value {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.flip-calendar-shell {
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: rgba(12, 15, 22, 0.42);
+    padding: 14px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.flip-calendar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.flip-calendar-nav-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.flip-calendar-title {
+    min-width: 108px;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: 0.02em;
+}
+
+.flip-calendar-nav {
+    width: 30px;
+    height: 30px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    transition: border-color 0.18s ease, color 0.18s ease, transform 0.18s ease, background 0.18s ease;
+}
+
+.flip-calendar-nav-year {
+    color: var(--muted);
+    font-size: 15px;
+}
+
+.flip-calendar-nav:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(155, 106, 156, 0.08);
+    transform: translateY(-1px);
+}
+
+.flip-calendar-weekdays,
+.flip-calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 7px;
+}
+
+.flip-calendar-weekdays {
+    margin-bottom: 10px;
+}
+
+.flip-calendar-weekdays span {
+    text-align: center;
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 700;
+    letter-spacing: 0.05em;
+}
+
+.flip-calendar-day {
+    height: 38px;
+    border-radius: 12px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+    transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.flip-calendar-day:hover {
+    border-color: rgba(155, 106, 156, 0.45);
+    background: rgba(155, 106, 156, 0.12);
+    transform: translateY(-1px);
+}
+
+.flip-calendar-day.is-muted {
+    color: rgba(201, 209, 217, 0.42);
+}
+
+[data-theme="light"] .flip-calendar-day.is-muted {
+    color: rgba(36, 41, 46, 0.34);
+}
+
+.flip-calendar-day.is-selected {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+
+.flip-calendar-day.is-in-range:not(.is-selected) {
+    background: rgba(155, 106, 156, 0.14);
+    border-color: rgba(155, 106, 156, 0.08);
+}
+
+.flip-calendar-day.is-today {
+    box-shadow: inset 0 0 0 1px rgba(155, 106, 156, 0.45);
+}
+
+.flip-calendar-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.flip-date-clear {
+    padding: 0 16px;
+}
+
+.flip-date-panel-note {
+    font-size: 11px;
+    color: var(--muted);
+}
+
+[data-theme="light"] .flip-date-dropdown {
+    box-shadow: 0 18px 40px rgba(91, 78, 108, 0.18);
+}
+
+[data-theme="light"] .flip-date-panel {
+    border-color: rgba(122, 84, 109, 0.12);
+    background: linear-gradient(180deg, rgba(255, 248, 252, 0.96), rgba(248, 241, 246, 0.94));
+}
+
+[data-theme="light"] .flip-date-field-card {
+    border-color: rgba(122, 84, 109, 0.14);
+    background: rgba(255, 255, 255, 0.82);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+
+[data-theme="light"] .flip-date-field-card:hover {
+    border-color: rgba(155, 106, 156, 0.32);
+}
+
+[data-theme="light"] .flip-date-field-card.is-active {
+    border-color: rgba(155, 106, 156, 0.6);
+    box-shadow: 0 0 0 1px rgba(155, 106, 156, 0.14);
+}
+
+[data-theme="light"] .flip-calendar-shell {
+    border-color: rgba(122, 84, 109, 0.12);
+    background: rgba(255, 255, 255, 0.72);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+[data-theme="light"] .flip-calendar-title,
+[data-theme="light"] .flip-calendar-day,
+[data-theme="light"] .flip-date-field-card-value {
+    color: #4a3848;
+}
+
+[data-theme="light"] .flip-calendar-weekdays span,
+[data-theme="light"] .flip-date-field-card-label {
+    color: #7c6676;
+}
+
+[data-theme="light"] .flip-calendar-nav {
+    border-color: rgba(122, 84, 109, 0.14);
+    background: rgba(255, 255, 255, 0.86);
+    color: #6d5767;
+}
+
+[data-theme="light"] .flip-calendar-nav:hover {
+    border-color: rgba(155, 106, 156, 0.32);
+    background: rgba(250, 235, 244, 0.9);
+    color: #8d5f88;
+}
+
+[data-theme="light"] .flip-calendar-day:hover {
+    border-color: rgba(155, 106, 156, 0.24);
+    background: rgba(155, 106, 156, 0.08);
+}
+
+[data-theme="light"] .flip-calendar-day.is-in-range:not(.is-selected) {
+    background: rgba(155, 106, 156, 0.1);
+    border-color: rgba(155, 106, 156, 0.06);
+}
+
+
+.gift-date-wrapper{position:relative;max-width:100%;z-index:5}
+.filters .gift-date-trigger{display:flex;align-items:center;gap:8px;min-height:36px;padding:7px 12px;border:1px solid var(--border);border-radius:5px;background:var(--panel);color:var(--text);font-size:12px;max-width:100%}
+.gift-date-trigger svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.6;flex:none}
+.filters .gift-date-trigger.is-active{color:var(--accent);border-color:var(--accent)}
+.gift-date-popup{position:absolute;top:calc(100% + 8px);left:0;width:360px;max-width:calc(100vw - 28px);box-shadow:0 14px 38px #0004;border-radius:18px}
+.gift-date-popup[hidden]{display:none}
+.gift-date-popup .flip-date-panel{background:var(--panel);border-color:var(--border)}
+.gift-date-popup .flip-calendar-shell{background:var(--bg);border-color:var(--border)}
+.filters .flip-date-field-card{padding:11px 13px;border:1px solid var(--border);background:var(--panel);color:var(--text)}
+.filters .flip-date-field-card.is-active{border-color:var(--accent);box-shadow:none}
+.filters .flip-calendar-nav{padding:0;border:1px solid var(--border);background:var(--panel);color:var(--text)}
+.filters .flip-calendar-day{padding:0;color:var(--text)}
+.filters .flip-calendar-day.is-muted{color:var(--muted);opacity:.5}
+.filters .flip-calendar-day.is-selected{color:white;background:var(--accent);border-color:var(--accent);opacity:1}
+.filters .flip-calendar-footer button{padding:6px 12px;border:1px solid var(--border);border-radius:6px;background:var(--panel);color:var(--text);font-size:12px}
+.filters .flip-calendar-footer [data-done]{color:var(--accent)}
+.gift-date-popup button:focus-visible,.gift-date-trigger:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media(max-width:760px){.gift-date-popup{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);max-height:calc(100dvh - 28px);overflow:auto}}
+@media(max-width:400px){.gift-date-popup .flip-date-panel{padding:12px;gap:10px}.gift-date-popup .flip-calendar-shell{padding:10px}.gift-date-popup .flip-calendar-weekdays,.gift-date-popup .flip-calendar-grid{gap:4px}.gift-date-popup .flip-calendar-title{min-width:95px;font-size:14px}.gift-date-popup .flip-calendar-day{height:34px}.gift-date-popup .flip-calendar-nav-group{gap:4px}}

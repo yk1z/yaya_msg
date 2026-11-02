@@ -49,6 +49,7 @@
         };
 
         let yk1zHomeConfigPromise = null;
+        let yk1zHomeInitialized = false;
 
         function readCacheValue(key, fallbackValue = null) {
             const cacheApi = window.desktop && window.desktop.appCache ? window.desktop.appCache : null;
@@ -209,6 +210,7 @@
         }
 
         function fetchYk1zHomeConfig() {
+            if (window.YayaDataSync) return window.YayaDataSync.read(YK1Z_CONFIG_URL).then(normalizeYk1zHomeConfig);
             if (!yk1zHomeConfigPromise) {
                 yk1zHomeConfigPromise = fetch(`${YK1Z_CONFIG_URL}?t=${Date.now()}`, {
                     method: 'GET',
@@ -224,8 +226,9 @@
                         return config;
                     })
                     .catch(error => {
-                        console.warn('加载 yk1z 配置失败，使用默认按钮:', error);
-                        yk1zHomeConfigPromise = Promise.resolve(normalizeYk1zHomeConfig(DEFAULT_YK1Z_HOME_CONFIG));
+                        console.warn('加载 yk1z 配置失败，保留本地配置:', error);
+                        yk1zHomeConfigPromise = Promise.resolve(readYk1zHomeConfigCache()
+                            || normalizeYk1zHomeConfig(DEFAULT_YK1Z_HOME_CONFIG));
                         return yk1zHomeConfigPromise;
                     });
             }
@@ -234,12 +237,16 @@
         }
 
         function initYk1zHomePanel() {
+            if (yk1zHomeInitialized) return;
+            yk1zHomeInitialized = true;
+            window.YayaDataSync?.subscribe(YK1Z_CONFIG_URL, raw => {
+                const config = normalizeYk1zHomeConfig(raw);
+                writeYk1zHomeConfigCache(config);
+                renderYk1zHomeConfig(config);
+            });
+            const cachedConfig = readYk1zHomeConfigCache();
+            if (cachedConfig) renderYk1zHomeConfig(cachedConfig);
             const refreshConfig = () => {
-                const cachedConfig = readYk1zHomeConfigCache();
-                if (cachedConfig) {
-                    renderYk1zHomeConfig(cachedConfig);
-                }
-
                 fetchYk1zHomeConfig()
                     .then(config => {
                         renderYk1zHomeConfig(config);

@@ -293,6 +293,9 @@
 .member-room-gift-summary strong { flex-shrink: 0; }
 .member-room-gift-balance-label { color: var(--text-sub); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .member-room-gift-balance { color: var(--primary); margin: 0 2px; }
+.recharge-link { font-weight: 600; text-decoration: none; }
+.member-room-gift-recharge { flex-shrink: 0; color: #1890ff; font-size: 12px; text-decoration: none; cursor: pointer; }
+.member-room-gift-recharge:hover { text-decoration: none; }
 .member-room-gift-actions { justify-self: end; }
 .member-room-gift-actions label { display: inline-flex; align-items: center; height: 28px; padding: 0 6px; box-sizing: border-box; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--text-sub); font-size: 12px; }
 .member-room-gift-quantity { width: 35px; min-width: 0; padding: 0; border: 0; background: transparent; color: var(--text); text-align: center; font: inherit; font-weight: 600; }
@@ -306,6 +309,22 @@
 .member-room-gift-card .gift-cost { line-height: 12px; }
 .member-room-gift-card:disabled { cursor: default; opacity: .6; }
 .member-room-gift-status { min-width: 0; color: var(--text-sub); font-size: 12px; line-height: 1.5; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.room-flip-section-header { display: flex; align-items: center; gap: 8px; min-height: 24px; margin-bottom: 8px; }
+.room-flip-message .room-flip-section-header .flip-label { margin: 0; transform: none; }
+.room-flip-section-title { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; min-width: 0; color: var(--text-sub); font-size: 12px; line-height: 20px; }
+.room-flip-section-title strong { color: var(--primary); font-weight: 600; }
+.room-flip-section-body { padding: 0; font-size: 14px; line-height: 1.6; color: var(--text); overflow-wrap: anywhere; word-break: normal; }
+.room-flip-answer-section { margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 10px; }
+.room-flip-question-user-slot { display: inline-flex; align-items: center; min-width: 0; min-height: 24px; color: var(--text-sub); font-size: 12px; }
+.room-flip-question-user-slot[hidden] { display: none; }
+.room-flip-question-user { display: inline-flex; align-items: center; gap: 5px; min-width: 0; height: 24px; max-width: min(220px, 100%); padding: 0; border: 0; background: transparent; color: var(--text-sub); font: inherit; line-height: 20px; cursor: pointer; }
+.room-flip-question-user img { width: 22px; height: 22px; margin: 0; flex-shrink: 0; border-radius: 50%; object-fit: cover; }
+.room-flip-question-user span { min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.room-flip-answer-user { color: var(--primary); }
+.room-flip-question-user:disabled { cursor: default; }
+.archive-flip-message .room-flip-section-body { white-space: pre-wrap; }
+.message-room-option { display: block; width: 100%; border: 0; background: transparent; color: var(--text); text-align: left; font: inherit; cursor: pointer; }
 
 .member-room-gift-animation { background: transparent; }
 .member-room-gift-animation > :is(canvas, img, div) { flex: none; width: min(100%, 420px) !important; height: min(100%, 420px) !important; }
@@ -4640,6 +4659,17 @@ a {
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
 }
 
+.pocket-registration-overlay { z-index: 10050; }
+.pocket-registration-dialog { width: min(460px, calc(100% - 32px)); height: auto; max-height: calc(100vh - 48px); }
+.pocket-registration-form { padding: 20px; overflow-y: auto; }
+.pocket-registration-form label { color: var(--text); }
+#registration-password-fields > label { display: block; margin-bottom: 8px; font-weight: bold; }
+#registration-password-fields > input { width: 100%; margin-bottom: 18px; box-sizing: border-box; }
+.registration-agreement { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; line-height: 1.7; }
+.registration-agreement input { flex: none; margin-top: 4px; accent-color: var(--primary); }
+.registration-status { min-height: 22px; margin: 12px 0; color: var(--text-sub); font-size: 13px; line-height: 1.6; }
+#registration-password-fields[hidden], #registration-agreement-row[hidden] { display: none; }
+
 .modal-header {
     padding: 15px 20px;
     border-bottom: 1px solid var(--border);
@@ -7882,6 +7912,79 @@ html[data-platform="web"].web-account-auth-pending .account-auth-loading {
     border-radius: 12px;
 }
 
+.account-login-message {
+    margin-top: 15px;
+    text-align: center;
+    color: #ff4d4f;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.account-login-message:empty {
+    display: none;
+}
+
+.login-code-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    margin-bottom: 20px;
+}
+
+.login-code-field {
+    flex: 1;
+    min-width: 0;
+}
+
+.login-field-label {
+    display: block;
+    margin-bottom: 8px;
+    line-height: 20px;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: bold;
+}
+
+.login-client-profile-field {
+    width: 144px;
+    flex-shrink: 0;
+}
+
+.login-client-profile-trigger {
+    text-align: left;
+}
+
+.login-client-profile-picker .suggestion-item {
+    display: block;
+    width: 100%;
+    background: transparent;
+    border: 0;
+    text-align: left;
+    font-family: inherit;
+}
+
+.login-client-profile-picker .suggestion-item[aria-selected="true"] {
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.login-client-profile-picker .suggestion-item:hover,
+.login-client-profile-picker .suggestion-item:focus-visible {
+    background: var(--primary);
+    color: white;
+    outline: none;
+}
+
+@media (max-width: 480px) {
+    .login-code-row {
+        gap: 8px;
+    }
+
+    .login-client-profile-field {
+        width: 116px;
+    }
+}
+
 .account-settings-stack {
     display: flex;
     flex-direction: column;
@@ -7965,6 +8068,26 @@ html[data-platform="web"].web-account-auth-pending .account-auth-loading {
     color: #1f8f46;
     background: rgba(40, 167, 69, 0.12);
     border: 1px solid rgba(40, 167, 69, 0.25);
+}
+
+.account-client-profile-badge {
+    color: #9b6a9c;
+    background: rgba(181, 131, 182, 0.14);
+    border-color: rgba(181, 131, 182, 0.4);
+}
+
+.account-client-profile-badge[data-client-profile="seine48"] {
+    color: #4383aa;
+    background: rgba(151, 207, 240, 0.2);
+    border-color: rgba(151, 207, 240, 0.55);
+}
+
+[data-theme="dark"] .account-client-profile-badge {
+    color: #d5a6df;
+}
+
+[data-theme="dark"] .account-client-profile-badge[data-client-profile="seine48"] {
+    color: #acdafa;
 }
 
 .account-state-id {
@@ -8211,14 +8334,14 @@ html[data-theme="dark"] .account-state-actions #btn-copy-token {
     background: transparent;
     color: #1890ff;
     font-size: 12px;
-    font-weight: 800;
     line-height: 1;
+    text-decoration: none;
     cursor: pointer;
 }
 
 .account-recharge-btn:hover {
     color: #40a9ff;
-    text-decoration: underline;
+    text-decoration: none;
 }
 
 .account-switcher-panel {
@@ -14638,3 +14761,11 @@ html[data-platform="web"] .custom-sender-profile-card {
         grid-column: auto;
     }
 }
+.pocket-social-login[hidden], #pocket-social-login-cancel[hidden] { display: none; }
+.pocket-social-login-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.pocket-social-login-label { display: block; padding-bottom: 12px; color: var(--text-sub); font-size: 13px; }
+.pocket-social-login-buttons { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.pocket-social-login-buttons .btn { min-width: 68px; }
+.pocket-social-login-buttons [aria-disabled="true"] { color: var(--text-sub); opacity: .65; }
+.social-login-unavailable { margin-left: 5px; font-size: 11px; font-weight: normal; }
+.pocket-sigua-login-form > .input-control { margin-bottom: 16px; }

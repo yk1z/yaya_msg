@@ -40,6 +40,7 @@
 
         let currentFlipPrices = [];
         let flipCountdownTimer = null;
+        const flipCardRenderCache = new WeakMap();
         const DEFAULT_FLIP_ANSWER_TYPE_KEY = 'yaya_default_flip_answer_type';
         const DEFAULT_FLIP_PRIVACY_TYPE_KEY = 'yaya_default_flip_privacy_type';
         const FLIP_ANSWER_TYPE_NAMES = { 1: '文字翻牌', 2: '语音翻牌', 3: '视频翻牌' };
@@ -444,7 +445,7 @@
             <div class="flip-answer-row" style="margin-bottom:8px; display:flex; align-items:center; justify-content:space-between; gap:12px;">
                 <div class="flip-answer-title-wrap" style="display:flex; align-items:center; flex-wrap:wrap; min-width:0;">
                     <span class="flip-label answer-tag" style="margin-right:8px; margin-top:0; margin-bottom:0; transform:none;">${t('翻牌回答')}</span>
-                    <span class="flip-answer-title" style="font-size:14px; color:var(--text); line-height: 20px;"><strong style="color:var(--primary);">${memberName}</strong>${t('的回复')}</span>
+                    <span class="flip-answer-title" style="font-size:14px; color:var(--text); line-height: 20px;"><strong style="color:var(--primary);">${memberName}</strong> ${t('的回复')}</span>
                     <span class="flip-answer-time" style="font-size:12px; color:var(--text-sub); margin-left:10px;">${t(`翻牌时间：${formattedAnswerTime}`)}</span>
                 </div>
             </div>`;
@@ -1288,16 +1289,31 @@
 
             statusText.appendChild(headerBtn);
 
-            container.replaceChildren();
             if (pageData.length === 0) {
-                container.innerHTML = '<div class="empty-state">没有符合条件的数据</div>';
+                if (container.children.length !== 1 || container.firstElementChild?.textContent !== '没有符合条件的数据') {
+                    container.innerHTML = '<div class="empty-state">没有符合条件的数据</div>';
+                }
                 updateFlipSevenDayCountdowns();
             } else {
-                const fragment = document.createDocumentFragment();
-                pageData.forEach(item => {
-                    fragment.appendChild(createFlipCardDOM(item));
+                const existing = new Map(Array.from(container.children).map(card => (
+                    [flipCardRenderCache.get(card)?.key, card]
+                )));
+                const locale = window.YayaRendererUtils.t('翻牌提问');
+                const cards = pageData.map(item => {
+                    const key = String(item.questionId || '');
+                    const signature = JSON.stringify([locale, item]);
+                    const previous = key ? existing.get(key) : null;
+                    if (previous && flipCardRenderCache.get(previous)?.signature === signature) return previous;
+                    const card = createFlipCardDOM(item);
+                    flipCardRenderCache.set(card, { key, signature });
+                    return card;
                 });
-                container.appendChild(fragment);
+                cards.forEach((card, index) => {
+                    if (container.childNodes[index] !== card) {
+                        container.insertBefore(card, container.childNodes[index] || null);
+                    }
+                });
+                while (container.childNodes.length > cards.length) container.lastChild.remove();
                 startFlipSevenDayCountdownTimer();
             }
 

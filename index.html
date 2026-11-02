@@ -60,7 +60,7 @@
                 </svg>
             </div>
             <img src="./icon.png" class="title-logo">
-            <span>牙牙消息 v2.14</span>
+            <span>牙牙消息 v2.15</span>
         </div>
         <div id="topbar-page-title" class="title-bar-center-title" aria-live="polite"></div>
         <div class="window-controls">
@@ -223,6 +223,18 @@
                     </div>
 
                     <div id="memberDropdownList" class="suggestion-box" style="max-height: 300px;"></div>
+                </div>
+                <div id="message-room-wrapper" style="position: relative;">
+                    <input type="hidden" id="message-room-type" value="all">
+                    <button type="button" id="message-room-trigger" class="input-control" onclick="toggleMessageRoomDropdown()"
+                        aria-expanded="false" style="width: 100%; display: flex; justify-content: space-between; align-items: center; text-align: left;">
+                        <span id="message-room-label">全部房间</span><span style="color: var(--text-sub); font-size: 12px;">▼</span>
+                    </button>
+                    <div id="message-room-dropdown" class="suggestion-box">
+                        <button type="button" class="suggestion-item message-room-option" onclick="selectMessageRoom('all')">全部房间</button>
+                        <button type="button" class="suggestion-item message-room-option" onclick="selectMessageRoom('big')">大房间</button>
+                        <button type="button" class="suggestion-item message-room-option" onclick="selectMessageRoom('small')">小房间</button>
+                    </div>
                 </div>
             </div>
             <div class="sidebar-group" id="sb-date" style="display: flex; flex-direction: column; gap: 10px;">
@@ -997,9 +1009,9 @@
                                                     id="live-gift-balance"
                                                     style="color: var(--primary); font-weight: bold; margin: 0 4px;">--</span>
                                                 🍗</span>
-                                            <a href="https://live.48.cn/Recharge/" target="_blank"
+                                            <a class="recharge-link" href="https://live.48.cn/Recharge/" target="_blank"
                                                 onclick="event.stopPropagation();"
-                                                style="margin-left: 10px; font-size: 12px; color: #1890ff; text-decoration: none; cursor: pointer; font-weight: bold;">
+                                                style="margin-left: 10px; font-size: 12px; color: #1890ff; text-decoration: none; cursor: pointer;">
                                                 充值
                                             </a>
                                         </div>
@@ -1136,9 +1148,13 @@
                                 style="padding: 10px 20px; cursor: pointer; color: var(--text-sub); border-bottom: 2px solid transparent; transition: all 0.2s;">
                                 Token 登录
                             </div>
+                            <div id="tab-social" onclick="switchLoginTab('social')" hidden
+                                style="padding: 10px 20px; cursor: pointer; color: var(--text-sub); border-bottom: 2px solid transparent; transition: all 0.2s;">
+                                第三方登录
+                            </div>
                         </div>
 
-                        <div id="login-forms-container" style="min-height: 200px;">
+                        <div id="login-forms-container">
                             <div id="form-sms">
                                 <div style="margin-bottom: 15px;">
                                     <label
@@ -1172,17 +1188,36 @@
                                     </div>
                                 </div>
 
-                                <div style="margin-bottom: 20px;">
-                                    <label
-                                        style="font-size: 13px; font-weight: bold; color: var(--text); display: block; margin-bottom: 8px;">
-                                        验证码
-                                    </label>
-                                    <input type="text" id="login-code" class="input-control" placeholder="请输入短信验证码"
-                                        maxlength="6">
+                                <div class="login-code-row">
+                                    <div class="login-code-field">
+                                        <label for="login-code" class="login-field-label">验证码</label>
+                                        <input type="text" id="login-code" class="input-control" placeholder="请输入短信验证码"
+                                            maxlength="6">
+                                    </div>
+                                    <div id="sms-login-client-profile-slot">
+                                        <div id="login-client-profile-field" class="login-client-profile-field">
+                                            <label for="login-client-profile-trigger" class="login-field-label">登录身份</label>
+                                            <div class="flip-default-dropdown-wrapper login-client-profile-picker" onkeydown="handleLoginClientProfileKey(event)">
+                                                <input type="hidden" id="login-client-profile" value="pocket48">
+                                                <button type="button" id="login-client-profile-trigger" class="input-control login-client-profile-trigger"
+                                                    role="combobox" aria-label="登录身份" aria-haspopup="listbox" aria-expanded="false"
+                                                    aria-controls="login-client-profile-dropdown" onclick="toggleLoginClientProfileDropdown()">
+                                                    <span id="login-client-profile-display">口袋48</span>
+                                                </button>
+                                                <span class="flip-default-dropdown-arrow" aria-hidden="true">▼</span>
+                                                <div id="login-client-profile-dropdown" class="suggestion-box" role="listbox" aria-label="登录身份">
+                                                    <button type="button" class="suggestion-item" role="option" data-profile="pocket48" aria-selected="true"
+                                                        tabindex="-1" onclick="selectLoginClientProfile('pocket48')">口袋48</button>
+                                                    <button type="button" class="suggestion-item" role="option" data-profile="seine48" aria-selected="false"
+                                                        tabindex="-1" onclick="selectLoginClientProfile('seine48')">塞纳河48</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <button class="btn btn-primary btn-full" onclick="handleLoginByCode()"
+                                <button id="btn-login-by-code" class="btn btn-primary btn-full" onclick="handleLoginByCode()"
                                     style="height: 40px; font-size: 15px;">
-                                    登 录
+                                    登录
                                 </button>
                             </div>
 
@@ -1228,31 +1263,45 @@
                             </div>
 
                             <div id="form-token" style="display: none;">
-                                <div style="margin-bottom: 15px;">
-                                    <p style="font-size: 13px; color: var(--text-sub); margin-bottom: 8px;">
-                                        如果您已通过抓包获取了 Token，可直接粘贴：
-                                    </p>
-                                    <textarea id="login-token" class="input-control"
-                                        style="height: 100px; resize: none; padding: 10px;"
-                                        placeholder="在此粘贴 Token"></textarea>
+                                <div class="login-code-row">
+                                    <div class="login-code-field">
+                                        <label for="login-token" class="login-field-label">Token</label>
+                                        <input type="text" id="login-token" class="input-control"
+                                            placeholder="在此粘贴 Token">
+                                    </div>
+                                    <div id="token-login-client-profile-slot"></div>
                                 </div>
-                                <button class="btn btn-primary btn-full" onclick="checkToken()"
+                                <button class="btn btn-primary btn-full" onclick="checkToken(true)"
                                     style="height: 40px; font-size: 15px;">
                                     保存并验证
                                 </button>
                             </div>
-                        </div>
 
-                        <div id="login-msg"
-                            style="margin-top:15px; text-align:center; color:#ff4d4f; font-size:13px; min-height: 20px;">
+                            <div id="form-social" style="display: none;">
+                                <div id="pocket-social-login" class="pocket-social-login" hidden>
+                                    <div class="pocket-social-login-head">
+                                        <span class="pocket-social-login-label">选择登录方式</span>
+                                        <div id="social-login-client-profile-slot"></div>
+                                    </div>
+                                    <div class="pocket-social-login-buttons">
+                                        <button type="button" class="btn btn-secondary" data-social-provider="baidu" onclick="handleThirdPartyLogin('baidu')">百度贴吧</button>
+                                        <button type="button" class="btn btn-secondary" data-social-provider="sigua" onclick="handleThirdPartyLogin('sigua')">丝瓜</button>
+                                        <button type="button" class="btn btn-secondary" data-social-provider="wechat" onclick="handleThirdPartyLogin('wechat')" aria-disabled="true" title="微信登录暂不可用，需要官方移动应用授权签名">微信<span class="social-login-unavailable">暂不可用</span></button>
+                                        <button type="button" class="btn btn-secondary" data-social-provider="qq" onclick="handleThirdPartyLogin('qq')">QQ</button>
+                                        <button type="button" class="btn btn-secondary" data-social-provider="weibo" onclick="handleThirdPartyLogin('weibo')">微博</button>
+                                        <button type="button" id="pocket-social-login-cancel" class="btn btn-secondary" onclick="window.YayaPocketSocialLoginUi.cancel()" hidden>取消登录</button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
+                        <div id="login-msg" class="account-login-message" role="status" aria-live="polite"></div>
 
                         <div class="sms-login-limit-help" role="note">
                             <span class="sms-login-limit-help-icon" aria-hidden="true">!</span>
                             <div>
-                                如提示“今日短信发送次数已超过上限，请明日再试”，说明网站服务器今日发送验证码已达上限。
-                                请<span id="sms-limit-download-links"><a href="/downloads">下载桌面端使用</a></span>，或<button type="button"
-                                    onclick="switchLoginTab('token')">使用 Token 登录</button>。
+                                登录不了就是服务器被48ban了，请<span id="sms-limit-download-links"><a
+                                    href="https://gnz.hk/downloads/yaya_msg-v2.13-win.zip?v=20260916-714e376"
+                                    title="下载 Windows 版本" download><strong>下载桌面端使用</strong></a></span>。我动了谁的蛋糕🤔
                             </div>
                         </div>
                     </div>
@@ -1266,6 +1315,8 @@
                                     <div class="account-state-name-row">
                                         <span class="account-state-name" id="user-nickname">用户</span>
                                         <span class="account-state-badge">已登录</span>
+                                        <span id="logged-in-client-profile" class="account-state-badge account-client-profile-badge"
+                                            data-client-profile="pocket48">口袋48</span>
                                     </div>
                                     <div id="user-id-display" class="account-state-id">ID: --</div>
                                 </div>
@@ -1328,7 +1379,7 @@
                                             </div>
                                             <div class="account-balance-line">
                                                 <span>余额：<b id="account-chicken-balance">--</b> 🍗</span>
-                                                <button type="button" class="account-recharge-btn"
+                                                <button type="button" class="account-recharge-btn recharge-link"
                                                     onclick="openInBrowser('https://live.48.cn/Recharge/')">
                                                     充值
                                                 </button>
@@ -2719,7 +2770,7 @@
                                                 style="font-size: 18px; font-weight: bold; color: var(--primary); margin: 0 2px; line-height: 1;">0</span>
                                             <span style="font-size: 16px; line-height: 1;">🍗</span>
 
-                                            <a href="https://live.48.cn/Recharge/" target="_blank"
+                                            <a class="recharge-link" href="https://live.48.cn/Recharge/" target="_blank"
                                                 style="margin-left: 10px; font-size: 12px; color: #1890ff; text-decoration: none; cursor: pointer;">
                                                 充值
                                             </a>
@@ -3678,7 +3729,11 @@
         </div>
     </div>
     <script src="./src/common/sender-profile.js"></script>
+    <script src="./src/common/gift-pricing.js"></script>
+    <script src="./src/common/gift-prices.snapshot.js"></script>
     <script src="./src/renderer/bootstrap-shared.js"></script>
+    <script src="./src/renderer/data-sync.js"></script>
+    <script src="./src/renderer/gift-price-sync-feature.js"></script>
     <script src="./src/renderer/database-embed.js"></script>
     <script src="./src/renderer/theme-feature.js"></script>
     <script src="./src/renderer/yk1z-home-feature.js"></script>
@@ -3715,6 +3770,9 @@
     <script src="./src/renderer/member-room-gift-feature.js"></script>
     <script src="./src/renderer/member-room-gift-effects.js"></script>
     <script src="./src/renderer/member-room-realtime.js"></script>
+    <script src="./src/renderer/room-flip-user-feature.js"></script>
+    <script src="./src/renderer/archive-flip-user-feature.js"></script>
+    <script src="./src/common/message-room-filter.js"></script>
     <script src="./src/renderer/followed-chat-feature.js"></script>
     <script src="./src/renderer/announcement-feature.js"></script>
     <script src="./src/renderer/avatar-cache-feature.js"></script>
@@ -3726,7 +3784,12 @@
     <script src="./src/common/netface-model.js"></script>
     <script src="./src/renderer/netface-feature.js"></script>
     <script type="module" src="./src/renderer/sdk-init.js"></script>
+    <script src="./src/common/pocket-registration.js"></script>
+    <script src="./src/renderer/pocket-registration-feature.js"></script>
+    <script src="./src/renderer/pocket-social-login-feature.js"></script>
     <script src="./src/renderer/fetch-legacy.js"></script>
+    <script src="./src/common/deep-link.js"></script>
+    <script src="./src/renderer/deep-link-feature.js"></script>
 
     <button id="backToTopBtn" class="back-to-top-btn" onclick="scrollToTop()" title="回到顶部">
         <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2.5" fill="none"
@@ -3769,6 +3832,36 @@
                 </button>
             </div>
         </div>
+    </div>
+    <div id="pocket-sigua-login-modal" class="modal-overlay pocket-registration-overlay">
+        <section class="modal-content pocket-registration-dialog" role="dialog" aria-modal="true" aria-labelledby="sigua-login-title">
+            <div class="modal-header"><strong id="sigua-login-title">丝瓜账号登录</strong><button type="button" class="btn btn-secondary" data-close-sigua-login aria-label="关闭">×</button></div>
+            <form id="pocket-sigua-login-form" class="pocket-registration-form pocket-sigua-login-form">
+                <label class="login-field-label" for="sigua-login-account">丝瓜账号</label>
+                <input id="sigua-login-account" class="input-control" autocomplete="username" maxlength="256" placeholder="请输入丝瓜账号" required>
+                <label class="login-field-label" for="sigua-login-password">密码</label>
+                <input id="sigua-login-password" class="input-control" type="password" autocomplete="current-password" maxlength="1024" placeholder="请输入丝瓜密码" required>
+                <div id="sigua-login-status" class="registration-status" role="status" aria-live="polite"></div>
+                <button id="sigua-login-submit" type="submit" class="btn btn-primary btn-full">登录</button>
+            </form>
+        </section>
+    </div>
+    <div id="pocket-registration-modal" class="modal-overlay pocket-registration-overlay">
+        <section class="modal-content pocket-registration-dialog" role="dialog" aria-modal="true" aria-labelledby="registration-title">
+            <div class="modal-header"><strong id="registration-title">设置口袋48密码</strong><button type="button" class="btn btn-secondary" data-close-pocket-registration aria-label="关闭">×</button></div>
+            <form id="pocket-registration-form" class="pocket-registration-form">
+                <div id="registration-password-fields">
+                    <label for="registration-password">密码</label><input id="registration-password" type="password" class="input-control" autocomplete="new-password" minlength="6" maxlength="1024" placeholder="至少 6 位" required>
+                    <label for="registration-confirmation">确认密码</label><input id="registration-confirmation" type="password" class="input-control" autocomplete="new-password" minlength="6" maxlength="1024" placeholder="再次输入密码" required>
+                </div>
+                <label id="registration-agreement-row" class="registration-agreement"><input id="registration-agreement" type="checkbox"><span>我已阅读并同意
+                    <a href="https://h5.48.cn/pocket_agreement/privacy/home/service.html" target="_blank" rel="noopener noreferrer">《口袋48用户协议》</a>、
+                    <a href="https://h5.48.cn/pocket_agreement/privacy/home/privacy.html" target="_blank" rel="noopener noreferrer">《隐私政策》</a>和
+                    <a href="https://h5.48.cn/pocket_agreement/privacy/home/children.html" target="_blank" rel="noopener noreferrer">《未成年人个人信息保护指引》</a></span></label>
+                <div id="registration-status" class="registration-status" role="status" aria-live="polite"></div>
+                <button id="registration-submit" type="submit" class="btn btn-primary btn-full">注册并登录</button>
+            </form>
+        </section>
     </div>
 </body>
 
