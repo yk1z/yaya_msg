@@ -14,7 +14,7 @@ const versionLabel = `v${toDisplayVersion(pkg.version)}`;
 const cliPath = require.resolve('electron-builder/out/cli/cli.js');
 const projectRoot = path.resolve(__dirname, '..');
 const userArgs = process.argv.slice(2);
-const artifactArg = '-c.artifactName=yaya_msg-' + versionLabel + '-${os}-${arch}.${ext}';
+const artifactArg = '-c.artifactName=yaya_msg-' + versionLabel + '-${os}.${ext}';
 const DEFAULT_ELECTRON_MIRROR = 'https://npmmirror.com/mirrors/electron/';
 const DEFAULT_ELECTRON_BUILDER_BINARIES_MIRROR = 'https://github.com/electron-userland/electron-builder-binaries/releases/download/';
 

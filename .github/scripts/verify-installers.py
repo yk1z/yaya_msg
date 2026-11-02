@@ -39,7 +39,7 @@ def check_worker(application, resources):
 
 
 def check_windows(dist, package):
-    installer = only(dist.glob("*-win-*.exe"), "Windows installer")
+    installer = only(dist.glob("*-win.exe"), "Windows installer")
     for binary in (installer, dist / "win-unpacked/resources/ffmpeg.exe"):
         with binary.open("rb") as handle:
             require(handle.read(2) == b"MZ", f"Not a Windows executable: {binary}")
@@ -48,7 +48,7 @@ def check_windows(dist, package):
 
 
 def check_macos(dist, arch):
-    installer = only(dist.glob(f"*-mac-{arch}.dmg"), "macOS installer")
+    installer = only(dist.glob("*-mac.dmg"), "macOS installer")
     with tempfile.TemporaryDirectory(prefix="yaya-dmg-") as temporary:
         mount = Path(temporary) / "mounted"
         mount.mkdir()

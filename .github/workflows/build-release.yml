@@ -34,19 +34,11 @@ jobs:
             build_command: npm run dist -- --win nsis --x64 --publish never
             artifact_path: |
               dist/*.exe
-          - os: macos-15-intel
-            label: macOS
-            arch: x64
-            verify_platform: macos
-            artifact_name: yaya-msg-macos-x64
-            build_command: npm run dist -- --mac dmg --x64 --publish never
-            artifact_path: |
-              dist/*.dmg
           - os: macos-latest
             label: macOS
             arch: arm64
             verify_platform: macos
-            artifact_name: yaya-msg-macos-arm64
+            artifact_name: yaya-msg-macos
             build_command: npm run dist -- --mac dmg --arm64 --publish never
             artifact_path: |
               dist/*.dmg

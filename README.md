@@ -10,7 +10,7 @@
 | 系统 | 格式 | 安装方式 |
 | --- | --- | --- |
 | Windows x64 | `.exe` | 为当前 Windows 用户安装，默认 `C:\yaya_msg`，可更改目录，自动创建桌面快捷方式 |
-| macOS Intel / Apple 芯片 | `.dmg` | 选择 x64 / arm64 版本，打开后拖入“应用程序” |
+| macOS Apple 芯片 | `.dmg` | 打开后拖入“应用程序” |
 | Linux x64（Debian / Ubuntu） | `.deb` | 使用系统软件安装器，或执行 `sudo apt install ./文件名.deb` |
 
 安装版支持 `yayamsg://` 深链。由旧解压版迁移时，先关闭旧版，再安装并启动新版。安装包不包含软件自动更新功能。
