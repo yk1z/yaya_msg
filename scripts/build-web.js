@@ -567,8 +567,20 @@ async function buildWebAssets() {
     console.log(`Web assets built with esbuild (${buildVersion}) at ${outputDir}`);
 }
 
-const buildTask = import('./sync-gift-price-catalog.mjs')
-    .then(module => module.syncGiftPriceCatalog())
+async function prepareGiftPriceSnapshot() {
+    const syncScript = path.join(__dirname, 'sync-gift-price-catalog.mjs');
+    const localCatalog = path.join(projectRoot, 'server', 'gift', 'prices.json');
+    if (fs.existsSync(syncScript) && fs.existsSync(localCatalog)) {
+        const module = await import('./sync-gift-price-catalog.mjs');
+        module.syncGiftPriceCatalog();
+    } else {
+        // Public checkouts use the committed catalogue; private server sources are optional.
+        const snapshot = require('../src/common/gift-prices.snapshot');
+        require('../src/common/gift-pricing').validateSnapshot(snapshot);
+    }
+}
+
+const buildTask = prepareGiftPriceSnapshot()
     .then(() => buildDesktopRuntimeOnly ? buildDesktopRuntime() : buildWebAssets());
 buildTask
     .then(() => console.log(buildDesktopRuntimeOnly ? 'Local runtime assets built' : 'Web build completed'))
