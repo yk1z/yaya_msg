@@ -1,19 +1,7 @@
 # 牙牙消息
 > 一个口袋48电脑端工具
-<img width="689" height="495" alt="ScreenShot_2026-09-16_233843_567" src="https://github.com/user-attachments/assets/a0e3a4ec-5895-4499-ba37-9511cd2c8604" />
+<img width="689" height="495" alt="yayamsg" src="https://github.com/user-attachments/assets/de5d99b7-cbcf-4bb8-9dba-472d5f816c56" />
 
-
-## 安装
-
-从 [Releases](https://github.com/yk1z/yaya_msg/releases) 下载对应系统的安装包：
-
-| 系统 | 格式 | 安装方式 |
-| --- | --- | --- |
-| Windows x64 | `.exe` | 为当前 Windows 用户安装，默认 `C:\yaya_msg`，可更改目录，自动创建桌面快捷方式 |
-| macOS Apple 芯片 | `.dmg` | 打开后拖入“应用程序” |
-| Linux x64（Debian / Ubuntu） | `.deb` | 使用系统软件安装器，或执行 `sudo apt install ./文件名.deb` |
-
-安装版支持 `yayamsg://` 深链。由旧解压版迁移时，先关闭旧版，再安装并启动新版。安装包不包含软件自动更新功能。
 
 ## 主要功能
 ### 消息类
@@ -31,7 +19,7 @@
 - 录制：直播、上麦自动录制。
 
 ### 口袋功能类
-- 口袋房间：查看关注成员的口袋房间消息。
+- 口袋房间：查看关注成员的口袋房间消息，可发送消息、送礼/
 - 口袋私信：查看口袋私信列表，可发送私信。
 - 房间相册：查看成员房间图片、视频，支持批量下载。
 - 口袋动态：查看成员的动态列表。
@@ -45,6 +33,7 @@
 - 48区：查看48区内容。
 - 屏蔽词检测：检测文本是否属于口袋48屏蔽词。
 - 发送消息：在成员口袋房间中发送消息。
+- 云握手：与成员进行云握手。
 
 ### 账号类
 - 切换账号：支持大、小号切换。
