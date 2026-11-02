@@ -69,7 +69,7 @@ def check_macos(dist, arch):
             executable_file = app / "Contents/MacOS" / info["CFBundleExecutable"]
             for binary in (ffmpeg, executable_file):
                 subprocess.run([
-                    "lipo", "-verify_arch", "x86_64" if arch == "x64" else "arm64", str(binary)
+                    "lipo", str(binary), "-verify_arch", "x86_64" if arch == "x64" else "arm64"
                 ], check=True)
             print(f"Verified DMG, application/FFmpeg architecture and yayamsg protocol: {installer.name}")
             check_worker(executable_file, app / "Contents/Resources")
