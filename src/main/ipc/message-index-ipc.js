@@ -1,5 +1,5 @@
 const { ipcMain } = require('electron');
-const messageIndexService = require('../services/message-index-service');
+const messageIndexService = require('../services/message-index-client');
 
 function registerMessageIndexIpc() {
     ipcMain.handle('sync-gift-prices', (_event, payload) => require('../services/gift-price-sync-service').syncGiftPrices(payload));

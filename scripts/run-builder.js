@@ -1,5 +1,4 @@
 const { spawnSync } = require('child_process');
-const fs = require('fs');
 const path = require('path');
 const pkg = require('../package.json');
 
@@ -14,57 +13,11 @@ function toDisplayVersion(version) {
 const versionLabel = `v${toDisplayVersion(pkg.version)}`;
 const cliPath = require.resolve('electron-builder/out/cli/cli.js');
 const projectRoot = path.resolve(__dirname, '..');
-const distDir = path.join(projectRoot, 'dist');
-const windowsArtifactBaseName = `yaya_msg-${versionLabel}`;
-const windowsArtifactFileName = `yaya_msg-${versionLabel}-win.zip`;
 const userArgs = process.argv.slice(2);
-const artifactArg = `-c.artifactName=yaya_msg-${versionLabel}.${'${ext}'}`;
+const artifactArg = '-c.artifactName=yaya_msg-' + versionLabel + '-${os}-${arch}.${ext}';
 const DEFAULT_ELECTRON_MIRROR = 'https://npmmirror.com/mirrors/electron/';
 const DEFAULT_ELECTRON_BUILDER_BINARIES_MIRROR = 'https://github.com/electron-userland/electron-builder-binaries/releases/download/';
 
-function shouldWrapWindowsZip(args) {
-    if (process.platform !== 'win32') {
-        return false;
-    }
-
-    const joined = args.join(' ').toLowerCase();
-    return joined.includes('--win zip') || joined.includes('--windows zip');
-}
-
-function buildWindowsWrappedZip() {
-    const unpackedDir = path.join(distDir, 'win-unpacked');
-    const stagingDir = path.join(distDir, windowsArtifactBaseName);
-    const zipPath = path.join(distDir, windowsArtifactFileName);
-
-    if (!fs.existsSync(unpackedDir)) {
-        throw new Error(`Windows unpacked directory not found: ${unpackedDir}`);
-    }
-
-    fs.rmSync(stagingDir, { recursive: true, force: true });
-    fs.rmSync(zipPath, { force: true });
-    fs.cpSync(unpackedDir, stagingDir, { recursive: true });
-
-    const psScript = [
-        `Compress-Archive -Path '${stagingDir}' -DestinationPath '${zipPath}' -Force`
-    ].join('; ');
-
-    const zipResult = spawnSync(
-        'powershell',
-        ['-NoProfile', '-NonInteractive', '-Command', psScript],
-        { cwd: projectRoot, stdio: 'inherit' }
-    );
-
-    fs.rmSync(stagingDir, { recursive: true, force: true });
-
-    if (zipResult.status !== 0) {
-        throw new Error(`Failed to create Windows zip artifact: ${zipPath}`);
-    }
-}
-
-const wrapWindowsZip = shouldWrapWindowsZip(userArgs);
-const builderArgs = wrapWindowsZip
-    ? userArgs.map((arg) => (String(arg).toLowerCase() === 'zip' ? 'dir' : arg))
-    : userArgs;
 const builderEnv = {
     ...process.env,
     ELECTRON_MIRROR: process.env.ELECTRON_MIRROR || DEFAULT_ELECTRON_MIRROR,
@@ -77,7 +30,7 @@ console.log(`[run-builder] ELECTRON_BUILDER_BINARIES_MIRROR=${builderEnv.ELECTRO
 
 const result = spawnSync(
     process.execPath,
-    [cliPath, artifactArg, ...builderArgs],
+    [cliPath, artifactArg, ...userArgs],
     {
         cwd: projectRoot,
         stdio: 'inherit',
@@ -86,9 +39,6 @@ const result = spawnSync(
 );
 
 if (typeof result.status === 'number') {
-    if (result.status === 0 && wrapWindowsZip) {
-        buildWindowsWrappedZip();
-    }
     process.exit(result.status);
 }
 

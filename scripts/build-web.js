@@ -110,9 +110,13 @@ async function buildDatabaseRuntime(sourcePath, runtimePath, banner) {
 async function buildMediaVendors() {
     const outputPath = path.join(projectRoot, 'src', 'renderer', 'vendor', 'media-vendors.js');
     fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-    await esbuild.build({
-        entryPoints: [path.join(projectRoot, 'src', 'renderer', 'media-vendor-loader.js')],
-        outfile: outputPath,
+    await Promise.all([
+        ['media-vendor-loader.js', 'media-vendors.js'],
+        ['player-vendor-loader.js', 'player-vendors.js'],
+        ['pinyin-vendor-loader.js', 'pinyin-vendor.js']
+    ].map(([entry, output]) => esbuild.build({
+        entryPoints: [path.join(projectRoot, 'src', 'renderer', entry)],
+        outfile: path.join(path.dirname(outputPath), output),
         bundle: true,
         format: 'iife',
         platform: 'browser',
@@ -123,7 +127,7 @@ async function buildMediaVendors() {
         define: {
             'process.env.NODE_ENV': '"production"'
         }
-    });
+    })));
 }
 
 async function buildDatabaseTailwind() {
@@ -260,6 +264,7 @@ function configureLazyWebMediaVendors(indexHtml) {
     <script src="./src/web/browser-shim.js?v=__YAYA_BUILD_VERSION__" data-media-vendors-url="./${versionedRelativePath}"></script>`;
     return indexHtml
         .replace(/^[ \t]*<script src="\.\/src\/renderer\/vendor\/media-vendors\.js\?v=__YAYA_BUILD_VERSION__"><\/script>\r?\n/m, '')
+        .replace(/^[ \t]*<script src="\.\/src\/renderer\/(?:vendor\/pinyin-vendor|desktop-media-loader)\.js\?v=__YAYA_BUILD_VERSION__"><\/script>\r?\n/gm, '')
         .replace(browserShimTag, lazyBrowserShimTag);
 }
 

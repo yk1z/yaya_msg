@@ -7,11 +7,11 @@ on:
   workflow_dispatch:
     inputs:
       replace_mac_release_tag:
-        description: Existing release tag whose macOS asset should be replaced
+        description: Existing release tag to upload macOS DMG installers to
         required: false
         type: string
       replace_linux_release_tag:
-        description: Existing release tag whose Linux asset should be replaced
+        description: Existing release tag to upload the Linux DEB installer to
         required: false
         type: string
 
@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   build:
-    name: Build ${{ matrix.label }}
+    name: Build ${{ matrix.label }} (${{ matrix.arch }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -28,22 +28,36 @@ jobs:
         include:
           - os: windows-latest
             label: Windows
+            arch: x64
+            verify_platform: windows
             artifact_name: yaya-msg-windows
-            build_command: npm run dist -- --win zip --publish never
+            build_command: npm run dist -- --win nsis --x64 --publish never
             artifact_path: |
-              dist/*.zip
+              dist/*.exe
+          - os: macos-15-intel
+            label: macOS
+            arch: x64
+            verify_platform: macos
+            artifact_name: yaya-msg-macos-x64
+            build_command: npm run dist -- --mac dmg --x64 --publish never
+            artifact_path: |
+              dist/*.dmg
           - os: macos-latest
             label: macOS
-            artifact_name: yaya-msg-macos
-            build_command: npm run dist -- --mac zip --publish never && for f in dist/*.zip; do mv "$f" "${f%.zip}-mac.zip"; done
+            arch: arm64
+            verify_platform: macos
+            artifact_name: yaya-msg-macos-arm64
+            build_command: npm run dist -- --mac dmg --arm64 --publish never
             artifact_path: |
-              dist/*-mac.zip
+              dist/*.dmg
           - os: ubuntu-latest
             label: Linux
+            arch: x64
+            verify_platform: linux
             artifact_name: yaya-msg-linux
-            build_command: npm run dist -- --linux tar.gz --publish never && for f in dist/*.tar.gz; do mv "$f" "${f%.tar.gz}-linux.tar.gz"; done
+            build_command: npm run dist -- --linux deb --x64 --publish never
             artifact_path: |
-              dist/*-linux.tar.gz
+              dist/*.deb
 
     steps:
       - name: Checkout repository
@@ -55,93 +69,35 @@ jobs:
           node-version: 20
           cache: npm
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: Install dependencies
         run: npm ci
 
       - name: Build application
         run: ${{ matrix.build_command }}
 
-      - name: Verify bundled FFmpeg in macOS archive
-        if: matrix.label == 'macOS'
-        run: |
-          python3 - <<'PY'
-          import glob
-          import zipfile
-
-          archives = glob.glob('dist/*-mac.zip')
-          if len(archives) != 1:
-              raise SystemExit(f'Expected one macOS archive, found: {archives}')
-
-          with zipfile.ZipFile(archives[0]) as archive:
-              matches = [
-                  entry for entry in archive.infolist()
-                  if entry.filename.endswith('/Contents/Resources/ffmpeg')
-              ]
-
-          if len(matches) != 1:
-              raise SystemExit(f'Expected one bundled FFmpeg entry, found: {len(matches)}')
-
-          mode = matches[0].external_attr >> 16
-          if mode & 0o111 == 0:
-              raise SystemExit(f'Bundled FFmpeg is not executable: mode={mode:o}')
-
-          print(f'Verified bundled FFmpeg: mode={mode:o}, size={matches[0].file_size}')
-          PY
-
-      - name: Verify bundled FFmpeg in Linux archive
-        if: matrix.label == 'Linux'
-        run: |
-          python3 - <<'PY'
-          import glob
-          import tarfile
-
-          archives = glob.glob('dist/*-linux.tar.gz')
-          if len(archives) != 1:
-              raise SystemExit(f'Expected one Linux archive, found: {archives}')
-
-          with tarfile.open(archives[0], 'r:gz') as archive:
-              matches = [
-                  entry for entry in archive.getmembers()
-                  if entry.isfile() and entry.name.endswith('/resources/ffmpeg')
-              ]
-
-          if len(matches) != 1:
-              raise SystemExit(f'Expected one bundled FFmpeg entry, found: {len(matches)}')
-
-          mode = matches[0].mode
-          if mode & 0o111 == 0:
-              raise SystemExit(f'Bundled FFmpeg is not executable: mode={mode:o}')
-
-          with tarfile.open(archives[0], 'r:gz') as archive:
-              top_level = {
-                  entry.name.split('/', 1)[1]: entry
-                  for entry in archive.getmembers()
-                  if '/' in entry.name and '/' not in entry.name.split('/', 1)[1]
-              }
-
-          icon = top_level.get('icon.png')
-          if not icon or not icon.isfile():
-              raise SystemExit('Missing Linux icon: icon.png')
-
-          print(f'Verified bundled FFmpeg: mode={mode:o}, size={matches[0].size}')
-          print('Verified Linux icon')
-          PY
+      - name: Verify installer contents and protocol registration
+        run: python .github/scripts/verify-installers.py ${{ matrix.verify_platform }} --arch ${{ matrix.arch }}
 
       - name: Replace macOS asset in existing release
         if: matrix.label == 'macOS' && github.event_name == 'workflow_dispatch' && inputs.replace_mac_release_tag != ''
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          shasum -a 256 dist/*-mac.zip
-          gh release upload "${{ inputs.replace_mac_release_tag }}" dist/*-mac.zip --clobber
+          shasum -a 256 dist/*.dmg
+          gh release upload "${{ inputs.replace_mac_release_tag }}" dist/*.dmg --clobber
 
       - name: Replace Linux asset in existing release
         if: matrix.label == 'Linux' && github.event_name == 'workflow_dispatch' && inputs.replace_linux_release_tag != ''
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          sha256sum dist/*-linux.tar.gz
-          gh release upload "${{ inputs.replace_linux_release_tag }}" dist/*-linux.tar.gz --clobber
+          sha256sum dist/*.deb
+          gh release upload "${{ inputs.replace_linux_release_tag }}" dist/*.deb --clobber
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -191,7 +147,8 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
           files: |
-            release-assets/**/*.zip
-            release-assets/**/*.tar.gz
+            release-assets/**/*.exe
+            release-assets/**/*.dmg
+            release-assets/**/*.deb
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

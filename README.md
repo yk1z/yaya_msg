@@ -3,6 +3,18 @@
 <img width="689" height="495" alt="ScreenShot_2026-09-16_233843_567" src="https://github.com/user-attachments/assets/a0e3a4ec-5895-4499-ba37-9511cd2c8604" />
 
 
+## 安装
+
+从 [Releases](https://github.com/yk1z/yaya_msg/releases) 下载对应系统的安装包：
+
+| 系统 | 格式 | 安装方式 |
+| --- | --- | --- |
+| Windows x64 | `.exe` | 为当前 Windows 用户安装，默认 `C:\yaya_msg`，可更改目录，自动创建桌面快捷方式 |
+| macOS Intel / Apple 芯片 | `.dmg` | 选择 x64 / arm64 版本，打开后拖入“应用程序” |
+| Linux x64（Debian / Ubuntu） | `.deb` | 使用系统软件安装器，或执行 `sudo apt install ./文件名.deb` |
+
+安装版支持 `yayamsg://` 深链。由旧解压版迁移时，先关闭旧版，再安装并启动新版。安装包不包含软件自动更新功能。
+
 ## 主要功能
 ### 消息类
 - 消息抓取：抓取成员房间消息并一键导入至软件内。

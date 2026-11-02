@@ -6,6 +6,7 @@ const settingsService = require('./services/settings-service');
 let tray = null;
 let trayMenuWindow = null;
 let trayMenuShowTimer = null;
+let trayMenuReleaseTimer = null;
 let trayMenuReady = false;
 const TRAY_MENU_WIDTH = 136;
 const TRAY_MENU_HEIGHT = 82;
@@ -53,6 +54,13 @@ function concealTrayMenu() {
     if (!trayMenuWindow || trayMenuWindow.isDestroyed()) return;
     trayMenuWindow.setOpacity(0);
     trayMenuWindow.setIgnoreMouseEvents(true);
+    if (trayMenuReleaseTimer) clearTimeout(trayMenuReleaseTimer);
+    const menuWindow = trayMenuWindow;
+    trayMenuReleaseTimer = setTimeout(() => {
+        trayMenuReleaseTimer = null;
+        if (trayMenuWindow === menuWindow && !menuWindow.isDestroyed()) menuWindow.destroy();
+    }, 30_000);
+    trayMenuReleaseTimer.unref?.();
 }
 
 function primeTrayMenuWindow(menuWindow) {
@@ -138,6 +146,8 @@ function getTrayMenuPosition(bounds) {
 }
 
 function showTrayMenu(bounds) {
+    if (trayMenuReleaseTimer) clearTimeout(trayMenuReleaseTimer);
+    trayMenuReleaseTimer = null;
     const menuWindow = createTrayMenuWindow();
     const position = getTrayMenuPosition(bounds);
     menuWindow.setPosition(position.x, position.y, false);
@@ -185,12 +195,13 @@ function createTray() {
         tray.setContextMenu(createNativeTrayMenu());
     } else {
         tray.on('right-click', (_event, bounds) => showTrayMenu(bounds));
-        createTrayMenuWindow();
     }
     return tray;
 }
 
 function destroyTray() {
+    if (trayMenuReleaseTimer) clearTimeout(trayMenuReleaseTimer);
+    trayMenuReleaseTimer = null;
     if (trayMenuShowTimer) {
         clearTimeout(trayMenuShowTimer);
         trayMenuShowTimer = null;

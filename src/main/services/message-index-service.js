@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { DatabaseSync } = require('node:sqlite');
-const { ensureStoragePaths } = require('../../common/storage-paths');
+const { ensureStoragePaths: ensureDefaultStoragePaths } = require('../../common/storage-paths');
 const { reportIgnoredError } = require('../../common/error-utils');
 const { normalizeMessageRoomIds, getMessageRoomMetadata } = require('../../common/message-room-filter');
 const { resolveGiftPrice, messageContext, isScoringGift, normalizeGiftInfo } = require('../../common/gift-pricing');
@@ -16,6 +16,19 @@ let messageWatcherTimer = null;
 let messageWatcherDirty = false;
 let messageWatcherSyncing = false;
 let messageWatcherListener = null;
+let configuredStoragePaths = null;
+
+function configureMessageIndexStorage(paths) {
+    if (database || messageDirectoryWatcher) throw new Error('消息索引已启动，不能更改存储位置');
+    if (!paths || !path.isAbsolute(paths.htmlDir || '') || !path.isAbsolute(paths.messageIndexFile || '')) {
+        throw new Error('无效的消息索引存储位置');
+    }
+    configuredStoragePaths = { ...paths };
+}
+
+function ensureStoragePaths() {
+    return configuredStoragePaths || ensureDefaultStoragePaths();
+}
 
 function hasCurrentMessageSchema(db) {
     const columns = db.prepare('PRAGMA table_info(messages)').all();
@@ -1032,6 +1045,7 @@ function closeMessageIndex() {
 }
 
 module.exports = {
+    configureMessageIndexStorage,
     syncMessageIndex,
     startMessageIndexWatcher,
     stopMessageIndexWatcher,

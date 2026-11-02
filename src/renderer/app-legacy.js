@@ -1421,6 +1421,7 @@
                     stopRoomRadio(true);
                 }
 
+                if (currentViewName === 'database' && viewName !== 'database') window.captureDatabaseScroll?.();
                 closeAllModalOverlays();
                 if (window.vodState && currentViewName === 'media' && isVodMediaMode(currentMode)
                     && !(viewName === 'media' && isVodMediaMode(mode))) {

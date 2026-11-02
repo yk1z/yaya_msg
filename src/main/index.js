@@ -18,7 +18,7 @@ const { registerDanmakuIpc } = require('./ipc/danmaku-ipc');
 const { registerMemberRoomIpc } = require('./ipc/member-room-ipc');
 const { registerNetfaceIpc } = require('./ipc/netface-ipc');
 const { netfaceService } = require('./services/netface-service');
-const { closeMessageIndex, startMessageIndexWatcher } = require('./services/message-index-service');
+const { closeMessageIndex, startMessageIndexWatcher } = require('./services/message-index-client');
 const { closeAllLiveDanmakuConnections } = require('./services/danmaku-service');
 const { closeAllMemberRoomConnections } = require('./services/member-room-service');
 const roomNotificationService = require('./services/room-notification-service');
@@ -83,7 +83,6 @@ function performFinalCleanup() {
     roomNotificationService.closeAll();
     closeMemberRoomTransport();
     netfaceService.closeAll();
-    closeMessageIndex();
 }
 
 function sendMediaKeyAction(action) {
@@ -161,7 +160,8 @@ app.on('before-quit', (event) => {
 
     finalizeLiveRecordingsBeforeQuit()
         .catch(error => console.warn('[app-quit] live recording finalize failed:', error))
-        .finally(() => {
+        .finally(async () => {
+            await closeMessageIndex();
             quitCleanupFinished = true;
             performFinalCleanup();
             app.quit();

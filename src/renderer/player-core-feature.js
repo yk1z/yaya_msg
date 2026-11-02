@@ -33,6 +33,7 @@
         } = deps;
 
         let pendingLiveReconnectTimer = null;
+        let playerStartRevision = 0;
         const LIVE_STALL_RECOVERY_DELAY = 5000;
         const WEB_HLS_STALL_RECOVERY_DELAY = 10200;
         const MEDIA_SIGNATURE_TIMEOUT_MS = 6000;
@@ -1362,6 +1363,7 @@
             } = options || {};
             url = normalizePlaybackUrl(url);
             destroyPlayers({ clearTimeline: isLiveContent, clearAuxPanels });
+            const startRevision = playerStartRevision;
             const container = document.getElementById('live-player-container');
             if (!container) return;
 
@@ -1375,6 +1377,7 @@
                     url = await ipcRenderer.invoke('start-live-proxy', liveProxyPayload);
                     await new Promise(resolve => setTimeout(resolve, 1000));
                 } catch (error) {
+                    if (startRevision !== playerStartRevision) return;
                     const nextAttempt = Math.max(0, Number(autoRecoveryAttempt) || 0) + 1;
                     const retryDelay = getLiveReconnectDelay(nextAttempt);
                     container.innerHTML = `<div style="color:white;display:flex;height:100%;align-items:center;justify-content:center;">直播连接失败，${Math.ceil(retryDelay / 1000)} 秒后自动重试…</div>`;
@@ -1400,7 +1403,9 @@
                 }
                 if (window.Artplayer) Artplayer.CONTEXTMENU = false;
                 playbackType = await detectMediaPlaybackType(url);
+                if (startRevision !== playerStartRevision) return;
             } catch (error) {
+                if (startRevision !== playerStartRevision) return;
                 if (!isLiveContent) throw error;
                 const nextAttempt = Math.max(0, Number(autoRecoveryAttempt) || 0) + 1;
                 const retryDelay = getLiveReconnectDelay(nextAttempt);
@@ -1803,6 +1808,7 @@
         }
 
         function destroyPlayers(options = {}) {
+            playerStartRevision += 1;
             const { clearTimeline = true, clearAuxPanels = true } = options;
             const currentArt = getArt();
             const currentDp = getDp();

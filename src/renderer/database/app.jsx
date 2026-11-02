@@ -2027,7 +2027,19 @@
             );
         }
 
-        const rootElement = document.getElementById('database-root') || document.getElementById('root');
-        if (!rootElement) throw new Error('数据库挂载节点不存在');
-        const root = createRoot(rootElement);
-        root.render(<App />);
+        let databaseRoot = null;
+        let databaseRootElement = null;
+        export function mountDatabaseApp(element = document.getElementById('database-root') || document.getElementById('root')) {
+            if (!element) throw new Error('数据库挂载节点不存在');
+            if (databaseRoot && databaseRootElement === element) return;
+            unmountDatabaseApp();
+            databaseRootElement = element;
+            databaseRoot = createRoot(element);
+            databaseRoot.render(<App />);
+        }
+        export function unmountDatabaseApp() {
+            databaseRoot?.unmount();
+            databaseRoot = null;
+            databaseRootElement = null;
+        }
+        mountDatabaseApp();

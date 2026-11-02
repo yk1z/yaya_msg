@@ -750,11 +750,11 @@
             playerEl.innerHTML = '<div id="bilibili-dplayer-container" style="width:100%; height:100%;"></div>';
             playerEl.style.display = 'block';
             if (placeholderEl) placeholderEl.style.display = 'none';
+            const attemptId = bilibiliLiveAttemptId;
             if (typeof window.ensureYayaWebPlayerLibs === 'function') {
                 await window.ensureYayaWebPlayerLibs('dplayer');
             }
-
-            const attemptId = bilibiliLiveAttemptId;
+            if (attemptId !== bilibiliLiveAttemptId) return;
             let hasPlaybackStarted = false;
 
             const markPlaybackStarted = () => {

@@ -9,6 +9,32 @@
 
     let runtimePromise = null;
     let mountPromise = null;
+    let databaseModule = null;
+    let releaseTimer = null;
+    let savedScroll = [];
+    function scrollElements(host) {
+        return [document.getElementById('view-database'), host, ...host.querySelectorAll('*')].filter(Boolean);
+    }
+    function captureDatabaseScroll() {
+        const host = getDatabaseHost();
+        if (!host) return;
+        savedScroll = scrollElements(host).flatMap((element, index) =>
+            element.scrollTop || element.scrollLeft ? [{ index, top: element.scrollTop, left: element.scrollLeft }] : []);
+    }
+    function restoreDatabaseScroll(host) {
+        if (!savedScroll.length) return;
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            if (host.dataset.databaseMounted !== 'true') return;
+            const elements = scrollElements(host);
+            for (const scroll of savedScroll) {
+                if (elements[scroll.index]) {
+                    elements[scroll.index].scrollTop = scroll.top;
+                    elements[scroll.index].scrollLeft = scroll.left;
+                }
+            }
+            savedScroll = [];
+        }));
+    }
 
     function getDatabaseHost() {
         return document.getElementById('database-root');
@@ -99,14 +125,18 @@
 
                 if (isWebRuntime()) {
                     host.replaceChildren();
-                    await import(getWebDatabaseRuntimeUrl());
+                    databaseModule = await import(getWebDatabaseRuntimeUrl());
+                    databaseModule.mountDatabaseApp?.(host);
                     host.dataset.databaseMounted = 'true';
+                    restoreDatabaseScroll(host);
                     return;
                 }
 
                 host.replaceChildren();
-                await import(getDesktopDatabaseRuntimeUrl());
+                databaseModule = await import(getDesktopDatabaseRuntimeUrl());
+                databaseModule.mountDatabaseApp?.(host);
                 host.dataset.databaseMounted = 'true';
+                restoreDatabaseScroll(host);
             } catch (error) {
                 console.error('数据库页面挂载失败:', error);
                 setDatabaseState(`数据库加载失败<br>${error.message || error}`, 'database-error');
@@ -119,4 +149,26 @@
     }
 
     window.mountDatabaseView = mountDatabaseView;
+    function releaseInactiveDatabaseView() {
+        const host = getDatabaseHost();
+        const view = document.getElementById('view-database');
+        if (!host || !view || view.style.display !== 'none' || mountPromise
+            || host.dataset.databaseMounted !== 'true' || !databaseModule?.unmountDatabaseApp) return false;
+        if (host.querySelector('[role="dialog"], .fixed.inset-0')
+            || [...host.querySelectorAll('audio, video')].some(media => !media.paused)) return false;
+        if (!savedScroll.length) captureDatabaseScroll();
+        databaseModule.unmountDatabaseApp();
+        host.replaceChildren();
+        delete host.dataset.databaseMounted;
+        return true;
+    }
+    window.releaseInactiveDatabaseView = releaseInactiveDatabaseView;
+    window.captureDatabaseScroll = captureDatabaseScroll;
+    window.addEventListener('yaya:view-changed', () => {
+        if (releaseTimer) clearTimeout(releaseTimer);
+        releaseTimer = null;
+        if (document.getElementById('view-database')?.style.display === 'none') {
+            releaseTimer = setTimeout(releaseInactiveDatabaseView, 120_000);
+        }
+    });
 })();

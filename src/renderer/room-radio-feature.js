@@ -1538,6 +1538,7 @@
                         if (typeof window.ensureYayaWebPlayerLibs === 'function') {
                             await window.ensureYayaWebPlayerLibs('hls');
                         }
+                        if (playbackRequestId !== roomRadioPlaybackRequestId) return;
                         if (!window.Hls?.isSupported?.()) throw new Error('当前浏览器不支持 HLS 音频播放');
                         radioHlsPlayer = new window.Hls({
                             lowLatencyMode: true,
@@ -1554,6 +1555,7 @@
                     if (typeof window.ensureYayaWebPlayerLibs === 'function') {
                         await window.ensureYayaWebPlayerLibs('mpegts');
                     }
+                    if (playbackRequestId !== roomRadioPlaybackRequestId) return;
                     if (!window.mpegts || !window.mpegts.isSupported()) {
                         throw new Error('您的环境不支持 FLV 音频解码');
                     }

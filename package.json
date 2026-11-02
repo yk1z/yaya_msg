@@ -4,6 +4,7 @@
   "description": "牙牙消息",
   "homepage": "https://github.com/yk1z/yaya_msg",
   "main": "main.js",
+  "desktopName": "com.yaya.message.desktop",
   "scripts": {
     "database:build": "node scripts/build-web.js --database-runtime-only",
     "gift-player:build": "node scripts/build-desktop-gift-player.js",
@@ -90,7 +91,7 @@
     ],
     "win": {
       "target": [
-        "zip"
+        "nsis"
       ],
       "icon": "icon.png"
     },
@@ -110,26 +111,26 @@
     "linux": {
       "target": [
         {
-          "target": "tar.gz",
+          "target": "deb",
           "arch": [
             "x64"
           ]
         }
       ],
+      "executableName": "yaya_msg",
+      "syncDesktopName": true,
       "icon": "icon.png",
       "category": "Utility",
-      "maintainer": "yk1z <yk1z@users.noreply.github.com>",
-      "desktop": {
-        "entry": {
-          "Name": "牙牙消息",
-          "Icon": "yaya_msg",
-          "StartupWMClass": "yaya_msg"
-        }
-      }
+      "maintainer": "yk1z <yk1z@users.noreply.github.com>"
     },
     "nsis": {
+      "include": "build/installer.nsh",
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "perMachine": false,
+      "allowElevation": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "always",
+      "deleteAppDataOnUninstall": false
     }
   },
   "repository": {
