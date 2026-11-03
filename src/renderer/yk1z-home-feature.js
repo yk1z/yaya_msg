@@ -237,6 +237,7 @@
         }
 
         function initYk1zHomePanel() {
+            if (!document.getElementById('home-yk1z-actions')) return;
             if (yk1zHomeInitialized) return;
             yk1zHomeInitialized = true;
             window.YayaDataSync?.subscribe(YK1Z_CONFIG_URL, raw => {

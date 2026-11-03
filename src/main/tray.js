@@ -1,6 +1,6 @@
 const { app, BrowserWindow, ipcMain, Menu, nativeImage, screen, Tray } = require('electron');
 const path = require('path');
-const { createWindow, getMainWindow } = require('./window');
+const { showMainWindow } = require('./window');
 const settingsService = require('./services/settings-service');
 
 let tray = null;
@@ -10,16 +10,6 @@ let trayMenuReleaseTimer = null;
 let trayMenuReady = false;
 const TRAY_MENU_WIDTH = 136;
 const TRAY_MENU_HEIGHT = 82;
-
-function showMainWindow() {
-    let mainWindow = getMainWindow();
-    if (!mainWindow || mainWindow.isDestroyed()) {
-        mainWindow = createWindow();
-    }
-    if (mainWindow.isMinimized()) mainWindow.restore();
-    if (!mainWindow.isVisible()) mainWindow.show();
-    mainWindow.focus();
-}
 
 function createTrayIcon() {
     const iconPath = path.join(
@@ -34,7 +24,11 @@ function createTrayIcon() {
     if (process.platform === 'win32') return sourceIcon;
 
     const resizedIcon = sourceIcon.resize({ width: 18, height: 18 });
-    if (process.platform === 'darwin') resizedIcon.setTemplateImage(true);
+    if (process.platform === 'darwin') {
+        // The artwork is a colour icon, not a monochrome alpha template.
+        resizedIcon.setTemplateImage(false);
+        resizedIcon.addRepresentation({ scaleFactor: 2, buffer: sourceIcon.resize({ width: 36, height: 36 }).toPNG() });
+    }
     return resizedIcon;
 }
 

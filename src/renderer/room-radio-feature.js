@@ -1819,6 +1819,7 @@
         }
 
         autoRoomRadioRecordEnabled = !IS_WEB_PLATFORM
+            && !window.desktop?.isRoomWindow
             && readJsonSetting(AUTO_ROOM_RADIO_RECORD_ENABLED_KEY, false) === true;
         autoRoomRadioRecordMembers = normalizeStoredAutoRoomRadioRecordMembers(
             readJsonSetting(AUTO_ROOM_RADIO_RECORD_MEMBERS_KEY, [])

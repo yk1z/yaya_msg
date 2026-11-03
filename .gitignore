@@ -10,6 +10,7 @@ reports/
 /scripts/*
 !/scripts/build-web.js
 !/scripts/build-desktop-gift-player.js
+!/scripts/build-desktop-shell.js
 !/scripts/copy-ffmpeg.js
 !/scripts/run-builder.js
 !/scripts/build-profile-photo-history.py
@@ -34,6 +35,7 @@ __pycache__/
 *.py[cod]
 
 # Generated app assets
+/desktop.html
 /src/renderer/database/runtime.js
 /src/renderer/database/tailwind.css
 /src/renderer/vendor/
@@ -73,6 +75,10 @@ codex-start.err.log
 codex-start.out.log
 
 # Website-only source and Cloudflare deployment files stay local.
+/cloud/
+/docs/
+/gift-site/
+/vote-site/
 /src/web/
 /server/
 /workers/

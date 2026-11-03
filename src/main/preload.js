@@ -268,6 +268,8 @@ function getCachedImageThumbnailUrlSync(url, width = 520) {
 window.desktop = {
     appDir,
     platform,
+    isRoomWindow: process.argv.includes('--yaya-room-window'),
+    isLiveWindow: process.argv.includes('--yaya-live-window'),
     storagePaths,
     fs,
     path,

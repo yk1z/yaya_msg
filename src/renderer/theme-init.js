@@ -1,4 +1,5 @@
         (function () {
+            if (window.desktop?.isRoomWindow) document.documentElement.dataset.roomWindow = 'true';
             const settingsApi = window.desktop && window.desktop.appSettings ? window.desktop.appSettings : null;
             const savedTheme = settingsApi && typeof settingsApi.getSettingValueSync === 'function'
                 ? String(settingsApi.getSettingValueSync('theme', 'light') || 'light')
@@ -9,6 +10,29 @@
             const DEFAULT_BACKGROUND_URL = 'https://data.gnz.hk/assets/default-background.jpg?v=20260829';
             const THEME_STYLE_ID = 'yaya-theme-init-style';
             const BG_STYLE_ID = 'yaya-custom-bg-style';
+            if (document.documentElement.dataset.desktopShell === 'true') {
+                const key = 'desktopBackgroundTransparency';
+                let transparency = settingsApi?.getSettingValueSync?.(key, null);
+                if (typeof transparency !== 'number' || !Number.isFinite(transparency)) transparency = null;
+                function preview(value) {
+                    const number = Number(value);
+                    if (!Number.isFinite(number)) return;
+                    transparency = Math.max(0, Math.min(100, Math.round(number)));
+                    document.documentElement.style.setProperty('--desktop-background-transparency', `${transparency}%`);
+                }
+                if (transparency !== null) preview(transparency);
+                window.YayaDesktopBackground = {
+                    getTransparency: () => transparency ?? (document.documentElement.dataset.theme === 'dark' ? 72 : 78),
+                    previewTransparency: preview,
+                    saveTransparency(value) {
+                        const number = Number(value);
+                        if (!Number.isFinite(number)) return;
+                        const normalized = Math.max(0, Math.min(100, Math.round(number)));
+                        settingsApi?.setSettingValueSync?.(key, normalized);
+                        preview(normalized);
+                    }
+                };
+            }
 
             function ensureStyleNode(id) {
                 let styleEl = document.getElementById(id);
@@ -60,6 +84,15 @@
 
             function applyCustomBackground(bgData) {
                 const styleEl = ensureStyleNode(BG_STYLE_ID);
+                if (document.documentElement.dataset.desktopShell === 'true') {
+                    const background = String(bgData || '').trim();
+                    const escaped = background.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/[\r\n\f]/g, '');
+                    document.documentElement.dataset.customBackground = String(Boolean(background));
+                    document.documentElement.style.setProperty('--yaya-background-image', background ? `url("${escaped}")` : 'none');
+                    window.__yayaCurrentBackgroundUrl = background;
+                    styleEl.textContent = '';
+                    return;
+                }
                 const nextBg = bgData || DEFAULT_BACKGROUND_URL;
                 window.__yayaCurrentBackgroundUrl = nextBg;
 

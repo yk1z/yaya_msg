@@ -347,7 +347,10 @@
                 const res = await ipcRenderer.invoke('fetch-live-rank', {
                     token: getSafeToken(),
                     pa: getSafePa(),
-                    liveId
+                    liveId,
+                    ...(currentPlayingItem?.rankSource === 'performance'
+                        && String(currentPlayingItem.liveId) === String(liveId)
+                        ? { rankSource: 'performance', type: currentPlayingItem.rankType } : {})
                 });
 
                 if (res.success && res.content && res.content.data) {

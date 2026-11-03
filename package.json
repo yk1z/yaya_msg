@@ -1,6 +1,6 @@
 {
   "name": "yaya_msg",
-  "version": "2.15.0",
+  "version": "3.0.0",
   "description": "牙牙消息",
   "homepage": "https://github.com/yk1z/yaya_msg",
   "main": "main.js",
@@ -8,7 +8,8 @@
   "scripts": {
     "database:build": "node scripts/build-web.js --database-runtime-only",
     "gift-player:build": "node scripts/build-desktop-gift-player.js",
-    "start": "npm run gift-player:build && npm run database:build && electron .",
+    "desktop:build": "node scripts/build-desktop-shell.js",
+    "start": "npm run desktop:build && npm run gift-player:build && npm run database:build && electron .",
     "web:build": "node scripts/build-web.js",
     "web:dev": "npm run web:build && npx wrangler dev",
     "web:dev:lan": "npm run web:build && npx wrangler dev --ip 0.0.0.0 --port 8787",
@@ -18,8 +19,8 @@
     "search:collect": "node scripts/collect-message-search.mjs --mode incremental",
     "search:backfill": "node scripts/collect-message-search.mjs --mode backfill --max-pages 10",
     "search:test": "node --test test/message-search.test.mjs",
-    "pack": "npm run gift-player:build && npm run database:build && node scripts/run-builder.js --dir",
-    "dist": "npm run gift-player:build && npm run database:build && node scripts/run-builder.js",
+    "pack": "npm run desktop:build && npm run gift-player:build && npm run database:build && node scripts/run-builder.js --dir",
+    "dist": "npm run desktop:build && npm run gift-player:build && npm run database:build && node scripts/run-builder.js",
     "seine:export-all": "node scripts/export-all-member-channels.js",
     "seine:compare": "node scripts/compare-member-channels.js",
     "seine:compare-members": "python scripts/compare-member-profiles.py",
@@ -72,7 +73,10 @@
     "files": [
       "main.js",
       "src/**/*",
-      "index.html",
+      "!src/web/**/*",
+      "!src/renderer/netface-fixtures.js",
+      "!src/common/room-message-record.mjs",
+      "desktop.html",
       "style.css",
       "icon.png",
       "icon.ico",
@@ -129,7 +133,8 @@
       "allowElevation": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": "always",
-      "deleteAppDataOnUninstall": false
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true
     }
   },
   "repository": {

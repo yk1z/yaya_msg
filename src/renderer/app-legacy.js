@@ -86,6 +86,7 @@
         let startPrivateMessagePolling;
         let stopPrivateMessagePolling;
         let startFollowedRoomsPolling;
+        let followedRoomScanStartTimer = null;
         let stopFollowedRoomsPolling;
         let startFollowedRoomNotificationPolling;
         let stopFollowedRoomNotificationPolling;
@@ -324,6 +325,7 @@
         let flushFollowedPendingMessages;
         let loadFollowedChatPage;
         let getActiveFollowedChannel;
+        let getActiveFollowedRoomWindowContext;
         let checkGitHubNotice;
         let closeAnnouncement;
         let directToPotPlayer;
@@ -1010,6 +1012,7 @@
                 document.getElementById('view-audio-programs'),
                 document.getElementById('view-community'),
                 document.getElementById('view-pbc'),
+                document.getElementById('view-ip-check'),
                 document.getElementById('view-video-library'),
                 document.getElementById('view-music-library'),
                 document.getElementById('view-followed-rooms')
@@ -1311,6 +1314,7 @@
         }
 
         function scheduleStoredTokenValidation() {
+            if (window.desktop?.isRoomWindow) return;
             if (!getCurrentAppToken()) return;
             if (isCurrentAppLoggedIn()) return;
             if (window.__yayaAuthCheckInFlight) return;
@@ -1373,6 +1377,7 @@
             'audio-programs': '电台',
             community: '社区',
             pbc: '屏蔽词检测',
+            'ip-check': 'IP检测',
             'video-library': '视频',
             'music-library': '音乐',
             'followed-rooms': '口袋房间'
@@ -1400,49 +1405,56 @@
             titleEl.title = titleText;
         }
 
+        let desktopNavigate;
         function switchView(viewName, mode = null) {
-            try {
-                if (currentViewName === 'netface' && viewName !== 'netface'
-                    && typeof window.beforeLeaveNetfaceView === 'function'
-                    && !window.beforeLeaveNetfaceView(viewName, mode)) return;
-                if (viewName === 'openlive') viewName = 'performance';
-                if (viewName !== 'login' && !ensureLoginBeforeSwitchView(viewName)) {
-                    return;
-                }
+            if (window.desktop?.isRoomWindow && viewName === 'home') viewName = 'followed-rooms';
+            if (!window.desktop || window.desktop.platform === 'web') return switchLegacyView(viewName, mode);
+            if (!desktopNavigate) {
+                desktopNavigate = window.YayaRendererFeatures.createDesktopNavigation({
+                    getPages: getPrimaryViewElements,
+                    getRoute: () => ({ view: currentViewName, mode: currentViewMode }),
+                    ensureLogin: ensureLoginBeforeSwitchView,
+                    canLeave: (next, nextMode) => currentViewName !== 'netface' || next === 'netface'
+                        || typeof window.beforeLeaveNetfaceView !== 'function' || window.beforeLeaveNetfaceView(next, nextMode),
+                    setRoute: (view, mode) => {
+                        currentViewName = view;
+                        currentViewMode = mode;
+                        if (view === 'media') currentMode = mode;
+                        updateTopbarPageTitle(view, mode);
+                    },
+                    leavePage: (previous, next, mode) => {
+                        if (previous === 'database' && next !== previous) window.captureDatabaseScroll?.();
+                        closeAllModalOverlays();
+                        if (previous === 'room-radio' && next !== previous && typeof stopRoomRadio === 'function') stopRoomRadio(true);
+                        if (next !== 'room-radio' && typeof stopAllMemberRoomRadioAutoScan === 'function') stopAllMemberRoomRadioAutoScan();
+                        if (window.vodState && previous === 'media' && isVodMediaMode(currentMode)
+                            && !(next === 'media' && isVodMediaMode(mode))) {
+                            vodState.requestVersion += 1;
+                            vodState.isLoading = false;
+                        }
+                        mediaPlaybackViewToken += 1;
+                        if (next === 'media') {
+                            activeMediaReturnView = pendingMediaReturnView;
+                            pendingMediaReturnView = null;
+                        }
+                        if (art || dp || nimInstance) destroyPlayers();
+                        stopPlaybackOnViewChange(next);
+                        if (window.vodState) vodState.isSearchActive = false;
+                        document.getElementById('backToTopBtn')?.classList.remove('show');
+                    },
+                    enterPage: (view, mode) => {
+                        enterAppView(view, mode);
+                        if (view !== 'messages') syncMessageIndexLoadingShield();
+                    }
+                });
+            }
+            return desktopNavigate(viewName, mode);
+        }
 
-                if (viewName !== 'room-radio' && typeof stopAllMemberRoomRadioAutoScan === 'function') {
-                    stopAllMemberRoomRadioAutoScan();
-                }
-                if (
-                    currentViewName === 'room-radio'
-                    && viewName !== 'room-radio'
-                    && typeof stopRoomRadio === 'function'
-                ) {
-                    stopRoomRadio(true);
-                }
-
-                if (currentViewName === 'database' && viewName !== 'database') window.captureDatabaseScroll?.();
-                closeAllModalOverlays();
-                if (window.vodState && currentViewName === 'media' && isVodMediaMode(currentMode)
-                    && !(viewName === 'media' && isVodMediaMode(mode))) {
-                    window.vodState.requestVersion += 1;
-                    window.vodState.isLoading = false;
-                }
-                mediaPlaybackViewToken += 1;
-                if (viewName === 'media') {
-                    activeMediaReturnView = pendingMediaReturnView;
-                    pendingMediaReturnView = null;
-                }
-                currentViewName = viewName;
-                currentViewMode = mode;
-                window.dispatchEvent(new CustomEvent('yaya:view-changed', { detail: { view: viewName, mode } }));
-                updateTopbarPageTitle(viewName, mode);
-                if (window.YayaPlatformAdapter?.onViewChanged) {
-                    window.YayaPlatformAdapter.onViewChanged(viewName, mode);
-                }
-                const backBtn = document.getElementById('backToTopBtn');
-                if (backBtn) backBtn.classList.remove('show');
-
+        function enterAppView(viewName, mode) {
+                if (window.desktop?.isLiveWindow) return;
+                clearTimeout(followedRoomScanStartTimer);
+                followedRoomScanStartTimer = null;
                 const homeView = document.getElementById('view-home');
                 const msgView = document.getElementById('view-messages');
                 const mediaView = document.getElementById('view-media');
@@ -1474,27 +1486,12 @@
                 const musicLibraryView = document.getElementById('view-music-library');
                 const followedRoomsView = document.getElementById('view-followed-rooms');
 
-                hideAllPrimaryViews();
-
-                if (typeof destroyPlayers === 'function') destroyPlayers();
-                stopPlaybackOnViewChange(viewName);
-
-                if (window.vodState) window.vodState.isSearchActive = false;
-
-                if (typeof updateSidebarButtons === 'function') {
-                    updateSidebarButtons(viewName, mode);
-                }
-
                 if (viewName === 'home') {
-                    toggleSidebarMode('messages');
-                    setGlobalSidebarVisible(false);
-                    setSidebarHomeMode(true);
+
                     if (homeView) homeView.style.display = 'flex';
 
                 } else if (viewName === 'media') {
-                    setGlobalSidebarVisible(false);
-                    setSidebarHomeMode(false);
-                    toggleSidebarMode('media');
+
                     if (mediaView) {
                         mediaView.style.display = 'flex';
                         mediaView.style.flexDirection = 'column';
@@ -1550,96 +1547,71 @@
                     });
 
                 } else if (viewName === 'downloads') {
-                    setGlobalSidebarVisible(false);
-                    setSidebarHomeMode(false);
-                    toggleSidebarMode('login');
+
                     if (downloadsView) downloadsView.style.display = 'block';
                     const downloadModule = document.getElementById('sb-download');
                     if (downloadModule) downloadModule.style.display = 'flex';
 
                 } else if (viewName === 'netface') {
-                    setGlobalSidebarVisible(false);
-                    setSidebarHomeMode(false);
-                    toggleSidebarMode('login');
+
                     const netfaceView = document.getElementById('view-netface');
                     if (netfaceView) netfaceView.style.display = 'block';
                     window.enterNetfaceView?.();
                 } else if (viewName === 'invoice') {
-                    setGlobalSidebarVisible(false);
-                    setSidebarHomeMode(false);
-                    toggleSidebarMode('login');
+
                     if (invoiceView) invoiceView.style.display = 'block';
                     if (typeof window.enterInvoiceView === 'function') {
                         window.enterInvoiceView();
                     }
 
                 } else if (viewName === 'database') {
-                    setGlobalSidebarVisible(false);
-                    setSidebarHomeMode(false);
-                    toggleSidebarMode('login');
+
                     if (databaseView) databaseView.style.display = 'block';
                     if (typeof window.mountDatabaseView === 'function') {
                         window.mountDatabaseView();
                     }
 
                 } else if (viewName === 'melee-rank') {
-                    setGlobalSidebarVisible(false);
-                    setSidebarHomeMode(false);
-                    toggleSidebarMode('login');
+
                     if (meleeRankView) meleeRankView.style.display = 'block';
                     if (typeof window.initMeleeRankDataPage === 'function') {
                         window.initMeleeRankDataPage();
                     }
 
                 } else if (viewName === 'official-site-music') {
-                    setGlobalSidebarVisible(false);
-                    setSidebarHomeMode(false);
-                    toggleSidebarMode('login');
+
                     if (officialSiteMusicView) officialSiteMusicView.style.display = 'flex';
                     if (typeof window.loadOfficialSiteMusic === 'function') {
                         window.loadOfficialSiteMusic();
                     }
 
                 } else if (viewName === 'private-messages') {
-                    setGlobalSidebarVisible(false);
-                    setSidebarHomeMode(false);
-                    toggleSidebarMode('login');
+
                     if (privateMessagesView) privateMessagesView.style.display = 'block';
                     if (typeof loadPrivateMessageList === 'function') {
                         loadPrivateMessageList({
                             reset: !privateMessageListState.initialized || privateMessageListState.items.length === 0,
-                            loadAll: true,
+                            loadAll: window.desktop?.platform === 'web' || !privateMessageListState.initialized,
+                            refreshFromTop: window.desktop?.platform !== 'web' && privateMessageListState.initialized,
+                            preserveScroll: window.desktop?.platform !== 'web' && privateMessageListState.initialized,
                             silent: true
                         });
                     }
                     startPrivateMessagePolling();
 
                 } else if (viewName === 'bilibili-live') {
-                    setGlobalSidebarVisible(false);
-                    setSidebarHomeMode(false);
-                    toggleSidebarMode('login');
+
                     if (bilibiliLiveView) bilibiliLiveView.style.display = 'block';
                     enterBilibiliLiveView();
 
                 } else if (viewName === 'performance') {
-                    setGlobalSidebarVisible(false);
-                    setSidebarHomeMode(false);
-                    toggleSidebarMode('media');
+
                     if (performanceView) performanceView.style.display = 'block';
                     if (typeof enterPerformanceView === 'function') {
                         enterPerformanceView();
                     }
 
                 } else if (viewName === 'settings') {
-                    setGlobalSidebarVisible(false);
-                    setSidebarHomeMode(false);
-                    toggleSidebarMode('login');
-
-                    const loginGroup = document.getElementById('sb-login-group');
-                    if (loginGroup) loginGroup.style.display = 'none';
-
-                    const liveGroup = document.getElementById('sb-live-group');
-                    if (liveGroup) liveGroup.style.display = 'none';
 
                     if (settingsView) {
                         settingsView.style.display = 'block';
@@ -1658,9 +1630,7 @@
                     }
 
                 } else if (viewName === 'login') {
-                    setGlobalSidebarVisible(false);
-                    setSidebarHomeMode(false);
-                    toggleSidebarMode('login');
+
                     if (loginView) loginView.style.display = 'block';
 
                     const savedToken = getStoredAppToken();
@@ -1687,24 +1657,17 @@
                     }
 
                 } else if (viewName === 'fetch') {
-                    setGlobalSidebarVisible(false);
-                    setSidebarHomeMode(false);
-                    toggleSidebarMode('login');
+
                     if (fetchView) fetchView.style.display = 'block';
 
                 } else if (viewName === 'flip') {
-                    setGlobalSidebarVisible(false);
-                    setSidebarHomeMode(false);
-                    toggleSidebarMode('login');
+
                     if (flipView) flipView.style.display = 'block';
                     if (typeof loadFlipList === 'function') {
                         loadFlipList(typeof flipCurrentPage !== 'undefined' ? flipCurrentPage : 0);
                     }
 
                 } else if (viewName === 'send-flip') {
-                    setGlobalSidebarVisible(false);
-                    setSidebarHomeMode(false);
-                    toggleSidebarMode('login');
 
                     const token = getCurrentAppToken();
                     if (!token) {
@@ -1713,12 +1676,6 @@
                     }
 
                     if (sendFlipView) sendFlipView.style.display = 'block';
-
-                    const btn = document.getElementById('btn-sb-send-flip');
-                    if (btn) {
-                        document.querySelectorAll('.sidebar .btn').forEach(b => b.classList.remove('active'));
-                        btn.classList.add('active');
-                    }
 
                     setTimeout(() => {
                         if (window.suppressNextFlipMemberAutofocus) {
@@ -1733,63 +1690,45 @@
                     }, 100);
 
                 } else if (viewName === 'profile') {
-                    setGlobalSidebarVisible(false);
-                    setSidebarHomeMode(false);
-                    toggleSidebarMode('login');
+
                     if (profileView) profileView.style.display = 'block';
 
                 } else if (viewName === 'photos') {
-                    setGlobalSidebarVisible(false);
-                    setSidebarHomeMode(false);
-                    toggleSidebarMode('login');
+
                     if (photosView) photosView.style.display = 'block';
 
                 } else if (viewName === 'room-album') {
-                    setGlobalSidebarVisible(false);
-                    setSidebarHomeMode(false);
-                    toggleSidebarMode('login');
+
                     if (roomAlbumView) roomAlbumView.style.display = 'block';
 
                 } else if (viewName === 'member-dynamic') {
-                    setGlobalSidebarVisible(false);
-                    setSidebarHomeMode(false);
-                    toggleSidebarMode('login');
+
                     if (memberDynamicView) memberDynamicView.style.display = 'block';
 
                 } else if (viewName === 'member-weibo') {
-                    setGlobalSidebarVisible(false);
-                    setSidebarHomeMode(false);
-                    toggleSidebarMode('login');
+
                     if (memberWeiboView) memberWeiboView.style.display = 'block';
 
                 } else if (viewName === 'trip') {
-                    setGlobalSidebarVisible(false);
-                    setSidebarHomeMode(false);
-                    toggleSidebarMode('login');
+
                     if (tripView) tripView.style.display = 'block';
                     if (typeof ensureTripListLoaded === 'function') {
                         setTimeout(() => ensureTripListLoaded(), 0);
                     }
 
                 } else if (viewName === 'openlive') {
-                    setGlobalSidebarVisible(false);
-                    setSidebarHomeMode(false);
-                    toggleSidebarMode('login');
+
                     if (openLiveView) openLiveView.style.display = 'block';
 
                 } else if (viewName === 'room-radio') {
-                    setGlobalSidebarVisible(false);
-                    setSidebarHomeMode(false);
-                    toggleSidebarMode('login');
+
                     if (roomRadioView) roomRadioView.style.display = 'block';
                     if (typeof startAllMemberRoomRadioAutoScan === 'function') {
                         startAllMemberRoomRadioAutoScan();
                     }
 
                 } else if (viewName === 'audio-programs') {
-                    setGlobalSidebarVisible(false);
-                    setSidebarHomeMode(false);
-                    toggleSidebarMode('login');
+
                     if (audioProgramsView) audioProgramsView.style.display = 'flex';
 
                     const list = document.getElementById('audio-programs-list');
@@ -1804,24 +1743,19 @@
                     }
 
                 } else if (viewName === 'community') {
-                    setGlobalSidebarVisible(false);
-                    setSidebarHomeMode(false);
-                    toggleSidebarMode('login');
+
                     if (communityView) communityView.style.display = 'flex';
                     if (typeof ensureCommunityFeedLoaded === 'function') {
                         ensureCommunityFeedLoaded();
                     }
 
-                } else if (viewName === 'pbc') {
-                    setGlobalSidebarVisible(false);
-                    setSidebarHomeMode(false);
-                    toggleSidebarMode('login');
-                    if (pbcView) pbcView.style.display = 'block';
+                } else if (viewName === 'pbc' || viewName === 'ip-check') {
+
+                    const toolView = viewName === 'pbc' ? pbcView : document.getElementById('view-ip-check');
+                    if (toolView) toolView.style.display = 'block';
 
                 } else if (viewName === 'music-library') {
-                    setGlobalSidebarVisible(false);
-                    setSidebarHomeMode(false);
-                    toggleSidebarMode('login');
+
                     const musicView = document.getElementById('view-music-library');
                     if (musicView) {
                         musicView.style.display = 'flex';
@@ -1832,19 +1766,27 @@
                     }
 
                 } else if (viewName === 'followed-rooms') {
-                    setGlobalSidebarVisible(false);
-                    setSidebarHomeMode(false);
-                    toggleSidebarMode('login');
+
                     if (followedRoomsView) {
                         followedRoomsView.style.display = 'block';
-                        loadFollowedRooms();
-                        if (typeof startFollowedMemberRoomRadioAutoScan === 'function') {
-                            startFollowedMemberRoomRadioAutoScan();
+                        const roomListLoading = !window.desktop?.isRoomWindow ? loadFollowedRooms() : null;
+                        if (!window.desktop?.isRoomWindow && typeof startFollowedMemberRoomRadioAutoScan === 'function') {
+                            const generation = pocketAccountSessionGeneration;
+                            Promise.resolve(roomListLoading).then(() => {
+                                if (currentViewName !== 'followed-rooms' || generation !== pocketAccountSessionGeneration) return;
+                                clearTimeout(followedRoomScanStartTimer);
+                                followedRoomScanStartTimer = setTimeout(() => {
+                                    followedRoomScanStartTimer = null;
+                                    if (currentViewName === 'followed-rooms' && generation === pocketAccountSessionGeneration) {
+                                        startFollowedMemberRoomRadioAutoScan();
+                                    }
+                                }, 600);
+                            });
                         }
                         const activeRoomRadioChannelId = typeof getActiveFollowedChannel === 'function'
                             ? getActiveFollowedChannel()
                             : '';
-                        if (activeRoomRadioChannelId && typeof window.autoConnectFollowedRoomRadio === 'function') {
+                        if (!window.desktop?.isRoomWindow && activeRoomRadioChannelId && typeof window.autoConnectFollowedRoomRadio === 'function') {
                             const activeRoomCard = document.querySelector(
                                 `.session-card[data-channelid="${activeRoomRadioChannelId}"], .session-card[data-small-channel-id="${activeRoomRadioChannelId}"]`
                             );
@@ -1855,27 +1797,19 @@
                                 activeRoomCard?.dataset?.ownerName || ''
                             );
                         }
-                        if (typeof startFollowedRoomsPolling === 'function') startFollowedRoomsPolling();
+                        if (!window.desktop?.isRoomWindow && typeof startFollowedRoomsPolling === 'function') startFollowedRoomsPolling();
                     }
 
                 } else if (viewName === 'video-library') {
-                    setGlobalSidebarVisible(false);
-                    setSidebarHomeMode(false);
-                    toggleSidebarMode('login');
+
                     if (videoLibraryView) {
                         videoLibraryView.style.display = 'flex';
 
-
-                        const grid = document.getElementById('video-list-grid');
-                        if (grid && grid.innerHTML.trim() === '') {
-                            fetchAllVideoLibrary();
-                        }
+                        fetchAllVideoLibrary();
                     }
 
                 } else {
-                    setGlobalSidebarVisible(true);
-                    setSidebarHomeMode(false);
-                    toggleSidebarMode('messages');
+
                     if (msgView) {
                         msgView.style.display = 'block';
                         syncMessageIndexLoadingShield();
@@ -1890,6 +1824,72 @@
                         }
                     }
                 }
+
+        }
+
+        function switchLegacyView(viewName, mode = null) {
+            try {
+                if (currentViewName === 'netface' && viewName !== 'netface'
+                    && typeof window.beforeLeaveNetfaceView === 'function'
+                    && !window.beforeLeaveNetfaceView(viewName, mode)) return;
+                if (viewName === 'openlive') viewName = 'performance';
+                if (viewName !== 'login' && !ensureLoginBeforeSwitchView(viewName)) {
+                    return;
+                }
+
+                if (viewName !== 'room-radio' && typeof stopAllMemberRoomRadioAutoScan === 'function') {
+                    stopAllMemberRoomRadioAutoScan();
+                }
+                if (
+                    currentViewName === 'room-radio'
+                    && viewName !== 'room-radio'
+                    && typeof stopRoomRadio === 'function'
+                ) {
+                    stopRoomRadio(true);
+                }
+
+                if (currentViewName === 'database' && viewName !== 'database') window.captureDatabaseScroll?.();
+                closeAllModalOverlays();
+                if (window.vodState && currentViewName === 'media' && isVodMediaMode(currentMode)
+                    && !(viewName === 'media' && isVodMediaMode(mode))) {
+                    window.vodState.requestVersion += 1;
+                    window.vodState.isLoading = false;
+                }
+                mediaPlaybackViewToken += 1;
+                if (viewName === 'media') {
+                    activeMediaReturnView = pendingMediaReturnView;
+                    pendingMediaReturnView = null;
+                }
+                currentViewName = viewName;
+                currentViewMode = mode;
+                window.dispatchEvent(new CustomEvent('yaya:view-changed', { detail: { view: viewName, mode } }));
+                updateTopbarPageTitle(viewName, mode);
+                if (window.YayaPlatformAdapter?.onViewChanged) {
+                    window.YayaPlatformAdapter.onViewChanged(viewName, mode);
+                }
+                const backBtn = document.getElementById('backToTopBtn');
+                if (backBtn) backBtn.classList.remove('show');
+
+                hideAllPrimaryViews();
+
+                if (typeof destroyPlayers === 'function') destroyPlayers();
+                stopPlaybackOnViewChange(viewName);
+
+                if (window.vodState) window.vodState.isSearchActive = false;
+
+                if (typeof updateSidebarButtons === 'function') {
+                    updateSidebarButtons(viewName, mode);
+                }
+
+                const messageLayout = !['home', 'media', 'downloads', 'netface', 'invoice', 'database', 'melee-rank',
+                    'official-site-music', 'private-messages', 'bilibili-live', 'performance', 'settings', 'login', 'fetch',
+                    'flip', 'send-flip', 'profile', 'photos', 'room-album', 'member-dynamic', 'member-weibo', 'trip',
+                    'openlive', 'room-radio', 'audio-programs', 'community', 'pbc', 'ip-check', 'music-library',
+                    'followed-rooms', 'video-library'].includes(viewName);
+                setGlobalSidebarVisible(messageLayout);
+                setSidebarHomeMode(viewName === 'home');
+                toggleSidebarMode(viewName === 'home' || messageLayout ? 'messages' : viewName === 'media' ? 'media' : 'login');
+                enterAppView(viewName, mode);
 
                 if (viewName !== 'messages') {
                     syncMessageIndexLoadingShield();
@@ -2498,20 +2498,36 @@
 
         function autoAdjustPageSize() {
             if (!window.vodState) return;
-
-            const availableHeight = window.innerHeight - 250;
-
-            const cardHeight = 105;
-
-            let calculatedSize = Math.floor(availableHeight / cardHeight);
-
-            calculatedSize = Math.max(5, Math.min(calculatedSize, 30));
+            const mediaView = document.getElementById('view-media');
+            let calculatedSize;
+            if (document.body?.classList.contains('desktop-workspace')) {
+                if (!mediaView || mediaView.style.display === 'none' || !isVodMediaMode()) return;
+                const list = document.getElementById('vod-list-container');
+                const row = list?.querySelector('.vod-card-row');
+                const footer = document.getElementById('vod-pagination-controls');
+                if (!row || !footer || mediaView.clientHeight <= 0) return;
+                const rowHeight = row.getBoundingClientRect().height;
+                if (rowHeight <= 0) return;
+                const pixels = value => Number.parseFloat(value) || 0;
+                const viewStyle = getComputedStyle(mediaView);
+                const listStyle = getComputedStyle(list);
+                const footerStyle = getComputedStyle(footer);
+                const gap = pixels(listStyle.rowGap);
+                // Add scrollTop so scrolling the list cannot inflate its available space.
+                const listTop = list.getBoundingClientRect().top - mediaView.getBoundingClientRect().top + mediaView.scrollTop;
+                const availableHeight = mediaView.clientHeight - pixels(viewStyle.paddingBottom) - listTop
+                    - footer.getBoundingClientRect().height - pixels(footerStyle.marginBottom)
+                    - pixels(listStyle.paddingTop) - pixels(listStyle.paddingBottom);
+                calculatedSize = Math.max(1, Math.min(30, Math.floor((availableHeight + gap) / (rowHeight + gap))));
+            } else {
+                calculatedSize = Math.max(5, Math.min(30, Math.floor((window.innerHeight - 250) / 105)));
+            }
 
             if (window.vodState.pageSize !== calculatedSize) {
+                const firstItemIndex = (Math.max(1, window.vodState.currentPage || 1) - 1) * window.vodState.pageSize;
                 window.vodState.pageSize = calculatedSize;
-
-                const mediaView = document.getElementById('view-media');
-                if (mediaView && mediaView.style.display !== 'none' && typeof currentMode !== 'undefined' && currentMode === 'vod') {
+                window.vodState.currentPage = Math.floor(firstItemIndex / calculatedSize) + 1;
+                if (mediaView && mediaView.style.display !== 'none' && typeof currentMode !== 'undefined' && isVodMediaMode(currentMode)) {
                     if (window.vodState.list.length > 0) {
                         window.renderVODListUI();
                     }
@@ -2519,13 +2535,34 @@
             }
         }
 
+        let vodPageSizeFrame = 0;
+        function scheduleVodPageSizeAdjustment() {
+            if (vodPageSizeFrame) return;
+            vodPageSizeFrame = requestAnimationFrame(() => {
+                vodPageSizeFrame = 0;
+                autoAdjustPageSize();
+            });
+        }
+        window.scheduleVodPageSizeAdjustment = scheduleVodPageSizeAdjustment;
+        window.addEventListener('yaya:view-changed', event => {
+            if (event.detail?.view === 'media') scheduleVodPageSizeAdjustment();
+        });
+
         window.addEventListener('resize', () => {
             clearTimeout(window.resizeTimer);
             window.resizeTimer = setTimeout(autoAdjustPageSize, 150);
         });
 
         window.addEventListener('DOMContentLoaded', () => {
+            if (window.desktop?.isRoomWindow) return;
             autoAdjustPageSize();
+            if (!isWebRuntime && typeof ResizeObserver === 'function') {
+                const observer = new ResizeObserver(scheduleVodPageSizeAdjustment);
+                ['view-media', 'media-list-controls', 'vod-pagination-controls'].forEach(id => {
+                    const element = document.getElementById(id);
+                    if (element) observer.observe(element);
+                });
+            }
             initBilibiliLiveConfig();
             initYk1zHomePanel();
         });
@@ -2794,6 +2831,7 @@
             deleteFollowedProfileDynamicComment,
             flushFollowedPendingMessages,
             getActiveFollowedChannel,
+            getActiveFollowedRoomWindowContext,
             jumpToFullRoom,
             loadFollowedChatPage,
             openActiveFollowedFlipQuestion,
@@ -2850,6 +2888,7 @@
         window.openActiveFollowedFlipQuestion = openActiveFollowedFlipQuestion;
         window.openActiveFollowedRoomAlbum = openActiveFollowedRoomAlbum;
         window.openFollowedChat = openFollowedChat;
+        window.getActiveFollowedRoomWindowContext = getActiveFollowedRoomWindowContext;
         window.openFollowedProfilePrivateMessage = openFollowedProfilePrivateMessage;
         window.openFollowedProfileRoom = openFollowedProfileRoom;
         window.openFollowedProfileVideo = openFollowedProfileVideo;
@@ -3060,6 +3099,19 @@
         window.selectPrivateMessageFlipPrivacy = selectPrivateMessageFlipPrivacy;
         window.updatePrivateMessageReplyCounter = updatePrivateMessageReplyCounter;
         window.updatePrivateMessageFlipCostDisplay = updatePrivateMessageFlipCostDisplay;
+        window.YayaRendererFeatures.createPrivateMessageNotifications?.({
+            ipcRenderer, getToken: () => getCurrentAppToken(),
+            getAccountGeneration: () => pocketAccountSessionGeneration,
+            getActiveTarget: () => privateMessageDetailState.targetUserId,
+            conversationKey: getPrivateMessageConversationKey, messageKey: getPrivateMessageItemKey,
+            displayName: getPrivateMessageDisplayName, avatarUrl: getPrivateMessageAvatar,
+            messageText: formatPrivateMessageContent, preview: formatPrivateMessagePreview,
+            async openConversation(id, payload) {
+                switchView('private-messages');
+                await loadPrivateMessageDetail({ targetUserId: id, title: String(payload.memberName || '私信'),
+                    avatar: String(payload.iconUrl || './icon.png'), reset: true });
+            }
+        });
 
         ({
             directToPotPlayer,
@@ -3103,7 +3155,8 @@
             playLiveStream,
             startPlayer
         } = window.YayaRendererFeatures.createPlayerCoreFeature({
-            backToLiveList,
+            backToLiveList: (...args) => window.desktop?.isLiveWindow
+                ? window.showDetachedLiveError?.() : backToLiveList(...args),
             disconnectLiveDanmu: (...args) => typeof disconnectLiveDanmu === 'function'
                 ? disconnectLiveDanmu(...args)
                 : undefined,
@@ -3149,6 +3202,7 @@
             activateMediaPlaybackPage
         }));
         window.destroyPlayers = destroyPlayers;
+        window.configurePlayerLayout = configurePlayerLayout;
         window.playLiveStream = playLiveStream;
         window.startPlayer = startPlayer;
 
@@ -4361,12 +4415,18 @@
             }
         };
 
-        if (isWebRuntime) {
+        if (window.desktop?.isRoomWindow) {
+            // The main window owns account checks, notifications and background startup tasks.
+        } else if (isWebRuntime) {
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', initializeApplicationRuntime, { once: true });
             } else {
                 initializeApplicationRuntime();
             }
+        } else if (document.documentElement.dataset.desktopShell === 'true') {
+            window.addEventListener('yaya:desktop-workspace-ready', () => {
+                setTimeout(initializeApplicationRuntime, 0);
+            }, { once: true });
         } else {
             window.addEventListener('load', initializeApplicationRuntime, { once: true });
         }
@@ -5507,6 +5567,7 @@
             });
             hydrateVODPopularity(pageItems, vodState.requestVersion);
             updatePaginationControls(filteredList.length);
+            window.scheduleVodPageSizeAdjustment?.();
         }
 
         function updatePaginationControls(totalItems) {
@@ -5726,6 +5787,9 @@
                 const card = document.createElement('div');
                 card.className = 'live-card';
                 const isMeetItem = item.source === 'meet48';
+                card.addEventListener('contextmenu', event => {
+                    window.showLiveWindowMenu?.(event, item, isMeetItem ? 'meet-live' : 'live');
+                });
                 const cover = normalizeMediaCoverUrl(item.coverPath, isMeetItem ? 'meet48' : 'pocket');
                 let typeText = '视频', typeClass = 'badge-video';
 
@@ -5742,7 +5806,14 @@
                     <div class="name">${item.userInfo.nickname}</div>
                     <div class="title">${item.title}</div>
                 `;
-                card.onclick = () => playLiveStream(item, isMeetItem ? 'meet-live' : 'live');
+                card.onclick = event => {
+                    const mode = isMeetItem ? 'meet-live' : 'live';
+                    if (window.desktop?.platform === 'web' && !event.target.closest('img')) {
+                        if (!window.openWebDesktopLive?.(item, mode)) showToast('直播信息不完整，请刷新列表后重试');
+                        return;
+                    }
+                    playLiveStream(item, mode);
+                };
                 liveListContainer.appendChild(card);
             });
         }
@@ -6154,7 +6225,8 @@
                 return `<div class="mb-2"><img class="template-media" src="${escapeHtml(url)}" loading="lazy" style="cursor: pointer;"></div><div class="mb-2"></div>`;
             }
 
-            if (messageType === 'GIFT_TEXT' || contentMessageType === 'GIFT_TEXT') {
+            if (['GIFT_TEXT', 'CHANNEL_PRESENT_TEXT', 'PRESENT_TEXT'].includes(messageType)
+                || ['GIFT_TEXT', 'CHANNEL_PRESENT_TEXT', 'PRESENT_TEXT'].includes(contentMessageType)) {
                 return renderStructuredGiftContent(content.giftInfo || content, record);
             }
 
@@ -7363,6 +7435,7 @@
                 if (filterType === 'audio' && (post.isReply || !post.hasAudio)) return false;
                 if (filterType === 'reply' && !post.isReply) return false;
                 if (filterType === 'live-record' && !post.liveId && !post.isLiveText) return false;
+                if (filterType === 'gift' && !post.giftInfo) return false;
                 if (filterType === 'text' && (post.hasImg || post.hasVideo || post.hasAudio || post.liveId || post.isLiveText || post.isReply)) return false;
 
                 if (fromMs !== null || toMs !== null) {
@@ -7437,6 +7510,7 @@
                 else if (filterType === 'audio') matchType = !post.isReply && post.hasAudio;
                 else if (filterType === 'reply') matchType = post.isReply;
                 else if (filterType === 'live-record') matchType = (post.liveId || post.isLiveText);
+                else if (filterType === 'gift') matchType = !!post.giftInfo;
                 else if (filterType === 'text') matchType = !post.hasImg && !post.hasVideo && !post.hasAudio && !post.liveId && !post.isLiveText && !post.isReply;
 
                 if (!matchType) return false;
@@ -7472,6 +7546,7 @@
                 'video': '视频',
                 'audio': '语音',
                 'reply': '翻牌',
+                'gift': '礼物',
                 'live-record': '直播'
             };
             if (isPagedMessageRuntime) {
@@ -8383,14 +8458,20 @@
             const behavior = normalizeWindowCloseBehavior(
                 readStoredStringSetting('windowCloseBehavior', 'minimize-to-tray')
             );
+            const select = document.getElementById('window-close-behavior-select');
+            if (select) {
+                select.value = behavior;
+                select.dispatchEvent(new Event('yaya:setting-loaded'));
+            }
             const radio = document.querySelector(`input[name="window-close-behavior"][value="${behavior}"]`);
             if (radio) radio.checked = true;
         }
 
         function saveWindowCloseBehaviorSetting() {
+            const select = document.getElementById('window-close-behavior-select');
             const checked = document.querySelector('input[name="window-close-behavior"]:checked');
-            if (!checked) return;
-            const behavior = normalizeWindowCloseBehavior(checked.value);
+            if (!select && !checked) return;
+            const behavior = normalizeWindowCloseBehavior(select ? select.value : checked.value);
             writeStoredStringSetting('windowCloseBehavior', behavior);
             if (typeof showToast === 'function') {
                 showToast(behavior === 'quit' ? '关闭软件时将直接退出' : '关闭软件时将最小化到托盘');

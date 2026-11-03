@@ -6,7 +6,7 @@
     const SCHEME = 'yayamsg';
     const views = ['home', 'followed-rooms', 'messages', 'media', 'login', 'downloads', 'invoice', 'database',
         'melee-rank', 'official-site-music', 'fetch', 'private-messages', 'bilibili-live', 'audio-programs',
-        'community', 'pbc', 'video-library', 'music-library', 'flip', 'netface', 'send-flip', 'room-album',
+        'community', 'pbc', 'ip-check', 'video-library', 'music-library', 'flip', 'netface', 'send-flip', 'room-album',
         'member-weibo', 'member-dynamic', 'trip', 'photos', 'profile', 'performance', 'open-live', 'room-radio', 'settings'];
     const aliases = { room: 'followed-rooms', message: 'private-messages', img: 'room-album', stage: 'performance',
         post: 'member-dynamic', weibo: 'member-weibo', send: 'send-flip', nft: 'photos', music: 'official-site-music',

@@ -30,6 +30,8 @@
         let isOpenLiveAutoLoading = false;
         let currentOpenLiveParticipantsRequestId = 0;
         const ENABLE_OPENLIVE_PARTICIPANTS = true;
+        const SHOW_MEMBER_RANK = window.desktop?.platform !== 'web';
+        const PARTICIPANTS_LABEL = SHOW_MEMBER_RANK ? '成员榜' : '参与成员';
 
         function getOpenLiveSearchResultBox() {
             return document.getElementById('openlive-search-results');
@@ -133,9 +135,11 @@
             const statusEl = document.getElementById('openlive-participants-modal-status');
             const listEl = document.getElementById('openlive-participants-modal-list');
             const shouldShow = ENABLE_OPENLIVE_PARTICIPANTS && visible;
+            const titleEl = document.getElementById('openlive-participants-modal-title');
+            if (titleEl) titleEl.textContent = window.YayaRendererUtils.t(PARTICIPANTS_LABEL);
             if (buttonEl) {
                 buttonEl.style.display = shouldShow ? 'inline-flex' : 'none';
-                buttonEl.textContent = window.YayaRendererUtils.t('参与成员');
+                buttonEl.textContent = window.YayaRendererUtils.t(PARTICIPANTS_LABEL);
             }
             if (statusEl) statusEl.textContent = text || '';
             if (listEl) listEl.replaceChildren();
@@ -266,18 +270,23 @@
                 );
                 const team = getOpenLiveParticipantTeam(participant, member, participantGroup);
 
-                return { name, userId, avatar, team, teamLabel: team, teamColor: String(participant?.teamColor || '').trim() };
+                const rank = Number(participant?.rank);
+                const hot = participant?.hot;
+                return { name, userId, avatar, team, teamLabel: team, teamColor: String(participant?.teamColor || '').trim(),
+                    rank: Number.isInteger(rank) && rank > 0 ? rank : null,
+                    hot: hot !== '' && hot != null && Number.isFinite(Number(hot)) ? Number(hot) : null };
             }).filter(Boolean);
         }
 
         function renderOpenLiveParticipants(participants, groupHint = '') {
             const normalizedParticipants = enrichOpenLiveParticipants(participants, groupHint);
+            if (SHOW_MEMBER_RANK) normalizedParticipants.sort((a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity));
             const buttonEl = document.getElementById('btn-player-participants');
             const statusEl = document.getElementById('openlive-participants-modal-status');
             const listEl = document.getElementById('openlive-participants-modal-list');
             if (buttonEl) {
                 buttonEl.style.display = 'inline-flex';
-                buttonEl.textContent = window.YayaRendererUtils.t('参与成员');
+                buttonEl.textContent = window.YayaRendererUtils.t(PARTICIPANTS_LABEL);
             }
             if (statusEl) statusEl.textContent = window.YayaRendererUtils.t(`共 ${normalizedParticipants.length} 位成员`);
             if (!listEl) return;
@@ -321,6 +330,22 @@
                 }
 
                 chip.append(avatar, details);
+                if (SHOW_MEMBER_RANK) {
+                    const rank = document.createElement('span');
+                    rank.className = `rank-num openlive-participant-rank${participant.rank && participant.rank <= 3 ? ` rank-${participant.rank}` : ''}`;
+                    rank.textContent = participant.rank == null ? '—' : String(participant.rank);
+                    chip.dataset.rank = String(participant.rank || '');
+                    const score = document.createElement('span');
+                    score.className = 'openlive-participant-score';
+                    const value = document.createElement('span');
+                    value.className = 'openlive-participant-score-value';
+                    value.textContent = participant.hot == null ? '—' : String(participant.hot);
+                    const label = document.createElement('span');
+                    label.className = 'openlive-participant-score-label';
+                    label.textContent = '贡献值';
+                    score.append(value, label);
+                    chip.append(rank, score);
+                }
 
                 if (participant.userId && typeof window.openFollowedUserProfile === 'function') {
                     chip.addEventListener('click', () => {
@@ -360,7 +385,7 @@
 
             const requestId = Date.now() + Math.random();
             currentOpenLiveParticipantsRequestId = requestId;
-            setOpenLiveParticipantsText('正在读取参与成员...', true);
+            setOpenLiveParticipantsText(`正在读取${PARTICIPANTS_LABEL}...`, true);
 
             try {
                 const result = await ipcRenderer.invoke('fetch-open-live-participants', {
@@ -379,7 +404,7 @@
                 const participants = Array.isArray(result?.content?.participants) ? result.content.participants : [];
 
                 if (!participants.length) {
-                    setOpenLiveParticipantsText('未获取到参与成员', true);
+                    setOpenLiveParticipantsText(`未获取到${PARTICIPANTS_LABEL}`, true);
                     return;
                 }
 
@@ -401,7 +426,7 @@
             } catch (error) {
                 console.error('[公演记录] 读取参与成员失败:', error);
                 if (currentOpenLiveParticipantsRequestId === requestId) {
-                    setOpenLiveParticipantsText('参与成员加载失败', true);
+                    setOpenLiveParticipantsText(`${PARTICIPANTS_LABEL}加载失败`, true);
                 }
             }
         }
@@ -592,7 +617,7 @@
             });
         }
 
-        async function fetchOpenLiveStreamUrl(liveId) {
+        async function fetchOpenLiveStreamUrl(liveId, onDetail) {
             const token = getAppToken ? getAppToken() : (typeof window.getAppToken === 'function' ? window.getAppToken() : '');
             const pa = window.getPA ? window.getPA() : null;
             const result = await ipcRenderer.invoke('fetch-open-live-one', { token, pa, liveId });
@@ -601,6 +626,8 @@
                 console.warn('[公演记录] API返回错误:', result?.msg);
                 return '';
             }
+
+            if (typeof onDetail === 'function') onDetail(result.content);
 
             const highQuality = result.content.playStreams.find(stream => stream.streamType === 2);
             return highQuality ? highQuality.streamPath : result.content.playStreams[0].streamPath;
@@ -648,7 +675,8 @@
             if (paginationControls) paginationControls.style.display = 'none';
             if (mediaListArea) mediaListArea.style.display = 'none';
             if (liveControls) liveControls.style.display = 'none';
-            if (rankButton) rankButton.style.display = 'none';
+            const showPerformanceRank = sourceView === 'performance' && window.desktop?.platform !== 'web';
+            if (rankButton) rankButton.style.display = showPerformanceRank ? 'inline-flex' : 'none';
             if (rankContainer) rankContainer.style.display = 'none';
 
             setReturnToOpenLive(sourceView === 'openlive');
@@ -702,7 +730,9 @@
                 if (timeEl) timeEl.textContent = '';
             }
 
-            setCurrentPlayingItem({ liveId, title, nickname, startTime, openLivePageId });
+            const playingItem = { liveId, title, nickname, startTime, openLivePageId,
+                ...(showPerformanceRank ? { rankSource: 'performance' } : {}) };
+            setCurrentPlayingItem(playingItem);
             if (typeof resetClipTool === 'function') {
                 resetClipTool();
             }
@@ -713,7 +743,9 @@
             }
 
             try {
-                const streamUrl = await fetchOpenLiveStreamUrl(liveId);
+                const streamUrl = await fetchOpenLiveStreamUrl(liveId, detail => {
+                    playingItem.rankType = detail.type;
+                });
                 if (!streamUrl) {
                     console.warn(`[播放失败] liveId:${liveId} 无可用流`);
                     showToast('该场公演尚未开始或暂无播放源');

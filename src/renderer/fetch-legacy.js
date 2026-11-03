@@ -463,7 +463,13 @@
         window.invalidatePocketAccountRequestState = invalidatePocketAccountRequestState;
 
         function syncWebAccountButton(profile = currentPocketProfile, loggedIn = !!currentPocketUserId) {
-            window.dispatchEvent(new CustomEvent('yaya:account-state-changed', { detail: { loggedIn: !!loggedIn } }));
+            window.dispatchEvent(new CustomEvent('yaya:account-state-changed', {
+                detail: {
+                    loggedIn: !!loggedIn,
+                    nickname: loggedIn ? String(profile?.nickname || '') : '',
+                    avatarUrl: loggedIn ? String(profile?.avatarUrl || '') : ''
+                }
+            }));
             if (!isWebRuntimeForAccountUi()) return;
             const button = document.getElementById('web-account-button');
             const avatar = document.getElementById('web-account-avatar');
@@ -1911,6 +1917,7 @@
         window.activateAutoMessageFetchForCurrentAccount = activateAutoMessageFetchForCurrentAccount;
 
         function initializeAutoMessageFetch() {
+            if (window.desktop?.isRoomWindow) return;
             if (autoMessageFetchInitialized) return;
             autoMessageFetchInitialized = true;
             renderAutoMessageFetchUi();

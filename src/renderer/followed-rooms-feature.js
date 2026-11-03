@@ -22,12 +22,18 @@
 
         let currentFollowedData = [];
         let draggedCard = null;
+        let followedRoomPointerDrag = null;
+        let followedRoomSuppressedClick = null;
         let followedRoomsAutoRefreshTimer = null;
         let followedRoomsAutoRefreshEnabled = false;
         let followedRoomsAutoRefreshRunning = false;
         let followedRoomsPollGeneration = 0;
         let followedRoomsLoadGeneration = 0;
         let followedRoomsLastRenderHtml = '';
+        const boundRoomCards = new WeakSet();
+        const boundRadioButtons = new WeakSet();
+        const boundDragCards = new WeakSet();
+        let radioListRefreshFrame = null;
         let followedRoomContextMenu = null;
         let followedRoomContextTarget = null;
         let followedRoomNotificationTimer = null;
@@ -1173,7 +1179,7 @@
 
         function selectFollowedSort(value, text) {
             document.getElementById('followed-sort-value').value = value;
-            document.getElementById('followed-sort-display').value = text;
+            document.querySelector('#followed-sort-display .followed-sort-label').textContent = text;
             document.getElementById('followed-sort-dropdown').style.display = 'none';
             sortFollowedRooms();
         }
@@ -1388,7 +1394,7 @@
             const sortValue = document.getElementById('followed-sort-value');
             const sortDisplay = document.getElementById('followed-sort-display');
             if (sortValue) sortValue.value = 'default';
-            if (sortDisplay) sortDisplay.value = '自定义排序';
+            if (sortDisplay) sortDisplay.querySelector('.followed-sort-label').textContent = '自定义排序';
         }
 
         function getSavedCustomOrder() {
@@ -1461,6 +1467,11 @@
                 if (!isCurrentRequest()) return;
 
                 const memberData = getMemberData();
+                const membersById = new Map();
+                memberData.forEach(member => {
+                    const id = String(member.id || member.userId || '');
+                    if (!membersById.has(id)) membersById.set(id, member);
+                });
                 const teamRelations = getSavedTeamRelations();
                 const teamFollowedIds = teamRelations.map(item => String(item.teamId));
                 const followedIds = [...new Set([...memberFollowedIds, ...teamFollowedIds])];
@@ -1471,7 +1482,7 @@
                 const serverIds = new Set();
                 followedIds.forEach(uid => {
                     const followedId = String(uid);
-                    const member = memberData.find(m => String(m.id || m.userId || '') === followedId)
+                    const member = membersById.get(followedId)
                         || memberData.find(m => {
                             const target = getFollowedTarget(m);
                             return target.isTeam && target.id === followedId;
@@ -1488,9 +1499,14 @@
                 if (!isCurrentRequest()) return;
 
                 const lastMsgs = msgRes.content?.lastMsgList || [];
+                const messagesByChannel = new Map();
+                lastMsgs.forEach(message => {
+                    const id = String(message.channelId);
+                    if (!messagesByChannel.has(id)) messagesByChannel.set(id, message);
+                });
 
                 currentFollowedData = followedMembers.map(m => {
-                    const msg = lastMsgs.find(msg => String(msg.channelId) === String(m.channelId)) || {};
+                    const msg = messagesByChannel.get(String(m.channelId)) || {};
                     const apiStarName = msg.starName || m.ownerName || '未知';
                     let bigDisplayName = m.ownerName || '未知成员';
 
@@ -1662,6 +1678,8 @@
         }
 
         function renderFollowedRoomsList(renderData, options = {}) {
+            // Keep the captured card attached while dragging beyond the window.
+            if (followedRoomPointerDrag?.active) return;
             const { preserveScroll = false } = options;
             const container = document.getElementById('followed-rooms-container');
             const scrollState = preserveScroll ? captureFollowedRoomsScrollAnchor(container) : null;
@@ -1748,8 +1766,8 @@
                     </button>` : '';
 
                 const isActive = String(getActiveFollowedChannel()) === String(item.channelId) ? 'active' : '';
-                const draggableAttr = isCustomSort ? 'draggable="true"' : '';
-                const cursorStyle = isCustomSort ? 'cursor: grab;' : 'cursor: pointer;';
+                const draggableAttr = !isWebRuntime() ? 'draggable="false"' : isCustomSort ? 'draggable="true"' : '';
+                const cursorStyle = !isWebRuntime() || isCustomSort ? 'cursor: grab;' : 'cursor: pointer;';
 
                 return `
         ${pinnedDividerHtml}
@@ -1782,7 +1800,27 @@
             }
 
             container.classList.add('is-refreshing-list');
-            container.innerHTML = html;
+            const fragment = document.createRange().createContextualFragment(html);
+            const existingCards = new Map(Array.from(container.querySelectorAll('.session-card')).map(card => [card.id, card]));
+            const desired = Array.from(fragment.children).map(next => {
+                const card = next.id && existingCards.get(next.id);
+                if (!card) return next;
+                if (card.innerHTML !== next.innerHTML) card.innerHTML = next.innerHTML;
+                for (const attribute of Array.from(card.attributes)) {
+                    if (!next.hasAttribute(attribute.name)) card.removeAttribute(attribute.name);
+                }
+                for (const attribute of next.attributes) {
+                    if (card.getAttribute(attribute.name) !== attribute.value) card.setAttribute(attribute.name, attribute.value);
+                }
+                return card;
+            });
+            // Retain card identities and their click/drag listeners during background updates.
+            // Only move rows when the order actually changes.
+            const keep = new Set(desired);
+            Array.from(container.childNodes).forEach(node => { if (!keep.has(node)) node.remove(); });
+            desired.forEach((node, index) => {
+                if (container.children[index] !== node) container.insertBefore(node, container.children[index] || null);
+            });
             followedRoomsLastRenderHtml = html;
             restoreFollowedRoomsScrollAnchor(container, scrollState);
             requestAnimationFrame(() => {
@@ -1795,7 +1833,16 @@
 
             const cards = container.querySelectorAll('.session-card');
             cards.forEach(card => {
-                card.addEventListener('click', () => {
+                if (boundRoomCards.has(card)) return;
+                boundRoomCards.add(card);
+                card.addEventListener('click', event => {
+                    if (followedRoomSuppressedClick?.card === card
+                        && followedRoomSuppressedClick.until > Date.now()) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        followedRoomSuppressedClick = null;
+                        return;
+                    }
                     hideFollowedRoomContextMenu();
                     window.openFollowedChat(card.dataset.ownerName, card.dataset.channelid, card.dataset.serverId, {
                         memberId: card.dataset.memberId
@@ -1806,8 +1853,11 @@
                     event.stopPropagation();
                     showFollowedRoomContextMenu(event, card);
                 });
+                if (!isWebRuntime()) card.addEventListener('pointerdown', beginFollowedRoomPointerDrag);
             });
             container.querySelectorAll('.followed-room-radio-listen').forEach(button => {
+                if (boundRadioButtons.has(button)) return;
+                boundRadioButtons.add(button);
                 button.addEventListener('click', event => {
                     event.preventDefault();
                     event.stopPropagation();
@@ -1821,8 +1871,10 @@
                 button.addEventListener('mousedown', event => event.stopPropagation());
             });
 
-            if (isCustomSort) {
+            if (isCustomSort && isWebRuntime()) {
                 cards.forEach(card => {
+                    if (boundDragCards.has(card)) return;
+                    boundDragCards.add(card);
                     card.addEventListener('dragstart', handleDragStart);
                     card.addEventListener('dragover', handleDragOver);
                     card.addEventListener('dragenter', handleDragEnter);
@@ -1836,8 +1888,182 @@
         }
 
         window.addEventListener('yaya-room-radio-scan-updated', () => {
-            if (currentFollowedData.length) sortFollowedRooms({ preserveScroll: true });
+            if (!currentFollowedData.length || radioListRefreshFrame !== null) return;
+            radioListRefreshFrame = requestAnimationFrame(() => {
+                radioListRefreshFrame = null;
+                const view = document.getElementById('view-followed-rooms');
+                if (view?.style.display !== 'none') sortFollowedRooms({ preserveScroll: true });
+            });
         });
+
+        function followedRoomWindowPayload(card) {
+            return {
+                ownerName: card.dataset.ownerName || '',
+                channelId: card.dataset.channelid || '',
+                mainChannelId: card.dataset.channelid || '',
+                smallChannelId: card.dataset.smallChannelId || '',
+                serverId: card.dataset.serverId || '',
+                memberId: card.dataset.memberId || '',
+                avatarUrl: card.dataset.avatarUrl || '',
+                roomType: 'big'
+            };
+        }
+
+        function beginFollowedRoomPointerDrag(event) {
+            if (event.button !== 0 || event.isPrimary === false || event.pointerType === 'touch'
+                || event.target.closest('button, input, textarea, select, a, [contenteditable="true"]')) return;
+            if (followedRoomPointerDrag) followedRoomPointerDrag.cancel();
+            hideFollowedRoomContextMenu();
+            const card = event.currentTarget;
+            const rect = card.getBoundingClientRect();
+            const state = {
+                card, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY,
+                clientX: event.clientX, clientY: event.clientY, frame: null,
+                offsetX: event.clientX - rect.left, offsetY: event.clientY - rect.top,
+                active: false, ghost: null, hint: null, target: null,
+                userSelect: card.style.userSelect, opacity: card.style.opacity,
+                cursor: document.body.style.cursor
+            };
+            followedRoomPointerDrag = state;
+            card.style.userSelect = 'none';
+
+            const clearTarget = () => {
+                state.target?.classList.remove('drag-over-target');
+                state.target = null;
+            };
+            const cleanup = () => {
+                if (followedRoomPointerDrag === state) followedRoomPointerDrag = null;
+                card.removeEventListener('pointermove', move);
+                card.removeEventListener('pointerup', finish);
+                card.removeEventListener('pointercancel', cancel);
+                card.removeEventListener('lostpointercapture', cancel);
+                document.removeEventListener('keydown', keydown, true);
+                window.removeEventListener('blur', cancel);
+                window.removeEventListener('pagehide', cancel);
+                if (state.frame !== null) cancelAnimationFrame(state.frame);
+                clearTarget();
+                state.ghost?.remove();
+                state.hint?.remove();
+                card.style.userSelect = state.userSelect;
+                card.style.opacity = state.opacity;
+                document.body.style.cursor = state.cursor;
+                if (card.hasPointerCapture?.(state.pointerId)) card.releasePointerCapture(state.pointerId);
+                if (state.active) followedRoomSuppressedClick = { card, until: Date.now() + 500 };
+            };
+            const cancel = () => cleanup();
+            state.cancel = cancel;
+            const keydown = keyEvent => {
+                if (keyEvent.key !== 'Escape') return;
+                keyEvent.preventDefault();
+                keyEvent.stopPropagation();
+                cancel();
+            };
+            const detachEligibleAt = (clientX, clientY) => {
+                // Include the search and sorting controls in the room-list boundary.
+                const column = document.querySelector('#view-followed-rooms > div > div:first-child');
+                const bounds = column?.getBoundingClientRect();
+                if (!bounds || bounds.width <= 0 || bounds.height <= 0 || rect.width <= 0 || rect.height <= 0) return false;
+                const left = clientX - state.offsetX;
+                const top = clientY - state.offsetY;
+                const overlapWidth = Math.max(0, Math.min(left + rect.width, bounds.right) - Math.max(left, bounds.left));
+                const overlapHeight = Math.max(0, Math.min(top + rect.height, bounds.bottom) - Math.max(top, bounds.top));
+                return overlapWidth * overlapHeight < rect.width * rect.height / 2;
+            };
+            const updateDetachHint = () => {
+                const eligible = detachEligibleAt(state.clientX, state.clientY);
+                state.ghost.dataset.detachEligible = String(eligible);
+                state.ghost.style.outline = eligible ? '2px solid var(--primary)' : 'none';
+                state.hint.style.display = eligible ? 'block' : 'none';
+                state.hint.style.left = `${Math.max(8, Math.min(state.clientX - state.offsetX, window.innerWidth - 180))}px`;
+                state.hint.style.top = `${Math.max(8, state.clientY - state.offsetY - 34)}px`;
+            };
+            const updateTarget = () => {
+                clearTarget();
+                if (detachEligibleAt(state.clientX, state.clientY)) return;
+                const container = document.getElementById('followed-rooms-container');
+                const target = document.elementFromPoint(state.clientX, state.clientY)?.closest('.session-card');
+                if ((document.getElementById('followed-sort-value')?.value || 'default') === 'default'
+                    && target && target !== card && container?.contains(target)) {
+                    state.target = target;
+                    target.classList.add('drag-over-target');
+                }
+            };
+            const autoScroll = () => {
+                if (followedRoomPointerDrag !== state || !state.active) return;
+                const container = document.getElementById('followed-rooms-container');
+                const bounds = container?.getBoundingClientRect();
+                if (bounds && !detachEligibleAt(state.clientX, state.clientY)
+                    && state.clientX >= bounds.left && state.clientX <= bounds.right
+                    && state.clientY >= bounds.top && state.clientY <= bounds.bottom) {
+                    const edge = Math.min(32, bounds.height / 4);
+                    const distance = state.clientY < bounds.top + edge ? state.clientY - bounds.top - edge
+                        : state.clientY > bounds.bottom - edge ? state.clientY - bounds.bottom + edge : 0;
+                    if (distance) {
+                        container.scrollTop += Math.sign(distance) * Math.max(2, Math.min(14, Math.abs(distance) / 2));
+                        updateTarget();
+                    }
+                }
+                state.frame = requestAnimationFrame(autoScroll);
+            };
+            const move = moveEvent => {
+                if (moveEvent.pointerId !== state.pointerId) return;
+                state.clientX = moveEvent.clientX;
+                state.clientY = moveEvent.clientY;
+                if (!state.active) {
+                    if (Math.hypot(moveEvent.clientX - state.startX, moveEvent.clientY - state.startY) < 8) return;
+                    state.active = true;
+                    card.style.opacity = '0.4';
+                    document.body.style.cursor = 'grabbing';
+                    const ghost = card.cloneNode(true);
+                    ghost.removeAttribute('id');
+                    ghost.classList.remove('active', 'drag-over-target');
+                    ghost.setAttribute('aria-hidden', 'true');
+                    ghost.style.cssText += `;position:fixed;z-index:100000;pointer-events:none;opacity:0.85;width:${rect.width}px;height:${rect.height}px;margin:0 !important;box-sizing:border-box;transition:none;box-shadow:0 8px 24px rgba(0,0,0,0.2);`;
+                    document.body.appendChild(ghost);
+                    state.ghost = ghost;
+                    const hint = document.createElement('div');
+                    hint.textContent = '松开以独立窗口显示';
+                    hint.setAttribute('aria-hidden', 'true');
+                    hint.style.cssText = 'position:fixed;z-index:100001;pointer-events:none;padding:6px 10px;border-radius:6px;background:var(--primary);color:#fff;font-size:12px;line-height:18px;white-space:nowrap;box-shadow:0 3px 12px rgba(0,0,0,0.2);';
+                    document.body.appendChild(hint);
+                    state.hint = hint;
+                    state.frame = requestAnimationFrame(autoScroll);
+                }
+                moveEvent.preventDefault();
+                state.ghost.style.left = `${moveEvent.clientX - state.offsetX}px`;
+                state.ghost.style.top = `${moveEvent.clientY - state.offsetY}px`;
+                updateDetachHint();
+                updateTarget();
+            };
+            const finish = upEvent => {
+                if (upEvent.pointerId !== state.pointerId) return;
+                const wasActive = state.active;
+                const detachEligible = wasActive && detachEligibleAt(upEvent.clientX, upEvent.clientY);
+                const container = document.getElementById('followed-rooms-container');
+                const target = document.elementFromPoint(upEvent.clientX, upEvent.clientY)?.closest('.session-card');
+                const canSort = (document.getElementById('followed-sort-value')?.value || 'default') === 'default'
+                    && target && target !== card && container?.contains(target) && container.contains(card);
+                const room = followedRoomWindowPayload(card);
+                cleanup();
+                if (!wasActive) return;
+                upEvent.preventDefault();
+                if (!detachEligible && canSort) {
+                    const cards = Array.from(container.querySelectorAll('.session-card'));
+                    target.parentNode.insertBefore(card, cards.indexOf(card) < cards.indexOf(target) ? target.nextSibling : target);
+                    saveCustomRoomOrder();
+                }
+                void window.openFollowedRoomWindow?.(room, { fromDrag: true, detachEligible });
+            };
+            card.addEventListener('pointermove', move);
+            card.addEventListener('pointerup', finish);
+            card.addEventListener('pointercancel', cancel);
+            card.addEventListener('lostpointercapture', cancel);
+            document.addEventListener('keydown', keydown, true);
+            window.addEventListener('blur', cancel);
+            window.addEventListener('pagehide', cancel);
+            try { card.setPointerCapture(event.pointerId); }
+            catch (_) { cancel(); }
+        }
 
         function handleDragStart(e) {
             draggedCard = this;
@@ -1908,23 +2134,33 @@
                 'position: fixed',
                 'z-index: 99999',
                 'display: none',
-                'min-width: 132px'
+                'width: 144px',
+                'max-width: calc(100vw - 16px)',
+                'box-sizing: border-box'
             ].join(';');
 
             menu.innerHTML = `
+                ${!isWebRuntime() ? '<button type="button" data-action="open-window" class="yaya-context-menu-item">独立窗口显示</button>' : ''}
                 <button type="button" data-action="notify" class="yaya-context-menu-item">开启通知</button>
                 <button type="button" data-action="pin" class="yaya-context-menu-item">置顶</button>
                 <button type="button" data-action="unfollow" class="yaya-context-menu-item yaya-context-menu-danger">取关</button>
             `;
 
             menu.querySelectorAll('button').forEach(button => {
+                // Keep focus in the room: focusing a menu item can scroll its ancestors
+                // and dismiss the menu before its click handler runs.
+                button.addEventListener('pointerdown', event => {
+                    if (event.button === 0) event.preventDefault();
+                });
                 button.addEventListener('click', event => {
                     event.stopPropagation();
                     const action = button.dataset.action;
                     const target = followedRoomContextTarget;
                     hideFollowedRoomContextMenu();
                     if (!target) return;
-                    if (action === 'notify') {
+                    if (action === 'open-window') {
+                        window.openFollowedRoomWindow?.(followedRoomWindowPayload(target));
+                    } else if (action === 'notify') {
                         toggleFollowedRoomNotification(target);
                     } else if (action === 'pin') {
                         toggleFollowedRoomPinned(target);

@@ -53,11 +53,39 @@
         const deletingPrivateMessageIds = new Set();
         const privateMessagePinyinCache = new Map();
         let privateMessageListRender = null;
+        let privateMessageBottomFollowCleanup = null;
 
-        function updatePrivateMessageListHtml(listEl, html) {
+        function updatePrivateMessageListHtml(listEl, html, rows = null) {
             if (privateMessageListRender?.element === listEl
                 && privateMessageListRender.html === html
                 && privateMessageListRender.firstChild === listEl.firstChild) return;
+            if (window.desktop?.platform && window.desktop.platform !== 'web' && rows?.length
+                && new Set(rows.map(row => row.key)).size === rows.length) {
+                const previousRows = privateMessageListRender?.element === listEl
+                    ? privateMessageListRender.rows : null;
+                const nextRows = new Map();
+                const template = document.createElement('template');
+                let cursor = listEl.firstChild;
+                for (const row of rows) {
+                    const previous = previousRows?.get(row.key);
+                    let node = previous?.node?.parentNode === listEl ? previous.node : null;
+                    if (!node || previous.html !== row.html) {
+                        template.innerHTML = row.html;
+                        const rendered = template.content.firstElementChild;
+                        if (node) node.innerHTML = rendered.innerHTML;
+                        else node = rendered;
+                    }
+                    node.classList.toggle('active', row.active);
+                    // Keep unchanged rows attached, retaining their measured offscreen heights.
+                    if (node === cursor) cursor = cursor.nextSibling;
+                    else listEl.insertBefore(node, cursor);
+                    nextRows.set(row.key, { node, html: row.html });
+                }
+                const retained = new Set(Array.from(nextRows.values(), row => row.node));
+                Array.from(listEl.childNodes).forEach(node => { if (!retained.has(node)) node.remove(); });
+                privateMessageListRender = { element: listEl, html, firstChild: listEl.firstChild, rows: nextRows };
+                return;
+            }
             listEl.innerHTML = html;
             privateMessageListRender = { element: listEl, html, firstChild: listEl.firstChild };
         }
@@ -187,6 +215,7 @@
         }
 
         function resetPrivateMessageDetailPanel() {
+            stopPrivateMessageBottomFollow();
             privateMessageDetailRequestGeneration += 1;
             privateMessageUserRequestGeneration += 1;
             privateMessageDetailState.targetUserId = '';
@@ -320,6 +349,63 @@
             if (!container) return true;
             const threshold = 32;
             return (container.scrollHeight - container.scrollTop - container.clientHeight) <= threshold;
+        }
+
+        function stopPrivateMessageBottomFollow() {
+            privateMessageBottomFollowCleanup?.();
+            privateMessageBottomFollowCleanup = null;
+        }
+
+        function followPrivateMessageBottom(container) {
+            stopPrivateMessageBottomFollow();
+            let active = true;
+            let frame = null;
+            let lastScrollTop = container.scrollTop;
+            const scrollToBottom = () => {
+                if (!active) return;
+                container.scrollTop = container.scrollHeight;
+                lastScrollTop = container.scrollTop;
+            };
+            const schedule = () => {
+                if (!active || frame !== null) return;
+                frame = requestAnimationFrame(() => {
+                    frame = null;
+                    scrollToBottom();
+                });
+            };
+            const onScroll = () => {
+                if (container.scrollTop < lastScrollTop - 1 && !canPrivateMessageStickToBottom(container)) {
+                    stopPrivateMessageBottomFollow();
+                }
+                lastScrollTop = container.scrollTop;
+            };
+            const onWheel = event => { if (event.deltaY < 0) stopPrivateMessageBottomFollow(); };
+            const onKey = event => {
+                if (['ArrowUp', 'PageUp', 'Home'].includes(event.key)) stopPrivateMessageBottomFollow();
+            };
+            const onTouchMove = () => stopPrivateMessageBottomFollow();
+            const listeners = [
+                ['scroll', onScroll, { passive: true }],
+                ['wheel', onWheel, { passive: true }],
+                ['keydown', onKey, false],
+                ['touchmove', onTouchMove, { passive: true }],
+                ['load', schedule, true],
+                ['error', schedule, true],
+                ['loadedmetadata', schedule, true]
+            ];
+            listeners.forEach(args => container.addEventListener(...args));
+            // Media and custom players can acquire their final height after rendering.
+            const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(schedule) : null;
+            observer?.observe(container);
+            Array.from(container.children).forEach(child => observer?.observe(child));
+            privateMessageBottomFollowCleanup = () => {
+                active = false;
+                if (frame !== null) cancelAnimationFrame(frame);
+                observer?.disconnect();
+                listeners.forEach(args => container.removeEventListener(...args));
+            };
+            scrollToBottom();
+            schedule();
         }
 
         function shouldUsePrivateMessageScrollAnchor() {
@@ -458,6 +544,66 @@
 
             if (!msgId || msgId.startsWith('local-')) return '';
             return msgId;
+        }
+
+        function findMissingPrivateMessageIds(snapshot, content, beforeTime = 0) {
+            if (!Array.isArray(content?.data)) return [];
+            if (content.data.some(item => !item || !getPrivateMessageDeletableId(item)
+                || !Number.isFinite(Number(item.timestamp)) || !(Number(item.timestamp) > 0))) return [];
+            const incomingIds = new Set(content.data.map(getPrivateMessageDeletableId));
+            // A missing/malformed cursor is not evidence that the entire history was returned.
+            const complete = content.lastTime != null && String(content.lastTime).trim() !== ''
+                && Number(content.lastTime) === 0;
+            const times = content.data.map(item => Number(item.timestamp));
+            const oldest = times.length && times.every(time => Number.isFinite(time) && time > 0)
+                ? Math.min(...times) : Infinity;
+            return snapshot.filter(item => {
+                const id = getPrivateMessageDeletableId(item);
+                const time = Number(item.timestamp);
+                if (!id || incomingIds.has(id)) return false;
+                if (beforeTime > 0 && !(time > 0 && time < beforeTime)) return false;
+                // Exclude the oldest timestamp on partial pages: more messages may share that boundary.
+                return complete || (Number.isFinite(time) && time > oldest);
+            }).map(getPrivateMessageDeletableId);
+        }
+
+        function getPrivateMessageVisibleHistoryCursor(incoming, snapshot) {
+            const body = document.getElementById('private-message-detail-body');
+            if (!body || !incoming.length || canPrivateMessageStickToBottom(body)) return 0;
+            const latestOldest = Math.min(...incoming.map(item => Number(item.timestamp) || 0));
+            if (!(latestOldest > 0)) return 0;
+            const times = new Map(snapshot.map(item => [getPrivateMessageDeletableId(item), Number(item.timestamp)]));
+            const bounds = body.getBoundingClientRect();
+            let newestVisible = 0;
+            for (const row of body.querySelectorAll('.private-message-item[data-msg-id]')) {
+                const rect = row.getBoundingClientRect();
+                if (rect.top >= bounds.bottom) break;
+                if (rect.bottom > bounds.top) newestVisible = Math.max(newestVisible, times.get(row.dataset.msgId) || 0);
+            }
+            return newestVisible > 0 && newestVisible < latestOldest ? newestVisible + 1 : 0;
+        }
+
+        function removeSynchronizedPrivateMessages(ids) {
+            if (!ids.size) return;
+            const body = document.getElementById('private-message-detail-body');
+            const atBottom = body && canPrivateMessageStickToBottom(body);
+            const top = body?.getBoundingClientRect().top || 0;
+            const rows = body ? Array.from(body.querySelectorAll('.private-message-item[data-msg-id]')) : [];
+            const anchor = atBottom ? null : rows.find(row => !ids.has(row.dataset.msgId) && row.getBoundingClientRect().bottom > top);
+            const offset = anchor?.getBoundingClientRect().top;
+            privateMessageDetailState.items = privateMessageDetailState.items.filter(item => !ids.has(getPrivateMessageDeletableId(item)));
+            privateMessagePendingItems = privateMessagePendingItems.filter(item => !ids.has(getPrivateMessageDeletableId(item)));
+            privateMessagePendingKeys = new Set(privateMessagePendingItems.map(item => getPrivateMessageItemKey(item, privateMessageDetailState.targetUserId)));
+            updatePrivateMessagePendingNotice();
+            for (const row of rows) {
+                if (!ids.has(row.dataset.msgId)) continue;
+                row.querySelectorAll('audio, video').forEach(media => media.pause());
+                row.remove();
+            }
+            if (!body) return;
+            if (!privateMessageDetailState.items.length) renderPrivateMessageDetail();
+            else if (atBottom) followPrivateMessageBottom(body);
+            else if (anchor?.isConnected) body.scrollTop += anchor.getBoundingClientRect().top - offset;
         }
 
         function ensurePrivateMessageContextMenu() {
@@ -610,6 +756,9 @@
                         return;
                     }
 
+                    // A poll started before this successful deletion must not reinsert its old snapshot.
+                    privateMessageDetailRequestGeneration++;
+                    setPrivateMessageDetailLoading(false);
                     const bodyEl = document.getElementById('private-message-detail-body');
                     const shouldStickToBottom = canPrivateMessageStickToBottom(bodyEl);
                     removePrivateMessageById(msgId);
@@ -762,6 +911,7 @@
         function renderPrivateMessageDetail(options = {}) {
             const bodyEl = document.getElementById('private-message-detail-body');
             if (!bodyEl) return;
+            stopPrivateMessageBottomFollow();
             const { keepScrollOffset = false, stickToBottom = false } = options;
             const previousScrollHeight = bodyEl.scrollHeight;
             const previousScrollTop = bodyEl.scrollTop;
@@ -789,7 +939,7 @@
                     bodyEl.scrollTop = bodyEl.scrollHeight - previousScrollHeight + previousScrollTop;
                 }
             } else if (stickToBottom) {
-                bodyEl.scrollTop = bodyEl.scrollHeight;
+                followPrivateMessageBottom(bodyEl);
             }
 
             resetPrivateMessagePendingMessages();
@@ -799,6 +949,7 @@
         function renderPrivateMessageDetailIncremental(items = [], options = {}) {
             const bodyEl = document.getElementById('private-message-detail-body');
             if (!bodyEl || !Array.isArray(items) || items.length === 0) return;
+            stopPrivateMessageBottomFollow();
 
             const { prepend = false, keepScrollOffset = false, stickToBottom = false } = options;
             const previousScrollHeight = bodyEl.scrollHeight;
@@ -828,7 +979,7 @@
                     bodyEl.scrollTop = bodyEl.scrollHeight - previousScrollHeight + previousScrollTop;
                 }
             } else if (stickToBottom) {
-                bodyEl.scrollTop = bodyEl.scrollHeight;
+                followPrivateMessageBottom(bodyEl);
             }
         }
 
@@ -1275,7 +1426,7 @@
                 if (inputEl) inputEl.value = '';
                 if (viewEl) viewEl.classList.add('is-detail-open');
                 clearActivePrivateMessageUnread(privateMessageDetailState.targetUserId);
-                filterPrivateMessageList(getCurrentSearchKeyword());
+                filterPrivateMessageList(getCurrentSearchKeyword(), { preserveScroll: true });
                 renderPrivateMessageDetail();
                 updatePrivateMessageReplyCounter();
                 resetPrivateMessageFlipPanel();
@@ -1295,6 +1446,9 @@
             setPrivateMessageDetailLoading(true);
             try {
                 const bodyEl = document.getElementById('private-message-detail-body');
+                const requestCursor = isAutoRefresh ? 0 : privateMessageDetailState.cursor;
+                const requestSnapshot = privateMessageDetailState.items.slice();
+                const syncDeletions = !reset && window.desktop?.platform && window.desktop.platform !== 'web';
                 const shouldStickToBottom = !reset && isAutoRefresh && canPrivateMessageStickToBottom(bodyEl);
                 const shouldKeepScrollOffset = !reset && !!bodyEl && !shouldStickToBottom;
                 const pa = window.getPA ? window.getPA() : null;
@@ -1302,15 +1456,31 @@
                     token,
                     pa,
                     targetUserId: requestTargetUserId,
-                    lastTime: isAutoRefresh ? 0 : privateMessageDetailState.cursor
+                    lastTime: requestCursor
                 });
                 if (!isCurrentRequest()) return;
 
-                if (!res || !res.success || !res.content) {
+                if (!res || !res.success || !Array.isArray(res.content?.data)) {
                     throw new Error(res && res.msg ? res.msg : '获取私信详情失败');
                 }
 
-                const incoming = Array.isArray(res.content.data) ? res.content.data : [];
+                const incoming = res.content.data;
+                const removedIds = new Set(syncDeletions ? findMissingPrivateMessageIds(requestSnapshot, res.content, requestCursor) : []);
+                const auditCursor = syncDeletions && isAutoRefresh
+                    ? getPrivateMessageVisibleHistoryCursor(incoming, requestSnapshot) : 0;
+                if (auditCursor) {
+                    try {
+                        // One extra page only while reading history; do not reload all loaded pages each poll.
+                        const audit = await ipcRenderer.invoke('fetch-private-message-info', {
+                            token, pa, targetUserId: requestTargetUserId, lastTime: auditCursor
+                        });
+                        if (!isCurrentRequest()) return;
+                        if (audit?.success) findMissingPrivateMessageIds(requestSnapshot, audit.content, auditCursor).forEach(id => removedIds.add(id));
+                    } catch (error) {
+                        if (!isCurrentRequest()) return;
+                        console.warn('私信历史删除状态校验失败:', error);
+                    }
+                }
                 const incomingUser = incoming
                     .map(item => item?.user)
                     .find(user => String(user?.userId || user?.id || '').trim() === requestTargetUserId);
@@ -1353,8 +1523,9 @@
 
                 if (!isAutoRefresh) {
                     privateMessageDetailState.cursor = Number(res.content.lastTime) || privateMessageDetailState.cursor;
+                    privateMessageDetailState.hasMore = incoming.length > 0 && Number(res.content.lastTime || 0) > 0;
                 }
-                privateMessageDetailState.hasMore = incoming.length > 0 && Number(res.content.lastTime || 0) > 0;
+                removeSynchronizedPrivateMessages(removedIds);
                 clearActivePrivateMessageUnread(privateMessageDetailState.targetUserId);
                 filterPrivateMessageList(getCurrentSearchKeyword(), { preserveScroll: true });
                 if (reset || addedCount > 0 || replacedCount > 0 || !isAutoRefresh) {
@@ -1469,6 +1640,7 @@
             }
 
             renderPrivateMessageList.lastRenderItems = items;
+            const rows = [];
             const html = items.map(item => {
                 const user = item.user || {};
                 const displayName = getPrivateMessageDisplayName(user);
@@ -1482,8 +1654,8 @@
                     : '';
                 const avatar = getPrivateMessageAvatar(user.avatar);
 
-                return `
-                    <div class="private-message-list-item ${isActive ? 'active' : ''}" onclick="openPrivateMessageDetail('${escapePrivateMessageHtml(String(user.userId || ''))}')">
+                const rowHtml = `
+                    <div class="private-message-list-item" onclick="openPrivateMessageDetail('${escapePrivateMessageHtml(String(user.userId || ''))}')">
                         <img class="private-message-list-avatar" src="${escapePrivateMessageHtml(avatar)}" alt="">
                         <div class="private-message-list-main">
                             <div class="private-message-list-head">
@@ -1502,8 +1674,10 @@
                         </div>
                     </div>
                 `;
+                rows.push({ key: String(user.userId || ''), html: rowHtml, active: isActive });
+                return isActive ? rowHtml.replace('class="private-message-list-item"', 'class="private-message-list-item active"') : rowHtml;
             }).join('');
-            updatePrivateMessageListHtml(listEl, html);
+            updatePrivateMessageListHtml(listEl, html, rows);
 
             if (preserveScroll) {
                 listEl.scrollTop = previousScrollTop;

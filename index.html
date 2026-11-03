@@ -17,6 +17,7 @@
     <script src="./src/renderer/renderer-utils.js?v=__YAYA_BUILD_VERSION__"></script>
     <script src="./src/renderer/vendor/pinyin-vendor.js?v=__YAYA_BUILD_VERSION__"></script>
     <script src="./src/renderer/desktop-media-loader.js?v=__YAYA_BUILD_VERSION__"></script>
+    <script src="./src/web/desktop-live-link.js?v=__YAYA_BUILD_VERSION__"></script>
     <script src="./src/web/browser-shim.js?v=__YAYA_BUILD_VERSION__"></script>
     <script src="./src/web/web-shell.js?v=__YAYA_BUILD_VERSION__"></script>
     <script src="./src/web/pocket-home.js?v=__YAYA_BUILD_VERSION__"></script>
@@ -364,212 +365,65 @@
         </aside>
         <main class="main-content home-mode" id="mainContentArea">
             <div id="view-home" class="home-view"
-                style="height: 100%; overflow-y: auto; display: flex; box-sizing: border-box;">
-                <div class="home-shell">
-                    <section class="home-grid">
-                        <div class="home-panel home-panel-messages">
-                            <div class="home-panel-title">消息</div>
-                            <div class="home-panel-subtitle">口袋房间消息抓取、检索</div>
-                            <div class="home-panel-actions home-card-grid">
-                                <button class="home-card home-card-primary" onclick="switchView('messages')">
-                                    <span class="home-card-title">检索</span>
-                                    <span class="home-card-desc">进入历史消息列表</span>
-                                </button>
-                                <button class="home-card" onclick="switchView('fetch')">
-                                    <span class="home-card-title">抓取</span>
-                                    <span class="home-card-desc">手动刷新与重扫</span>
-                                </button>
-                            </div>
+                style="height: 100%; overflow: hidden; display: flex; box-sizing: border-box;">
+                <div class="home-chat-shell">
+                    <nav class="home-app-rail" aria-label="主页快捷导航">
+                        <button class="home-rail-brand" type="button" onclick="switchView('home')" aria-label="牙牙消息主页"><img src="./icon.png" alt=""></button>
+                        <div class="home-rail-nav">
+                            <button class="home-rail-button is-active" type="button" onclick="switchView('home')" aria-label="主页" title="主页"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v12H8l-4 3V5Z"></path><path d="M8 9h8M8 13h5"></path></svg><span>主页</span></button>
+                            <button class="home-rail-button" type="button" onclick="switchView('followed-rooms')" aria-label="口袋房间" title="口袋房间"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM2 21v-3a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v3"></path><path d="M17 8h5M19.5 5.5v5"></path></svg><span>房间</span></button>
+                            <button class="home-rail-button" type="button" onclick="switchView('media', 'live')" aria-label="直播中心" title="直播中心"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"></rect><path d="m10 9 5 3-5 3V9Z"></path></svg><span>直播</span></button>
+                            <button class="home-rail-button" type="button" onclick="switchView('member-dynamic')" aria-label="成员动态" title="成员动态"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z"></path><path d="M8 12h8M12 8v8"></path></svg><span>动态</span></button>
                         </div>
+                        <div class="home-rail-spacer"></div>
+                        <div class="home-rail-nav home-rail-nav-bottom">
+                            <button class="home-rail-button" type="button" onclick="toggleTheme()" aria-label="切换明暗模式" title="切换明暗模式"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9Z"></path></svg><span>外观</span></button>
+                            <button class="home-rail-button" type="button" onclick="switchView('settings')" aria-label="设置" title="设置"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19 15a2 2 0 0 0 .4 2l-2.4 2.4a2 2 0 0 0-2-.4 2 2 0 0 0-1 1.7V21h-4v-.3A2 2 0 0 0 9 19a2 2 0 0 0-2 .4L4.6 17a2 2 0 0 0 .4-2 2 2 0 0 0-1.7-1H3v-4h.3A2 2 0 0 0 5 9a2 2 0 0 0-.4-2L7 4.6A2 2 0 0 0 9 5a2 2 0 0 0 1-1.7V3h4v.3A2 2 0 0 0 15 5a2 2 0 0 0 2-.4L19.4 7a2 2 0 0 0-.4 2 2 2 0 0 0 1.7 1h.3v4h-.3A2 2 0 0 0 19 15Z"></path></svg><span>设置</span></button>
+                        </div>
+                    </nav>
 
-                        <div class="home-panel home-panel-live">
-                            <div class="home-panel-title">直播</div>
-                            <div class="home-panel-subtitle">口袋直播、回放、房间上麦、公演直播B站源</div>
-                            <div class="home-panel-actions home-card-grid">
-                                <button class="home-card home-card-primary" onclick="switchView('media', 'live')">
-                                    <span class="home-card-title">直播</span>
-                                    <span class="home-card-desc">查看当前直播列表</span>
-                                </button>
-                                <button class="home-card" onclick="switchView('media', 'vod')">
-                                    <span class="home-card-title">回放</span>
-                                    <span class="home-card-desc">进入录播与弹幕页</span>
-                                </button>
-                                <button class="home-card" onclick="switchView('media', 'meet-live')" style="display: none;">
-                                    <span class="home-card-title">海外直播</span>
-                                    <span class="home-card-desc">查看 Meet48 直播</span>
-                                </button>
-                                <button class="home-card" onclick="switchView('media', 'meet-vod')" style="display: none;">
-                                    <span class="home-card-title">海外回放</span>
-                                    <span class="home-card-desc">查看 Meet48 回放</span>
-                                </button>
-                                <button class="home-card" onclick="switchView('room-radio')">
-                                    <span class="home-card-title">上麦</span>
-                                    <span class="home-card-desc">进入房间电台</span>
-                                </button>
-                                <button class="home-card" onclick="switchView('bilibili-live')">
-                                    <span class="home-card-title">B站</span>
-                                    <span class="home-card-desc">进入 B 站直播播放</span>
-                                </button>
-                            </div>
+                    <aside class="home-conversation-pane">
+                        <div class="home-conversation-header"><div><h1>牙牙消息</h1><span>v2.15</span></div><button type="button" onclick="switchView('login')" title="账号设置" aria-label="账号设置"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg></button></div>
+                        <label class="home-search-box" for="home-module-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg><input id="home-module-search" type="search" placeholder="搜索功能" autocomplete="off"><kbd>Ctrl K</kbd></label>
+                        <div class="home-conversation-list" id="home-conversation-list">
+                            <div class="home-list-label">常用</div>
+                            <button class="home-conversation-item is-emphasis" type="button" data-home-search="口袋 房间 聚聚 实时 消息" onclick="switchView('followed-rooms')"><span class="home-list-avatar home-list-avatar-room">房</span><span class="home-list-copy"><strong>口袋房间</strong><small>关注成员与房间消息</small></span><span class="home-list-arrow">›</span></button>
+                            <button class="home-conversation-item" type="button" data-home-search="私信 会话 口袋" onclick="switchView('private-messages')"><span class="home-list-avatar home-list-avatar-private">私</span><span class="home-list-copy"><strong>私信</strong><small>查看口袋私信会话</small></span><span class="home-list-arrow">›</span></button>
+                            <button class="home-conversation-item" type="button" data-home-search="消息 检索 搜索 历史 关键词" onclick="switchView('messages')"><span class="home-list-avatar home-list-avatar-search">搜</span><span class="home-list-copy"><strong>消息检索</strong><small>搜索历史房间消息</small></span><span class="home-list-arrow">›</span></button>
+                            <button class="home-conversation-item" type="button" data-home-search="直播 回放 弹幕" onclick="switchView('media', 'live')"><span class="home-list-avatar home-list-avatar-live">播</span><span class="home-list-copy"><strong>直播中心</strong><small>直播、回放与弹幕</small></span><span class="home-list-arrow">›</span></button>
+                            <div class="home-list-label">发现</div>
+                            <button class="home-conversation-item" type="button" data-home-search="成员 动态 口袋" onclick="switchView('member-dynamic')"><span class="home-list-avatar home-list-avatar-dynamic">动</span><span class="home-list-copy"><strong>成员动态</strong><small>查看成员最新动态</small></span><span class="home-list-arrow">›</span></button>
+                            <button class="home-conversation-item" type="button" data-home-search="行程 公演 活动" onclick="switchView('trip')"><span class="home-list-avatar home-list-avatar-trip">程</span><span class="home-list-copy"><strong>成员行程</strong><small>公演与活动安排</small></span><span class="home-list-arrow">›</span></button>
+                            <button class="home-conversation-item" type="button" data-home-search="翻牌 提问 历史" onclick="switchView('flip')"><span class="home-list-avatar home-list-avatar-flip">翻</span><span class="home-list-copy"><strong>翻牌记录</strong><small>提问与历史内容</small></span><span class="home-list-arrow">›</span></button>
+                            <div class="home-search-empty" id="home-search-empty" hidden>没有找到相关功能</div>
                         </div>
+                        <div class="home-conversation-footer"><span class="home-status-dot"></span><span>软件已就绪</span><span>presented by yk1z</span></div>
+                    </aside>
 
-                        <div class="home-panel home-panel-pocket">
-                            <div class="home-panel-title">口袋</div>
-                            <div class="home-panel-subtitle">口袋房间、私信列表、房间相册、公演记录、成员微博</div>
-                            <div class="home-panel-actions home-card-grid">
-                                <button class="home-card home-card-primary" onclick="switchView('followed-rooms')">
-                                    <span class="home-card-title">房间</span>
-                                    <span class="home-card-desc">查看聚聚与房间动态</span>
-                                </button>
-                                <button class="home-card" onclick="switchView('private-messages')">
-                                    <span class="home-card-title">私信</span>
-                                    <span class="home-card-desc">查看口袋私信会话</span>
-                                </button>
-                                <button class="home-card" onclick="switchView('room-album')">
-                                    <span class="home-card-title">相册</span>
-                                    <span class="home-card-desc">按房间查看图片</span>
-                                </button>
-                                <button class="home-card" onclick="switchView('performance')">
-                                    <span class="home-card-title">公演</span>
-                                    <span class="home-card-desc">查看公演与成员记录</span>
-                                </button>
-                                <button class="home-card" onclick="switchView('member-weibo')">
-                                    <span class="home-card-title">微博</span>
-                                    <span class="home-card-desc">查看成员微博动态</span>
-                                </button>
-                            </div>
+                    <section class="home-workspace" aria-label="主页功能"><div class="home-workspace-scroll">
+                        <header class="home-welcome"><div class="home-welcome-copy"><span class="home-welcome-kicker">YAYA MESSAGE</span><h2>主页</h2><p>消息、直播、动态和成员资料都在这里。</p><div class="home-welcome-actions"><button type="button" class="home-action-primary" onclick="switchView('followed-rooms')">进入口袋房间</button><button type="button" class="home-action-secondary" onclick="switchView('media', 'live')">查看直播</button></div></div></header>
+                        <div class="home-section-heading"><div><h3>快捷入口</h3><p>按使用场景整理，不用在几十个按钮里寻找。</p></div></div>
+                        <div class="home-feature-grid">
+                            <article class="home-feature-card" data-home-search="消息 检索 抓取 历史"><div class="home-feature-icon home-feature-icon-message">消息</div><div class="home-feature-copy"><h4>消息助手</h4><p>检索历史内容，或手动抓取房间消息。</p></div><div class="home-feature-actions"><button type="button" onclick="switchView('messages')">检索</button><button type="button" onclick="switchView('fetch')">抓取</button></div></article>
+                            <article class="home-feature-card" data-home-search="直播 回放 上麦 B站 电台"><div class="home-feature-icon home-feature-icon-live">直播</div><div class="home-feature-copy"><h4>直播与上麦</h4><p>口袋直播、录播回放、房间电台与 B 站源。</p></div><div class="home-feature-actions"><button type="button" onclick="switchView('media', 'live')">直播</button><button type="button" onclick="switchView('media', 'vod')">回放</button><button type="button" onclick="switchView('room-radio')">上麦</button><button type="button" onclick="switchView('bilibili-live')">B站</button></div></article>
+                            <article class="home-feature-card" data-home-search="动态 微博 社区 广场"><div class="home-feature-icon home-feature-icon-dynamic">动态</div><div class="home-feature-copy"><h4>动态广场</h4><p>成员口袋动态、微博和社区内容集中查看。</p></div><div class="home-feature-actions"><button type="button" onclick="switchView('member-dynamic')">动态</button><button type="button" onclick="switchView('member-weibo')">微博</button><button type="button" onclick="switchView('community')">社区</button></div></article>
+                            <article class="home-feature-card" data-home-search="翻牌 提问 个人相册 云握手"><div class="home-feature-icon home-feature-icon-flip">互动</div><div class="home-feature-copy"><h4>成员互动</h4><p>发送翻牌、回看记录，管理相册和云握手。</p></div><div class="home-feature-actions"><button type="button" onclick="switchView('send-flip')">提问</button><button type="button" onclick="switchView('flip')">历史</button><button type="button" onclick="switchView('photos')">相册</button><button id="home-netface" type="button" onclick="switchView('netface')">云握手</button></div></article>
+                            <article class="home-feature-card" data-home-search="成员 档案 行程 公演 鸡腿榜 数据"><div class="home-feature-icon home-feature-icon-profile">成员</div><div class="home-feature-copy"><h4>资料与行程</h4><p>档案、公演、活动安排和乱斗周榜。</p></div><div class="home-feature-actions"><button type="button" onclick="switchView('profile')">档案</button><button type="button" onclick="switchView('trip')">行程</button><button type="button" onclick="switchView('performance')">公演</button><button type="button" onclick="switchView('melee-rank')">鸡腿榜</button></div></article>
+                            <article class="home-feature-card" data-home-search="视频 音乐 电台 数据库 媒体"><div class="home-feature-icon home-feature-icon-library">媒体</div><div class="home-feature-copy"><h4>媒体资料库</h4><p>视频、音乐、音频节目和成员数据库。</p></div><div class="home-feature-actions"><button type="button" onclick="switchView('video-library')">视频</button><button type="button" onclick="switchView('official-site-music')">音乐</button><button type="button" onclick="switchView('audio-programs')">电台</button><button type="button" onclick="switchView('database')">数据库</button></div></article>
                         </div>
-
-                        <div class="home-panel home-panel-data">
-                            <div class="home-panel-title">数据</div>
-                            <div class="home-panel-subtitle">成员档案、成员行程、成员动态、鸡腿榜、48区</div>
-                            <div class="home-panel-actions home-card-grid">
-                                <button class="home-card" onclick="switchView('profile')">
-                                    <span class="home-card-title">档案</span>
-                                    <span class="home-card-desc">成员资料与细节</span>
-                                </button>
-                                <button class="home-card" onclick="switchView('trip')">
-                                    <span class="home-card-title">行程</span>
-                                    <span class="home-card-desc">查看公演与活动安排</span>
-                                </button>
-                                <button class="home-card" onclick="switchView('member-dynamic')">
-                                    <span class="home-card-title">动态</span>
-                                    <span class="home-card-desc">查看成员口袋动态</span>
-                                </button>
-                                <button class="home-card" onclick="switchView('community')">
-                                    <span class="home-card-title">社区</span>
-                                    <span class="home-card-desc">查看广场动态</span>
-                                </button>
-                                <button class="home-card" onclick="switchView('melee-rank')">
-                                    <span class="home-card-title">鸡腿榜</span>
-                                    <span class="home-card-desc">查询乱斗周榜</span>
-                                </button>
+                        <div class="home-section-heading home-tools-heading"><div><h3>工具与服务</h3><p>账号、下载和相关站点。</p></div></div>
+                        <div class="home-tools-row"><button type="button" onclick="switchView('login')"><strong>账号设置</strong><span>登录与账号信息</span></button><button type="button" onclick="switchView('invoice')"><strong>开具发票</strong><span>订单开票申请</span></button><button type="button" onclick="switchView('downloads')"><strong>下载管理</strong><span>查看任务与进度</span></button><button type="button" onclick="switchView('settings')"><strong>软件设置</strong><span>调整程序行为</span></button></div>
+                        <section class="home-site-section" aria-labelledby="home-yk1z-title">
+                            <div class="home-section-heading"><div><h3 id="home-yk1z-title">牙口栗子</h3><p id="home-yk1z-subtitle">O.o？</p></div></div>
+                            <div id="home-yk1z-actions" class="home-site-links home-panel-actions home-card-grid">
+                                <button class="home-card" data-yk1z-type="url" data-yk1z-value="https://push.gnz.hk" data-yk1z-desc="牙牙推送" onclick="openInBrowser('https://push.gnz.hk')"><span class="home-card-title">牙牙推送</span><span class="home-card-desc">牙牙推送</span></button>
+                                <button class="home-card" data-yk1z-type="url" data-yk1z-value="https://zimu.gnz.hk" data-yk1z-desc="牙牙字幕" onclick="openInBrowser('https://zimu.gnz.hk')"><span class="home-card-title">牙牙字幕</span><span class="home-card-desc">牙牙字幕</span></button>
+                                <button class="home-card" data-yk1z-type="url" data-yk1z-value="https://snh48.xyz" data-yk1z-desc="所有房间" onclick="openInBrowser('https://snh48.xyz')"><span class="home-card-title">Room</span><span class="home-card-desc">所有房间</span></button>
+                                <button class="home-card" data-yk1z-type="url" data-yk1z-value="https://kh.gay" data-yk1z-desc="kh" onclick="openInBrowser('https://kh.gay')"><span class="home-card-title">看看烟花</span><span class="home-card-desc">kh</span></button>
+                                <button class="home-card" data-yk1z-type="url" data-yk1z-value="https://github.com/yk1z/yaya_msg" data-yk1z-desc="项目仓库" onclick="openInBrowser('https://github.com/yk1z/yaya_msg')"><span class="home-card-title">项目仓库</span><span class="home-card-desc">项目仓库</span></button>
                             </div>
-                        </div>
-
-                        <div class="home-panel home-panel-flip">
-                            <div class="home-panel-title">翻牌</div>
-                            <div class="home-panel-subtitle">翻牌、个人相册、云握手</div>
-                            <div class="home-panel-actions home-card-grid">
-                                <button class="home-card home-card-primary" onclick="switchView('send-flip')">
-                                    <span class="home-card-title">提问</span>
-                                    <span class="home-card-desc">进入翻牌发送入口</span>
-                                </button>
-                                <button class="home-card" onclick="switchView('flip')">
-                                    <span class="home-card-title">历史</span>
-                                    <span class="home-card-desc">浏览历史翻牌内容</span>
-                                </button>
-                                <button class="home-card" onclick="switchView('photos')">
-                                    <span class="home-card-title">个人相册</span>
-                                    <span class="home-card-desc">浏览成员照片</span>
-                                </button>
-                                <button id="home-netface" class="home-card" onclick="switchView('netface')">
-                                    <span class="home-card-title">云握手</span>
-                                    <span class="home-card-desc">预约排队，与成员音视频互动</span>
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="home-panel home-panel-library">
-                            <div class="home-panel-title">资源</div>
-                            <div class="home-panel-subtitle">视频、音乐、电台、数据库</div>
-                            <div class="home-panel-actions home-card-grid">
-                                <button class="home-card" onclick="switchView('video-library')">
-                                    <span class="home-card-title">视频</span>
-                                    <span class="home-card-desc">查看视频资源</span>
-                                </button>
-                                <button class="home-card" onclick="switchView('official-site-music')">
-                                    <span class="home-card-title">音乐</span>
-                                    <span class="home-card-desc">官网音乐源</span>
-                                </button>
-                                <button class="home-card" onclick="switchView('audio-programs')">
-                                    <span class="home-card-title">电台</span>
-                                    <span class="home-card-desc">播放音频节目</span>
-                                </button>
-                                <button class="home-card" onclick="switchView('database')">
-                                    <span class="home-card-title">数据库</span>
-                                    <span class="home-card-desc">查看附属数据</span>
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="home-panel home-panel-settings">
-                            <div class="home-panel-title">通用</div>
-                            <div class="home-panel-subtitle">口袋账号、B站账号、开具发票、下载管理、软件相关设置</div>
-                            <div class="home-panel-actions home-card-grid">
-                                <button class="home-card" onclick="switchView('login')">
-                                    <span class="home-card-title">账号登录</span>
-                                    <span class="home-card-desc">登录与账号信息</span>
-                                </button>
-                                <button class="home-card" onclick="switchView('invoice')">
-                                    <span class="home-card-title">开具发票</span>
-                                    <span class="home-card-desc">订单开票申请</span>
-                                </button>
-                                <button class="home-card" onclick="switchView('downloads')">
-                                    <span class="home-card-title">下载管理</span>
-                                    <span class="home-card-desc">查看任务与进度</span>
-                                </button>
-                                <button class="home-card" onclick="switchView('settings')">
-                                    <span class="home-card-title">软件设置</span>
-                                    <span class="home-card-desc">调整程序行为</span>
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="home-panel home-panel-yk1z">
-                            <div id="home-yk1z-title" class="home-panel-title">牙口栗子</div>
-                            <div id="home-yk1z-subtitle" class="home-panel-subtitle">O.o？</div>
-                            <div id="home-yk1z-actions" class="home-panel-actions home-card-grid">
-                                <button class="home-card" data-yk1z-type="url" data-yk1z-value="https://push.gnz.hk"
-                                    data-yk1z-desc="牙牙推送" onclick="openInBrowser('https://push.gnz.hk')">
-                                    <span class="home-card-title">牙牙推送</span>
-                                    <span class="home-card-desc">牙牙推送</span>
-                                </button>
-                                <button class="home-card" data-yk1z-type="url" data-yk1z-value="https://zimu.gnz.hk"
-                                    data-yk1z-desc="牙牙字幕" onclick="openInBrowser('https://zimu.gnz.hk')">
-                                    <span class="home-card-title">牙牙字幕</span>
-                                    <span class="home-card-desc">牙牙字幕</span>
-                                </button>
-                                <button class="home-card" data-yk1z-type="url" data-yk1z-value="https://snh48.xyz"
-                                    data-yk1z-desc="所有房间" onclick="openInBrowser('https://snh48.xyz')">
-                                    <span class="home-card-title">Room</span>
-                                    <span class="home-card-desc">所有房间</span>
-                                </button>
-                                <button class="home-card" data-yk1z-type="url" data-yk1z-value="https://kh.gay"
-                                    data-yk1z-desc="kh" onclick="openInBrowser('https://kh.gay')">
-                                    <span class="home-card-title">看看烟花</span>
-                                    <span class="home-card-desc">kh</span>
-                                </button>
-                                <button class="home-card" data-yk1z-type="url"
-                                    data-yk1z-value="https://github.com/yk1z/yaya_msg" data-yk1z-desc="项目仓库"
-                                    onclick="openInBrowser('https://github.com/yk1z/yaya_msg')">
-                                    <span class="home-card-title">项目仓库</span>
-                                    <span class="home-card-desc">项目仓库</span>
-                                </button>
-                            </div>
-                        </div>
-                    </section>
-                    <div class="home-footer-credit">presented by yk1z</div>
+                        </section>
+                    </div></section>
                 </div>
             </div>
 
@@ -596,9 +450,11 @@
                                 </button>
                                 <div id="followed-sort-wrapper" style="position: relative; width: 105px;">
                                     <input type="hidden" id="followed-sort-value" value="default">
-                                    <input type="text" id="followed-sort-display" class="input-control" value="自定义排序"
-                                        readonly onclick="toggleFollowedSortDropdown()"
+                                    <button type="button" id="followed-sort-display" class="input-control followed-sort-trigger"
+                                        onclick="toggleFollowedSortDropdown()"
                                         style="cursor: pointer; height: 26px; font-size: 12px; padding: 0 20px 0 8px; text-align: left;">
+                                        <span class="followed-sort-label">自定义排序</span>
+                                    </button>
                                     <div
                                         style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text-sub); font-size: 10px;">
                                         ▼
@@ -1301,7 +1157,7 @@
                             <span class="sms-login-limit-help-icon" aria-hidden="true">!</span>
                             <div>
                                 登录不了就是服务器被48ban了，请<span id="sms-limit-download-links"><a
-                                    href="https://gnz.hk/downloads/yaya_msg-v2.13-win.zip?v=20260916-714e376"
+                                    href="https://gnz.hk/downloads/yaya_msg-v2.15-win.exe?v=20261102-2675ffe"
                                     title="下载 Windows 版本" download><strong>下载桌面端使用</strong></a></span>。我动了谁的蛋糕🤔
                             </div>
                         </div>
@@ -1523,17 +1379,15 @@
                         </div>
                     </div>
                     <div class="melee-rank-panel">
-                        <div class="melee-rank-toolbar">
+                        <div class="melee-rank-toolbar member-search-toolbar">
                             <div class="search-wrapper melee-rank-search-wrap">
-                                <label
-                                    style="font-size: 12px; color: var(--text-sub); display:block; margin-bottom:5px;">搜索成员</label>
                                 <input type="hidden" id="melee-rank-member-id">
                                 <input type="text" id="melee-rank-member-input" class="input-control"
-                                    placeholder="请输入成员名" oninput="handleMeleeRankMemberInput(this.value)"
+                                    placeholder="请输入成员名" aria-label="成员名" oninput="handleMeleeRankMemberInput(this.value)"
                                     onfocus="handleMeleeRankMemberInput(this.value)">
                                 <div id="melee-rank-suggestions" class="suggestion-box melee-rank-suggestions"></div>
                             </div>
-                            <div class="melee-rank-actions">
+                            <div class="melee-rank-actions member-search-actions">
                                 <button class="btn btn-primary" id="btn-query-melee-rank"
                                     onclick="queryMeleeRankCurrentMode()">查询</button>
                                 <button class="btn btn-secondary melee-rank-mode-btn active" id="btn-query-person-melee-rank"
@@ -2059,10 +1913,10 @@
 
                     <div class="bilibili-live-room-strip" id="bilibili-live-room-strip"></div>
 
-                    <div id="bilibili-live-meta" class="bilibili-live-now-playing" style="visibility:hidden;">
+                    <div id="bilibili-live-meta" class="bilibili-live-now-playing">
                         <div class="bilibili-live-now-text">
-                            <div id="bilibili-live-title" class="bilibili-live-now-title"></div>
-                            <div id="bilibili-live-up" class="bilibili-live-now-subtitle"></div>
+                            <div id="bilibili-live-title" class="bilibili-live-now-title">直播信息</div>
+                            <div id="bilibili-live-up" class="bilibili-live-now-subtitle">正在加载直播信息…</div>
                         </div>
                         <div id="bilibili-live-room-meta" class="bilibili-live-now-meta"></div>
                     </div>
@@ -2879,17 +2733,15 @@
                                 <span id="member-weibo-status" style="display: none;"></span>
                             </div>
 
-                            <div class="Box-row" style="z-index: 100; position: relative;">
+                            <div class="Box-row member-search-toolbar" style="z-index: 100; position: relative;">
                                 <div class="search-wrapper">
-                                    <label
-                                        style="font-size: 12px; color: var(--text-sub); display:block; margin-bottom:5px;">搜索成员</label>
                                     <input type="hidden" id="member-weibo-member-id">
                                     <input type="text" id="member-weibo-member-input" class="input-control"
-                                        placeholder="请输入成员名" oninput="handleMemberWeiboSearch(this.value)"
+                                        placeholder="请输入成员名" aria-label="成员名" oninput="handleMemberWeiboSearch(this.value)"
                                         onfocus="handleMemberWeiboSearch(this.value)">
                                     <div id="member-weibo-search-results" class="suggestion-box"></div>
                                 </div>
-                                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                                <div class="member-search-actions" style="display: flex; gap: 10px; margin-top: 10px;">
                                     <button id="btn-member-weibo-query" class="btn btn-primary" style="flex: 1;"
                                         onclick="fetchMemberWeibo(false)">查询最新</button>
                                     <button id="btn-member-weibo-all" class="btn btn-secondary" style="flex: 1;"
@@ -2908,17 +2760,15 @@
                                 <h2 class="page-title">成员动态</h2>
                             </div>
 
-                            <div class="Box-row" style="z-index: 100; position: relative;">
+                            <div class="Box-row member-search-toolbar" style="z-index: 100; position: relative;">
                                 <div class="search-wrapper">
-                                    <label
-                                        style="font-size: 12px; color: var(--text-sub); display:block; margin-bottom:5px;">搜索成员</label>
                                     <input type="hidden" id="member-dynamic-member-id">
                                     <input type="text" id="member-dynamic-member-input" class="input-control"
-                                        placeholder="请输入成员名" oninput="handleMemberDynamicSearch(this.value)"
+                                        placeholder="请输入成员名" aria-label="成员名" oninput="handleMemberDynamicSearch(this.value)"
                                         onfocus="handleMemberDynamicSearch(this.value)">
                                     <div id="member-dynamic-search-results" class="suggestion-box"></div>
                                 </div>
-                                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                                <div class="member-search-actions" style="display: flex; gap: 10px; margin-top: 10px;">
                                     <button id="btn-member-dynamic-query" class="btn btn-primary" style="flex: 1;"
                                         onclick="fetchMemberDynamic()">查询</button>
                                 </div>
@@ -2935,17 +2785,15 @@
                                 <h2 class="page-title">成员行程</h2>
                             </div>
 
-                            <div class="Box-row" style="z-index: 100; position: relative;">
+                            <div class="Box-row member-search-toolbar" style="z-index: 100; position: relative;">
                                 <div class="search-wrapper">
-                                    <label
-                                        style="font-size: 12px; color: var(--text-sub); display:block; margin-bottom:5px;">搜索成员（可选）</label>
                                     <input type="hidden" id="trip-member-id">
                                     <input type="text" id="trip-member-input" class="input-control"
-                                        placeholder="留空查看全部行程" oninput="handleTripSearch(this.value)"
+                                        placeholder="留空查看全部行程" aria-label="成员名，可留空查看全部行程" oninput="handleTripSearch(this.value)"
                                         onfocus="handleTripSearch(this.value)">
                                     <div id="trip-search-results" class="suggestion-box"></div>
                                 </div>
-                                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                                <div class="member-search-actions" style="display: flex; gap: 10px; margin-top: 10px;">
                                     <button id="btn-trip-query" class="btn btn-primary" style="flex: 1;"
                                         onclick="fetchTripList()">查询</button>
                                 </div>
@@ -2963,12 +2811,10 @@
                                 <span id="photos-status" style="display: none;"></span>
                             </div>
 
-                            <div class="Box-row" style="z-index: 100; position: relative;">
+                            <div class="Box-row photos-search-toolbar" style="z-index: 100; position: relative;">
                                 <div class="search-wrapper">
-                                    <label
-                                        style="font-size: 12px; color: var(--text-sub); display:block; margin-bottom:5px;">搜索成员</label>
                                     <input type="text" id="photo-member-input" class="input-control"
-                                        placeholder="请输入成员名" oninput="handlePhotoSearch(this.value)"
+                                        placeholder="请输入成员名" aria-label="成员名" oninput="handlePhotoSearch(this.value)"
                                         onfocus="handlePhotoSearch(this.value)">
                                     <input type="hidden" id="photo-member-id">
                                     <div id="photo-search-results" class="suggestion-box"></div>
@@ -2990,18 +2836,16 @@
                                 <h2 class="page-title">成员档案</h2>
                             </div>
 
-                            <div class="Box-row" style="z-index: 100; position: relative;">
+                            <div class="Box-row member-search-toolbar" style="z-index: 100; position: relative;">
                                 <div class="search-wrapper">
-                                    <label
-                                        style="font-size: 12px; color: var(--text-sub); display:block; margin-bottom:5px;">搜索成员</label>
                                     <input type="text" id="profile-member-input" class="input-control"
-                                        placeholder="请输入成员名" oninput="handleProfileSearch(this.value)"
+                                        placeholder="请输入成员名" aria-label="成员名" oninput="handleProfileSearch(this.value)"
                                         onfocus="handleProfileSearch(this.value)">
                                     <input type="hidden" id="profile-member-id">
                                     <div id="profile-search-results" class="suggestion-box"></div>
                                 </div>
                                 <button class="btn btn-primary" onclick="loadStarProfile()"
-                                    style="width: 100%;">获取档案</button>
+                                    style="width: 100%;">查询</button>
                             </div>
 
                             <div id="profile-result-container" style="margin-top: 20px;"></div>
@@ -3779,7 +3623,11 @@
     <script src="./src/renderer/avatar-cache-feature.js"></script>
     <script src="./src/renderer/private-message-formatters-feature.js"></script>
     <script src="./src/renderer/private-messages-feature.js"></script>
+    <script src="./src/renderer/private-message-notifications.js"></script>
+    <script src="./src/renderer/desktop-navigation-feature.js"></script>
     <script src="./src/renderer/app-legacy.js"></script>
+    <script src="./src/renderer/desktop-cloud-home-feature.js"></script>
+    <script src="./src/renderer/home-workspace-feature.js"></script>
     <script src="./src/web/web-navigation.js?v=__YAYA_BUILD_VERSION__"></script>
     <script src="./src/renderer/invoice-feature.js"></script>
     <script src="./src/common/netface-model.js"></script>
@@ -3864,6 +3712,8 @@
             </form>
         </section>
     </div>
+    <script src="./src/renderer/room-window-feature.js"></script>
+    <script src="./src/renderer/live-window-feature.js"></script>
 </body>
 
 </html>

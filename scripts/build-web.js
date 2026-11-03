@@ -28,6 +28,32 @@ const projectRoot = path.join(__dirname, '..');
 const outputDir = path.join(projectRoot, 'web-dist');
 const buildDesktopRuntimeOnly = process.argv.includes('--database-runtime-only')
     || process.argv.includes('--desktop-runtime-only');
+// Web keeps only API-shaped placeholders for features whose routes are disabled.
+const excludedWebFeatureFactories = new Map([
+    ['src/renderer/private-messages-feature.js', 'createPrivateMessagesFeature'],
+    ['src/renderer/room-radio-feature.js', 'createRoomRadioFeature'],
+    ['src/renderer/live-gift-feature.js', 'createLiveGiftFeature']
+]);
+const excludedWebScripts = new Set([
+    'src/renderer/invoice-feature.js', 'src/renderer/pocket-social-login-feature.js',
+    'src/renderer/deep-link-feature.js', 'src/renderer/desktop-live-gift-animation.js',
+    'src/renderer/desktop-cloud-home-feature.js',
+    'src/renderer/private-message-notifications.js',
+    'src/renderer/desktop-navigation-feature.js',
+    'src/common/deep-link.js'
+]);
+
+function webFeatureSource(relativePath, source) {
+    const factory = excludedWebFeatureFactories.get(relativePath);
+    if (!factory) return source;
+    const original = fs.readFileSync(path.join(projectRoot, relativePath), 'utf8');
+    const returned = [...original.matchAll(/return\s*\{\s*([A-Za-z\s,]+)\s*\};/g)].at(-1);
+    const methods = returned?.[1].split(',').map(name => name.trim()).filter(Boolean);
+    if (!methods?.length || methods.some(name => !/^[A-Za-z]\w*$/.test(name))) {
+        throw new Error(`Cannot preserve disabled web feature API: ${relativePath}`);
+    }
+    return `window.YayaRendererFeatures.${factory}=function(){return {${methods.map(name => `${name}(){}`).join(',')}};};`;
+}
 
 function copyFile(relativePath, targetRelativePath = relativePath) {
     const source = path.join(projectRoot, relativePath);
@@ -184,7 +210,7 @@ function getRendererBundlePaths(indexHtml) {
     const endIndex = endMarkerIndex + endMarker.length;
     const block = indexHtml.slice(startIndex, endIndex);
     const paths = Array.from(
-        block.matchAll(/src="\.\/(src\/renderer\/[^"?]+\.js)"/g),
+        block.matchAll(/src="\.\/(src\/(?:renderer|common)\/[^"?]+\.js)"/g),
         (match) => match[1]
     );
     return { startIndex, endIndex, paths };
@@ -224,13 +250,13 @@ async function bundleRenderer(indexHtml) {
         { preserveTopLevelNames: true }
     ));
 
-    const featurePaths = paths.slice(1, -1);
+    const featurePaths = paths.slice(1, -1).filter(relativePath => !excludedWebScripts.has(relativePath));
     const targetChunkBytes = 280 * 1024;
     const featureChunks = [];
     let currentChunk = [];
     let currentChunkBytes = 0;
     featurePaths.forEach((relativePath) => {
-        const source = readRendererSource(relativePath);
+        const source = webFeatureSource(relativePath, readRendererSource(relativePath));
         const sourceBytes = Buffer.byteLength(source);
         if (currentChunk.length && currentChunkBytes + sourceBytes > targetChunkBytes) {
             featureChunks.push(currentChunk);
@@ -462,7 +488,7 @@ function configureWebDesktopDownload(indexHtml) {
     const shell = fs.readFileSync(path.join(projectRoot, 'src/web/web-shell.js'), 'utf8');
     const version = shell.match(/const DESKTOP_VERSION = '([^']+)'/)[1];
     const stamp = shell.match(/Windows: '([^']+)'/)[1];
-    const href = `https://gnz.hk/downloads/yaya_msg-${version}-win.zip?v=${stamp}`;
+    const href = `https://gnz.hk/downloads/yaya_msg-${version}-win.exe?v=${stamp}`;
     const pattern = /(<span id="sms-limit-download-links">[\s\S]*?\bhref=")[^"]+/g;
     if ([...indexHtml.matchAll(pattern)].length !== 1) throw new Error('Desktop download fallback link not found');
     return indexHtml.replace(pattern, (_, prefix) => prefix + href);
@@ -526,6 +552,11 @@ async function buildWebAssets() {
     indexHtml = configureWebDesktopDownload(indexHtml);
     indexHtml = configureLazyWebMediaVendors(indexHtml);
     indexHtml = await bundleRenderer(indexHtml);
+    indexHtml = indexHtml.replace(/^[ \t]*<script\b[^>]*src="\.\/([^"?]+)(?:\?[^"]*)?"[^>]*><\/script>\r?\n/gm,
+        (tag, relativePath) => excludedWebScripts.has(relativePath) ? '' : tag);
+    for (const relativePath of [...excludedWebScripts, ...excludedWebFeatureFactories.keys()]) {
+        fs.rmSync(path.join(outputDir, relativePath), { force: true });
+    }
     indexHtml = configureDeferredWebScripts(indexHtml);
     indexHtml = indexHtml.replace('<link rel="stylesheet" href="./src/web/pocket-home.css',
         `<link rel="stylesheet" href="./src/web/vendor/phosphor/style.css?v=__YAYA_BUILD_VERSION__">\n    <link rel="preload" as="image" href="${staticDependencies.poster}">\n    <link rel="stylesheet" href="./src/web/pocket-home.css`);

@@ -32,6 +32,9 @@
         })();
         try { return await pending; } finally { pending = null; }
     };
-    window.addEventListener('DOMContentLoaded', () => { void window.syncGiftPrices({ force: false, notify: false }); });
-    window.addEventListener('focus', () => { void window.syncGiftPrices({ force: false, notify: false }); });
+    const syncInMainWindow = () => {
+        if (!window.desktop?.isRoomWindow) void window.syncGiftPrices({ force: false, notify: false });
+    };
+    window.addEventListener('DOMContentLoaded', syncInMainWindow);
+    window.addEventListener('focus', syncInMainWindow);
 })();

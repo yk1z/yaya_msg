@@ -560,6 +560,7 @@ function buildQueryConditions(filters = {}, includeCursor = true) {
     if (type === 'audio') where.push('has_audio = 1 AND is_reply = 0');
     if (type === 'reply') where.push('is_reply = 1');
     if (type === 'live-record') where.push('is_live = 1');
+    if (type === 'gift') where.push("message_type IN ('GIFT_TEXT', 'CHANNEL_PRESENT_TEXT', 'PRESENT_TEXT')");
     if (type === 'text') where.push('has_image = 0 AND has_video = 0 AND has_audio = 0 AND is_reply = 0 AND is_live = 0');
 
     const drilldown = String(filters.drilldown || '');

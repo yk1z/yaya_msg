@@ -524,6 +524,7 @@
         }
 
         function appendLiveDanmuListItem(item) {
+            if (window.desktop?.isLiveWindow) return;
             if (!item?.text) return;
             const list = document.getElementById('live-danmu-list-body');
             if (!list) return;
@@ -656,6 +657,7 @@
 
         function showDesktopGiftEffect(item, player) {
             if (!window.desktop?.platform || window.desktop.platform === 'web') return;
+            if (window.YayaGiftEffectSettings?.isEnabled('live') === false) return;
             const parent = player?.template?.$player || document.getElementById('live-player-container');
             if (!parent) return;
             if (!document.getElementById('yaya-desktop-gift-effect-style')) {
@@ -714,11 +716,19 @@
             giftEffectTimers.add(timer);
         }
 
-        function clearDanmuOverlay() {
+        function clearGiftVisuals() {
             giftAnimationPlayer?.clear();
             giftEffectTimers.forEach(timer => clearTimeout(timer));
             giftEffectTimers.clear();
             document.querySelectorAll('.yaya-desktop-gift-effects').forEach(node => node.remove());
+        }
+
+        window.addEventListener('yaya:gift-effects-setting-changed', event => {
+            if (event.detail?.scope === 'live' && !event.detail.enabled) clearGiftVisuals();
+        });
+
+        function clearDanmuOverlay() {
+            clearGiftVisuals();
             resetLiveDanmuList();
         }
 

@@ -1,5 +1,6 @@
 const { app, globalShortcut, ipcMain } = require('electron');
-const { createWindow, getMainWindow, markAppQuitting, setDeepLinkHandler } = require('./window');
+const path = require('path');
+const { createWindow, getMainWindow, showMainWindow: revealMainWindow, markAppQuitting, setDeepLinkHandler } = require('./window');
 const { registerDeepLinkProtocol, createDeepLinkController } = require('./services/deep-link-service');
 const { createTray, destroyTray } = require('./tray');
 const { ensureWasmLoaded } = require('./services/wasm-service');
@@ -48,14 +49,7 @@ const gotSingleInstanceLock = app.requestSingleInstanceLock();
 
 function showMainWindow() {
     if (!gotSingleInstanceLock || quitCleanupStarted) return;
-
-    let window = getMainWindow();
-    if (!window || window.isDestroyed()) {
-        window = createWindow();
-    }
-    if (window.isMinimized()) window.restore();
-    if (!window.isVisible()) window.show();
-    window.focus();
+    return revealMainWindow();
 }
 
 function runLiveRecordingRecovery() {
@@ -120,6 +114,7 @@ if (!gotSingleInstanceLock) {
         if (!deepLinks.acceptArguments(args)) showMainWindow();
     });
     app.whenReady().then(() => {
+        if (process.platform === 'darwin') app.dock?.setIcon(path.join(__dirname, '../../icon.png'));
         registerDeepLinkProtocol(app);
         ensureStoragePaths();
         createWindow();

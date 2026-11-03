@@ -2,6 +2,7 @@ import pocketChannelConfig from './pocket-channel-config.js';
 import errorUtils from './error-utils.js';
 import { createNetfaceMethods } from './netface-api.mjs';
 import { withPocketClient, applyPocketClientHeaders } from './pocket-client-context.mjs';
+import { createPerformanceClassifier, createPerformanceTeamClassifier } from './performance-classification.mjs';
 import pocketClientProfiles from './pocket-client-profile.js';
 import pocketRegistration from './pocket-registration.js';
 import pocketSocialLogin from './pocket-social-login.js';
@@ -488,7 +489,10 @@ async function postPocketContent(url, payload, options = {}) {
 }
 
 function parseJsonPreservingLargeNumbers(text) {
-    const fixed = String(text || '').replace(/:\s*([0-9]{15,})/g, ':"$1"');
+    // Skip entire JSON strings so a long number inside message text is left untouched.
+    const fixed = String(text || '').replace(/"(?:\\.|[^"\\])*"|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g, value => (
+        /^-?\d{15,}$/.test(value) ? JSON.stringify(value) : value
+    ));
     return JSON.parse(fixed);
 }
 
@@ -831,7 +835,8 @@ async function fetchRoomMessages({ channelId, serverId, token, pa, nextTime = 0,
             ? 'https://pocketapi.48.cn/im/api/v1/team/message/list/all'
             : 'https://pocketapi.48.cn/im/api/v1/team/message/list/homeowner',
         { channelId: parseInt(channelId, 10), serverId: parseInt(finalServerId, 10), nextTime, limit: 50 },
-        headers
+        headers,
+        { largeNumbers: true }
     );
     if (response.status === 200 && response.data?.status === 200) {
         return { success: true, data: response.data, usedServerId: finalServerId };
@@ -844,7 +849,8 @@ async function fetchPrivateMessageList({ token, pa, lastTime }) {
     const response = await postJson(
         'https://pocketapi.48.cn/message/api/v1/user/message/list',
         { lastTime: Number(lastTime) || Date.now() },
-        createModernHeaders(token, pa)
+        createModernHeaders(token, pa),
+        { largeNumbers: true }
     );
     if (response.status === 200 && response.data?.status === 200) return { success: true, content: response.data.content };
     return apiError(response, '获取私信列表失败');
@@ -855,7 +861,8 @@ async function fetchPrivateMessageInfo({ token, pa, targetUserId, lastTime = 0 }
     const response = await postJson(
         'https://pocketapi.48.cn/message/api/v1/user/message/info',
         { lastTime: Number(lastTime) || 0, targetUserId: String(targetUserId) },
-        createModernHeaders(token, pa)
+        createModernHeaders(token, pa),
+        { largeNumbers: true }
     );
     if (response.status === 200 && response.data?.status === 200) return { success: true, content: response.data.content };
     return apiError(response, '获取私信详情失败');
@@ -863,6 +870,9 @@ async function fetchPrivateMessageInfo({ token, pa, targetUserId, lastTime = 0 }
 
 async function deletePrivateMessage({ token, pa, msgId }) {
     if (!token) return missingToken();
+    if (typeof msgId === 'number' && !Number.isSafeInteger(msgId)) {
+        return { success: false, msg: '消息 ID 精度异常，请重新打开会话后再删除' };
+    }
     const normalizedMsgId = String(msgId || '').trim();
     if (!normalizedMsgId) return { success: false, msg: '缺少消息 ID' };
 
@@ -901,7 +911,8 @@ async function sendPrivateMessageReply({ token, pa, targetUserId, text, messageT
     const response = await postJson(
         'https://pocketapi.48.cn/message/api/v1/user/message/reply',
         payload,
-        createModernHeaders(token, pa)
+        createModernHeaders(token, pa),
+        { largeNumbers: true }
     );
     if (response.status === 200 && response.data?.status === 200) return { success: true, content: response.data.content };
     return apiError(response, '发送私信失败');
@@ -990,7 +1001,8 @@ async function fetchRoomEssenceMessages({ channelId, serverId, token, pa, nextTi
             nextTime,
             limit: Math.max(1, Math.min(100, Number(limit) || 50))
         },
-        headers
+        headers,
+        { largeNumbers: true }
     );
     if (response.status === 200 && response.data?.status === 200) {
         return { success: true, data: response.data, usedServerId: finalServerId };
@@ -1020,7 +1032,7 @@ async function deleteMemberRoomMessageRequest({ token, pa, accId, msgIdClient, c
     return apiError(response, '删除成员房间消息失败');
 }
 
-async function fetchSeinePerformanceList({ token, pa, groupId = 0, next = 0 } = {}) {
+async function fetchSeinePerformancePage({ token, pa, groupId = 0, next = 0 } = {}) {
     if (!token) return missingToken();
 
     return postPocketContent(
@@ -1038,6 +1050,16 @@ async function fetchSeinePerformanceList({ token, pa, groupId = 0, next = 0 } = 
             largeNumbers: true
         }
     );
+}
+
+const classifyPerformancePage = createPerformanceClassifier(fetchSeinePerformancePage);
+const classifyPerformanceTeams = createPerformanceTeamClassifier(fetchOpenLivePublicList, fetchOpenLiveOne);
+
+async function fetchSeinePerformanceList(payload = {}) {
+    let result = await fetchSeinePerformancePage(payload);
+    if (payload.includeOfficialGroups) result = await classifyPerformancePage(result, payload);
+    if (payload.includeOfficialTeams) result = await classifyPerformanceTeams(result, payload);
+    return result;
 }
 
 async function fetchMeet48LiveList({ next = 0, record = false, meet48Auth = null } = {}, env = {}) {
@@ -1994,8 +2016,27 @@ async function fetchSeineServerDetail({ token, pa, serverId }) {
     );
 }
 
-async function fetchLiveRank({ token, pa, liveId }) {
+async function fetchLiveRank({ token, pa, liveId, rankSource, type }) {
     if (!token) return missingToken();
+    if (rankSource === 'performance') {
+        if (!liveId) return { success: false, msg: '缺少公演 ID' };
+        if (type == null) {
+            const detail = await fetchOpenLiveOne({ token, pa, liveId });
+            if (!detail.success) return detail;
+            type = detail.content?.type;
+        }
+        if (type == null || !Number.isFinite(Number(type))) {
+            return { success: false, msg: '未获取到公演榜单类型' };
+        }
+        const result = await postPocketContent(
+            'https://pocketapi.48.cn/live/api/v1/seine/live/rank/list',
+            { liveId: String(liveId), type: Number(type) },
+            { token, pa, headersFactory: createSeineHeaders, errorMessage: '获取公演贡献榜失败', largeNumbers: true }
+        );
+        if (!result.success) return result;
+        if (!Array.isArray(result.content?.list)) return { success: false, msg: '公演贡献榜数据格式异常' };
+        return { success: true, content: { ...result.content, data: result.content.list } };
+    }
     const response = await postJson(
         'https://pocketapi.48.cn/live/api/v2/live/getLiveRank',
         { type: 1, liveId: String(liveId) },
@@ -2256,7 +2297,7 @@ async function fetchChatroomHomeownerMessages({ token, pa, roomId, ownerId, next
             ownerId: String(ownerId || ''),
             nextTime: String(nextTime || 0)
         },
-        { token, pa, errorMessage: '获取成员房间消息失败' }
+        { token, pa, errorMessage: '获取成员房间消息失败', largeNumbers: true }
     );
 }
 

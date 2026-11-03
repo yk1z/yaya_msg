@@ -25,6 +25,8 @@
         let bilibiliCurrentOpenLiveGroupKey = '';
         let bilibiliLiveAutoConnectPending = false;
         let bilibiliLiveInfo = null;
+        let bilibiliLiveMetaRoomId = '';
+        let bilibiliLiveResolvedMeta = null;
         let bilibiliLiveCandidates = [];
         let bilibiliLiveCandidateIndex = -1;
         let bilibiliLiveAttemptId = 0;
@@ -506,6 +508,8 @@
             bilibiliLiveAutoConnectPending = true;
             renderBilibiliLiveRoomButtons();
             syncBilibiliLivePlaceholderForSelection();
+            const roomId = String(document.getElementById('bilibili-live-room-id')?.value || '').trim();
+            renderBilibiliLiveMeta(bilibiliLiveStatusMap[roomId] || {}, roomId);
             startBilibiliLiveStatusPolling();
         }
 
@@ -526,7 +530,9 @@
             writeLastBilibiliLiveRoomId(nextRoomId);
             renderBilibiliLiveRoomButtons();
             syncBilibiliLivePlaceholderForSelection();
+            renderBilibiliLiveMeta(bilibiliLiveStatusMap[nextRoomId] || {}, nextRoomId);
             await refreshBilibiliCurrentOpenLiveInfo(nextRoomId);
+            if (String(roomInput?.value || '').trim() !== nextRoomId) return;
             renderBilibiliLiveMeta(bilibiliLiveStatusMap[nextRoomId] || {
                 requestedRoomId: nextRoomId,
                 realRoomId: nextRoomId,
@@ -561,25 +567,27 @@
         }
 
         function resetBilibiliLiveMeta() {
-            const metaEl = document.getElementById('bilibili-live-meta');
-            const titleEl = document.getElementById('bilibili-live-title');
-            const upEl = document.getElementById('bilibili-live-up');
-            const roomMetaEl = document.getElementById('bilibili-live-room-meta');
-            if (metaEl) {
-                metaEl.style.display = '';
-                metaEl.style.visibility = 'hidden';
-            }
-            if (titleEl) titleEl.textContent = '';
-            if (upEl) upEl.textContent = '';
-            if (roomMetaEl) roomMetaEl.textContent = '';
+            bilibiliLiveMetaRoomId = '';
+            bilibiliLiveResolvedMeta = null;
+            renderBilibiliLiveMeta();
         }
 
-        function renderBilibiliLiveMeta(info = {}, roomId = '') {
+        function renderBilibiliLiveMeta(info = {}, roomId = '', resolved = false) {
             const metaEl = document.getElementById('bilibili-live-meta');
             const titleEl = document.getElementById('bilibili-live-title');
             const upEl = document.getElementById('bilibili-live-up');
             const roomMetaEl = document.getElementById('bilibili-live-room-meta');
             const targetRoomId = String(roomId || document.getElementById('bilibili-live-room-id')?.value || bilibiliCurrentRoomId || '').trim();
+            const selectedRoomId = String(document.getElementById('bilibili-live-room-id')?.value || '').trim();
+            if (selectedRoomId && targetRoomId !== selectedRoomId) return;
+            if (bilibiliLiveMetaRoomId !== targetRoomId) {
+                bilibiliLiveMetaRoomId = targetRoomId;
+                bilibiliLiveResolvedMeta = null;
+            }
+            if (resolved) bilibiliLiveResolvedMeta = { title: info.title, uname: info.uname };
+            // Status polling only returns a summary; keep the resolved room details.
+            const title = bilibiliLiveResolvedMeta?.title || info.title;
+            const uname = bilibiliLiveResolvedMeta?.uname || info.uname;
             const roomConfig = getBilibiliLiveRoomConfig(targetRoomId);
             const groupInfo = getBilibiliOpenLiveGroupInfo(targetRoomId);
             const currentOpenLive = groupInfo && bilibiliCurrentOpenLiveGroupKey === groupInfo.groupKey
@@ -587,19 +595,17 @@
                 : null;
 
             if (metaEl) {
-                metaEl.style.display = '';
-                metaEl.style.visibility = 'visible';
+                if (metaEl.style.display) metaEl.style.display = '';
+                if (metaEl.style.visibility !== 'visible') metaEl.style.visibility = 'visible';
             }
             if (titleEl) {
-                titleEl.textContent = window.YayaRendererUtils.t(currentOpenLive?.title || info.title || roomConfig?.title || 'B站直播');
+                const nextTitle = window.YayaRendererUtils.t(currentOpenLive?.title || title || roomConfig?.title || 'B站直播');
+                if (titleEl.textContent !== nextTitle) titleEl.textContent = nextTitle;
             }
 
             if (upEl) {
-                if (currentOpenLive?.subTitle) {
-                    upEl.textContent = currentOpenLive.subTitle;
-                } else {
-                    upEl.textContent = window.YayaRendererUtils.t(info.uname ? `UP 主：${info.uname}` : '信息暂不可用');
-                }
+                const nextSubtitle = currentOpenLive?.subTitle || window.YayaRendererUtils.t(uname ? `UP 主：${uname}` : '信息暂不可用');
+                if (upEl.textContent !== nextSubtitle) upEl.textContent = nextSubtitle;
             }
 
             const roomMetaParts = [];
@@ -607,7 +613,8 @@
             if (liveTimeRange) {
                 roomMetaParts.push(liveTimeRange);
             }
-            if (roomMetaEl) roomMetaEl.textContent = roomMetaParts.join(' · ');
+            const nextRoomMeta = roomMetaParts.join(' · ');
+            if (roomMetaEl && roomMetaEl.textContent !== nextRoomMeta) roomMetaEl.textContent = nextRoomMeta;
         }
 
         function clearBilibiliLiveFallbackTimer() {
@@ -877,12 +884,13 @@
             try {
                 await refreshBilibiliCurrentOpenLiveInfo(roomId);
                 const resolvedInfo = await ipcRenderer.invoke('resolve-bilibili-live', roomId);
+                if (String(roomInput?.value || '').trim() !== roomId) return;
                 if (resolvedInfo && resolvedInfo.success === false) {
                     throw new Error(resolvedInfo.msg || 'B站直播解析失败');
                 }
                 const info = resolvedInfo;
                 bilibiliCurrentRoomId = roomId;
-                renderBilibiliLiveMeta(info, roomId);
+                renderBilibiliLiveMeta(info, roomId, true);
                 setBilibiliLiveSummary('');
                 renderBilibiliLiveRoomButtons();
 

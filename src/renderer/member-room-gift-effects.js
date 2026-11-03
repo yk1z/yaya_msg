@@ -66,7 +66,7 @@
         const enabled = Boolean(window.desktop?.platform && window.desktop.platform !== 'web');
         const seen = new Map();
         const animation = enabled ? features.createDesktopLiveGiftAnimation?.({ ipcRenderer, reportError, getContainer,
-            eventName: 'yaya:member-room-gift-animation-state', layerClassName: 'member-room-gift-animation' }) : null;
+            eventName: 'yaya:member-room-gift-animation-state', layerClassName: 'member-room-gift-animation', effectScope: 'room' }) : null;
         let target = null;
         let enteredAt = 0;
         let observer = null;
@@ -114,7 +114,7 @@
             keys.forEach(key => seen.set(key, state));
             while (seen.size > 2000) seen.delete(seen.keys().next().value);
             const parent = getContainer();
-            if (!parent?.isConnected || !parent.getClientRects().length) {
+            if (window.YayaGiftEffectSettings?.isEnabled('room') === false || !parent?.isConnected || !parent.getClientRects().length) {
                 state.animated = true;
                 return false;
             }

@@ -68,12 +68,14 @@
         ipc.send('deep-link-ready');
         if (queued) { const route = queued; queued = null; void navigate(route); }
     }
-    ipc.on('deep-link-open', (_event, route) => {
+    function acceptRoute(route) {
         // The main process validates links; recheck the route before selecting a view.
         if (!route || !window.YayaDeepLink.views.includes(route.view)) return;
         if (!window.__appStartupComplete) { queued = route; return; }
         void navigate(route);
-    });
+    }
+    ipc.on('deep-link-open', (_event, route) => acceptRoute(route));
+    window.addEventListener('yaya:cloud-home-link', event => acceptRoute(window.YayaDeepLink.parseDeepLink(event.detail?.url)));
     window.addEventListener('yaya:app-startup-complete', ready);
     window.addEventListener('yaya:view-changed', event => {
         if (applyingRoute) return;

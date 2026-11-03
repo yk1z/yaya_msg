@@ -248,6 +248,9 @@
         }
 
         function inferPerformanceGroup(item) {
+            if (Array.isArray(item?.officialGroupIds)) {
+                return item.officialGroupIds.map(id => GROUP_IDS[id]).find(Boolean) || 'other';
+            }
             const directGroup = [
                 item?.groupName,
                 item?.group,
@@ -305,6 +308,14 @@
             return logoMatch ? logoMatch[1].toLowerCase() : 'other';
         }
 
+        function getPerformanceGroupLabel(item) {
+            if (Array.isArray(item?.officialGroupIds)) {
+                return item.officialGroupIds.map(id => GROUPS[GROUP_IDS[id]]).filter(Boolean).join(' / ') || GROUPS.other;
+            }
+            const group = inferPerformanceGroup(item);
+            return item?.officialGroupLookupFailed && group === 'other' ? '团体待确认' : GROUPS[group];
+        }
+
         function normalizePerformanceTeam(value) {
             if (typeof value !== 'string') return '';
             const raw = String(value || '').trim();
@@ -319,6 +330,10 @@
         }
 
         function inferPerformanceTeam(item) {
+            if (Array.isArray(item?.officialTeams)) {
+                return item.officialTeams.map(team => team.teamName).filter(Boolean).join(' / ') || '其它';
+            }
+            if (item?.officialTeamLookupFailed) return '队伍待确认';
             const teamLogo = String(item?.teamLogo || '').toLowerCase();
             const logoPatterns = [
                 [/snh48[_/.-]?s2|team\s*sii\b/i, 'TEAM SII'],
@@ -597,7 +612,7 @@
                 window.syncWebPerformanceRoute(liveId);
             }
 
-            const groupName = GROUPS[groupKey] || '公演';
+            const groupName = getPerformanceGroupLabel(item) || '公演';
             playOpenLiveVideo(
                 liveId,
                 String(item?.title || '未命名公演'),
@@ -773,17 +788,28 @@
             heading.className = 'performance-card-heading';
 
             const groupKey = inferPerformanceGroup(item);
-            appendTextElement(heading, 'span', 'performance-group-name', GROUPS[groupKey] || '公演');
+            appendTextElement(heading, 'span', 'performance-group-name', getPerformanceGroupLabel(item) || '公演');
 
-            const logoUrl = String(item?.teamLogo || '').trim();
-            if (logoUrl) {
+            const teams = Array.isArray(item?.officialTeams) ? item.officialTeams : null;
+            const logos = teams ? teams.map(team => ({ url: team.seineTeamLogo || team.teamLogo, name: team.teamName }))
+                : [{ url: item?.teamLogo || '', name: '' }];
+            logos.forEach(team => {
+                const logoUrl = String(team.url || '').trim();
+                if (!logoUrl) {
+                    if (team.name) appendTextElement(heading, 'span', 'performance-team-name', team.name);
+                    return;
+                }
                 const logo = document.createElement('img');
                 logo.className = 'performance-team-logo';
                 logo.src = normalizeMediaUrl(logoUrl);
-                logo.alt = '';
+                logo.alt = team.name || '';
+                logo.title = team.name || '';
                 logo.loading = 'lazy';
                 logo.addEventListener('error', () => logo.remove(), { once: true });
                 heading.appendChild(logo);
+            });
+            if ((teams && teams.length === 0) || item?.officialTeamLookupFailed) {
+                appendTextElement(heading, 'span', 'performance-team-name', inferPerformanceTeam(item));
             }
 
             appendTextElement(body, 'h3', 'performance-card-title', item?.title || '未命名公演');
@@ -827,8 +853,12 @@
         }
 
         function matchesPerformanceFilters(item) {
-            if (state.group !== 'all' && inferPerformanceGroup(item) !== state.group) return false;
-            if (state.team !== 'all' && inferPerformanceTeam(item) !== state.team) return false;
+            if (!matchesPerformanceGroup(item)) return false;
+            if (state.team !== 'all') {
+                const teams = Array.isArray(item?.officialTeams) && item.officialTeams.length
+                    ? item.officialTeams.map(team => team.teamName) : [inferPerformanceTeam(item)];
+                if (!teams.includes(state.team)) return false;
+            }
             if (!state.query) return true;
             let searchableText = item && typeof item === 'object'
                 ? performanceSearchIndexCache.get(item)
@@ -845,6 +875,15 @@
             return state.query.split(/\s+/).every(keyword => searchableText.includes(keyword));
         }
 
+        function matchesPerformanceGroup(item) {
+            if (state.group === 'all') return true;
+            if (state.group === 'other' && item?.officialGroupLookupFailed && inferPerformanceGroup(item) === 'other') return false;
+            if (Array.isArray(item?.officialGroupIds) && item.officialGroupIds.length) {
+                return item.officialGroupIds.some(id => GROUP_IDS[id] === state.group);
+            }
+            return inferPerformanceGroup(item) === state.group;
+        }
+
         function getPerformanceSourceItems() {
             if (Array.isArray(state.memberItems)) return state.memberItems;
             return Array.isArray(state.dateSearchItems) ? state.dateSearchItems : state.items;
@@ -856,9 +895,10 @@
 
         function getAvailablePerformanceTeams() {
             const teams = getPerformanceSourceItems()
-                .filter(item => state.group === 'all' || inferPerformanceGroup(item) === state.group)
-                .map(inferPerformanceTeam)
-                .filter(Boolean);
+                .filter(matchesPerformanceGroup)
+                .flatMap(item => Array.isArray(item?.officialTeams) && item.officialTeams.length
+                    ? item.officialTeams.map(team => team.teamName) : [inferPerformanceTeam(item)])
+                .filter(team => team && team !== '队伍待确认');
             teams.push('其它');
             return Array.from(new Set(teams)).sort((left, right) => {
                 if (left === '其它') return 1;
@@ -1131,6 +1171,7 @@
                         token,
                         pa,
                         groupId: '0',
+                        ...(window.desktop?.platform !== 'web' ? { includeOfficialGroups: true, includeOfficialTeams: true } : {}),
                         next: previousNext
                     });
 

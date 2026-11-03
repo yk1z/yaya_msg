@@ -1,5 +1,31 @@
 (function () {
     window.YayaRendererFeatures = window.YayaRendererFeatures || {};
+    const settingKeys = { live: 'liveGiftEffectsEnabled', room: 'roomGiftEffectsEnabled' };
+    const settingValues = new Map();
+    window.YayaGiftEffectSettings = {
+        isEnabled(scope) {
+            const key = settingKeys[scope];
+            if (!key) return true;
+            if (!settingValues.has(scope)) {
+                const settings = window.desktop?.appSettings;
+                const stored = settings?.getSettingValueSync
+                    ? settings.getSettingValueSync(key, true)
+                    : window.localStorage?.getItem(key);
+                settingValues.set(scope, stored !== false && stored !== 'false');
+            }
+            return settingValues.get(scope);
+        },
+        setEnabled(scope, enabled) {
+            const key = settingKeys[scope];
+            if (!key) return;
+            const value = enabled === true;
+            const settings = window.desktop?.appSettings;
+            if (settings?.setSettingValueSync) settings.setSettingValueSync(key, value);
+            else window.localStorage?.setItem(key, String(value));
+            settingValues.set(scope, value);
+            window.dispatchEvent(new CustomEvent('yaya:gift-effects-setting-changed', { detail: { scope, enabled: value } }));
+        }
+    };
     let pagSdkPromise = null;
     let lottieSdkPromise = null;
 
@@ -31,7 +57,7 @@
     }
 
     window.YayaRendererFeatures.createDesktopLiveGiftAnimation = function ({ ipcRenderer, reportError = console.warn,
-        getContainer, eventName = 'yaya:live-gift-animation-state', layerClassName = '' }) {
+        getContainer, eventName = 'yaya:live-gift-animation-state', layerClassName = '', effectScope = 'live' }) {
         const queue = [];
         let active = null;
         let generation = 0;
@@ -94,6 +120,7 @@
 
         async function playLottie(asset, layer, job) {
             const lottie = await getLottie();
+            if (job.cancelled) return;
             if (job.cancelled) return;
             const element = document.createElement('div');
             Object.assign(element.style, { width: '100%', height: '100%' });
@@ -164,9 +191,10 @@
             }
         }
 
-        return {
+        const controller = {
             enqueue(item, player) {
                 if (!window.desktop?.platform || window.desktop.platform === 'web' || !item.giftAnimation?.url) return;
+                if (!window.YayaGiftEffectSettings.isEnabled(effectScope)) return;
                 const parent = getContainer ? getContainer() : (player?.template?.$player || document.getElementById('live-player-container'));
                 if (!parent) return;
                 if (queue.length >= 20) queue.shift();
@@ -178,11 +206,14 @@
                 queue.length = 0;
                 if (active) {
                     active.cancelled = true;
-                    active.finish?.();
-                    active.layer?.remove();
+                    dispose(active);
                     active = null;
                 }
             }
         };
+        window.addEventListener('yaya:gift-effects-setting-changed', event => {
+            if (event.detail?.scope === effectScope && !event.detail.enabled) controller.clear();
+        });
+        return controller;
     };
 }());

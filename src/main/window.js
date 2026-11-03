@@ -1,9 +1,10 @@
-const { app, BrowserWindow, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 const { reportIgnoredError } = require('../common/error-utils');
 const settingsService = require('./services/settings-service');
 
 let mainWindow = null;
+let mainWindowReady = false;
 let isAppQuitting = false;
 let deepLinkHandler = null;
 function setDeepLinkHandler(handler) { deepLinkHandler = handler; }
@@ -48,8 +49,10 @@ function isSafeExternalUrl(rawUrl) {
 
 function createWindow() {
     const isMac = process.platform === 'darwin';
+    mainWindowReady = false;
 
     mainWindow = new BrowserWindow({
+        show: false,
         width: 1100,
         height: 790,
         minWidth: 1100,
@@ -68,7 +71,38 @@ function createWindow() {
         }
     });
 
-    mainWindow.loadFile(path.join(__dirname, '../../index.html'));
+    const window = mainWindow;
+    const onWorkspaceReady = event => {
+        if (event.sender !== window.webContents || window.isDestroyed() || mainWindow !== window) return;
+        mainWindowReady = true;
+        showMainWindow();
+    };
+    ipcMain.on('desktop-workspace-ready', onWorkspaceReady);
+    window.once('ready-to-show', () => {
+        if (window.isDestroyed() || mainWindow !== window) return;
+        showMainWindow();
+    });
+    window.webContents.on('dom-ready', () => {
+        if (window.isDestroyed() || mainWindow !== window) return;
+        // Page loading must still reveal the app if the renderer signal is lost.
+        mainWindowReady = true;
+        showMainWindow();
+    });
+    window.webContents.on('did-start-navigation', details => {
+        if (!details.isMainFrame || details.isSameDocument || mainWindow !== window) return;
+        mainWindowReady = false;
+        if (window.isVisible()) window.hide();
+    });
+    window.webContents.on('did-fail-load', (_event, _code, _description, _url, isMainFrame) => {
+        if (!isMainFrame || mainWindow !== window || window.isDestroyed()) return;
+        mainWindowReady = true;
+        showMainWindow();
+    });
+
+    const desktopEntry = app.isPackaged
+        ? path.join(__dirname, '../../desktop.html')
+        : require('../common/desktop-document').buildDesktopShell();
+    mainWindow.loadFile(desktopEntry);
     resetPageZoom(mainWindow.webContents);
     mainWindow.webContents.on('did-finish-load', () => {
         resetPageZoom(mainWindow.webContents);
@@ -107,8 +141,22 @@ function createWindow() {
         mainWindow.hide();
     });
     mainWindow.on('closed', () => {
-        mainWindow = null;
+        ipcMain.removeListener('desktop-workspace-ready', onWorkspaceReady);
+        if (mainWindow === window) {
+            mainWindow = null;
+            mainWindowReady = false;
+        }
     });
+    return mainWindow;
+}
+
+function showMainWindow() {
+    if (isAppQuitting) return;
+    if (!mainWindow || mainWindow.isDestroyed()) return createWindow();
+    if (!mainWindowReady) return;
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    if (!mainWindow.isVisible()) mainWindow.show();
+    mainWindow.focus();
     return mainWindow;
 }
 
@@ -128,6 +176,7 @@ function requestWindowClose() {
 module.exports = {
     createWindow,
     getMainWindow,
+    showMainWindow,
     markAppQuitting,
     setDeepLinkHandler,
     requestWindowClose

@@ -131,6 +131,7 @@ function truncateNotificationText(value, maxLength) {
 }
 
 function getDesktopToastMemberKey(payload = {}, title = '') {
+    if (payload.kind === 'private-message') return `private:${String(payload.targetUserId || '').trim()}`;
     return String(
         payload.mainChannelId
         || payload.memberId
@@ -207,6 +208,16 @@ function openDesktopToastTarget(payload, title, mainWindow) {
     if (mainWindow.isMinimized()) mainWindow.restore();
     mainWindow.show();
     mainWindow.focus();
+    if (payload.kind === 'private-message') {
+        const targetUserId = String(payload.targetUserId || '').trim();
+        if (/^\d{1,32}$/.test(targetUserId)) {
+            mainWindow.webContents.send('open-private-message-from-notification', {
+                targetUserId, memberName: String(payload.memberName || '私信'), iconUrl: String(payload.iconUrl || ''),
+                accountGeneration: payload.accountGeneration
+            });
+        }
+        return;
+    }
     mainWindow.webContents.send('open-followed-room-from-notification', {
         memberName: String(payload.memberName || title),
         channelId: String(payload.channelId || ''),

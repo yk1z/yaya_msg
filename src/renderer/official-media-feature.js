@@ -1611,38 +1611,17 @@
         }
 
         function handleVideoSearch(keyword) {
-            const grid = document.getElementById('video-list-grid');
-            if (!grid) return;
+            videoSearchKeyword = String(keyword || '').toLowerCase().trim();
+            const term = getSearchPinyinPayload(videoSearchKeyword);
+            videoVisibleEntries = videoEntries.filter(entry => matchesVideoSearch(entry, term));
+            renderVideoResults(true);
+        }
 
-            const kw = keyword.toLowerCase().trim();
-
-            const children = grid.children;
-            let visibleCount = 0;
-
-            for (let i = 0; i < children.length; i++) {
-                const card = children[i];
-
-                if (card.id === 'video-loading-tip') continue;
-
-                const isMatch = matchesSearchKeyword(card, kw);
-
-                card.style.display = isMatch ? 'block' : 'none';
-                if (isMatch) visibleCount++;
-            }
-
-            let emptyTip = document.getElementById('video-empty-tip');
-            if (visibleCount === 0 && kw !== '') {
-                if (!emptyTip) {
-                    emptyTip = document.createElement('div');
-                    emptyTip.id = 'video-empty-tip';
-                    emptyTip.style.cssText = `grid-column: 1 / -1; width: 100%; text-align: center; padding: 80px 0; color: var(--text-sub); display: flex; flex-direction: column; align-items: center; opacity: 0.8;`;
-                    emptyTip.innerHTML = `<div style="font-size: 40px; margin-bottom: 15px; opacity: 0.2;">🎬</div><div style="font-weight: 500;">未找到匹配视频</div>`;
-                    grid.appendChild(emptyTip);
-                }
-                emptyTip.style.display = 'flex';
-            } else {
-                if (emptyTip) emptyTip.style.display = 'none';
-            }
+        function matchesVideoSearch(entry, term) {
+            if (!term.raw || entry.textContent.toLowerCase().includes(term.raw)) return true;
+            if (!window.pinyinPro || !/^[a-z]+$/.test(term.raw)) return false;
+            const cache = ensureCardSearchCache(entry, entry.textContent);
+            return cache.full.includes(term.full) || cache.initials.includes(term.raw) || cache.initials.includes(term.initials);
         }
 
         let audioSearchTimeout = null;
@@ -1974,6 +1953,17 @@
         let videoCurrentTypeId = 0;
         let isCategoriesRendered = false;
         let videoLibraryCache = null;
+        let videoCacheSaveTimer = null;
+        const VIDEO_RENDER_BATCH_SIZE = 40;
+        let videoEntries = [];
+        let videoVisibleEntries = [];
+        const videoEntryIds = new Set();
+        let videoSearchKeyword = '';
+        let videoRenderedCount = 0;
+        let videoRenderLimit = VIDEO_RENDER_BATCH_SIZE;
+        let videoLoadGeneration = 0;
+        let videoViewportFrame = null;
+        let videoVisibilityObserver = null;
 
         let isVideoAutoLoading = false;
 
@@ -1998,9 +1988,15 @@
             return videoLibraryCache;
         }
 
-        function writeVideoLibraryCache() {
+        function writeVideoLibraryCache(flush = false) {
             if (!videoLibraryCache) return;
-            writeStringSetting(VIDEO_LIBRARY_CACHE_KEY, JSON.stringify(videoLibraryCache));
+            clearTimeout(videoCacheSaveTimer);
+            const save = () => {
+                videoCacheSaveTimer = null;
+                writeStringSetting(VIDEO_LIBRARY_CACHE_KEY, JSON.stringify(videoLibraryCache));
+            };
+            if (flush) save();
+            else videoCacheSaveTimer = setTimeout(save, 1000);
         }
 
         function isVideoLibraryCacheFresh(cache = readVideoLibraryCache()) {
@@ -2033,12 +2029,12 @@
             return loadingTip;
         }
 
-        function renderVideoCard(item, loadingTip) {
-            if (!item || !loadingTip?.parentElement) return;
-            const grid = loadingTip.parentElement;
+        function createVideoCard(item) {
             const coverUrl = item.thumbPath ? `https://source.48.cn${item.thumbPath}` : '';
             const dateStr = formatFullTime(item.ctime).split(' ')[0];
             const card = document.createElement('div');
+            card.className = 'video-card';
+            card.dataset.videoId = item.videoId;
 
             card.style.cssText = `
                                 background: var(--input-bg);
@@ -2046,19 +2042,15 @@
                                 overflow: hidden;
                                 border: 1px solid var(--border);
                                 cursor: pointer;
-                                transition: transform 0.3s ease, border-color 0.3s ease;
-                                transform: translateZ(0);
+                                transition: border-color 0.15s ease;
                             `;
-
-            card.onmouseover = () => { card.style.transform = 'translateY(-5px)'; card.style.borderColor = 'var(--primary)'; };
-            card.onmouseout = () => { card.style.transform = 'translateY(0)'; card.style.borderColor = 'var(--border)'; };
 
             card.innerHTML = `
     <div style="width: 100%; aspect-ratio: 16 / 9; overflow: hidden; position: relative; background: #111; border-radius: 6px;">
         <img src="${coverUrl}" loading="lazy" decoding="async" style="width: 100%; height: 100%; object-fit: cover; display: block;">
 
-        <div style="position: absolute; bottom: 4px; right: 4px; background: rgba(0,0,0,0.6); color: white; font-size: 9px; padding: 1px 4px; border-radius: 3px; backdrop-filter: blur(2px);">
-            ${item.typeName || '视频'}
+        <div style="position: absolute; bottom: 4px; right: 4px; background: rgba(0,0,0,0.6); color: white; font-size: 9px; padding: 1px 4px; border-radius: 3px;">
+            ${escapeMediaHtml(item.typeName || '视频')}
         </div>
     </div>
 
@@ -2067,14 +2059,83 @@
             ${escapeMediaHtml(item.title || '')}
         </div>
 
-        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--text-sub); opacity: 0.8;">
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; line-height: 14px; color: var(--text-sub); opacity: 0.8;">
             <span style="color: #fa8c16; font-weight: 500;">▶ ${item.play || 0}</span>
             <span>${dateStr}</span>
         </div>
     </div>
 `;
             card.onclick = () => playOfficialVideo(item.videoId, item.title, item.subTitle);
-            grid.insertBefore(card, loadingTip);
+            if (!videoVisibilityObserver && typeof IntersectionObserver === 'function') {
+                videoVisibilityObserver = new IntersectionObserver(entries => {
+                    for (const entry of entries) {
+                        if (entry.target.isConnected) entry.target.classList.toggle('is-offscreen', !entry.isIntersecting);
+                    }
+                }, { root: document.getElementById('view-video-library'), rootMargin: '500px 0px' });
+            }
+            videoVisibilityObserver?.observe(card);
+            return card;
+        }
+
+        function appendVideoEntries(items) {
+            const term = getSearchPinyinPayload(videoSearchKeyword);
+            for (const item of items) {
+                if (!item?.videoId || videoEntryIds.has(String(item.videoId))) continue;
+                videoEntryIds.add(String(item.videoId));
+                const entry = { item, textContent: `${item.title || ''} ${item.subTitle || ''} ${item.typeName || '视频'} ${formatFullTime(item.ctime).split(' ')[0]} ▶ ${item.play || 0}` };
+                videoEntries.push(entry);
+                if (matchesVideoSearch(entry, term)) videoVisibleEntries.push(entry);
+            }
+        }
+
+        function renderVideoResults(reset = false) {
+            const grid = document.getElementById('video-list-grid');
+            if (!grid) return;
+            if (reset) {
+                videoVisibilityObserver?.disconnect();
+                grid.replaceChildren();
+                videoRenderedCount = 0;
+                videoRenderLimit = VIDEO_RENDER_BATCH_SIZE;
+                document.getElementById('view-video-library').scrollTop = 0;
+            }
+            const loadingTip = ensureVideoLoadingTip(grid);
+            const fragment = document.createDocumentFragment();
+            const end = Math.min(videoRenderLimit, videoVisibleEntries.length);
+            while (videoRenderedCount < end) {
+                fragment.appendChild(createVideoCard(videoVisibleEntries[videoRenderedCount++].item));
+            }
+            grid.insertBefore(fragment, loadingTip);
+            loadingTip.style.display = 'none';
+            let emptyTip = document.getElementById('video-empty-tip');
+            if (videoVisibleEntries.length === 0 && videoSearchKeyword) {
+                if (!emptyTip) {
+                    emptyTip = document.createElement('div');
+                    emptyTip.id = 'video-empty-tip';
+                    emptyTip.style.cssText = 'grid-column: 1 / -1; text-align: center; padding: 80px 0; color: var(--text-sub);';
+                    emptyTip.textContent = window.YayaRendererUtils.t('未找到匹配视频');
+                    grid.appendChild(emptyTip);
+                }
+                emptyTip.style.display = 'block';
+            } else if (emptyTip) emptyTip.style.display = 'none';
+            scheduleVideoViewportFill();
+        }
+
+        function scheduleVideoViewportFill() {
+            if (videoViewportFrame !== null) return;
+            videoViewportFrame = requestAnimationFrame(() => {
+                videoViewportFrame = null;
+                const container = document.getElementById('view-video-library');
+                if (!container?.clientHeight) return;
+                const grid = document.getElementById('video-list-grid');
+                const columnWidth = parseFloat(getComputedStyle(grid).gridTemplateColumns);
+                // Match the cover's 16:9 ratio and the fixed 66px text area while offscreen.
+                if (columnWidth > 2) grid.style.setProperty('--video-card-content-height', `${(columnWidth - 2) * 9 / 16 + 66}px`);
+                if (container.scrollHeight > container.clientHeight + 1) return;
+                if (videoRenderedCount < videoVisibleEntries.length) {
+                    videoRenderLimit += VIDEO_RENDER_BATCH_SIZE;
+                    renderVideoResults();
+                }
+            });
         }
 
         function upsertVideoCacheItems(typeId, items, complete = false) {
@@ -2104,12 +2165,8 @@
 
             const grid = document.getElementById('video-list-grid');
             if (!grid) return false;
-            grid.replaceChildren();
             renderVideoCategories(cache.categories);
-            const loadingTip = ensureVideoLoadingTip(grid);
-            loadingTip.style.display = 'none';
-            loadingTip.innerText = window.YayaRendererUtils.t('— 已经到底啦 —');
-            bucket.items.forEach(item => renderVideoCard(item, loadingTip));
+            appendVideoEntries(bucket.items);
             videoNextCtime = bucket.nextCtime || 0;
             videoHasMore = false;
             handleVideoSearch(document.getElementById('video-inner-search')?.value || '');
@@ -2119,56 +2176,71 @@
         async function fetchAllVideoLibrary() {
             if (isVideoAutoLoading) return;
             isVideoAutoLoading = true;
-
-            const grid = document.getElementById('video-list-grid');
-
-            if (!grid || grid.innerHTML.trim() === '') {
-                if (renderVideoLibraryFromCache(videoCurrentTypeId)) {
-                    isVideoAutoLoading = false;
-                    return;
+            const generation = videoLoadGeneration;
+            initVideoScrollListener();
+            try {
+                if (!videoEntries.length) {
+                    if (renderVideoLibraryFromCache(videoCurrentTypeId)) return;
+                    if (!await loadVideoLibrary(true)) return;
                 }
-                await loadVideoLibrary(true);
+                while (generation === videoLoadGeneration && isVideoAutoLoading && videoHasMore) {
+                    if (typeof getCurrentViewName === 'function' && getCurrentViewName() !== 'video-library') break;
+                    if (!await loadVideoLibrary(false)) break;
+                    await new Promise(r => setTimeout(r, 100));
+                }
+            } finally {
+                if (generation === videoLoadGeneration) {
+                    isVideoAutoLoading = false;
+                    if (videoCacheSaveTimer) writeVideoLibraryCache(true);
+                }
             }
-
-            while (isVideoAutoLoading && videoHasMore) {
-                await loadVideoLibrary(false);
-                await new Promise(r => setTimeout(r, 100));
-            }
-
-            isVideoAutoLoading = false;
         }
 
         function selectVideoCategory(typeId) {
+            typeId = Number(typeId) || 0;
             if (videoCurrentTypeId === typeId) return;
-
+            videoLoadGeneration++;
             videoCurrentTypeId = typeId;
             isVideoAutoLoading = false;
+            isVideoLoading = false;
+            videoHasMore = true;
+            videoNextCtime = 0;
+            videoEntries = [];
+            videoVisibleEntries = [];
+            videoEntryIds.clear();
+            clearTimeout(videoSearchTimeout);
+            handleVideoSearch(document.getElementById('video-inner-search')?.value || '');
 
             document.querySelectorAll('.video-tag').forEach(tag => {
                 tag.classList.toggle('active', parseInt(tag.dataset.id) === typeId);
             });
 
-            setTimeout(() => {
-                const grid = document.getElementById('video-list-grid');
-                if (grid) grid.replaceChildren();
-                fetchAllVideoLibrary();
-            }, 150);
+            fetchAllVideoLibrary();
         }
 
         async function loadVideoLibrary(isNew = false) {
-            if (isVideoLoading || (!videoHasMore && !isNew)) return;
+            if (isVideoLoading || (!videoHasMore && !isNew)) return false;
 
             isVideoLoading = true;
+            const generation = videoLoadGeneration;
+            const requestedTypeId = videoCurrentTypeId;
             const grid = document.getElementById('video-list-grid');
             if (!grid) {
                 isVideoLoading = false;
-                return;
+                return false;
             }
 
             if (isNew) {
                 videoNextCtime = 0;
                 videoHasMore = true;
+                videoVisibilityObserver?.disconnect();
                 grid.replaceChildren();
+                videoEntries = [];
+                videoVisibleEntries = [];
+                videoEntryIds.clear();
+                videoRenderedCount = 0;
+                videoRenderLimit = VIDEO_RENDER_BATCH_SIZE;
+                videoSearchKeyword = String(document.getElementById('video-inner-search')?.value || '').toLowerCase().trim();
                 const container = document.getElementById('view-video-library');
                 if (container) container.scrollTop = 0;
             }
@@ -2181,11 +2253,12 @@
             try {
                 const res = await fetchPocketAPI('/media/api/media/v1/video/list', JSON.stringify({
                     ctime: videoNextCtime,
-                    typeId: videoCurrentTypeId,
+                    typeId: requestedTypeId,
                     groupId: 0,
                     limit: 20
                 }));
 
+                if (generation !== videoLoadGeneration) return false;
                 if (res && res.success && res.content) {
                     if (!isCategoriesRendered && res.content.type) {
                         renderVideoCategories(res.content.type);
@@ -2202,41 +2275,46 @@
                         loadingTip.innerText = window.YayaRendererUtils.t('— 已经到底啦 —');
                         upsertVideoCacheItems(videoCurrentTypeId, [], true);
                     } else {
-                        data.forEach(item => {
-                            renderVideoCard(item, loadingTip);
-                            const vSearchInput = document.getElementById('video-inner-search');
-                            if (vSearchInput && vSearchInput.value.trim() !== '') {
-                                handleVideoSearch(vSearchInput.value);
-                            }
-                        });
-
+                        appendVideoEntries(data);
+                        renderVideoResults();
+                        const previousCtime = videoNextCtime;
                         videoNextCtime = data[data.length - 1].ctime;
-                        const completed = data.length < 20;
-                        if (data.length < 20) {
+                        const completed = data.length < 20 || String(previousCtime) === String(videoNextCtime);
+                        if (completed) {
                             videoHasMore = false;
                             loadingTip.innerText = window.YayaRendererUtils.t('— 已经到底啦 —');
                         }
                         upsertVideoCacheItems(videoCurrentTypeId, data, completed);
                     }
+                    return true;
                 }
             } catch (e) {
                 console.error("加载失败", e);
                 if (loadingTip) loadingTip.innerText = window.YayaRendererUtils.t('加载出错，请重试');
             } finally {
-                isVideoLoading = false;
+                if (generation === videoLoadGeneration) isVideoLoading = false;
             }
+            return false;
         }
 
         function initVideoScrollListener() {
             const container = document.getElementById('view-video-library');
             if (!container) return;
-
+            let frame = null;
             container.onscroll = () => {
-                if (container.scrollTop + container.clientHeight >= container.scrollHeight - 100) {
-                    loadVideoLibrary(false);
-                }
+                if (frame !== null) return;
+                frame = requestAnimationFrame(() => {
+                    frame = null;
+                    if (container.scrollTop + container.clientHeight < container.scrollHeight - 500) return;
+                    if (videoRenderedCount < videoVisibleEntries.length) {
+                        videoRenderLimit += VIDEO_RENDER_BATCH_SIZE;
+                        renderVideoResults();
+                    } else if (!isVideoAutoLoading && videoHasMore) fetchAllVideoLibrary();
+                });
             };
         }
+
+        window.addEventListener('resize', scheduleVideoViewportFill);
 
         async function playOfficialVideo(videoId, title, subTitle) {
             const requestId = ++currentVideoPlayRequestId;
@@ -2278,6 +2356,7 @@
 
 
         window.addEventListener('beforeunload', () => {
+            if (videoCacheSaveTimer) writeVideoLibraryCache(true);
             if (audioProgramStateSaveTimer) {
                 clearTimeout(audioProgramStateSaveTimer);
                 audioProgramStateSaveTimer = null;
