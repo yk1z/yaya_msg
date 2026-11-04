@@ -1,7 +1,5 @@
 'use strict';
 
-// Public application identifiers and request shapes from Pocket48 7.1.45.
-// No provider application secret is needed for these implicit authorization flows.
 const PROVIDERS = Object.freeze({
     baidu: { name: '百度贴吧', appId: 'CfFEZbR8HxiWHHDgr1EGWByV', type: 'BD' },
     sigua: { name: '丝瓜', type: 'SG' },
@@ -105,8 +103,6 @@ function socialLoginResult(provider, data, httpStatus) {
     const status = Number(data?.status);
     const type = content?.type == null ? null : Number(content.type);
     const accepted = Number(httpStatus) === 200 && status === 200 && data?.success !== false;
-    // The official LoginResponse uses type=1 for the follow-up binding flow;
-    // its token, if present, must not become a regular logged-in session.
     if (accepted && token && type !== 1) return { success: true, status, content: { token } };
     const diagnostic = {
         stage: 'pocket-login', httpStatus: Number(httpStatus),

@@ -2128,7 +2128,6 @@
                 if (!container?.clientHeight) return;
                 const grid = document.getElementById('video-list-grid');
                 const columnWidth = parseFloat(getComputedStyle(grid).gridTemplateColumns);
-                // Match the cover's 16:9 ratio and the fixed 66px text area while offscreen.
                 if (columnWidth > 2) grid.style.setProperty('--video-card-content-height', `${(columnWidth - 2) * 9 / 16 + 66}px`);
                 if (container.scrollHeight > container.clientHeight + 1) return;
                 if (videoRenderedCount < videoVisibleEntries.length) {

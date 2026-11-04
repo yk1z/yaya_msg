@@ -268,7 +268,7 @@
                         if (Date.parse(confirmed.updatedAt) >= Date.parse(window.YayaGiftPriceSnapshot.updatedAt)) {
                             window.YayaGiftPriceSnapshot = window.YayaGiftPricing.mergeSnapshot(POCKET_GIFT_DATA, confirmed);
                         }
-                    } catch (_) { /* keep the bundled confirmed prices */ }
+                    } catch (_) {                                         }
                 }
                 const cachedData = cacheApi && typeof cacheApi.getCacheValueSync === 'function'
                     ? cacheApi.getCacheValueSync('POCKET_GIFT_DATA_CACHE', null)

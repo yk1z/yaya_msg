@@ -489,7 +489,6 @@ async function postPocketContent(url, payload, options = {}) {
 }
 
 function parseJsonPreservingLargeNumbers(text) {
-    // Skip entire JSON strings so a long number inside message text is left untouched.
     const fixed = String(text || '').replace(/"(?:\\.|[^"\\])*"|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g, value => (
         /^-?\d{15,}$/.test(value) ? JSON.stringify(value) : value
     ));
@@ -679,7 +678,6 @@ async function loginByThirdParty(payload = {}) {
     if (!['pocket48', 'seine48'].includes(payload.clientProfile)) throw new Error('请选择登录身份');
     const { path, body } = pocketSocialLogin.socialLoginRequest(payload.provider, payload.credentials);
     const response = await postJson('https://pocketapi.48.cn' + path, body, createLoginHeaders(payload), { timeoutMs: 15000 });
-    // Return only the Pocket session or non-sensitive result metadata.
     return pocketSocialLogin.socialLoginResult(payload.provider, response.data || {}, response.status);
 }
 
@@ -1395,7 +1393,6 @@ async function fetchOpenLiveParticipantsUncached({ token, pa, liveId, pageId = '
                 }
             }
         } catch (_) {
-            // Older performances may only expose their roster on live.48.cn.
         }
     }
 
@@ -1657,15 +1654,28 @@ async function uploadPocketImage({ token, pa, fileName, mimeType, dataBase64, fr
     }
     formData.append('file', new Blob([binary], { type: finalMimeType }), finalFileName);
 
+    const headers = new Headers(headersFactory(token, pa));
+    headers.delete('Content-Type');
+    headers.delete('Host');
+
     const response = await fetch('https://pfile.48.cn/filesystem/upload/image', {
         method: 'POST',
-        headers: applyPocketClientHeaders(headersFactory(token, pa)),
+        headers,
         body: formData
     });
-    const data = await response.json();
+    const text = await response.text();
+    let data;
+    try {
+        data = JSON.parse(text);
+    } catch {
+        if (response.status === 413) return { success: false, msg: '上传服务拒绝了图片大小（HTTP 413），请换小一点的图片' };
+        return { success: false, msg: `图片上传服务返回异常（HTTP ${response.status}），请稍后重试` };
+    }
     if (response.ok && data?.status === 200) {
         const item = Array.isArray(data.content) ? data.content[0] : data.content;
-        return { success: true, content: item, path: item?.path || '' };
+        const path = typeof item?.path === 'string' ? item.path.trim() : '';
+        if (!path) return { success: false, msg: '上传结果缺少图片地址' };
+        return { success: true, content: { ...item, path }, path };
     }
     return { success: false, msg: data?.message || '上传图片失败' };
 }

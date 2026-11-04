@@ -1,9 +1,5 @@
 'use strict';
 
-// Run only in the validated QQ OAuth page. Keep its own authorization engine;
-// the ordinary desktop login engine drops pt_openlogin_data and logs into QQ's
-// website instead of completing Pocket's third-party authorization. Its legacy
-// QR engine uses the internal PT application ID and is not a Pocket SDK QR grant.
 function prepareQqAuthorizationPage(expectedState) {
     const valid = () => {
         const url = new URL(location.href);
@@ -24,8 +20,6 @@ function prepareQqAuthorizationPage(expectedState) {
             else window.__yayaQqOAuthPrepared = false;
             return;
         }
-        // Do not fabricate authorization data. Wait for QQ's own preparation and
-        // verify it still belongs to this request before selecting password mode.
         const data = new URLSearchParams(decodeURIComponent(pt.submit_o.openlogin_data));
         if (data.get('client_id') !== '1103838320' || data.get('state') !== expectedState
             || data.get('redirect_uri') !== 'auth://tauth.qq.com/' || data.get('response_type') !== 'token') return;

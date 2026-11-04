@@ -84,7 +84,6 @@ function createWindow() {
     });
     window.webContents.on('dom-ready', () => {
         if (window.isDestroyed() || mainWindow !== window) return;
-        // Page loading must still reveal the app if the renderer signal is lost.
         mainWindowReady = true;
         showMainWindow();
     });

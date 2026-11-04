@@ -68,8 +68,6 @@ function createAccountImService({ readAuth, resolveCredentials, createClient, on
                     token: credentials.token,
                     clientProfile: state.auth.clientProfile,
                     deviceId: state.auth.deviceId,
-                    // A zero-room consumer keeps the shared login alive, without
-                    // entering a member room or consuming a channel subscription.
                     rooms: [],
                     onDisconnected() {
                         if (!isCurrent(state) || state.client !== client) return;

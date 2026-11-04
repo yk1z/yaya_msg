@@ -25,7 +25,6 @@ function createTrayIcon() {
 
     const resizedIcon = sourceIcon.resize({ width: 18, height: 18 });
     if (process.platform === 'darwin') {
-        // The artwork is a colour icon, not a monochrome alpha template.
         resizedIcon.setTemplateImage(false);
         resizedIcon.addRepresentation({ scaleFactor: 2, buffer: sourceIcon.resize({ width: 36, height: 36 }).toPNG() });
     }

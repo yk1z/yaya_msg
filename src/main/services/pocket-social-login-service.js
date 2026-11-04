@@ -14,8 +14,6 @@ async function providerJson(fetchImpl, url, options, signal, jsonp = false) {
     if (text.length > 256 * 1024) throw new Error('第三方返回内容异常');
     if (jsonp) text = text.replace(/^\s*callback\s*\(\s*/, '').replace(/\s*\)\s*;?\s*$/, '');
     try {
-        // Retrofit reads Baidu userid directly as a String. Preserve the original
-        // integer spelling here too; JSON.parse -> Number -> String can change IDs.
         return JSON.parse(text, (_key, value, context) => typeof value === 'number' && !Number.isSafeInteger(value)
             && /^-?\d+$/.test(context?.source || '') ? context.source : value);
     } catch { throw new Error('第三方返回内容异常，请稍后重试'); }
@@ -91,7 +89,6 @@ function createPocketSocialLoginService({ BrowserWindow, invokePocket, fetchImpl
                 const win = state.window;
                 const browserSession = state.browserSession;
                 if (win && !win.isDestroyed()) win.destroy();
-                // Each login has a fresh in-memory partition; clear it after the window is destroyed.
                 if (browserSession) Promise.allSettled([
                     Promise.resolve().then(() => browserSession.clearStorageData()),
                     Promise.resolve().then(() => browserSession.clearCache())
@@ -121,7 +118,6 @@ function createPocketSocialLoginService({ BrowserWindow, invokePocket, fetchImpl
             const loadAuthorizationPage = url => {
                 const revision = ++navigationRevision;
                 state.window.loadURL(url).catch(error => {
-                    // Only the current navigation may fail the login attempt.
                     if (isCurrent() && !receiving && revision === navigationRevision && error?.code !== 'ERR_ABORTED') {
                         state.finish({ success: false, msg: '授权页加载失败，请检查网络后重试' });
                     }
@@ -172,9 +168,6 @@ function createPocketSocialLoginService({ BrowserWindow, invokePocket, fetchImpl
                 win.webContents.on('will-redirect', (event, url, _inPlace, isMainFrame) => {
                     if (isMainFrame !== false && event.isMainFrame !== false) navigate(event, url || event.url);
                 });
-                // Implicit authorization can attach its fragment only when the final
-                // document commits. Baidu's Android client also checks onPageFinished;
-                // checking just will-navigate/will-redirect can leave the success page open.
                 win.webContents.on('did-navigate', (_event, url) => navigate(null, url));
                 win.webContents.on('did-navigate-in-page', (event, url, isMainFrame) => { if (isMainFrame) navigate(event, url); });
                 win.webContents.on('did-finish-load', () => {

@@ -28,7 +28,6 @@ const projectRoot = path.join(__dirname, '..');
 const outputDir = path.join(projectRoot, 'web-dist');
 const buildDesktopRuntimeOnly = process.argv.includes('--database-runtime-only')
     || process.argv.includes('--desktop-runtime-only');
-// Web keeps only API-shaped placeholders for features whose routes are disabled.
 const excludedWebFeatureFactories = new Map([
     ['src/renderer/private-messages-feature.js', 'createPrivateMessagesFeature'],
     ['src/renderer/room-radio-feature.js', 'createRoomRadioFeature'],
@@ -401,8 +400,6 @@ function configureWebLocalePacks(indexHtml) {
         .replace(homeTag, `${homeTag}\n${translatorTag}`);
 }
 
-// Keep classic-script order while letting the browser fetch the entire startup
-// chain in parallel. The tiny theme bootstrap stays synchronous to avoid flashing.
 function configureDeferredWebScripts(indexHtml) {
     return indexHtml.replace(/<script\b([^>]*\bsrc="([^"]+)"[^>]*)>/g, (tag, attributes, source) => {
         if (/(?:\b(?:defer|async)(?:\s|=|$)|\btype\s*=)/.test(attributes)
@@ -414,7 +411,6 @@ function configureDeferredWebScripts(indexHtml) {
 }
 
 async function optimizeWebTextAssets() {
-    // Optimize only the web copies; the desktop sources keep their current form.
     const assets = ['style.css', ...collectFiles('src/web'), ...collectFiles('src/renderer')]
         .map(file => path.isAbsolute(file) ? path.relative(projectRoot, file) : file)
         .filter(file => /\.(?:js|css)$/.test(file));
@@ -431,7 +427,6 @@ async function optimizeWebTextAssets() {
         const result = await esbuild.transform(source, {
             loader: relativePath.endsWith('.css') ? 'css' : 'js',
             minifyWhitespace: true,
-            // Some legacy scripts share top-level names across files.
             minifyIdentifiers: false,
             minifySyntax: false,
             legalComments: 'none'
@@ -476,7 +471,6 @@ function configureWebHomeMarkup(indexHtml) {
     const start = indexHtml.indexOf('<div id="view-home"');
     const end = indexHtml.indexOf('<div id="view-followed-rooms"', start);
     if (start < 0 || end < 0) throw new Error('Web homepage boundaries not found');
-    // The Web homepage owns its components; no desktop homepage markup is shipped.
     const data = JSON.stringify(links).replace(/</g, '\\u003c');
     const home = `<div id="view-home" class="web-home-view">
                 <script type="application/json" id="web-home-links">${data}</script>
@@ -605,7 +599,6 @@ async function prepareGiftPriceSnapshot() {
         const module = await import('./sync-gift-price-catalog.mjs');
         module.syncGiftPriceCatalog();
     } else {
-        // Public checkouts use the committed catalogue; private server sources are optional.
         const snapshot = require('../src/common/gift-prices.snapshot');
         require('../src/common/gift-pricing').validateSnapshot(snapshot);
     }

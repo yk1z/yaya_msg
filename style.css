@@ -14795,7 +14795,6 @@ html[data-platform="web"] .custom-sender-profile-card {
 .social-login-unavailable { margin-left: 5px; font-size: 11px; font-weight: normal; }
 .pocket-sigua-login-form > .input-control { margin-bottom: 16px; }
 
-/* Desktop home: one flat application surface */
 .main-content.home-mode {
     padding: 0;
 }

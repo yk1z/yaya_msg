@@ -8,7 +8,6 @@ const methods = new Set([
 ]);
 let queue = Promise.resolve();
 parentPort.on('message', ({ id, method, payload }) => {
-    // One database connection owns all reads and writes, including asynchronous indexing.
     queue = queue.then(async () => {
         try {
             if (!methods.has(method)) throw new Error('不支持的消息索引操作');

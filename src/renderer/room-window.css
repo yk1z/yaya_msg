@@ -1,4 +1,3 @@
-/* A detached room shares the chat controls and theme with the main workspace. */
 html[data-room-window="true"] body.desktop-workspace {
     --home-rail-width: 0px !important;
     --home-side-width: 0px !important;

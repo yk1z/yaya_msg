@@ -27,7 +27,6 @@ function createGiftPriceSyncService({ readLocal = () => bundled, readCache = () 
                 const raw = await response.text();
                 if (raw.length > 5000000) throw new Error('价格数据过大');
                 const remote = validateSnapshot(JSON.parse(raw));
-                // A stale server deployment must not roll back a newer local catalogue.
                 if (Date.parse(remote.updatedAt) >= Date.parse(snapshot.updatedAt)) snapshot = remote;
                 writeCache({ checkedAt: now(), snapshot });
                 return { success: true, snapshot, online: true, source: 'remote' };

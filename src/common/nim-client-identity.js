@@ -3,11 +3,9 @@
 const crypto = require('node:crypto');
 const { normalizePocketClientProfile } = require('./pocket-client-profile');
 
-// Verified against the supplied Seine48 1.3.5 and Pocket48 7.1.45 APKs.
 function createNimClientIdentity({ clientProfile, deviceId } = {}) {
     const profile = normalizePocketClientProfile(clientProfile) || 'seine48';
     const pocket = profile === 'pocket48';
-    // The official SDK persists one UUID and uses it for both IM and QChat.
     const digest = deviceId ? crypto.createHash('sha256')
         .update(JSON.stringify(['yaya-nim-device-v1', profile, String(deviceId)]))
         .digest('hex').slice(0, 32).split('') : null;

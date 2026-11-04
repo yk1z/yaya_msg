@@ -102,7 +102,6 @@ function initializeDatabase(db) {
         try {
             if (!columns.has('room_type')) db.exec("ALTER TABLE messages ADD COLUMN room_type TEXT NOT NULL DEFAULT ''");
             if (!columns.has('channel_id')) db.exec("ALTER TABLE messages ADD COLUMN channel_id TEXT NOT NULL DEFAULT ''");
-            // Re-read source metadata once, preserving record IDs and original JSONL files.
             db.exec('UPDATE message_files SET indexed_size = 0');
             db.exec('COMMIT');
         } catch (error) { db.exec('ROLLBACK'); throw error; }
@@ -185,9 +184,6 @@ function normalizeRecordForIndex(record, sourcePath, recordOffset, recordLength)
         giftId: String(giftInfo.giftId || giftInfo.id || ''),
         giftName: String(giftInfo.giftName || giftInfo.name || ''),
         giftCount: Number(giftInfo.giftNum || giftInfo.num || giftInfo.count || 0) || 0,
-        // Positive = message price; -3 = scoring effect; -2 = explicit zero; -1 = no message price.
-        // Legacy indexes used 0 for both missing and free prices and are repaired
-        // lazily from their original JSONL records during gift analysis.
         giftUnitCost: isScoringGift(giftInfo) ? -3 : explicitGiftCost === null ? -1 : explicitGiftCost === 0 ? -2 : explicitGiftCost,
         replyTargetName: getReplyTargetName(record),
         recordOffset: Number(recordOffset) || 0,
@@ -520,8 +516,6 @@ function buildQueryConditions(filters = {}, includeCursor = true) {
             where.push('messages.room_type = ?');
             params.push(filters.roomType);
         } else {
-            // Keep SQL expression depth constant even for hundreds of rooms.
-            // Expanding one OR/LIKE per channel exceeds SQLite's depth limit.
             where.push(`(messages.room_type = ? OR (messages.room_type = '' AND (
                 messages.channel_id IN (SELECT value FROM json_each(?))
                 OR (messages.channel_id = '' AND messages.file_id IN (

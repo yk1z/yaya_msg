@@ -45,7 +45,6 @@
                         snapshot.cursors.set(id, { time: Math.max(nextTime, previous?.time || 0), unread, keys: previous?.keys || new Set() });
                         continue;
                     }
-                    // Verify direction from message details: the list preview can be our own last reply.
                     let details;
                     try {
                         details = await ipcRenderer.invoke('fetch-private-message-info', { token: snapshot.token, pa, targetUserId: id, lastTime: 0 });

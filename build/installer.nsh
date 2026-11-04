@@ -3,14 +3,12 @@
   StrCpy $hasPerUserInstallation "1"
   !insertmacro setInstallModePerUser
   StrCpy $INSTDIR "C:\${APP_FILENAME}"
-  ; Keep an explicitly supplied /D= directory when installing from the command line.
   !insertmacro GetDParameter $R0
   ${If} $R0 != ""
     StrCpy $INSTDIR $R0
   ${EndIf}
 !macroend
 
-; Installation mode is already set by customInit; skip only the scope page.
 !macro customInstallMode
   !ifndef BUILD_UNINSTALLER
     Abort
@@ -24,7 +22,6 @@
   WriteRegStr SHCTX "Software\Classes\yayamsg\shell\open\command" "" '"$INSTDIR\${APP_EXECUTABLE_FILENAME}" "%1"'
 !macroend
 
-; Preserve a handler registered later by another installation or the old ZIP version.
 !macro removeYayaProtocol ROOT
   Push $R0
   ReadRegStr $R0 ${ROOT} "Software\Classes\yayamsg\shell\open\command" ""
@@ -36,6 +33,5 @@
 
 !macro customUnInstall
   !insertmacro removeYayaProtocol SHCTX
-  ; App startup can create a per-user association even for a machine-wide installation.
   !insertmacro removeYayaProtocol HKCU
 !macroend

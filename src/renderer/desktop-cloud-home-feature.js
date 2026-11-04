@@ -12,7 +12,6 @@
             && /<meta\b(?=[^>]*\bname=["']yaya-desktop-home["'])(?=[^>]*\bcontent=["']1["'])[^>]*>/i.test(html);
     }
 
-    // This function runs inside the isolated page and exposes only navigation and theme messages.
     function pageBridge() {
         window.addEventListener('message', event => {
             if (event.source !== parent || event.data?.type !== 'yaya:home-theme') return;
@@ -127,7 +126,6 @@
         const theme = () => document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
         const customBackground = () => document.documentElement.dataset.customBackground === 'true';
         const sendTheme = () => {
-            // Chromium makes mismatched iframe color schemes opaque, even with transparent CSS.
             for (const frame of [currentFrame, pendingFrame]) {
                 if (frame) frame.style.colorScheme = theme();
             }
@@ -141,7 +139,6 @@
             statusText.textContent = failed ? '主页暂时无法加载' : '正在加载主页…';
             retry.hidden = !failed;
             host.setAttribute('aria-busy', String(!failed));
-            // Cached pages render without a loading label; brief network loads stay quiet too.
             if (!failed && !restoringCache) {
                 loadingTimeout = setTimeout(() => {
                     if (!disposed && !currentFrame) status.hidden = false;
@@ -254,7 +251,6 @@
                 render(cached.html);
             }
         } catch (_) {}
-        // Never make native startup wait for the homepage network request.
         const initialRefresh = setTimeout(() => { void refresh({ force: true }); }, 0);
         function destroy() {
             disposed = true;

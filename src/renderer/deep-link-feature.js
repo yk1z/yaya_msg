@@ -23,7 +23,7 @@
         }
         try {
             if (['room', 'album', 'voice'].includes(route.action)) {
-                try { await window.YayaMemberDataStore?.loadMemberData(); } catch (_) { /* Direct IDs can still resolve without the catalogue. */ }
+                try { await window.YayaMemberDataStore?.loadMemberData(); } catch (_) {                                                           }
                 if (request !== revision) return;
             }
             if (route.action === 'send') window.suppressNextFlipMemberAutofocus = true;
@@ -69,7 +69,6 @@
         if (queued) { const route = queued; queued = null; void navigate(route); }
     }
     function acceptRoute(route) {
-        // The main process validates links; recheck the route before selecting a view.
         if (!route || !window.YayaDeepLink.views.includes(route.view)) return;
         if (!window.__appStartupComplete) { queued = route; return; }
         void navigate(route);

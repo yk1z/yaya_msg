@@ -17,15 +17,11 @@
         if (passwordError(password, password)) throw new Error(passwordError(password, password));
         const crypto = globalThis.crypto;
         if (!crypto?.subtle) throw new Error('当前环境不支持密码加密，请使用桌面版或 HTTPS 页面');
-        // Public compatibility constant from the official Android client, not a user secret.
         const key = await crypto.subtle.importKey('raw', new TextEncoder().encode('7yy4tjcw12aipo2c'), 'AES-CBC', false, ['encrypt']);
         const bytes = new TextEncoder().encode(password);
         const padding = 16 - bytes.length % 16;
         const input = new Uint8Array(bytes.length + padding); input.set(bytes); input.fill(padding, bytes.length);
         const output = new Uint8Array(input.length);
-        // The official protocol uses ECB/PKCS5Padding. Web Crypto exposes CBC:
-        // each independent block with a zero IV has the same first block as ECB.
-        // Discard Web Crypto's extra padding block; the whole input is padded once above.
         for (let offset = 0; offset < input.length; offset += 16) {
             const block = await crypto.subtle.encrypt({ name: 'AES-CBC', iv: new Uint8Array(16) }, key, input.subarray(offset, offset + 16));
             output.set(new Uint8Array(block, 0, 16), offset);

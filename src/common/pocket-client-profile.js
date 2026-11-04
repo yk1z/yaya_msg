@@ -1,4 +1,3 @@
-// Shared by Electron, the Node API and the web login gateway.
 function normalizePocketClientProfile(value) {
     return value === 'pocket48' || value === 'seine48' ? value : '';
 }

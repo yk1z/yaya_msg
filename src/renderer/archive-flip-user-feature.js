@@ -2,7 +2,6 @@
     const infoKeys = ['flipCardInfo', 'filpCardInfo', 'flipCardAudioInfo', 'filpCardAudioInfo', 'flipCardVideoInfo', 'filpCardVideoInfo'];
 
     function parseArchiveMessageJson(text) {
-        // Preserve 64-bit question/answer IDs before JSON converts them to Number.
         return JSON.parse(String(text).replace(/("(?:questionId|answerId|giftId)"\s*:\s*)(\d{16,})(?=\s*[,}])/g, '$1"$2"'));
     }
 

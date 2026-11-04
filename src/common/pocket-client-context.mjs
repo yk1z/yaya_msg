@@ -14,7 +14,7 @@ export function applyPocketClientHeaders(headers) {
     const context = requests.getStore();
     if (!context?.clientProfile) return headers;
     let previous = {};
-    try { previous = JSON.parse(headers.appInfo || '{}'); } catch { /* use the request device */ }
+    try { previous = JSON.parse(headers.appInfo || '{}'); } catch {                              }
     const deviceId = /^[a-f0-9]{16}$/i.test(context.deviceId)
         ? context.deviceId.toLowerCase()
         : String(previous.deviceId || '').replace(/[^a-f0-9]/gi, '').slice(0, 16).toLowerCase();

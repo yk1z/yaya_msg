@@ -19,7 +19,7 @@
             for (const view of ['followed-rooms', 'private-messages']) {
                 if (typeof saved?.[view] === 'number' && Number.isFinite(saved[view])) widths[view] = saved[view];
             }
-        } catch (_) { /* Width preferences are optional. */ }
+        } catch (_) {                                       }
 
         function upperBound() {
             return Math.max(minWidth, Math.min(maxWidth, Math.floor(innerWidth - railWidth - 480)));
@@ -37,7 +37,7 @@
         }
 
         function save() {
-            try { localStorage.setItem(storageKey, JSON.stringify(widths)); } catch (_) { /* Keep the in-memory preference. */ }
+            try { localStorage.setItem(storageKey, JSON.stringify(widths)); } catch (_) {                                      }
         }
 
         function finish(commit) {
@@ -239,7 +239,6 @@
         });
         function syncAccountAvatar(state) {
             const scope = accountScope();
-            // This cache restores presentation only; login and protected routes still require validation.
             if (!state.loggedIn && scope && avatarSnapshot?.scope === scope) {
                 state = { ...avatarSnapshot, loggedIn: true };
             } else if (!state.loggedIn) {
@@ -531,7 +530,7 @@
 
         if (settingsContent) {
             const appVersion = document.querySelector('meta[name="yaya-app-version"]')?.content || '';
-            const formatVersion = value => String(value || '').replace(/(\.\d+)\.0$/, '$1');
+            const formatVersion = value => String(value || '').replace(/^(\d+\.\d+)\.\d+$/, '$1');
             const updateCard = document.createElement('section');
             updateCard.id = 'desktop-update-card';
             updateCard.className = 'Box-row desktop-update-card';
@@ -647,13 +646,13 @@
             name.textContent = '牙牙消息';
             const version = document.createElement('p');
             version.className = 'desktop-about-version';
-            version.textContent = `版本 ${appVersion.replace(/(\.\d+)\.0$/, '$1')}`;
+            version.textContent = `版本 ${formatVersion(appVersion)}`;
             const credit = document.createElement('p');
             credit.className = 'desktop-about-credit';
             function authorLink(text) {
                 const link = document.createElement('a');
                 link.className = 'desktop-about-author';
-                link.href = 'https://weibo.com/u/3175669264';
+                link.href = 'https://github.com/yk1z';
                 link.target = '_blank';
                 link.rel = 'noopener noreferrer';
                 link.textContent = text;
@@ -767,7 +766,6 @@
                 if (visible) count += 1;
             });
             list.querySelectorAll('.home-list-label').forEach(heading => {
-                // Category menus use concise entries; search alone uses group labels.
                 heading.hidden = !query || !Array.from(list.querySelectorAll('[data-route]'))
                     .some(button => button.dataset.category === heading.dataset.category && !button.hidden);
             });

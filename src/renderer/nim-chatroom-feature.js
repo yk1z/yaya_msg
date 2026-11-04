@@ -108,8 +108,6 @@
             if (typeof value === 'object' && !Array.isArray(value)) return value;
             if (typeof value !== 'string') return null;
             try {
-                // Preserve long IDs at their actual object paths. A gift can contain
-                // both giftInfo.acceptUser.userId and user.userId (the sender).
                 const parsed = JSON.parse(value.replace(
                     /("(?:userId|sourceId|liveId|id)"\s*:\s*)(-?\d{16,})(?=\s*[,}])/g,
                     '$1"$2"'

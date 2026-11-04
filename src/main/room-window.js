@@ -86,7 +86,7 @@ function openLink(rawUrl) {
         if (safeExternalProtocols.has(new URL(rawUrl).protocol)) {
             void shell.openExternal(rawUrl).catch(() => {});
         }
-    } catch (_) { /* Ignore unsupported or malformed links. */ }
+    } catch (_) {                                              }
 }
 
 async function openRoomWindow(payload, options = {}) {
@@ -120,7 +120,7 @@ async function openDetachedWindow(context, key, { position } = {}) {
     let backgroundColor = '#f7f8fa';
     try {
         if (settingsService.readSettings().theme === 'dark') backgroundColor = '#141a22';
-    } catch (_) { /* Use the default theme if settings cannot be read. */ }
+    } catch (_) {                                                         }
     const placement = {};
     if (position) {
         const area = screen.getDisplayNearestPoint(position).workArea;
@@ -174,7 +174,6 @@ async function openDetachedWindow(context, key, { position } = {}) {
     };
     ipcMain.on('desktop-workspace-ready', onWorkspaceReady);
     window.once('ready-to-show', reveal);
-    // Readiness signals remain harmless after the immediate first reveal.
     window.webContents.once('dom-ready', reveal);
     window.once('closed', () => {
         ipcMain.removeListener('desktop-workspace-ready', onWorkspaceReady);
@@ -195,7 +194,6 @@ async function openDetachedWindow(context, key, { position } = {}) {
     });
     try {
         const loading = window.loadFile(desktopEntry);
-        // Reveal the native window immediately; scripts and room data load inside it.
         reveal();
         await loading;
         return { success: true, reused: false };
@@ -207,7 +205,6 @@ async function openDetachedWindow(context, key, { position } = {}) {
 
 async function openRoomWindowFromDrag(sender, payload) {
     if (!isTrustedDesktopSender(sender)) return { success: false, msg: '当前页面不能打开独立窗口' };
-    // The trusted renderer measures the dragged card against the room list column.
     if (payload?.dragOutsideHalf !== true) return { success: true, opened: false };
     const position = screen.getCursorScreenPoint();
     const result = await openRoomWindow(payload, { position });

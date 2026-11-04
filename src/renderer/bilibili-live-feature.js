@@ -585,7 +585,6 @@
                 bilibiliLiveResolvedMeta = null;
             }
             if (resolved) bilibiliLiveResolvedMeta = { title: info.title, uname: info.uname };
-            // Status polling only returns a summary; keep the resolved room details.
             const title = bilibiliLiveResolvedMeta?.title || info.title;
             const uname = bilibiliLiveResolvedMeta?.uname || info.uname;
             const roomConfig = getBilibiliLiveRoomConfig(targetRoomId);

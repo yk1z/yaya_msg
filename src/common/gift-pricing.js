@@ -21,7 +21,6 @@
         if (earlyNames[id]?.includes(name)) return true;
         if (claimedScoringGifts.get(id) === name) return true;
         if (id === '1320115721784332288') return true;
-        // Old desktop exports may already contain the rounded JS-number ID.
         return id === String(Number('1320115721784332288')) && name === '弦月回响'
             && String(gift.picPath || '').endsWith('/backstage/2026/1022/yun19ux7oa35qoex0bu400k.png');
     }
@@ -78,8 +77,6 @@
         }
         const exact = index.exact.get(keyOf(id, name));
         const alias = index.aliases.get(keyOf(id, name));
-        // A legacy cache can contain the rounded spelling of a confirmed ID.
-        // Prefer its confirmed alias over an unverified cache row with that spelling.
         const unverified = row => row && ['observed', 'legacy-cache'].includes(row.source);
         if (unverified(exact) && alias && !unverified(alias)) return alias;
         return exact || alias || null;
@@ -107,8 +104,6 @@
         if (!row) return false;
         const existing = prices.find(item => keyOf(item.id, item.name) === keyOf(row.id, row.name));
         if (!existing) { prices.push(row); identityIndexes.delete(prices); return true; }
-        // Current shop prices and individual messages cannot overwrite a
-        // confirmed historical reference or merge another ID with the same name.
         if (existing.cost === row.cost || existing.observedCost === row.cost) return false;
         existing.observedCost = row.cost;
         existing.requiresDateReview = true;
@@ -141,8 +136,6 @@
     }
     function normalizeGiftInfo(gift = {}, options = {}) {
         if (gift.giftId || gift.id || !Object.hasOwn(gift, 'image')) return gift;
-        // HTML migration used this four-field shape and filled missing prices
-        // with zero. It contains no proof that the gift was actually free.
         const legacyKeys = new Set(['giftName', 'giftNum', 'money', 'image', 'legacyPriceUnknown']);
         if (!Object.keys(gift).every(key => legacyKeys.has(key))) return gift;
         const result = { ...gift };
@@ -183,8 +176,6 @@
                 if (Number.isSafeInteger(value) && value > 0) scaled = value;
             }
         }
-        // Existing confirmed reporting policy for claimed Xianyue effects only.
-        // Room tpNum already contains the total; do not multiply it a second time.
         if (scaled === null && !raw && (String(gift.giftId) === '1320115721784332288'
             || String(gift.giftId) === String(Number('1320115721784332288')))) {
             const count = Number(gift.giftNum);

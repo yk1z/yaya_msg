@@ -1,4 +1,3 @@
-/* Desktop application design system. Native window controls and feature IDs stay intact. */
 html[data-desktop-shell="true"] { background-image: none !important; }
 html.desktop-workspace-pending { background: #f7f8fa !important; }
 html[data-theme="dark"].desktop-workspace-pending { background: #141a22 !important; }
@@ -139,7 +138,6 @@ body.desktop-workspace .home-workspace * { box-sizing: border-box; }
 body.desktop-workspace .home-workspace button { font-family: inherit; cursor: pointer; }
 body.desktop-workspace .home-welcome { display: none; }
 
-/* Page canvas and toolbars: one layout for every feature, including dynamic roots. */
 body.desktop-workspace #mainContentArea .desktop-page {
     min-width: 0; min-height: 0; width: 100%; max-width: none;
     padding: 20px 24px !important; margin: 0 !important; box-sizing: border-box;
@@ -174,7 +172,6 @@ body.desktop-workspace textarea.maskword-input {
     height: 180px; min-height: 120px; line-height: 1.6; resize: vertical; flex-shrink: 0;
 }
 body.desktop-workspace #view-settings .maskword-settings-card { display: none; }
-/* Shared layout for the standalone detection tools. */
 body.desktop-workspace .desktop-tool-card {
     display: flex; flex-direction: column; gap: 16px; width: 100%; min-width: 0;
     box-sizing: border-box; margin: 0 !important; padding: 16px !important;
@@ -289,7 +286,6 @@ body.desktop-workspace .melee-rank-toolbar { padding: 10px 15px; border-bottom: 
 body.desktop-workspace .melee-rank-meta { padding: 10px 15px; border-color: var(--desk-line); background: var(--desk-panel); }
 body.desktop-workspace :is(.empty-state, .placeholder-tip, .database-loading) { color: var(--desk-muted); padding: 48px 20px; font-size: 13px; text-align: center; background: transparent; }
 
-/* Rooms and private conversations use the entire canvas, with a compact contact column. */
 body.desktop-workspace #mainContentArea .desktop-conversations { padding: 0 !important; scrollbar-gutter: auto; }
 body.desktop-workspace #view-followed-rooms > div,
 body.desktop-workspace .private-messages-shell {
@@ -342,7 +338,6 @@ body.desktop-workspace .desktop-room-actions-row :is(.followed-notification-all-
 body.desktop-workspace .desktop-room-search-row #quick-follow-results { top: calc(100% + 6px) !important; bottom: auto !important; }
 body.desktop-workspace .desktop-room-actions-row #followed-sort-dropdown { top: auto !important; bottom: calc(100% + 6px); }
 
-/* Chat pages are rail / contacts / conversation, without a feature-menu column. */
 body.desktop-workspace:is([data-desktop-view="followed-rooms"], [data-desktop-view="private-messages"]) {
     --desktop-default-contact-width: 238px;
     --home-side-width: var(--desktop-contact-width, var(--desktop-default-contact-width)) !important;
@@ -376,7 +371,6 @@ body.desktop-workspace.desktop-resizing-contacts .desktop-contact-splitter::afte
 body.desktop-workspace.desktop-resizing-contacts,
 body.desktop-workspace.desktop-resizing-contacts * { cursor: col-resize !important; user-select: none !important; }
 
-/* Media catalog, playback and resource lists. */
 body.desktop-workspace :is(#view-video-library, #view-audio-programs) .media-library-header {
     padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none;
 }
@@ -439,7 +433,6 @@ body.desktop-workspace #vod-pagination-controls {
 body.desktop-workspace :is(#audio-scroll-area, #music-scroll-area) { padding-right: 0 !important; padding-left: 0 !important; }
 body.desktop-workspace :is(.performance-shell, .community-shell, .pbc-shell, .send-flip-page) { background: transparent; border: 0; box-shadow: none; }
 
-/* Accounts, settings, forms, invoices and downloads. */
 body.desktop-workspace :is(.account-state-card, .account-card, .login-card, .invoice-card, .maskword-settings-card, .window-close-settings-card, .custom-sender-profile-card, .download-item) {
     background: var(--desk-panel); border: 1px solid var(--desk-line); border-radius: 6px; box-shadow: none; backdrop-filter: none;
 }
@@ -475,7 +468,6 @@ body.desktop-workspace :is(.modal-content, .modal-header, .modal-body, .netface-
 body.desktop-workspace .modal-content { border: 1px solid var(--desk-line); border-radius: 9px; box-shadow: 0 20px 70px #0005; }
 body.desktop-workspace .modal-header { border-bottom: 1px solid var(--desk-line); border-radius: 9px 9px 0 0; }
 
-/* The embedded database uses the same palette as its owning desktop page. */
 body.desktop-workspace .db-app {
     --db-bg: var(--desk-canvas); --db-card: var(--desk-panel); --db-card-strong: var(--desk-panel);
     --db-soft: var(--desk-nav); --db-border: var(--desk-line); --db-text: var(--desk-ink); --db-text-sub: var(--desk-muted);
@@ -516,9 +508,7 @@ body.desktop-workspace :is(input, select, textarea):is(:focus, :focus-visible),
 body.desktop-workspace .followed-room-message-field:focus-within {
     outline: none !important; box-shadow: none !important;
 }
-/* Keep the same gutter so revealing a scrollbar never shifts the content. */
 body.desktop-workspace * {
-    /* Native scrollbar-color/width override Chromium's button styling. */
     scrollbar-width: auto !important;
     scrollbar-color: auto !important;
 }
@@ -539,7 +529,6 @@ body.desktop-workspace ::-webkit-scrollbar-button { display: none !important; wi
     body.desktop-workspace .private-messages-sidebar { width: 220px !important; flex-basis: 220px; }
 }
 
-/* Function navigation floats over the canvas; contact columns remain in flow. */
 body.desktop-workspace .app-container { position: relative; }
 body.desktop-workspace .app-container > .home-conversation-pane {
     position: absolute; top: var(--desktop-flyout-top, 8px); bottom: auto; left: calc(var(--home-rail-width) + 4px);
@@ -559,7 +548,6 @@ body.desktop-workspace.desktop-flyout-open .app-container > .home-conversation-p
 body.desktop-workspace .home-rail-button { color: var(--desk-muted); }
 body.desktop-workspace .home-rail-button:hover,
 body.desktop-workspace .home-rail-button.is-menu-open { background: var(--desk-hover); color: var(--desk-ink); }
-/* The trigger's hit area crosses its 8 px rail inset and the 4 px menu gap. */
 body.desktop-workspace .home-rail-button.is-menu-open::after {
     content: ''; position: absolute; top: 0; bottom: 0; left: 100%; width: 13px;
     z-index: 199; background: transparent; cursor: default;
@@ -571,7 +559,6 @@ body.desktop-workspace .home-rail-button.is-active svg { color: var(--primary); 
 body.desktop-workspace .home-rail-button.is-active::before { left: -8px; background: var(--primary); }
 body.desktop-workspace .custom-title-bar { background: var(--desk-panel) !important; }
 body.desktop-workspace .title-info { background: transparent; }
-/* Optional local wallpaper sits behind the canvas, while controls retain solid surfaces. */
 html[data-custom-background="true"] body.desktop-workspace .app-container {
     background-image: linear-gradient(color-mix(in srgb, var(--desk-canvas) 30%, transparent), color-mix(in srgb, var(--desk-canvas) 30%, transparent)), var(--yaya-background-image);
     background-size: cover; background-position: center; background-repeat: no-repeat;
@@ -583,12 +570,11 @@ html[data-custom-background="true"] body.desktop-workspace #view-followed-rooms 
     background: transparent !important; transition: none;
 }
 html[data-custom-background="true"] body.desktop-workspace {
-    --desk-wallpaper-surface: color-mix(in srgb, var(--desk-canvas) var(--desktop-background-transparency, 78%), transparent);
+    --desk-wallpaper-surface: color-mix(in srgb, var(--desk-canvas) var(--desktop-background-transparency, 85%), transparent);
 }
 html[data-custom-background="true"][data-theme="dark"] body.desktop-workspace {
-    --desk-wallpaper-surface: color-mix(in srgb, var(--desk-canvas) var(--desktop-background-transparency, 72%), transparent);
+    --desk-wallpaper-surface: color-mix(in srgb, var(--desk-canvas) var(--desktop-background-transparency, 85%), transparent);
 }
-/* One tint across the shared canvas prevents stacked or uneven page overlays. */
 html[data-custom-background="true"] body.desktop-workspace #mainContentArea {
     background: var(--desk-wallpaper-surface) !important;
 }

@@ -2513,7 +2513,6 @@
                 const listStyle = getComputedStyle(list);
                 const footerStyle = getComputedStyle(footer);
                 const gap = pixels(listStyle.rowGap);
-                // Add scrollTop so scrolling the list cannot inflate its available space.
                 const listTop = list.getBoundingClientRect().top - mediaView.getBoundingClientRect().top + mediaView.scrollTop;
                 const availableHeight = mediaView.clientHeight - pixels(viewStyle.paddingBottom) - listTop
                     - footer.getBoundingClientRect().height - pixels(footerStyle.marginBottom)
@@ -4416,7 +4415,6 @@
         };
 
         if (window.desktop?.isRoomWindow) {
-            // The main window owns account checks, notifications and background startup tasks.
         } else if (isWebRuntime) {
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', initializeApplicationRuntime, { once: true });
@@ -8573,7 +8571,7 @@
         const privateDetailBody = document.getElementById('private-message-detail-body');
         if (privateDetailBody) {
             privateDetailBody.addEventListener('scroll', function () {
-                if (this.scrollTop <= 40 && privateMessageDetailState.targetUserId && privateMessageDetailState.hasMore && !privateMessageDetailState.loading) {
+                if (this.scrollTop <= 40 && privateMessageDetailState.targetUserId && privateMessageDetailState.hasMore) {
                     loadMorePrivateMessageDetail();
                 }
             }, { passive: true });

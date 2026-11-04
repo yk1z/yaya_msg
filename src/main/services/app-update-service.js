@@ -70,7 +70,7 @@ function createUpdateDownloader({ getLatest, directory, request = axios.get, onP
     let downloadedPath = '';
     let downloadedInfo = null;
     function notify(data) {
-        try { onProgress(data); } catch (_) { /* A closed window does not interrupt the download. */ }
+        try { onProgress(data); } catch (_) {                                                        }
     }
     function download() {
         if (pending) return pending;
@@ -80,7 +80,6 @@ function createUpdateDownloader({ getLatest, directory, request = axios.get, onP
             downloadedPath = '';
             downloadedInfo = null;
             try {
-                // Resolve the asset in the main process; never accept download URLs or paths from the renderer.
                 const update = await getLatest();
                 if (!update.success) return update;
                 if (!update.updateAvailable) return { success: false, msg: '暂无可用更新，请重新检查版本' };

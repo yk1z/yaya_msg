@@ -48,7 +48,6 @@
                     }
                 };
                 if (deferredPages.has(view)) {
-                    // Paint the selected page before its data loads and secondary work.
                     frame = requestAnimationFrame(() => { task = setTimeout(enter, 0); });
                 } else enter();
             } catch (error) {

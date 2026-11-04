@@ -1678,7 +1678,6 @@
         }
 
         function renderFollowedRoomsList(renderData, options = {}) {
-            // Keep the captured card attached while dragging beyond the window.
             if (followedRoomPointerDrag?.active) return;
             const { preserveScroll = false } = options;
             const container = document.getElementById('followed-rooms-container');
@@ -1814,8 +1813,6 @@
                 }
                 return card;
             });
-            // Retain card identities and their click/drag listeners during background updates.
-            // Only move rows when the order actually changes.
             const keep = new Set(desired);
             Array.from(container.childNodes).forEach(node => { if (!keep.has(node)) node.remove(); });
             desired.forEach((node, index) => {
@@ -1959,7 +1956,6 @@
                 cancel();
             };
             const detachEligibleAt = (clientX, clientY) => {
-                // Include the search and sorting controls in the room-list boundary.
                 const column = document.querySelector('#view-followed-rooms > div > div:first-child');
                 const bounds = column?.getBoundingClientRect();
                 if (!bounds || bounds.width <= 0 || bounds.height <= 0 || rect.width <= 0 || rect.height <= 0) return false;
@@ -2147,8 +2143,6 @@
             `;
 
             menu.querySelectorAll('button').forEach(button => {
-                // Keep focus in the room: focusing a menu item can scroll its ancestors
-                // and dismiss the menu before its click handler runs.
                 button.addEventListener('pointerdown', event => {
                     if (event.button === 0) event.preventDefault();
                 });

@@ -22,7 +22,7 @@
                 }
                 if (transparency !== null) preview(transparency);
                 window.YayaDesktopBackground = {
-                    getTransparency: () => transparency ?? (document.documentElement.dataset.theme === 'dark' ? 72 : 78),
+                    getTransparency: () => transparency ?? 85,
                     previewTransparency: preview,
                     saveTransparency(value) {
                         const number = Number(value);

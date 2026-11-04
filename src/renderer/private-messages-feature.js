@@ -42,6 +42,8 @@
         let privateMessageAccountGeneration = 0;
         let privateMessageListRequestGeneration = 0;
         let privateMessageDetailRequestGeneration = 0;
+        let privateMessageDetailRequestIsAutoRefresh = false;
+        let privateMessageHistoryLoadPending = false;
         let privateMessageUserRequestGeneration = 0;
         let privateMessagePendingItems = [];
         let privateMessagePendingKeys = new Set();
@@ -76,7 +78,6 @@
                         else node = rendered;
                     }
                     node.classList.toggle('active', row.active);
-                    // Keep unchanged rows attached, retaining their measured offscreen heights.
                     if (node === cursor) cursor = cursor.nextSibling;
                     else listEl.insertBefore(node, cursor);
                     nextRows.set(row.key, { node, html: row.html });
@@ -186,7 +187,7 @@
                 privateMessagePendingItems.push(item);
             });
 
-            privateMessagePendingItems.sort((a, b) => Number(a.timestamp || 0) - Number(b.timestamp || 0));
+            privateMessagePendingItems.sort(comparePrivateMessageItems);
             updatePrivateMessagePendingNotice();
         }
 
@@ -216,6 +217,8 @@
 
         function resetPrivateMessageDetailPanel() {
             stopPrivateMessageBottomFollow();
+            privateMessageHistoryLoadPending = false;
+            privateMessageDetailRequestIsAutoRefresh = false;
             privateMessageDetailRequestGeneration += 1;
             privateMessageUserRequestGeneration += 1;
             privateMessageDetailState.targetUserId = '';
@@ -394,7 +397,6 @@
                 ['loadedmetadata', schedule, true]
             ];
             listeners.forEach(args => container.addEventListener(...args));
-            // Media and custom players can acquire their final height after rendering.
             const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(schedule) : null;
             observer?.observe(container);
             Array.from(container.children).forEach(child => observer?.observe(child));
@@ -408,13 +410,8 @@
             schedule();
         }
 
-        function shouldUsePrivateMessageScrollAnchor() {
-            return document.documentElement.dataset.platform === 'web'
-                && Boolean(window.matchMedia?.('(max-width: 768px)').matches);
-        }
-
         function capturePrivateMessageScrollAnchor(container) {
-            if (!container || !shouldUsePrivateMessageScrollAnchor()) return null;
+            if (!container) return null;
 
             const containerTop = container.getBoundingClientRect().top;
             const messageItems = Array.from(container.querySelectorAll('.private-message-item[data-scroll-key]'));
@@ -430,7 +427,7 @@
         }
 
         function restorePrivateMessageScrollAnchor(container, anchor) {
-            if (!container || !anchor || !shouldUsePrivateMessageScrollAnchor()) return false;
+            if (!container || !anchor) return false;
 
             const anchorEl = Array.from(container.querySelectorAll('.private-message-item[data-scroll-key]'))
                 .find(item => String(item.dataset.scrollKey || '') === anchor.scrollKey);
@@ -438,7 +435,7 @@
 
             const containerTop = container.getBoundingClientRect().top;
             const currentOffsetTop = anchorEl.getBoundingClientRect().top - containerTop;
-            container.scrollTop = Math.max(1, container.scrollTop + currentOffsetTop - anchor.offsetTop);
+            container.scrollTop = Math.max(0, container.scrollTop + currentOffsetTop - anchor.offsetTop);
             return true;
         }
 
@@ -544,66 +541,6 @@
 
             if (!msgId || msgId.startsWith('local-')) return '';
             return msgId;
-        }
-
-        function findMissingPrivateMessageIds(snapshot, content, beforeTime = 0) {
-            if (!Array.isArray(content?.data)) return [];
-            if (content.data.some(item => !item || !getPrivateMessageDeletableId(item)
-                || !Number.isFinite(Number(item.timestamp)) || !(Number(item.timestamp) > 0))) return [];
-            const incomingIds = new Set(content.data.map(getPrivateMessageDeletableId));
-            // A missing/malformed cursor is not evidence that the entire history was returned.
-            const complete = content.lastTime != null && String(content.lastTime).trim() !== ''
-                && Number(content.lastTime) === 0;
-            const times = content.data.map(item => Number(item.timestamp));
-            const oldest = times.length && times.every(time => Number.isFinite(time) && time > 0)
-                ? Math.min(...times) : Infinity;
-            return snapshot.filter(item => {
-                const id = getPrivateMessageDeletableId(item);
-                const time = Number(item.timestamp);
-                if (!id || incomingIds.has(id)) return false;
-                if (beforeTime > 0 && !(time > 0 && time < beforeTime)) return false;
-                // Exclude the oldest timestamp on partial pages: more messages may share that boundary.
-                return complete || (Number.isFinite(time) && time > oldest);
-            }).map(getPrivateMessageDeletableId);
-        }
-
-        function getPrivateMessageVisibleHistoryCursor(incoming, snapshot) {
-            const body = document.getElementById('private-message-detail-body');
-            if (!body || !incoming.length || canPrivateMessageStickToBottom(body)) return 0;
-            const latestOldest = Math.min(...incoming.map(item => Number(item.timestamp) || 0));
-            if (!(latestOldest > 0)) return 0;
-            const times = new Map(snapshot.map(item => [getPrivateMessageDeletableId(item), Number(item.timestamp)]));
-            const bounds = body.getBoundingClientRect();
-            let newestVisible = 0;
-            for (const row of body.querySelectorAll('.private-message-item[data-msg-id]')) {
-                const rect = row.getBoundingClientRect();
-                if (rect.top >= bounds.bottom) break;
-                if (rect.bottom > bounds.top) newestVisible = Math.max(newestVisible, times.get(row.dataset.msgId) || 0);
-            }
-            return newestVisible > 0 && newestVisible < latestOldest ? newestVisible + 1 : 0;
-        }
-
-        function removeSynchronizedPrivateMessages(ids) {
-            if (!ids.size) return;
-            const body = document.getElementById('private-message-detail-body');
-            const atBottom = body && canPrivateMessageStickToBottom(body);
-            const top = body?.getBoundingClientRect().top || 0;
-            const rows = body ? Array.from(body.querySelectorAll('.private-message-item[data-msg-id]')) : [];
-            const anchor = atBottom ? null : rows.find(row => !ids.has(row.dataset.msgId) && row.getBoundingClientRect().bottom > top);
-            const offset = anchor?.getBoundingClientRect().top;
-            privateMessageDetailState.items = privateMessageDetailState.items.filter(item => !ids.has(getPrivateMessageDeletableId(item)));
-            privateMessagePendingItems = privateMessagePendingItems.filter(item => !ids.has(getPrivateMessageDeletableId(item)));
-            privateMessagePendingKeys = new Set(privateMessagePendingItems.map(item => getPrivateMessageItemKey(item, privateMessageDetailState.targetUserId)));
-            updatePrivateMessagePendingNotice();
-            for (const row of rows) {
-                if (!ids.has(row.dataset.msgId)) continue;
-                row.querySelectorAll('audio, video').forEach(media => media.pause());
-                row.remove();
-            }
-            if (!body) return;
-            if (!privateMessageDetailState.items.length) renderPrivateMessageDetail();
-            else if (atBottom) followPrivateMessageBottom(body);
-            else if (anchor?.isConnected) body.scrollTop += anchor.getBoundingClientRect().top - offset;
         }
 
         function ensurePrivateMessageContextMenu() {
@@ -756,7 +693,6 @@
                         return;
                     }
 
-                    // A poll started before this successful deletion must not reinsert its old snapshot.
                     privateMessageDetailRequestGeneration++;
                     setPrivateMessageDetailLoading(false);
                     const bodyEl = document.getElementById('private-message-detail-body');
@@ -908,6 +844,26 @@
             }
         }
 
+        function comparePrivateMessageItems(left, right) {
+            const timeDifference = Number(left.timestamp || 0) - Number(right.timestamp || 0);
+            if (timeDifference) return timeDifference;
+            const leftId = getPrivateMessageDeletableId(left);
+            const rightId = getPrivateMessageDeletableId(right);
+            const leftIsNumeric = /^\d+$/.test(leftId);
+            const rightIsNumeric = /^\d+$/.test(rightId);
+            if (leftIsNumeric !== rightIsNumeric) return leftIsNumeric ? -1 : 1;
+            if (leftIsNumeric) {
+                const a = leftId.replace(/^0+(?=\d)/, '');
+                const b = rightId.replace(/^0+(?=\d)/, '');
+                if (a.length !== b.length) return a.length - b.length;
+                if (a !== b) return a < b ? -1 : 1;
+                return leftId < rightId ? -1 : leftId > rightId ? 1 : 0;
+            }
+            const a = getPrivateMessageItemKey(left, privateMessageDetailState.targetUserId);
+            const b = getPrivateMessageItemKey(right, privateMessageDetailState.targetUserId);
+            return a < b ? -1 : a > b ? 1 : 0;
+        }
+
         function renderPrivateMessageDetail(options = {}) {
             const bodyEl = document.getElementById('private-message-detail-body');
             if (!bodyEl) return;
@@ -926,7 +882,7 @@
                 return;
             }
 
-            const sorted = privateMessageDetailState.items.slice().sort((a, b) => Number(a.timestamp || 0) - Number(b.timestamp || 0));
+            const sorted = privateMessageDetailState.items.slice().sort(comparePrivateMessageItems);
             bodyEl.replaceChildren();
             const fragment = document.createDocumentFragment();
             sorted.forEach(item => {
@@ -963,7 +919,7 @@
             const fragment = document.createDocumentFragment();
             items
                 .slice()
-                .sort((a, b) => Number(a.timestamp || 0) - Number(b.timestamp || 0))
+                .sort(comparePrivateMessageItems)
                 .forEach(item => {
                     fragment.appendChild(createPrivateMessageDetailElement(item));
                 });
@@ -1392,6 +1348,8 @@
             }
 
             if (reset) {
+                privateMessageHistoryLoadPending = false;
+                privateMessageDetailRequestIsAutoRefresh = false;
                 privateMessageDetailRequestGeneration += 1;
                 privateMessageDetailState.targetUserId = String(targetUserId || '');
                 privateMessageDetailState.title = window.YayaRendererUtils.t(title || '私信详情');
@@ -1444,13 +1402,10 @@
             );
 
             setPrivateMessageDetailLoading(true);
+            privateMessageDetailRequestIsAutoRefresh = isAutoRefresh;
             try {
                 const bodyEl = document.getElementById('private-message-detail-body');
                 const requestCursor = isAutoRefresh ? 0 : privateMessageDetailState.cursor;
-                const requestSnapshot = privateMessageDetailState.items.slice();
-                const syncDeletions = !reset && window.desktop?.platform && window.desktop.platform !== 'web';
-                const shouldStickToBottom = !reset && isAutoRefresh && canPrivateMessageStickToBottom(bodyEl);
-                const shouldKeepScrollOffset = !reset && !!bodyEl && !shouldStickToBottom;
                 const pa = window.getPA ? window.getPA() : null;
                 const res = await ipcRenderer.invoke('fetch-private-message-info', {
                     token,
@@ -1465,35 +1420,15 @@
                 }
 
                 const incoming = res.content.data;
-                const removedIds = new Set(syncDeletions ? findMissingPrivateMessageIds(requestSnapshot, res.content, requestCursor) : []);
-                const auditCursor = syncDeletions && isAutoRefresh
-                    ? getPrivateMessageVisibleHistoryCursor(incoming, requestSnapshot) : 0;
-                if (auditCursor) {
-                    try {
-                        // One extra page only while reading history; do not reload all loaded pages each poll.
-                        const audit = await ipcRenderer.invoke('fetch-private-message-info', {
-                            token, pa, targetUserId: requestTargetUserId, lastTime: auditCursor
-                        });
-                        if (!isCurrentRequest()) return;
-                        if (audit?.success) findMissingPrivateMessageIds(requestSnapshot, audit.content, auditCursor).forEach(id => removedIds.add(id));
-                    } catch (error) {
-                        if (!isCurrentRequest()) return;
-                        console.warn('私信历史删除状态校验失败:', error);
-                    }
-                }
                 const incomingUser = incoming
                     .map(item => item?.user)
                     .find(user => String(user?.userId || user?.id || '').trim() === requestTargetUserId);
                 if (incomingUser) {
                     applyPrivateMessageDetailUser(incomingUser, requestTargetUserId);
                 }
-                const previousItems = privateMessageDetailState.items.slice();
-                const previousMinTimestamp = previousItems.length
-                    ? Math.min(...previousItems.map(item => Number(item.timestamp || 0)))
-                    : 0;
-                const previousMaxTimestamp = previousItems.length
-                    ? Math.max(...previousItems.map(item => Number(item.timestamp || 0)))
-                    : 0;
+                const shouldStickToBottom = !reset && isAutoRefresh && canPrivateMessageStickToBottom(bodyEl);
+                const shouldKeepScrollOffset = !reset && !!bodyEl && !shouldStickToBottom;
+                const previousItems = privateMessageDetailState.items.slice().sort(comparePrivateMessageItems);
                 const seen = new Set(
                     privateMessageDetailState.items.map(item => getPrivateMessageItemKey(item, privateMessageDetailState.targetUserId))
                 );
@@ -1525,24 +1460,18 @@
                     privateMessageDetailState.cursor = Number(res.content.lastTime) || privateMessageDetailState.cursor;
                     privateMessageDetailState.hasMore = incoming.length > 0 && Number(res.content.lastTime || 0) > 0;
                 }
-                removeSynchronizedPrivateMessages(removedIds);
                 clearActivePrivateMessageUnread(privateMessageDetailState.targetUserId);
                 filterPrivateMessageList(getCurrentSearchKeyword(), { preserveScroll: true });
                 if (reset || addedCount > 0 || replacedCount > 0 || !isAutoRefresh) {
-                    const addedMinTimestamp = addedItems.length
-                        ? Math.min(...addedItems.map(item => Number(item.timestamp || 0)))
-                        : 0;
-                    const addedMaxTimestamp = addedItems.length
-                        ? Math.max(...addedItems.map(item => Number(item.timestamp || 0)))
-                        : 0;
+                    const sortedAdded = addedItems.slice().sort(comparePrivateMessageItems);
                     const canPrependIncrementally = !reset
                         && addedItems.length > 0
                         && previousItems.length > 0
-                        && addedMaxTimestamp <= previousMinTimestamp;
+                        && comparePrivateMessageItems(sortedAdded.at(-1), previousItems[0]) < 0;
                     const canAppendIncrementally = !reset
                         && addedItems.length > 0
                         && previousItems.length > 0
-                        && addedMinTimestamp >= previousMaxTimestamp;
+                        && comparePrivateMessageItems(sortedAdded[0], previousItems.at(-1)) > 0;
 
                     if (replacedCount > 0) {
                         renderPrivateMessageDetail({
@@ -1577,7 +1506,14 @@
                     showToast(`私信详情加载失败: ${error.message}`);
                 }
             } finally {
-                if (isCurrentRequest()) setPrivateMessageDetailLoading(false);
+                if (isCurrentRequest()) {
+                    setPrivateMessageDetailLoading(false);
+                    privateMessageDetailRequestIsAutoRefresh = false;
+                    if (privateMessageHistoryLoadPending) {
+                        privateMessageHistoryLoadPending = false;
+                        if (privateMessageDetailState.hasMore) void loadPrivateMessageDetail({ reset: false });
+                    }
+                }
             }
         }
 
@@ -1871,7 +1807,12 @@
         }
 
         function loadMorePrivateMessageDetail() {
-            if (!privateMessageDetailState.hasMore || privateMessageDetailState.loading) return;
+            if (!privateMessageDetailState.hasMore) return;
+            stopPrivateMessageBottomFollow();
+            if (privateMessageDetailState.loading) {
+                if (privateMessageDetailRequestIsAutoRefresh) privateMessageHistoryLoadPending = true;
+                return;
+            }
             loadPrivateMessageDetail({ reset: false });
         }
 

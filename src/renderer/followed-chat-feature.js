@@ -91,8 +91,6 @@
         let memberRoomReplyTarget = null;
         let memberRoomContextMenu = null;
         const memberRoomMessageActions = new Map();
-        // Keep a small, account-scoped set of already rendered rooms in memory only.
-        // Detached nodes retain decoded images and message controls when revisiting a room.
         const followedRoomSnapshots = new Map();
         let followedRoomSnapshotAccount = '';
         let renderedFollowedRoom = null;
@@ -154,7 +152,6 @@
             box.style.transition = 'none';
             box.style.opacity = '1';
             box.style.pointerEvents = 'auto';
-            // Never leave the previous room's messages visible under the new header.
             box.replaceChildren();
             if (snapshot && Date.now() - snapshot.updatedAt <= FOLLOWED_ROOM_SNAPSHOT_TTL) {
                 box.append(...snapshot.nodes);
@@ -180,7 +177,6 @@
                     window.ensureRoomRadioScanFresh?.({ preferredChannelId: activeFollowedChannel, prioritizeCurrent: true });
                 }
             };
-            // Let selection and cached messages paint before starting secondary room work.
             if (isDesktopRoom) window.requestAnimationFrame(() => setTimeout(refresh, 0));
             else refresh();
         }
@@ -631,8 +627,6 @@
                 await destroyMemberRoomConnections();
             }
 
-            // A different room may have connected while the old disconnect was awaiting IPC.
-            // Do not let this obsolete call replace that room's connection generation or target.
             if (requestRevision !== followedChatRequestRevision || pocketToken !== getAppToken()
                 || serverId !== String(activeFollowedServer || '')
                 || channelId !== String(activeFollowedChannel || '')) throw new Error('成员房间连接已取消');
@@ -3833,8 +3827,6 @@
                 ['load', snapToBottom, true], ['error', snapToBottom, true], ['loadedmetadata', snapToBottom, true]
             ];
             listeners.forEach(args => msgBox.addEventListener(...args));
-            // ResizeObserver runs before paint: media and the essence bar cannot leave a visible gap
-            // that would otherwise be corrected by the old delayed 300 ms scroll.
             const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(snapToBottom) : null;
             observer?.observe(msgBox);
             Array.from(msgBox.children).forEach(child => observer?.observe(child));
@@ -4371,8 +4363,6 @@
         function sortFollowedRoomMessages(container) {
             if (!supportsMemberRoomRealtime) return;
             const items = [...container.children].filter(node => node.classList.contains('msg-item'));
-            // Live batches normally append in chronological order. Avoid sorting
-            // the entire history when it is already ordered.
             if (items.every((node, index) => index === 0
                 || Number(items[index - 1].dataset.msgtime || 0) <= Number(node.dataset.msgtime || 0))) return;
             const sorted = [...items].sort((a, b) => Number(a.dataset.msgtime || 0) - Number(b.dataset.msgtime || 0));
@@ -4800,7 +4790,6 @@
             let requestSucceeded = false;
 
             try {
-                // A restored history cursor is only for loading older messages, not validating the latest page.
                 const fetchNextTime = isDesktopRoom && !isLoadMore ? 0 : (isAutoRefresh ? 0 : activeFollowedNextTime);
 
                 const res = await fetchFollowedRoomMessagesWithTimeout({

@@ -41,7 +41,6 @@ export function createPerformanceClassifier(fetchPage) {
                             && Array.isArray(page.value.content?.liveList)
                             && page.value.content.liveList.some(row => String(row.businessId) === id);
                     });
-                    // A failed group query cannot establish that an event belongs to "other".
                     if (complete) {
                         membership.set(id, groups);
                         cache.set(keyFor(item), { groups, expiresAt: Date.now() + CACHE_TTL_MS });
@@ -120,7 +119,6 @@ export function createPerformanceTeamClassifier(fetchPage, fetchDetail) {
                 cursor = next;
             }
         }));
-        // Some future events are absent from the public list. Resolve only a small bounded remainder.
         if (receivedTeamPage && typeof fetchDetail === 'function') {
             const remainder = missing.filter(item => !teamsById.has(String(item.businessId))).slice(0, 8);
             for (let offset = 0; offset < remainder.length; offset += 3) {
@@ -131,7 +129,7 @@ export function createPerformanceTeamClassifier(fetchPage, fetchDetail) {
                         if (!teams) return;
                         teamsById.set(String(item.businessId), teams);
                         cache.set(keyFor(item.businessId), { teams, expiresAt: Date.now() + CACHE_TTL_MS });
-                    } catch { /* Keep lookup failure separate from an officially empty team list. */ }
+                    } catch {                                                                        }
                 }));
             }
         }

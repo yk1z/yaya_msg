@@ -75,7 +75,6 @@
             if (!context?.channelId || !context.serverId) throw new Error('房间信息已失效，请关闭窗口后重新打开');
             if (!window.getAppToken?.()) throw new Error('请先在主窗口登录，然后重新打开房间');
             window.switchView('followed-rooms');
-            // Render immediately from the selected card; enrich member details in the background.
             window.openFollowedChat(context.ownerName, context.channelId, context.serverId, context);
             void Promise.resolve(window.loadMemberData?.()).catch(() => {});
             syncTitle();
@@ -91,7 +90,5 @@
         }
     }
 
-    // This script follows the room markup and feature definitions. Start now;
-    // unrelated module scripts and the remaining document need not delay the room.
     void startRoomWindow();
 })();
