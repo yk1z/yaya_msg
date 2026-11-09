@@ -7131,12 +7131,23 @@ html:not([data-platform="web"]) .art-fullscreen-web .artplayer-plugin-danmuku .a
     color: white;
 }
 
-.auto-fetch-card {
+.manual-fetch-card {
     margin-top: 16px;
+}
+
+.manual-fetch-header {
+    margin-bottom: 13px;
 }
 
 .auto-fetch-card:hover {
     transform: none;
+}
+
+:is(.auto-fetch-panel, .manual-fetch-card) {
+    --auto-fetch-option-columns: 118px 132px 148px;
+    --auto-fetch-action-width: 66px;
+    --auto-fetch-column-gap: 10px;
+    --auto-fetch-text-inset: 13px;
 }
 
 .auto-fetch-panel {
@@ -7144,14 +7155,17 @@ html:not([data-platform="web"]) .art-fullscreen-web .artplayer-plugin-danmuku .a
     box-sizing: border-box;
 }
 
-.auto-fetch-panel-header {
+.auto-fetch-panel-header,
+.manual-fetch-header {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
     gap: 16px;
 }
 
-.auto-fetch-title {
+.fetch-section-title {
+    flex-shrink: 0;
+    margin: 0;
     color: var(--text);
     font-size: 14px;
     font-weight: 700;
@@ -7170,99 +7184,82 @@ html:not([data-platform="web"]) .art-fullscreen-web .artplayer-plugin-danmuku .a
     line-height: 1.5;
 }
 
-.auto-fetch-switch {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    min-height: 28px;
-    color: var(--text);
-    font-size: 12px;
-    cursor: pointer;
-    user-select: none;
-}
-
-.auto-fetch-switch input {
-    width: 16px;
-    height: 16px;
-    accent-color: var(--primary);
-    cursor: pointer;
-}
-
-.auto-fetch-mode-grid {
+.auto-fetch-controls,
+.manual-fetch-search,
+.auto-fetch-member-row {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-    margin-top: 14px;
+    grid-template-columns: minmax(170px, 1fr) var(--auto-fetch-option-columns) var(--auto-fetch-action-width);
+    column-gap: var(--auto-fetch-column-gap);
 }
 
-.auto-fetch-mode-option {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 14px;
-    min-width: 0;
-    padding: 11px 12px;
-    border: 1px solid var(--border);
-    border-radius: 7px;
-    background: var(--input-bg);
-    cursor: pointer;
-}
-
-.auto-fetch-mode-copy {
-    display: flex;
-    min-width: 0;
-    flex-direction: column;
-    gap: 3px;
-}
-
-.auto-fetch-mode-copy strong {
-    color: var(--text);
-    font-size: 13px;
-}
-
-.auto-fetch-mode-copy small {
-    color: var(--text-sub);
-    font-size: 11px;
-    line-height: 1.4;
+.auto-fetch-controls,
+.manual-fetch-search {
+    row-gap: var(--auto-fetch-column-gap);
+    align-items: end;
+    padding-inline: 1px;
 }
 
 .auto-fetch-controls {
-    display: grid;
-    grid-template-columns: minmax(210px, 1fr) 118px 132px;
-    gap: 10px;
-    align-items: end;
     margin-top: 13px;
 }
 
-.auto-fetch-controls.has-scheduled-interval {
-    grid-template-columns: minmax(210px, 1fr) 118px 132px 148px;
+.manual-fetch-search {
+    margin-bottom: 15px;
 }
 
-.auto-fetch-controls label:not(.auto-fetch-switch) {
+.manual-fetch-header > .page-status {
+    min-width: 0;
+    text-align: right;
+    white-space: normal;
+}
+
+.manual-fetch-room-controls {
+    display: grid;
+    grid-column: 2 / -1;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) 106px;
+    align-items: end;
+    gap: var(--auto-fetch-column-gap);
+}
+
+.manual-fetch-room-controls > .btn {
+    height: 40px;
+    padding-inline: 10px;
+    font-size: 11px;
+}
+
+:is(.auto-fetch-controls, .manual-fetch-search) label {
     display: block;
     margin-bottom: 5px;
     color: var(--text-sub);
     font-size: 11px;
 }
 
-.auto-fetch-controls .input-control {
+:is(.auto-fetch-controls, .manual-fetch-search) .input-control {
     width: 100%;
     height: 40px;
     box-sizing: border-box;
 }
 
-.auto-fetch-member-search {
+.auto-fetch-member-search,
+.manual-fetch-search > .search-wrapper {
     min-width: 0;
     margin-bottom: 0;
 }
 
-.auto-fetch-member-search .suggestion-box {
+:is(.auto-fetch-member-search, .manual-fetch-search) .suggestion-box {
     width: 100%;
     top: 100%;
 }
 
 .auto-fetch-interval-field {
     min-width: 0;
+}
+
+.auto-fetch-save {
+    justify-self: end;
+    width: var(--auto-fetch-action-width);
+    height: 40px;
+    padding: 0;
 }
 
 .auto-fetch-dropdown {
@@ -7295,55 +7292,102 @@ html:not([data-platform="web"]) .art-fullscreen-web .artplayer-plugin-danmuku .a
 }
 
 .auto-fetch-member-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 7px;
-    margin-top: 12px;
+    margin: 12px 0 0;
+    padding: 0;
+    list-style: none;
+    border: 1px solid var(--border);
+    border-radius: 6px;
 }
 
 .auto-fetch-member-list:empty {
     display: none;
 }
 
-.auto-fetch-member-chip {
-    display: inline-flex;
+.auto-fetch-member-row {
     align-items: center;
-    gap: 6px;
-    max-width: 100%;
-    padding: 5px 8px 5px 10px;
-    border: 1px solid color-mix(in srgb, var(--primary) 36%, var(--border));
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--primary) 9%, var(--card));
+    row-gap: 8px;
+    min-height: 36px;
+    padding-block: 6px;
     color: var(--text);
     font-size: 12px;
 }
 
-.auto-fetch-member-chip button {
+.auto-fetch-member-row + .auto-fetch-member-row {
+    border-top: 1px solid var(--border);
+}
+
+.auto-fetch-member-row.is-selected {
+    background: color-mix(in srgb, var(--primary) 8%, var(--card));
+}
+
+.auto-fetch-member-identity {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    overflow-wrap: anywhere;
+    padding-inline-start: var(--auto-fetch-text-inset);
+}
+
+.auto-fetch-member-identity > strong {
+    position: relative;
+    inset-block-start: -1px;
+    font-size: 15px;
+}
+
+.auto-fetch-member-identity > .team-tag {
+    padding-block: 1.5px 2.5px;
+}
+
+.auto-fetch-member-details {
     display: grid;
-    place-items: center;
-    width: 18px;
-    height: 18px;
-    padding: 0;
+    grid-column: 2 / 5;
+    grid-template-columns: var(--auto-fetch-option-columns);
+    column-gap: var(--auto-fetch-column-gap);
+    margin: 0;
+}
+
+.auto-fetch-member-details dt {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+.auto-fetch-member-details dd {
+    margin: 0;
+    padding-inline-start: var(--auto-fetch-text-inset);
+}
+
+.auto-fetch-member-row > button {
+    justify-self: center;
+    min-width: 46px;
+    min-height: 28px;
+    padding: 0 8px;
     border: 0;
-    border-radius: 50%;
+    border-radius: 4px;
     background: transparent;
     color: var(--text-sub);
-    font-size: 15px;
-    line-height: 1;
+    font-size: inherit;
     cursor: pointer;
 }
 
-.auto-fetch-member-chip button:hover {
-    background: rgba(0, 0, 0, 0.08);
+.auto-fetch-member-row > button:hover {
+    background: var(--chip-hover);
     color: var(--text);
 }
 
 .auto-fetch-status {
-    min-height: 18px;
-    margin-top: 11px;
+    min-width: 0;
+    overflow: hidden;
     color: var(--text-sub);
     font-size: 12px;
     line-height: 18px;
+    text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .auto-fetch-status.is-running {
@@ -7358,20 +7402,30 @@ html:not([data-platform="web"]) .art-fullscreen-web .artplayer-plugin-danmuku .a
     color: #ff4d4f;
 }
 
-@media (max-width: 720px) {
-    .auto-fetch-mode-grid {
-        grid-template-columns: 1fr;
-    }
-
+@media (max-width: 850px) {
     .auto-fetch-controls,
-    .auto-fetch-controls.has-scheduled-interval {
+    .manual-fetch-search {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .auto-fetch-member-search {
+    .auto-fetch-member-search,
+    .manual-fetch-search > :is(.search-wrapper, .manual-fetch-room-controls) {
         grid-column: 1 / -1;
     }
 
+    .auto-fetch-controls .auto-fetch-save {
+        justify-self: start;
+    }
+
+    .auto-fetch-member-row {
+        grid-template-columns: minmax(0, 1fr) var(--auto-fetch-action-width);
+    }
+
+    .auto-fetch-member-details {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
 }
 
 input::-webkit-calendar-picker-indicator {
@@ -12965,13 +13019,13 @@ button.live-danmu-list-nick:focus-visible {
 
 .private-message-team-badge {
     display: inline-flex;
+    flex-shrink: 0;
     align-items: center;
     justify-content: center;
     height: 14px;
-    min-width: 42px;
     padding: 0 5px;
     border-radius: 999px;
-    font-size: 8px;
+    font-size: 8.5px;
     font-weight: 700;
     white-space: nowrap;
     line-height: 1;

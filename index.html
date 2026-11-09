@@ -1157,7 +1157,7 @@
                             <span class="sms-login-limit-help-icon" aria-hidden="true">!</span>
                             <div>
                                 登录不了就是服务器被48ban了，请<span id="sms-limit-download-links"><a
-                                    href="https://gnz.hk/downloads/yaya_msg-v3.0-win.exe?v=20261103-v3.0-dbef7f4"
+                                    href="https://gnz.hk/downloads/yaya_msg-v3.0-win.exe?v=20261104-v3.0-eaa9a85"
                                     title="下载 Windows 版本" download><strong>下载桌面端使用</strong></a></span>。我动了谁的蛋糕🤔
                             </div>
                         </div>
@@ -1607,109 +1607,16 @@
                         <h2 class="page-title">抓取消息</h2>
                     </div>
 
-                    <div class="Box-row">
-                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; align-items:end; margin-bottom:15px;">
-                            <div class="search-wrapper" style="margin-bottom: 0; min-width: 0;">
-                                <label
-                                    style="font-size: 12px; color: var(--text-sub); display:block; margin-bottom:5px;">搜索成员</label>
-                                <input type="text" id="member-search" class="input-control" placeholder="请输入成员名"
-                                    oninput="handleSearch(this.value)" onfocus="handleSearch(this.value)">
-                                <div id="search-results" class="suggestion-box"></div>
-                            </div>
-                            <span id="fetch-status" class="page-status"
-                                style="height:40px; display:flex; align-items:center; min-width:0; white-space:normal; padding:0 2px;"></span>
-                        </div>
-
-                        <div
-                            style="margin-bottom: 15px; padding: 10px; background: rgba(0,0,0,0.03); border-radius: 6px; border: 1px dashed var(--border);">
-                            <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 8px;">房间参数</div>
-                            <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 106px; gap: 10px; align-items: flex-start;">
-                                <div style="min-width: 0; display: flex; flex-direction: column;">
-                                    <label
-                                        style="font-size: 11px; line-height: 16px; min-height: 16px; color: var(--text-sub); display:block; margin-bottom: 4px;">Server
-                                        ID</label>
-                                    <input type="text" id="tool-server" class="input-control" placeholder="Server ID">
-                                </div>
-                                <div style="min-width: 0; display: flex; flex-direction: column;">
-                                    <label id="tool-channel-label"
-                                        style="font-size: 11px; line-height: 16px; min-height: 16px; color: var(--text-sub); display:block; margin-bottom: 4px;">大房间 Channel
-                                        ID</label>
-                                    <input type="text" id="tool-channel" class="input-control" placeholder="大房间 Channel ID">
-                                </div>
-                                <div style="display: flex; flex-direction: column;">
-                                    <label
-                                        style="font-size: 11px; line-height: 16px; min-height: 16px; color: transparent; display:block; margin-bottom: 4px; user-select: none;">切换</label>
-                                    <button id="btn-toggle-fetch-room-type" class="btn btn-secondary"
-                                        onclick="toggleFetchRoomType()"
-                                        style="width: 100%; height: 40px; padding: 0 10px; font-size: 11px;">
-                                        大房间
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div style="margin-bottom: 15px; display: flex; flex-direction: column; gap: 10px;">
-                                    <div class="btn-grid" style="grid-template-columns: 1fr 1fr;">
-                                        <button class="btn btn-primary" onclick="fetchMsgs()"
-                                            id="btn-fetch-one">抓取最新</button>
-                                        <button class="btn btn-secondary" onclick="fetchAllMsgs()"
-                                            id="btn-fetch-all">加载全部</button>
-                                    </div>
-                                    <div class="btn-grid" style="grid-template-columns: 1fr 1fr;">
-                                        <button id="btn-toggle-mode" class="btn btn-secondary"
-                                            onclick="toggleFetchMode()">模式：只看成员</button>
-                                        <button id="btn-clear-fetch-boundary" class="btn btn-secondary"
-                                            onclick="clearFetchBoundary()">清除上次抓取位置</button>
-                                    </div>
-                                    <button class="btn btn-secondary btn-full" onclick="exportMsgsToJsonl()"
-                                        id="btn-export-jsonl" disabled>导出至消息检索</button>
-                                </div>
-
-                                <div id="msg-result"
-                                    style="margin-top: 15px; height: 300px; overflow-y: auto; background: var(--input-bg); border-radius: 6px; padding: 10px; font-size: 13px; border: 1px solid var(--border);">
-                                    <div style="color: var(--text-sub); text-align: center; margin-top: 50px;">
-                                        暂无消息<br>
-                                        <span style="font-size:12px; opacity:0.7">(请先选择成员并点击抓取)</span>
-                                    </div>
-                                </div>
-                    </div>
-
                     <div class="Box-row auto-fetch-card">
                         <section class="auto-fetch-panel" aria-labelledby="auto-fetch-title">
                             <div class="auto-fetch-panel-header">
-                                <div>
-                                    <div id="auto-fetch-title" class="auto-fetch-title">自动抓取</div>
-                                </div>
-                            </div>
-
-                            <div class="auto-fetch-mode-grid">
-                                <label class="auto-fetch-mode-option">
-                                    <span class="auto-fetch-mode-copy">
-                                        <strong>自动抓取</strong>
-                                        <small>登录状态下，每次打开软件自动执行一次</small>
-                                    </span>
-                                    <span class="auto-fetch-switch">
-                                        <input id="auto-fetch-startup-toggle" type="checkbox"
-                                            onchange="setStartupAutoMessageFetchEnabled(this.checked)">
-                                        <span>启用</span>
-                                    </span>
-                                </label>
-                                <label class="auto-fetch-mode-option">
-                                    <span class="auto-fetch-mode-copy">
-                                        <strong>定时抓取</strong>
-                                        <small>软件运行期间，按照设定间隔持续检查新消息</small>
-                                    </span>
-                                    <span class="auto-fetch-switch">
-                                        <input id="auto-fetch-schedule-toggle" type="checkbox"
-                                            onchange="setScheduledAutoMessageFetchEnabled(this.checked)">
-                                        <span>启用</span>
-                                    </span>
-                                </label>
+                                <h3 id="auto-fetch-title" class="fetch-section-title">自动抓取</h3>
+                                <div id="auto-fetch-status" class="auto-fetch-status" role="status">尚未添加自动抓取成员</div>
                             </div>
 
                             <div class="auto-fetch-controls">
                                 <div class="search-wrapper auto-fetch-member-search">
-                                    <label for="auto-fetch-member-input">抓取成员</label>
+                                    <label for="auto-fetch-member-input">搜索成员</label>
                                     <input id="auto-fetch-member-input" type="text" class="input-control"
                                         placeholder="搜索并选择成员"
                                         oninput="handleAutoFetchMemberSearch(this.value)"
@@ -1769,12 +1676,65 @@
                                         </div>
                                     </div>
                                 </div>
+                                <button id="btn-save-auto-fetch" type="button" class="btn btn-primary auto-fetch-save"
+                                    onclick="saveAutoMessageFetchSettings()" disabled>保存</button>
                             </div>
 
-                            <div id="auto-fetch-member-list" class="auto-fetch-member-list"></div>
-                            <div id="auto-fetch-status" class="auto-fetch-status">尚未添加自动抓取成员</div>
+                            <ul id="auto-fetch-member-list" class="auto-fetch-member-list" aria-label="已选抓取成员"></ul>
                         </section>
                     </div>
+
+                    <section class="Box-row manual-fetch-card" aria-labelledby="manual-fetch-title">
+                        <div class="manual-fetch-header">
+                            <h3 id="manual-fetch-title" class="fetch-section-title">手动抓取</h3>
+                            <span id="fetch-status" class="page-status"></span>
+                        </div>
+                        <div class="manual-fetch-search">
+                            <div class="search-wrapper">
+                                <label for="member-search">搜索成员</label>
+                                <input type="text" id="member-search" class="input-control" placeholder="搜索并选择成员"
+                                    oninput="handleSearch(this.value)" onfocus="handleSearch(this.value)">
+                                <div id="search-results" class="suggestion-box"></div>
+                            </div>
+                            <div class="manual-fetch-room-controls">
+                                <div>
+                                    <label for="tool-server">Server ID</label>
+                                    <input type="text" id="tool-server" class="input-control" placeholder="Server ID">
+                                </div>
+                                <div>
+                                    <label id="tool-channel-label" for="tool-channel">大房间 Channel ID</label>
+                                    <input type="text" id="tool-channel" class="input-control" placeholder="大房间 Channel ID">
+                                </div>
+                                <button id="btn-toggle-fetch-room-type" class="btn btn-secondary"
+                                    onclick="toggleFetchRoomType()">大房间</button>
+                            </div>
+                        </div>
+
+                        <div style="margin-bottom: 15px; display: flex; flex-direction: column; gap: 10px;">
+                                    <div class="btn-grid" style="grid-template-columns: 1fr 1fr;">
+                                        <button class="btn btn-primary" onclick="fetchMsgs()"
+                                            id="btn-fetch-one">抓取最新</button>
+                                        <button class="btn btn-secondary" onclick="fetchAllMsgs()"
+                                            id="btn-fetch-all">加载全部</button>
+                                    </div>
+                                    <div class="btn-grid" style="grid-template-columns: 1fr 1fr;">
+                                        <button id="btn-toggle-mode" class="btn btn-secondary"
+                                            onclick="toggleFetchMode()">模式：只看成员</button>
+                                        <button id="btn-clear-fetch-boundary" class="btn btn-secondary"
+                                            onclick="clearFetchBoundary()">清除上次抓取位置</button>
+                                    </div>
+                                    <button class="btn btn-secondary btn-full" onclick="exportMsgsToJsonl()"
+                                        id="btn-export-jsonl" disabled>导出至消息检索</button>
+                                </div>
+
+                                <div id="msg-result"
+                                    style="margin-top: 15px; height: 300px; overflow-y: auto; background: var(--input-bg); border-radius: 6px; padding: 10px; font-size: 13px; border: 1px solid var(--border);">
+                                    <div style="color: var(--text-sub); text-align: center; margin-top: 50px;">
+                                        暂无消息<br>
+                                        <span style="font-size:12px; opacity:0.7">(请先选择成员并点击抓取)</span>
+                                    </div>
+                                </div>
+                    </section>
                 </div>
             </div>
 

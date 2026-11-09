@@ -1,8 +1,14 @@
         let appToken = '';
         let lastNextTime = 0;
         let isAutoFetching = false;
+        const ROOM_HISTORY_DAY_MS = 24 * 60 * 60 * 1000;
+        const ROOM_HISTORY_COARSE_STEP_MS = 3 * ROOM_HISTORY_DAY_MS;
+        const ROOM_HISTORY_FINE_STEP_MS = 6 * 60 * 60 * 1000;
+        const ROOM_HISTORY_EMPTY_RANGE_DAYS = 365;
+        let roomHistoryProbe = null;
         let currentFetchStopKey = '';
         let currentFetchStoppedAtPrevious = false;
+        let currentFetchedToken = '';
         let currentFetchedServerId = '';
         let currentFetchedChannelId = '';
         let currentFetchedRoomType = '';
@@ -13,8 +19,11 @@
         const AUTO_CHECKIN_LAST_USER_KEY = 'yaya_auto_checkin_last_user';
         const AUTO_MESSAGE_FETCH_SETTING_KEY = 'autoMessageFetch';
         const AUTO_MESSAGE_FETCH_DEFAULT_INTERVAL = 10;
+        const AUTO_MESSAGE_FETCH_INTERVALS = new Set([1, 5, 10, 30, 60]);
+        const AUTO_MESSAGE_FETCH_ROOM_LABELS = { big: '大房间', small: '小房间', all: '所有房间' };
         const AUTO_MESSAGE_FETCH_MAX_PAGES = 200;
         const AUTO_MESSAGE_FETCH_MEMBER_CONCURRENCY = 6;
+        const autoMessageFetchResumes = new Map();
         let autoMessageFetchTimer = null;
         let autoMessageFetchStartupTimer = null;
         let autoMessageFetchInFlight = false;
@@ -23,6 +32,7 @@
         let autoMessageFetchStartupCompleted = false;
         let autoMessageFetchDraftConfig = null;
         let autoMessageFetchDraftDirty = false;
+        let autoMessageFetchSelectedMemberKey = '';
         let autoMessageFetchAccountGeneration = 0;
         let currentPocketUserId = '';
         let currentPocketProfile = { nickname: '', avatar: '', avatarUrl: '' };
@@ -947,6 +957,48 @@
             return Number.isFinite(timestamp) && timestamp > 0 ? timestamp : 0;
         }
 
+        function advanceRoomHistoryProbe(state, content, list, requestStartedAt, boundaryTime) {
+            const requestedTime = state.cursor;
+            const hit = state.probe?.hit;
+            if (list.length) {
+                const firstFineCursor = (state.probe?.newerCursor || 0) - ROOM_HISTORY_FINE_STEP_MS;
+                if (hit || !requestedTime || firstFineCursor <= requestedTime) {
+                    state.probe = null;
+                    return 'page';
+                }
+                state.probe = { ...state.probe, hit: { cursor: requestedTime, content } };
+                state.cursor = firstFineCursor;
+                return 'continue';
+            }
+            if (hit) {
+                state.cursor = Math.max(requestedTime - ROOM_HISTORY_FINE_STEP_MS, hit.cursor);
+                return 'continue';
+            }
+
+            if (requestedTime && !state.emptySearchFloor) {
+                state.emptySearchFloor = Math.max(0, requestedTime - ROOM_HISTORY_EMPTY_RANGE_DAYS * ROOM_HISTORY_DAY_MS);
+            }
+            const probeTime = requestedTime
+                ? Math.max(requestedTime - ROOM_HISTORY_COARSE_STEP_MS, state.emptySearchFloor)
+                : requestStartedAt;
+            const candidate = Math.max(probeTime, boundaryTime ? boundaryTime + 1 : 0);
+            state.cursor = !requestedTime || candidate < requestedTime ? candidate : 0;
+            state.probe = requestedTime && state.cursor ? { newerCursor: requestedTime } : null;
+            if (!state.cursor) return 'end';
+            return state.cursor === state.emptySearchFloor ? 'pause' : 'continue';
+        }
+
+        function getRoomHistoryPageCursor(content, list, requestedTime, boundaryTime) {
+            const returnedTime = Number(content.nextTime) || 0;
+            const isOlder = time => Number.isFinite(time) && time > 0 && (!requestedTime || time < requestedTime);
+            const olderTimes = list.map(getFetchMessageTimestamp).filter(isOlder);
+            const oldestTime = olderTimes.length ? Math.min(...olderTimes) : 0;
+            const nextTime = Math.max(isOlder(returnedTime) ? returnedTime : 0, oldestTime);
+            if (!nextTime) throw new Error('历史游标没有前进，请重试');
+            const candidate = Math.max(nextTime, boundaryTime ? boundaryTime + 1 : 0);
+            return !requestedTime || candidate < requestedTime ? candidate : 0;
+        }
+
         function loadFetchBoundary(serverId, channelId, fetchAllMode) {
             try {
                 return readRuntimeCacheString(getFetchBoundaryStorageKey(serverId, channelId, fetchAllMode), '');
@@ -1072,38 +1124,51 @@
                 serverId,
                 channelId,
                 smallChannelId: String(member?.smallChannelId || member?.yklzId || '').trim(),
-                team: String(member?.team || '').trim()
+                team: String(member?.team || member?.teamName || '').trim()
+            };
+        }
+
+        function getAutoMessageFetchMemberKey(member) {
+            return `${member.serverId}::${member.channelId}`;
+        }
+
+        function normalizeAutoMessageFetchOptions(value, defaults = {}) {
+            const roomType = value?.roomType ?? defaults.roomType;
+            const intervalMinutes = Number(value?.intervalMinutes ?? defaults.intervalMinutes);
+            return {
+                roomType: roomType === 'small' || roomType === 'all' ? roomType : 'big',
+                messageScope: (value?.messageScope ?? defaults.messageScope) === 'all' ? 'all' : 'member',
+                intervalMinutes: AUTO_MESSAGE_FETCH_INTERVALS.has(intervalMinutes)
+                    ? intervalMinutes
+                    : AUTO_MESSAGE_FETCH_DEFAULT_INTERVAL
             };
         }
 
         function normalizeAutoMessageFetchConfig(value) {
-            const allowedIntervals = new Set([1, 5, 10, 30, 60]);
-            const intervalMinutes = Number(value?.intervalMinutes);
-            const hasSplitModeSetting = typeof value?.startupEnabled === 'boolean'
-                || typeof value?.scheduledEnabled === 'boolean';
-            const legacyEnabled = value?.enabled === true;
+            const defaults = normalizeAutoMessageFetchOptions(value);
+            const lastRunAt = Number(value?.lastRunAt) || 0;
             const memberKeys = new Set();
             const members = [];
 
             for (const rawMember of (Array.isArray(value?.members) ? value.members : [])) {
                 const member = normalizeAutoMessageFetchMember(rawMember);
                 if (!member) continue;
-                const memberKey = `${member.serverId}::${member.channelId}`;
+                const memberKey = getAutoMessageFetchMemberKey(member);
                 if (memberKeys.has(memberKey)) continue;
                 memberKeys.add(memberKey);
-                members.push(member);
+                members.push({
+                    ...member,
+                    ...normalizeAutoMessageFetchOptions(rawMember, defaults),
+                    lastRunAt: Number(rawMember.lastRunAt ?? lastRunAt) || 0
+                });
             }
 
             return {
-                startupEnabled: value?.startupEnabled === true,
-                scheduledEnabled: value?.scheduledEnabled === true || (!hasSplitModeSetting && legacyEnabled),
-                roomType: value?.roomType === 'small' || value?.roomType === 'all' ? value.roomType : 'big',
-                messageScope: value?.messageScope === 'all' ? 'all' : 'member',
-                intervalMinutes: allowedIntervals.has(intervalMinutes)
-                    ? intervalMinutes
-                    : AUTO_MESSAGE_FETCH_DEFAULT_INTERVAL,
+                startupEnabled: members.length > 0,
+                scheduledEnabled: members.length > 0,
+                ...defaults,
                 members,
-                lastRunAt: Number(value?.lastRunAt) || 0
+                lastRunAt
             };
         }
 
@@ -1180,13 +1245,27 @@
 
         function markAutoMessageFetchDraftDirty() {
             autoMessageFetchDraftDirty = true;
-            saveAutoMessageFetchSettings({ silent: true });
+            renderAutoMessageFetchUi();
+        }
+
+        function getAutoMessageFetchSelectedOptions(config) {
+            return config.members.find(member => getAutoMessageFetchMemberKey(member) === autoMessageFetchSelectedMemberKey)
+                || config;
+        }
+
+        function getAutoMessageFetchMemberDueAt(member) {
+            return member.lastRunAt ? member.lastRunAt + member.intervalMinutes * 60 * 1000 : 0;
+        }
+
+        function getAutoMessageFetchNextRunAt(config) {
+            return config.members.reduce((next, member) => Math.min(next, getAutoMessageFetchMemberDueAt(member)), Infinity);
         }
 
         function setAutoMessageFetchStatus(message, type = '') {
             const statusEl = document.getElementById('auto-fetch-status');
             if (!statusEl) return;
             statusEl.textContent = String(message || '');
+            statusEl.title = statusEl.textContent;
             statusEl.className = `auto-fetch-status${type ? ` is-${type}` : ''}`;
         }
 
@@ -1206,72 +1285,82 @@
                 autoMessageFetchDraftConfig = cloneAutoMessageFetchConfig(readAutoMessageFetchConfig());
             }
             const config = getAutoMessageFetchDraftConfig();
-            const startupToggle = document.getElementById('auto-fetch-startup-toggle');
-            const scheduleToggle = document.getElementById('auto-fetch-schedule-toggle');
+            const selected = getAutoMessageFetchSelectedOptions(config);
             const roomTypeDisplay = document.getElementById('auto-fetch-room-type-display');
             const messageScopeDisplay = document.getElementById('auto-fetch-message-scope-display');
             const intervalDisplay = document.getElementById('auto-fetch-interval-display');
-            const intervalField = document.getElementById('auto-fetch-schedule-interval-field');
-            const controls = document.querySelector('.auto-fetch-controls');
             const runButton = document.getElementById('btn-auto-fetch-now');
+            const saveButton = document.getElementById('btn-save-auto-fetch');
             const list = document.getElementById('auto-fetch-member-list');
+            const memberLabel = document.querySelector('label[for="auto-fetch-member-input"]');
 
-            if (startupToggle) startupToggle.checked = config.startupEnabled;
-            if (scheduleToggle) scheduleToggle.checked = config.scheduledEnabled;
-            if (roomTypeDisplay) {
-                roomTypeDisplay.value = config.roomType === 'small'
-                    ? '小房间'
-                    : (config.roomType === 'all' ? '所有房间' : '大房间');
-            }
-            if (messageScopeDisplay) messageScopeDisplay.value = config.messageScope === 'all' ? '全体消息' : '只看成员';
-            if (intervalDisplay) intervalDisplay.value = `${config.intervalMinutes} 分钟`;
-            if (intervalField) intervalField.style.display = config.scheduledEnabled ? 'block' : 'none';
-            if (controls) controls.classList.toggle('has-scheduled-interval', config.scheduledEnabled);
-            if (!config.scheduledEnabled) {
-                const intervalDropdown = document.getElementById('auto-fetch-interval-dropdown');
-                if (intervalDropdown) intervalDropdown.style.display = 'none';
-            }
+            if (memberLabel) memberLabel.textContent = window.YayaRendererUtils.t(selected.name
+                ? `搜索成员 · 已选 ${selected.name}` : '搜索成员');
+            if (roomTypeDisplay) roomTypeDisplay.value = AUTO_MESSAGE_FETCH_ROOM_LABELS[selected.roomType];
+            if (messageScopeDisplay) messageScopeDisplay.value = selected.messageScope === 'all' ? '全体消息' : '只看成员';
+            if (intervalDisplay) intervalDisplay.value = `${selected.intervalMinutes} 分钟`;
             if (runButton && !autoMessageFetchInFlight) {
                 runButton.disabled = autoMessageFetchDraftDirty;
-                runButton.title = window.YayaRendererUtils.t(autoMessageFetchDraftDirty ? '自动抓取设置正在保存' : '');
+                runButton.title = window.YayaRendererUtils.t(autoMessageFetchDraftDirty ? '请先保存自动抓取设置' : '');
             }
+            if (saveButton) saveButton.disabled = !autoMessageFetchDraftDirty;
 
             if (list) {
                 list.replaceChildren();
                 for (const member of config.members) {
-                    const chip = document.createElement('span');
-                    chip.className = 'auto-fetch-member-chip';
+                    const row = document.createElement('li');
+                    row.className = 'auto-fetch-member-row';
+                    row.classList.toggle('is-selected', member === selected);
 
-                    const name = document.createElement('span');
+                    const identity = document.createElement('span');
+                    identity.className = 'auto-fetch-member-identity';
+                    const name = document.createElement('strong');
                     name.textContent = member.name;
-                    chip.appendChild(name);
+                    identity.appendChild(name);
+                    const team = document.createElement('span');
+                    team.className = 'team-tag';
+                    team.textContent = member.team || window.YayaRendererUtils.t('队伍未知');
+                    if (typeof getTeamStyle === 'function') team.style.cssText = getTeamStyle(member.team);
+                    identity.appendChild(team);
+                    row.appendChild(identity);
+
+                    const details = document.createElement('dl');
+                    details.className = 'auto-fetch-member-details';
+                    for (const [label, value] of [
+                        ['抓取房间', AUTO_MESSAGE_FETCH_ROOM_LABELS[member.roomType]],
+                        ['消息范围', member.messageScope === 'all' ? '全体消息' : '只看成员'],
+                        ['抓取间隔', `${member.intervalMinutes} 分钟`]
+                    ]) {
+                        const field = document.createElement('div');
+                        const title = document.createElement('dt');
+                        title.textContent = window.YayaRendererUtils.t(label);
+                        const content = document.createElement('dd');
+                        content.textContent = window.YayaRendererUtils.t(value);
+                        field.append(title, content);
+                        details.appendChild(field);
+                    }
+                    row.appendChild(details);
 
                     const removeButton = document.createElement('button');
                     removeButton.type = 'button';
-                    removeButton.title = window.YayaRendererUtils.t(`移除 ${member.name}`);
-                    removeButton.setAttribute('aria-label', `移除 ${member.name}`);
-                    removeButton.textContent = '×';
+                    removeButton.setAttribute('aria-label', window.YayaRendererUtils.t(`移除 ${member.name}`));
+                    removeButton.textContent = window.YayaRendererUtils.t('移除');
                     removeButton.addEventListener('click', () => removeAutoMessageFetchMember(member.serverId, member.channelId));
-                    chip.appendChild(removeButton);
-                    list.appendChild(chip);
+                    row.appendChild(removeButton);
+                    list.appendChild(row);
                 }
             }
 
             if (options.keepStatus || autoMessageFetchInFlight) return;
             if (autoMessageFetchDraftDirty) {
-                setAutoMessageFetchStatus('正在自动保存设置', 'running');
+                setAutoMessageFetchStatus('设置有未保存的更改，点击“保存”后生效');
                 return;
             }
             if (config.members.length === 0) {
                 setAutoMessageFetchStatus('尚未添加自动抓取成员');
-            } else if (!config.startupEnabled && !config.scheduledEnabled) {
-                setAutoMessageFetchStatus(`已选择 ${config.members.length} 位成员，自动抓取未启用`);
-            } else if (config.startupEnabled && !config.scheduledEnabled) {
-                setAutoMessageFetchStatus('已启用打开软件自动抓取，下次打开软件并登录后执行');
             } else {
-                const nextRunAt = Math.max(Date.now(), config.lastRunAt + config.intervalMinutes * 60 * 1000);
-                const prefix = config.startupEnabled ? '两种自动抓取均已启用' : '已启用定时抓取';
-                setAutoMessageFetchStatus(`${prefix}，下次定时抓取约 ${formatAutoMessageFetchTime(nextRunAt)}`);
+                const nextRunAt = Math.max(Date.now(), getAutoMessageFetchNextRunAt(config));
+                setAutoMessageFetchStatus(`下次定时抓取约 ${formatAutoMessageFetchTime(nextRunAt)}`);
             }
         }
 
@@ -1359,15 +1448,17 @@
             }
 
             const config = getAutoMessageFetchDraftConfig(true);
-            const exists = config.members.some(item => item.serverId === member.serverId && item.channelId === member.channelId);
-            if (!exists) config.members.push(member);
+            const key = getAutoMessageFetchMemberKey(member);
+            const exists = config.members.some(item => getAutoMessageFetchMemberKey(item) === key);
+            autoMessageFetchSelectedMemberKey = key;
+            if (!exists) config.members.push({ ...member, ...normalizeAutoMessageFetchOptions(config), lastRunAt: 0 });
 
             const input = document.getElementById('auto-fetch-member-input');
             const results = document.getElementById('auto-fetch-member-results');
             if (input) input.value = '';
             if (results) results.style.display = 'none';
             if (exists) {
-                showToast(`${member.name} 已在自动抓取列表中`);
+                renderAutoMessageFetchUi();
             } else {
                 markAutoMessageFetchDraftDirty();
             }
@@ -1378,87 +1469,28 @@
             config.members = config.members.filter(member => (
                 member.serverId !== String(serverId || '') || member.channelId !== String(channelId || '')
             ));
-            if (config.members.length === 0) {
-                config.startupEnabled = false;
-                config.scheduledEnabled = false;
+            if (autoMessageFetchSelectedMemberKey === `${serverId}::${channelId}`) {
+                autoMessageFetchSelectedMemberKey = '';
             }
             markAutoMessageFetchDraftDirty();
         }
 
         function setAutoMessageFetchRoomType(value) {
-            const config = getAutoMessageFetchDraftConfig(true);
+            const config = getAutoMessageFetchSelectedOptions(getAutoMessageFetchDraftConfig(true));
             config.roomType = value === 'small' || value === 'all' ? value : 'big';
             markAutoMessageFetchDraftDirty();
         }
 
         function setAutoMessageFetchScope(value) {
-            const config = getAutoMessageFetchDraftConfig(true);
+            const config = getAutoMessageFetchSelectedOptions(getAutoMessageFetchDraftConfig(true));
             config.messageScope = value === 'all' ? 'all' : 'member';
             markAutoMessageFetchDraftDirty();
         }
 
         function setAutoMessageFetchInterval(value) {
-            const config = getAutoMessageFetchDraftConfig(true);
+            const config = getAutoMessageFetchSelectedOptions(getAutoMessageFetchDraftConfig(true));
             config.intervalMinutes = Number(value);
             markAutoMessageFetchDraftDirty();
-        }
-
-        function saveAutoMessageFetchEnabledState(settingName, enabled) {
-            const isScheduled = settingName === 'scheduledEnabled';
-            const settingKey = isScheduled ? 'scheduledEnabled' : 'startupEnabled';
-            const persistedConfig = readAutoMessageFetchConfig();
-            const draftConfig = getAutoMessageFetchDraftConfig(true);
-            const nextEnabled = !!enabled;
-
-            if (nextEnabled && persistedConfig.members.length === 0) {
-                draftConfig[settingKey] = false;
-                renderAutoMessageFetchUi({ keepStatus: true });
-                setAutoMessageFetchStatus('请先添加至少一位成员', 'error');
-                showToast('请先添加自动抓取成员');
-                return;
-            }
-
-            const nextConfig = cloneAutoMessageFetchConfig(persistedConfig);
-            nextConfig[settingKey] = nextEnabled;
-            if (isScheduled && nextEnabled && !persistedConfig.scheduledEnabled) {
-                nextConfig.lastRunAt = Date.now();
-            }
-            const savedConfig = writeAutoMessageFetchConfig(nextConfig);
-
-            draftConfig[settingKey] = savedConfig[settingKey];
-            if (!autoMessageFetchDraftDirty) {
-                autoMessageFetchDraftConfig = cloneAutoMessageFetchConfig(savedConfig);
-            }
-
-            if (settingKey === 'startupEnabled' && !savedConfig.startupEnabled) {
-                autoMessageFetchStartupArmed = false;
-                if (autoMessageFetchStartupTimer) clearTimeout(autoMessageFetchStartupTimer);
-                autoMessageFetchStartupTimer = null;
-            }
-
-            if (settingKey === 'scheduledEnabled') {
-                if (savedConfig.scheduledEnabled) {
-                    scheduleAutoMessageFetch(savedConfig.intervalMinutes * 60 * 1000);
-                } else {
-                    if (autoMessageFetchTimer) clearTimeout(autoMessageFetchTimer);
-                    autoMessageFetchTimer = null;
-                }
-            }
-
-            renderAutoMessageFetchUi();
-            showToast(`${isScheduled ? '定时抓取' : '自动抓取'}已${nextEnabled ? '开启' : '关闭'}`);
-        }
-
-        function setStartupAutoMessageFetchEnabled(enabled) {
-            saveAutoMessageFetchEnabledState('startupEnabled', enabled);
-        }
-
-        function setScheduledAutoMessageFetchEnabled(enabled) {
-            saveAutoMessageFetchEnabledState('scheduledEnabled', enabled);
-        }
-
-        function setAutoMessageFetchEnabled(enabled) {
-            setScheduledAutoMessageFetchEnabled(enabled);
         }
 
         function closeAutoMessageFetchDropdowns(exceptId = '') {
@@ -1492,23 +1524,27 @@
             }
         }
 
-        function saveAutoMessageFetchSettings(options = {}) {
+        function saveAutoMessageFetchSettings() {
             if (!autoMessageFetchDraftDirty) return;
 
             const previousConfig = readAutoMessageFetchConfig();
             const draftConfig = cloneAutoMessageFetchConfig(getAutoMessageFetchDraftConfig());
-            if ((draftConfig.startupEnabled || draftConfig.scheduledEnabled) && draftConfig.members.length === 0) {
-                setAutoMessageFetchStatus('请先添加至少一位成员', 'error');
-                showToast('请先添加自动抓取成员');
+            const previousMembers = new Map(previousConfig.members.map(member => [getAutoMessageFetchMemberKey(member), member]));
+            const savedAt = Date.now();
+            for (const member of draftConfig.members) {
+                const previous = previousMembers.get(getAutoMessageFetchMemberKey(member));
+                const resetTimer = previous?.intervalMinutes !== member.intervalMinutes;
+                member.lastRunAt = resetTimer ? savedAt : previous?.lastRunAt || 0;
+            }
+            draftConfig.lastRunAt = previousConfig.lastRunAt;
+
+            let savedConfig;
+            try {
+                savedConfig = writeAutoMessageFetchConfig(draftConfig);
+            } catch (error) {
+                setAutoMessageFetchStatus(`保存失败：${error.message}`, 'error');
                 return;
             }
-
-            const scheduleTimingChanged = draftConfig.scheduledEnabled
-                && (!previousConfig.scheduledEnabled
-                    || previousConfig.intervalMinutes !== draftConfig.intervalMinutes);
-            draftConfig.lastRunAt = scheduleTimingChanged ? Date.now() : previousConfig.lastRunAt;
-
-            const savedConfig = writeAutoMessageFetchConfig(draftConfig);
             autoMessageFetchDraftConfig = cloneAutoMessageFetchConfig(savedConfig);
             autoMessageFetchDraftDirty = false;
 
@@ -1518,27 +1554,15 @@
                 autoMessageFetchStartupTimer = null;
             }
 
-            if (savedConfig.scheduledEnabled) {
-                if (scheduleTimingChanged || !autoMessageFetchTimer) {
-                    scheduleAutoMessageFetch(savedConfig.intervalMinutes * 60 * 1000);
-                }
-            } else {
-                if (autoMessageFetchTimer) clearTimeout(autoMessageFetchTimer);
-                autoMessageFetchTimer = null;
-            }
+            scheduleAutoMessageFetch();
 
             closeAutoMessageFetchDropdowns();
             renderAutoMessageFetchUi();
-            const missingSmallRoomCount = savedConfig.roomType === 'small' || savedConfig.roomType === 'all'
-                ? savedConfig.members.filter(member => !member.smallChannelId).length
-                : 0;
+            const missingSmallRoomCount = savedConfig.members.filter(member => member.roomType !== 'big' && !member.smallChannelId).length;
             if (missingSmallRoomCount > 0) {
-                const missingMessage = savedConfig.roomType === 'all'
-                    ? `${missingSmallRoomCount} 位成员缺少小房间参数，将只抓取大房间`
-                    : `${missingSmallRoomCount} 位成员缺少小房间参数`;
-                setAutoMessageFetchStatus(`已自动保存；${missingMessage}`, 'error');
+                setAutoMessageFetchStatus(`已保存。${missingSmallRoomCount} 位成员缺少小房间参数`, 'error');
             }
-            if (!options.silent) showToast('自动抓取设置已保存');
+            showToast('自动抓取设置已保存');
         }
 
         function scheduleAutoMessageFetch(delayMs) {
@@ -1552,7 +1576,7 @@
                 ? String(window.getPocketAccountScopeKey() || '')
                 : '';
 
-            const safeDelay = Math.max(250, Number(delayMs) || config.intervalMinutes * 60 * 1000);
+            const safeDelay = Math.max(250, delayMs ?? getAutoMessageFetchNextRunAt(config) - Date.now());
             autoMessageFetchTimer = setTimeout(() => {
                 if (scheduleGeneration !== autoMessageFetchAccountGeneration
                     || (typeof window.getPocketAccountScopeKey === 'function'
@@ -1588,32 +1612,55 @@
 
             const previousBoundary = loadFetchBoundary(member.serverId, channelId, fetchAll);
             const previousBoundaryTimestamp = getFetchBoundaryTimestamp(previousBoundary);
+            const roomKey = getFetchBoundaryStorageKey(member.serverId, channelId, fetchAll);
+            const pending = autoMessageFetchResumes.get(roomKey);
+            const resume = pending?.boundary === previousBoundary ? pending : null;
+            if (!resume) autoMessageFetchResumes.delete(roomKey);
+            const pagination = { cursor: resume?.cursor || 0, probe: resume?.probe || null, emptySearchFloor: 0 };
             const collectedMessages = [];
             const seenKeys = new Set();
-            let nextTime = 0;
-            let pageCount = 0;
+            let newestMessage = resume?.newestMessage || null;
             let reachedPrevious = false;
 
-            do {
-                if (!isCurrentRun()) throw new Error('account-changed');
-                const pa = window.getPA ? window.getPA() : null;
-                const response = await ipcRenderer.invoke('fetch-room-messages', {
-                    token,
-                    serverId: member.serverId,
-                    channelId,
-                    pa,
-                    nextTime,
-                    fetchAll
-                });
+            for (let page = 0; page < AUTO_MESSAGE_FETCH_MAX_PAGES; page++) {
+                if (page) await sleep(350);
                 if (!isCurrentRun()) throw new Error('account-changed');
 
-                if (!response?.success || !response?.data?.content) {
-                    throw new Error(response?.msg || '抓取接口未返回消息');
+                const requestedTime = pagination.cursor;
+                const requestStartedAt = Date.now();
+                const hit = pagination.probe?.hit;
+                let content;
+                if (hit && requestedTime === hit.cursor) {
+                    content = hit.content;
+                } else {
+                    const response = await ipcRenderer.invoke('fetch-room-messages', {
+                        token,
+                        serverId: member.serverId,
+                        channelId,
+                        pa: window.getPA ? window.getPA() : null,
+                        nextTime: requestedTime,
+                        fetchAll
+                    });
+                    if (!isCurrentRun()) throw new Error('account-changed');
+                    if (!response?.success || !response?.data?.content) {
+                        throw new Error(response?.msg || '抓取接口未返回消息');
+                    }
+                    content = response.data.content;
                 }
 
-                const content = response.data.content;
                 const rawList = content.messageList || content.message || [];
-                let list = fetchAll ? (Array.isArray(rawList) ? rawList : []) : filterFetchedMemberMessages(rawList);
+                if (!Array.isArray(rawList)) throw new Error('抓取接口返回的消息格式无效');
+                if (previousBoundary) {
+                    const step = advanceRoomHistoryProbe(pagination, content, rawList, requestStartedAt, previousBoundaryTimestamp);
+                    if (step === 'pause') break;
+                    if (step === 'end') {
+                        reachedPrevious = previousBoundaryTimestamp > 0;
+                        break;
+                    }
+                    if (step === 'continue') continue;
+                }
+
+                let list = fetchAll ? rawList : filterFetchedMemberMessages(rawList);
                 if (previousBoundary) {
                     const stopIndex = list.findIndex(message => buildFetchMessageKey(message) === previousBoundary);
                     if (stopIndex >= 0) {
@@ -1638,42 +1685,46 @@
                     collectedMessages.push(message);
                 }
 
-                pageCount += 1;
-                nextTime = reachedPrevious ? 0 : (Number(content.nextTime) || 0);
-
-                if (!previousBoundary || !Array.isArray(rawList) || rawList.length === 0) nextTime = 0;
-                if (nextTime > 0 && pageCount < AUTO_MESSAGE_FETCH_MAX_PAGES) await sleep(350);
-            } while (nextTime > 0 && pageCount < AUTO_MESSAGE_FETCH_MAX_PAGES);
+                if (!newestMessage && list.length) newestMessage = list[0];
+                if (!previousBoundary || reachedPrevious) break;
+                pagination.cursor = getRoomHistoryPageCursor(content, rawList, requestedTime, previousBoundaryTimestamp);
+                if (!pagination.cursor) {
+                    reachedPrevious = previousBoundaryTimestamp > 0;
+                    break;
+                }
+            }
             if (!isCurrentRun()) throw new Error('account-changed');
 
-            if (pageCount >= AUTO_MESSAGE_FETCH_MAX_PAGES && nextTime > 0) {
-                throw new Error(`连续抓取超过 ${AUTO_MESSAGE_FETCH_MAX_PAGES} 页，已安全停止`);
+            let saveResult;
+            if (collectedMessages.length) {
+                const exportMeta = getFetchExportMemberMeta(member.name, channelId);
+                const exportGroupName = exportMeta.groupName === '未知分团' && member.team
+                    ? member.team
+                    : exportMeta.groupName;
+                const exportPrefix = `${exportGroupName}-${exportMeta.memberName}`;
+                saveResult = await ipcRenderer.invoke('save-export-jsonl', {
+                    memberName: exportMeta.memberName,
+                    fileName: `${exportPrefix}-${exportMeta.channelId}.jsonl`,
+                    entries: buildFetchExportEntries(collectedMessages, { channelId, roomType })
+                });
+                if (!isCurrentRun()) throw new Error('account-changed');
+                if (!saveResult?.success) throw new Error(saveResult?.msg || '保存 JSONL 失败');
             }
 
-            if (collectedMessages.length === 0) {
-                return { addedCount: 0, changed: false, initialized: !previousBoundary };
+            const sameBoundary = loadFetchBoundary(member.serverId, channelId, fetchAll) === previousBoundary;
+            const needsResume = sameBoundary && !!previousBoundary && !reachedPrevious && pagination.cursor > 0;
+            if (needsResume) {
+                autoMessageFetchResumes.set(roomKey, { boundary: previousBoundary, cursor: pagination.cursor, probe: pagination.probe, newestMessage });
+            } else {
+                autoMessageFetchResumes.delete(roomKey);
+                if (sameBoundary && newestMessage && (!previousBoundary || reachedPrevious)) {
+                    saveFetchBoundary(member.serverId, channelId, fetchAll, newestMessage);
+                }
             }
-
-            const exportMeta = getFetchExportMemberMeta(member.name, channelId);
-            const exportGroupName = exportMeta.groupName === '未知分团' && member.team
-                ? member.team
-                : exportMeta.groupName;
-            const exportPrefix = `${exportGroupName}-${exportMeta.memberName}`;
-            const saveResult = await ipcRenderer.invoke('save-export-jsonl', {
-                memberName: exportMeta.memberName,
-                fileName: `${exportPrefix}-${exportMeta.channelId}.jsonl`,
-                entries: buildFetchExportEntries(collectedMessages, { channelId, roomType })
-            });
-            if (!isCurrentRun()) throw new Error('account-changed');
-
-            if (!saveResult?.success) {
-                throw new Error(saveResult?.msg || '保存 JSONL 失败');
-            }
-
-            saveFetchBoundary(member.serverId, channelId, fetchAll, collectedMessages[0]);
             return {
-                addedCount: Number(saveResult.addedCount) || 0,
-                changed: saveResult.changed === true,
+                addedCount: Number(saveResult?.addedCount) || 0,
+                changed: saveResult?.changed === true,
+                needsResume,
                 initialized: !previousBoundary
             };
         }
@@ -1682,7 +1733,7 @@
             const roomTypes = options.roomType === 'all'
                 ? ['big', 'small']
                 : [options.roomType === 'small' ? 'small' : 'big'];
-            const aggregate = { addedCount: 0, changed: false, skippedRoomCount: 0 };
+            const aggregate = { addedCount: 0, changed: false, skippedRoomCount: 0, pendingRoomCount: 0 };
 
             for (let index = 0; index < roomTypes.length; index += 1) {
                 if (typeof options.isCurrentRun === 'function' && !options.isCurrentRun()) {
@@ -1701,6 +1752,7 @@
                 });
                 aggregate.addedCount += result.addedCount;
                 aggregate.changed = aggregate.changed || result.changed;
+                if (result.needsResume) aggregate.pendingRoomCount += 1;
                 if (index < roomTypes.length - 1) await sleep(350);
             }
 
@@ -1724,12 +1776,19 @@
                 if (manual) showToast('请先添加自动抓取成员');
                 return { success: false, skipped: true, reason: 'missing-members' };
             }
+            const startedAt = Date.now();
+            const members = manual || startup ? config.members
+                : config.members.filter(member => getAutoMessageFetchMemberDueAt(member) <= startedAt);
+            if (!members.length || (!manual && !startup && !shouldSchedule)) {
+                scheduleAutoMessageFetch();
+                return { success: false, skipped: true, reason: 'not-due' };
+            }
 
             const token = String(appToken || readStoredToken() || '').trim();
             if (!token) {
                 setAutoMessageFetchStatus('等待账号登录，登录后会继续自动抓取', 'error');
                 if (manual) showToast('请先登录账号');
-                if (shouldSchedule) scheduleAutoMessageFetch(Math.min(60000, config.intervalMinutes * 60 * 1000));
+                if (shouldSchedule) scheduleAutoMessageFetch(60000);
                 return { success: false, skipped: true, reason: 'missing-token' };
             }
             const runContext = {
@@ -1768,37 +1827,42 @@
             let changedMemberCount = 0;
             let failedCount = 0;
             let skippedRoomCount = 0;
+            let pendingRoomCount = 0;
+            const attemptedMembers = new Map();
 
             try {
                 let nextMemberIndex = 0;
                 let completedMemberCount = 0;
-                const roomLabel = config.roomType === 'small'
-                    ? '小房间'
-                    : (config.roomType === 'all' ? '所有房间' : '大房间');
-                const scopeLabel = config.messageScope === 'all' ? '全体消息' : '成员消息';
                 const worker = async () => {
-                    while (nextMemberIndex < config.members.length) {
+                    while (nextMemberIndex < members.length) {
                         if (!isCurrentRun()) return;
                         const latestConfig = readAutoMessageFetchConfig();
                         if (!manual && startup && !latestConfig.startupEnabled) return;
                         if (!manual && !startup && !latestConfig.scheduledEnabled) return;
 
-                        const memberIndex = nextMemberIndex;
-                        nextMemberIndex += 1;
-                        const member = config.members[memberIndex];
+                        const key = getAutoMessageFetchMemberKey(members[nextMemberIndex++]);
+                        const member = latestConfig.members.find(candidate => getAutoMessageFetchMemberKey(candidate) === key);
+                        if (!member || (!manual && !startup && getAutoMessageFetchMemberDueAt(member) > startedAt)) {
+                            completedMemberCount += 1;
+                            continue;
+                        }
+                        attemptedMembers.set(key, member);
+                        const roomLabel = AUTO_MESSAGE_FETCH_ROOM_LABELS[member.roomType];
+                        const scopeLabel = member.messageScope === 'all' ? '全体消息' : '成员消息';
                         setAutoMessageFetchStatus(
-                            `正在抓取 ${member.name} · ${roomLabel} · ${scopeLabel}（已完成 ${completedMemberCount}/${config.members.length}）...`,
+                            `正在抓取 ${member.name} · ${roomLabel} · ${scopeLabel}（已完成 ${completedMemberCount}/${members.length}）...`,
                             'running'
                         );
                         try {
                             const result = await fetchAutoMessageMemberRooms(member, token, {
-                                roomType: config.roomType,
-                                messageScope: config.messageScope,
+                                roomType: member.roomType,
+                                messageScope: member.messageScope,
                                 isCurrentRun
                             });
                             if (!isCurrentRun()) return;
                             addedCount += result.addedCount;
                             skippedRoomCount += result.skippedRoomCount;
+                            pendingRoomCount += result.pendingRoomCount || 0;
                             if (result.changed) changedMemberCount += 1;
                         } catch (error) {
                             if (!isCurrentRun()) return;
@@ -1807,7 +1871,7 @@
                         } finally {
                             completedMemberCount += 1;
                             setAutoMessageFetchStatus(
-                                `正在并发抓取成员消息（${completedMemberCount}/${config.members.length}）...`,
+                                `正在并发抓取成员消息（${completedMemberCount}/${members.length}）...`,
                                 'running'
                             );
                         }
@@ -1815,43 +1879,50 @@
                 };
 
                 await Promise.all(Array.from(
-                    { length: Math.min(AUTO_MESSAGE_FETCH_MEMBER_CONCURRENCY, config.members.length) },
+                    { length: Math.min(AUTO_MESSAGE_FETCH_MEMBER_CONCURRENCY, members.length) },
                     () => worker()
                 ));
                 if (!isCurrentRun()) return { success: false, skipped: true, reason: 'account-changed' };
 
                 const latestConfig = readAutoMessageFetchConfig();
                 latestConfig.lastRunAt = Date.now();
+                for (const member of latestConfig.members) {
+                    const attempted = attemptedMembers.get(getAutoMessageFetchMemberKey(member));
+                    if (attempted && attempted.lastRunAt === member.lastRunAt && attempted.intervalMinutes === member.intervalMinutes
+                        && attempted.roomType === member.roomType && attempted.messageScope === member.messageScope) {
+                        member.lastRunAt = latestConfig.lastRunAt;
+                    }
+                }
                 writeAutoMessageFetchConfig(latestConfig);
 
+                const pendingText = pendingRoomCount ? `，${pendingRoomCount} 个房间将在下一轮继续复查` : '';
                 if (addedCount > 0) {
                     window.__messageDataDirty = true;
                     setAutoMessageFetchStatus(
-                        `本次新增 ${addedCount} 条，更新 ${changedMemberCount} 位成员${skippedRoomCount ? `，跳过 ${skippedRoomCount} 个小房间` : ''}${failedCount ? `，${failedCount} 位失败` : ''}`,
+                        `本次新增 ${addedCount} 条，更新 ${changedMemberCount} 位成员${skippedRoomCount ? `，跳过 ${skippedRoomCount} 个小房间` : ''}${failedCount ? `，${failedCount} 位失败` : ''}${pendingText}`,
                         failedCount ? 'error' : 'success'
                     );
                 } else if (failedCount > 0) {
-                    setAutoMessageFetchStatus(`本次没有新增消息，${failedCount} 位成员抓取失败`, 'error');
+                    setAutoMessageFetchStatus(`本次没有新增消息，${failedCount} 位成员抓取失败${pendingText}`, 'error');
+                } else if (pendingRoomCount > 0) {
+                    setAutoMessageFetchStatus(`${pendingRoomCount} 个房间将在下一轮继续复查`, 'running');
                 } else if (skippedRoomCount > 0) {
                     setAutoMessageFetchStatus(`检查完成，没有新消息；跳过 ${skippedRoomCount} 个缺少参数的小房间`, 'success');
                 } else {
                     setAutoMessageFetchStatus('检查完成，没有新消息', 'success');
                 }
 
-                return { success: failedCount === 0, addedCount, changedMemberCount, failedCount, skippedRoomCount };
+                return { success: failedCount === 0, addedCount, changedMemberCount, failedCount, skippedRoomCount, pendingRoomCount };
             } finally {
                 if (isCurrentRun()) {
                     autoMessageFetchInFlight = false;
                     if (runButton) {
                         runButton.disabled = autoMessageFetchDraftDirty;
                         runButton.textContent = window.YayaRendererUtils.t('立即抓取');
-                        runButton.title = window.YayaRendererUtils.t(autoMessageFetchDraftDirty ? '自动抓取设置正在保存' : '');
+                        runButton.title = window.YayaRendererUtils.t(autoMessageFetchDraftDirty ? '请先保存自动抓取设置' : '');
                     }
 
-                    const latestConfig = readAutoMessageFetchConfig();
-                    if (latestConfig.scheduledEnabled) {
-                        scheduleAutoMessageFetch(latestConfig.intervalMinutes * 60 * 1000);
-                    }
+                    scheduleAutoMessageFetch();
                 }
             }
         }
@@ -1881,6 +1952,7 @@
         }
 
         function invalidateAutoMessageFetchAccountState() {
+            const hadUnsavedChanges = autoMessageFetchDraftDirty;
             autoMessageFetchAccountGeneration += 1;
             if (autoMessageFetchTimer) clearTimeout(autoMessageFetchTimer);
             if (autoMessageFetchStartupTimer) clearTimeout(autoMessageFetchStartupTimer);
@@ -1891,25 +1963,24 @@
             autoMessageFetchStartupCompleted = false;
             autoMessageFetchDraftConfig = null;
             autoMessageFetchDraftDirty = false;
+            autoMessageFetchSelectedMemberKey = '';
+            autoMessageFetchResumes.clear();
             const runButton = document.getElementById('btn-auto-fetch-now');
             if (runButton) {
                 runButton.disabled = false;
                 runButton.textContent = window.YayaRendererUtils.t('立即抓取');
                 runButton.title = '';
             }
+            if (hadUnsavedChanges) renderAutoMessageFetchUi();
         }
 
         function activateAutoMessageFetchForCurrentAccount() {
             invalidateAutoMessageFetchAccountState();
             const config = readAutoMessageFetchConfig();
-            autoMessageFetchStartupArmed = config.startupEnabled && config.members.length > 0;
+            autoMessageFetchStartupArmed = config.startupEnabled;
             renderAutoMessageFetchUi({ keepStatus: true });
             if (autoMessageFetchStartupArmed) {
                 queueStartupAutoMessageFetch(1200);
-            } else if (config.scheduledEnabled && config.members.length > 0) {
-                const intervalMs = config.intervalMinutes * 60 * 1000;
-                const elapsed = config.lastRunAt ? Date.now() - config.lastRunAt : intervalMs;
-                scheduleAutoMessageFetch(elapsed >= intervalMs ? 1200 : intervalMs - elapsed);
             }
         }
 
@@ -2177,25 +2248,20 @@
             const exportLocalBtn = document.getElementById('btn-export-local');
             const toggleBtn = document.getElementById('btn-toggle-mode');
             const clearBoundaryBtn = document.getElementById('btn-clear-fetch-boundary');
+            const channelInput = document.getElementById('tool-channel');
+            const serverInput = document.getElementById('tool-server');
+            const roomTypeBtn = document.getElementById('btn-toggle-fetch-room-type');
+            const controls = [fetchBtn, memberSearch, toggleBtn, clearBoundaryBtn, channelInput, serverInput, roomTypeBtn];
 
             if (isAutoFetching) {
                 isAutoFetching = false;
-                btn.innerText = window.YayaRendererUtils.t('加载全部');
-                btn.style.background = '';
-                btn.style.color = '';
-                if (fetchBtn) fetchBtn.disabled = false;
-                if (memberSearch) memberSearch.disabled = false;
-                if (toggleBtn) toggleBtn.disabled = false;
-                if (clearBoundaryBtn) clearBoundaryBtn.disabled = false;
-                if (allFetchedMsgs.length > 0) {
-                    if (exportBtn) exportBtn.disabled = false;
-                    if (exportLocalBtn) exportLocalBtn.disabled = false;
-                }
+                btn.disabled = true;
                 return;
             }
 
+            if (btn.disabled || document.getElementById('loading-indicator')) return;
 
-            const channelId = document.getElementById('tool-channel').value.trim();
+            const channelId = channelInput.value.trim();
             if (!channelId) {
                 box.innerHTML = `<div style="text-align:center; padding:20px; color:#ff4d4f;">请先在搜索框输入名字并选择成员</div>`;
                 return;
@@ -2205,41 +2271,31 @@
             btn.innerText = window.YayaRendererUtils.t('停止加载');
             btn.style.background = '#ff4d4f';
             btn.style.color = 'white';
-            if (fetchBtn) fetchBtn.disabled = true;
-            if (memberSearch) memberSearch.disabled = true;
+            controls.forEach(control => { if (control) control.disabled = true; });
             if (exportBtn) exportBtn.disabled = true;
             if (exportLocalBtn) exportLocalBtn.disabled = true;
-            if (toggleBtn) toggleBtn.disabled = true;
-            if (clearBoundaryBtn) clearBoundaryBtn.disabled = true;
 
+            let canContinue = true;
             try {
-                if (lastNextTime === 0 || box.children.length <= 1) {
-                    await fetchMsgs(false);
+                const resume = lastNextTime > 0 && isSameFetchRoom(channelId, serverInput.value.trim());
+                canContinue = await fetchMsgs(resume, true);
+                while (canContinue && isAutoFetching && lastNextTime > 0) {
                     await sleep(50);
+                    if (isAutoFetching) canContinue = await fetchMsgs(true, true);
                 }
-
-                while (isAutoFetching && lastNextTime > 0) {
-
-                    const lastEl = box.lastElementChild;
-                    if (lastEl && lastEl.innerText.includes('加载更多')) lastEl.remove();
-
-                    await fetchMsgs(true);
-                    await sleep(50);
-                }
-            } catch (e) {
-                console.error("自动抓取中断", e);
             } finally {
+                const wasStopped = !isAutoFetching;
                 isAutoFetching = false;
+                btn.disabled = false;
                 btn.innerText = window.YayaRendererUtils.t('加载全部');
                 btn.style.background = '';
                 btn.style.color = '';
-                if (fetchBtn) fetchBtn.disabled = false;
-                if (memberSearch) memberSearch.disabled = false;
-                if (toggleBtn) toggleBtn.disabled = false;
-                if (clearBoundaryBtn) clearBoundaryBtn.disabled = false;
+                controls.forEach(control => { if (control) control.disabled = false; });
 
                 const statusEl = document.getElementById('fetch-status');
-                if (statusEl && statusEl.innerHTML) {
+                if (statusEl && wasStopped) {
+                    statusEl.textContent = window.YayaRendererUtils.t('已停止，点击“加载全部”可继续查找');
+                } else if (statusEl && canContinue && lastNextTime === 0) {
                     statusEl.innerHTML += currentFetchStoppedAtPrevious
                         ? ' <b style="color:#28a745; margin-left:5px;">(已停在上次抓取位置)</b>'
                         : ' <b style="color:#28a745; margin-left:5px;">(完成)</b>';
@@ -3032,11 +3088,24 @@
                 memberSearch.value = '';
             }
         }
+        function isSameFetchRoom(channelId, serverId) {
+            return channelId === currentFetchedChannelId && serverId === currentFetchedServerId
+                && appToken === currentFetchedToken
+                && isFetchAllMode === currentFetchedFetchAllMode
+                && (isFetchSmallRoomMode ? 'small' : 'big') === currentFetchedRoomType;
+        }
+
         let allFetchedMsgs = [];
-        async function fetchMsgs(isLoadMore = false) {
-            const channelId = document.getElementById('tool-channel').value.trim();
-            const serverId = document.getElementById('tool-server').value.trim();
+        const fetchedRoomHistoryKeys = new Set();
+        async function fetchMsgs(isLoadMore = false, fromAuto = false) {
+            if (document.getElementById('loading-indicator')) return false;
+            if (!fromAuto && (isAutoFetching || document.getElementById('btn-fetch-all')?.disabled)) return false;
+            const channelInput = document.getElementById('tool-channel');
+            const serverInput = document.getElementById('tool-server');
+            const channelId = channelInput.value.trim();
+            let serverId = serverInput.value.trim();
             const box = document.getElementById('msg-result');
+            const statusEl = document.getElementById('fetch-status');
             const exportBtn = document.getElementById('btn-export-jsonl');
             const exportLocalBtn = document.getElementById('btn-export-local');
 
@@ -3046,29 +3115,26 @@
                 } else {
                     console.warn("缺少 Channel ID");
                 }
-                isAutoFetching = false;
-                const btn = document.getElementById('btn-fetch-all');
-                if (btn) {
-                    btn.innerText = window.YayaRendererUtils.t('加载全部');
-                    btn.style.background = '';
-                    btn.style.color = '';
-                }
-                return;
+                return false;
             }
 
+            isLoadMore = isLoadMore && isSameFetchRoom(channelId, serverId);
             if (!isLoadMore) {
                 box.replaceChildren();
                 lastNextTime = 0;
+                roomHistoryProbe = null;
                 allFetchedMsgs = [];
+                fetchedRoomHistoryKeys.clear();
                 currentFetchStopKey = loadFetchBoundary(serverId, channelId, isFetchAllMode);
                 currentFetchStoppedAtPrevious = false;
+                currentFetchedToken = appToken;
                 currentFetchedServerId = serverId;
                 currentFetchedChannelId = channelId;
                 currentFetchedRoomType = isFetchSmallRoomMode ? 'small' : 'big';
                 currentFetchedFetchAllMode = isFetchAllMode;
-                const statusEl = document.getElementById('fetch-status');
                 if (statusEl) statusEl.replaceChildren();
                 if (exportBtn) exportBtn.disabled = true;
+                if (exportLocalBtn) exportLocalBtn.disabled = true;
             }
 
             const loadingDiv = document.createElement('div');
@@ -3079,78 +3145,115 @@
             box.appendChild(loadingDiv);
 
             try {
-                const pa = window.getPA ? window.getPA() : null;
-                const res = await ipcRenderer.invoke('fetch-room-messages', {
-                    token: appToken,
-                    serverId,
-                    channelId,
-                    pa,
-                    nextTime: lastNextTime,
-                    fetchAll: isFetchAllMode
-                });
-
-                if (document.getElementById('loading-indicator')) {
-                    box.removeChild(document.getElementById('loading-indicator'));
+                const token = appToken;
+                const fetchAll = currentFetchedFetchAllMode;
+                const boundaryTime = getFetchBoundaryTimestamp(currentFetchStopKey);
+                let requestedTime = 0;
+                let content;
+                let rawList;
+                const pagination = { cursor: lastNextTime, probe: roomHistoryProbe, emptySearchFloor: 0 };
+                let pausedAtEmptyPages = false;
+                while (!fromAuto || isAutoFetching) {
+                    requestedTime = lastNextTime;
+                    if (token !== appToken || channelId !== channelInput.value.trim()
+                        || !isSameFetchRoom(channelId, serverInput.value.trim())) return false;
+                    const requestStartedAt = Date.now();
+                    const hit = pagination.probe?.hit;
+                    if (hit && requestedTime === hit.cursor) {
+                        content = hit.content;
+                    } else {
+                        const res = await ipcRenderer.invoke('fetch-room-messages', {
+                            token,
+                            serverId,
+                            channelId,
+                            pa: window.getPA ? window.getPA() : null,
+                            nextTime: requestedTime,
+                            fetchAll
+                        });
+                        if (token !== appToken || channelId !== channelInput.value.trim()
+                            || !isSameFetchRoom(channelId, serverInput.value.trim())) return false;
+                        if (!res?.success || !res.data?.content) throw new Error(res?.msg || '抓取接口未返回消息');
+                        if (res.usedServerId) {
+                            serverId = String(res.usedServerId);
+                            serverInput.value = currentFetchedServerId = serverId;
+                        }
+                        content = res.data.content;
+                    }
+                    rawList = content.messageList || content.message || [];
+                    if (!Array.isArray(rawList)) throw new Error('抓取接口返回的消息格式无效');
+                    const step = advanceRoomHistoryProbe(pagination, content, rawList, requestStartedAt, boundaryTime);
+                    lastNextTime = pagination.cursor;
+                    roomHistoryProbe = pagination.probe;
+                    if (step === 'page') break;
+                    if (rawList.length) rawList = null;
+                    if (step === 'end' && boundaryTime) currentFetchStoppedAtPrevious = true;
+                    if (step === 'end' || (!fromAuto && !isLoadMore) || (fromAuto && !isAutoFetching)) break;
+                    if (step === 'pause') {
+                        pausedAtEmptyPages = true;
+                        break;
+                    }
+                    if (fromAuto && !isAutoFetching) return false;
+                    if (statusEl) {
+                        const date = new Date(lastNextTime).toLocaleString();
+                        const progress = roomHistoryProbe?.hit ? '已找到旧消息，正在细查' : '遇到空页，正在向前查找';
+                        statusEl.textContent = window.YayaRendererUtils.t(`已抓取 ${allFetchedMsgs.length} 条，${progress} ${date} 前的消息`);
+                    }
+                    await sleep(350);
                 }
 
-                if (res.success && res.data.content) {
-                    if (res.usedServerId) {
-                        document.getElementById('tool-server').value = res.usedServerId;
-                        if (!isLoadMore) {
-                            currentFetchedServerId = res.usedServerId;
-                        }
-                    }
-                    const content = res.data.content;
-
-                    let list = content.messageList || content.message || [];
-
-                    if (!isFetchAllMode) {
-                        list = list.filter(m => {
-                            let sid = m.senderUserId || m.senderId || m.uid;
-                            if (!sid && m.extInfo) {
-                                try {
-                                    const ext = typeof m.extInfo === 'string' ? JSON.parse(m.extInfo) : m.extInfo;
-                                    if (ext.user) sid = ext.user.userId || ext.user.id;
-                                } catch (e) { window.YayaRendererUtils.reportIgnoredError(e, 'src/renderer/fetch-legacy.js'); }
-                            }
-                            return String(sid) !== '121569667';
-                        });
-                    }
-
-                    let stoppedAtPreviousInThisBatch = false;
-                    if (currentFetchStopKey) {
+                if (rawList && (!fromAuto || isAutoFetching || rawList.length)) {
+                    let list = fetchAll ? rawList : filterFetchedMemberMessages(rawList);
+                    if (currentFetchStopKey && rawList.length) {
                         const stopIndex = list.findIndex(m => buildFetchMessageKey(m) === currentFetchStopKey);
                         if (stopIndex >= 0) {
                             list = list.slice(0, stopIndex);
-                            stoppedAtPreviousInThisBatch = true;
+                            currentFetchStoppedAtPrevious = true;
+                        } else if (boundaryTime && rawList.some(m => {
+                            const timestamp = getFetchMessageTimestamp(m);
+                            return timestamp > 0 && timestamp < boundaryTime;
+                        })) {
+                            list = list.filter(m => getFetchMessageTimestamp(m) >= boundaryTime);
                             currentFetchStoppedAtPrevious = true;
                         }
                     }
 
-                    lastNextTime = stoppedAtPreviousInThisBatch ? 0 : content.nextTime;
-                    if (list.length === 0) lastNextTime = 0;
-
-                    if (list.length === 0 && !isLoadMore) {
-                        if (!isLoadMore) {
-                            box.innerHTML = currentFetchStoppedAtPrevious
-                                ? '<div style="text-align:center;padding:20px;color:#999">已到上次抓取位置，暂无新消息</div>'
-                                : '<div style="text-align:center;padding:20px;color:#999">暂无新消息</div>';
-                        }
-                        return;
+                    if (currentFetchStoppedAtPrevious) {
+                        lastNextTime = 0;
+                    } else if (rawList.length) {
+                        lastNextTime = getRoomHistoryPageCursor(content, rawList, requestedTime, boundaryTime);
+                        if (!lastNextTime) currentFetchStoppedAtPrevious = true;
                     }
 
-                    allFetchedMsgs = allFetchedMsgs.concat(list);
-                    const statusEl = document.getElementById('fetch-status');
+                    list = list.filter(message => {
+                        const key = buildFetchMessageKey(message);
+                        if (fetchedRoomHistoryKeys.has(key)) return false;
+                        fetchedRoomHistoryKeys.add(key);
+                        return true;
+                    });
+                    allFetchedMsgs.push(...list);
+                    document.getElementById('fetch-empty-state')?.remove();
+                    if (!allFetchedMsgs.length) {
+                        const emptyState = document.createElement('div');
+                        emptyState.id = 'fetch-empty-state';
+                        emptyState.style.cssText = 'text-align:center;padding:20px;color:#999';
+                        emptyState.textContent = window.YayaRendererUtils.t(currentFetchStoppedAtPrevious
+                            ? '已到上次抓取位置，暂无新消息' : '当前页暂无可显示的消息');
+                        box.appendChild(emptyState);
+                    }
                     if (statusEl) {
                         let timeText = '';
-                        if (list.length > 0) {
-                            const lastMsg = list[list.length - 1];
+                        const lastMsg = allFetchedMsgs.at(-1);
+                        if (lastMsg) {
                             const d = new Date(lastMsg.msgTime);
                             const pad = (n) => String(n).padStart(2, '0');
 
                             timeText = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
                         }
                         statusEl.innerHTML = `已抓取 <b style="color:var(--primary)">${allFetchedMsgs.length}</b> 条 <span style="margin-left:5px; ">${timeText}</span>`;
+                        if (pausedAtEmptyPages) {
+                            const nextProbe = new Date(lastNextTime).toLocaleString();
+                            statusEl.append(window.YayaRendererUtils.t(` 连续 ${ROOM_HISTORY_EMPTY_RANGE_DAYS} 天未查到消息，已暂停。点击“加载全部”可从 ${nextProbe} 继续`));
+                        }
                     }
 
 
@@ -3280,9 +3383,6 @@
                     range.selectNodeContents(box);
                     const fragment = range.createContextualFragment(batchHtml);
 
-                    const oldBtn = document.getElementById('btn-load-more-msg');
-                    if (oldBtn) oldBtn.remove();
-
                     box.appendChild(fragment);
                     const MAX_DISPLAY_COUNT = 1000;
                     const msgItems = box.getElementsByClassName('msg-item');
@@ -3294,23 +3394,18 @@
                         }
                     }
 
-                    if (lastNextTime > 0) {
-                        const moreBtnFragment = document.createRange().createContextualFragment(`
-                    <div id="btn-load-more-msg">
-                        <button style="width:100%; margin-top:10px; padding:8px; cursor:pointer; background:#f0f0f0; border:1px solid #ddd; border-radius:4px;" onclick="fetchMsgs(true)">加载更多...</button>
-                    </div>
-                `);
-                        box.appendChild(moreBtnFragment);
-                    }
-                    if (!isAutoFetching) {
+                    if (!isAutoFetching && allFetchedMsgs.length) {
                         if (exportBtn) exportBtn.disabled = false;
                         if (exportLocalBtn) exportLocalBtn.disabled = false;
                     }
-                } else {
-                    if (!isLoadMore) box.innerText = window.YayaRendererUtils.t('获取失败: ' + (res.msg || 'API Error'));
+                    return !pausedAtEmptyPages;
                 }
+                return false;
             } catch (e) {
-                if (!isLoadMore) box.innerText = window.YayaRendererUtils.t('出错: ' + e.message);
+                if (statusEl) statusEl.textContent = window.YayaRendererUtils.t('抓取失败：' + e.message);
+                return false;
+            } finally {
+                loadingDiv.remove();
             }
         }
 

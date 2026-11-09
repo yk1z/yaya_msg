@@ -6,7 +6,6 @@ web-dist/
 html/
 tmp/
 reports/
-# Keep only desktop build scripts in Git.
 /scripts/*
 !/scripts/build-web.js
 !/scripts/build-desktop-gift-player.js
@@ -34,13 +33,11 @@ data/
 __pycache__/
 *.py[cod]
 
-# Generated app assets
 /desktop.html
 /src/renderer/database/runtime.js
 /src/renderer/database/tailwind.css
 /src/renderer/vendor/
 
-# Local QA artifacts
 /design-qa.md
 /message-layout-*.png
 /screenshots/
@@ -57,13 +54,11 @@ wrangler-*.log
 *.swp
 *~
 
-# Test and tooling caches
 /coverage/
 /.nyc_output/
 /.cache/
 .eslintcache
 
-# Local editor settings
 /.idea/
 /.vscode/
 *.code-workspace
@@ -74,7 +69,6 @@ Thumbs.db
 codex-start.err.log
 codex-start.out.log
 
-# Website-only source and Cloudflare deployment files stay local.
 /cloud/
 /docs/
 /gift-site/

@@ -14,6 +14,7 @@ body.desktop-workspace {
     --home-rail-width: 60px !important;
     --home-side-width: 228px !important;
     --home-side-end: calc(var(--home-rail-width) + var(--home-side-width));
+    --desktop-default-contact-width: 252px;
     --bg: var(--desk-canvas);
     --card: var(--desk-panel);
     --sidebar-bg: var(--desk-nav);
@@ -299,9 +300,16 @@ body.desktop-workspace .private-messages-sidebar {
 }
 body.desktop-workspace .desktop-room-search-header,
 body.desktop-workspace .private-messages-sidebar-header {
-    padding: 12px !important; background: var(--desk-panel) !important;
+    padding: 8px 12px !important; flex-shrink: 0; background: var(--desk-panel) !important;
     border-bottom: 1px solid var(--desk-line); gap: 8px; flex-wrap: wrap;
 }
+body.desktop-workspace #view-private-messages .private-messages-sidebar-header {
+    flex-direction: row; align-items: center;
+}
+body.desktop-workspace #view-private-messages .private-messages-sidebar-header > div:first-child {
+    display: flex !important; width: auto;
+}
+body.desktop-workspace #view-private-messages .private-messages-toolbar-actions { display: contents; }
 body.desktop-workspace :is(.private-messages-panel, .followed-chat-message-stage, #followed-chat-messages) { background: var(--desk-canvas) !important; }
 body.desktop-workspace :is(.private-messages-panel-header, .followed-room-composer, .private-message-composer) { border-color: var(--desk-line); background: var(--desk-panel); border-radius: 0; box-shadow: none; }
 body.desktop-workspace #view-followed-rooms > div > div { border-radius: 0 !important; box-shadow: none !important; }
@@ -312,12 +320,13 @@ body.desktop-workspace #view-private-messages .private-message-list-item {
     transition: background-color 0.18s ease;
 }
 @media (max-width: 768px) {
+    body.desktop-workspace .private-messages-sidebar-header { padding-block: 12px !important; }
     body.desktop-workspace #view-private-messages .private-message-list-item { padding-left: 12px; }
 }
 body.desktop-workspace #view-followed-rooms > div > div:first-child > div:first-child > h2,
 body.desktop-workspace .private-messages-sidebar-title { display: none; }
-body.desktop-workspace :is(.desktop-room-search-header, .desktop-room-actions-footer) {
-    padding: 12px !important; flex-shrink: 0; background: var(--desk-panel) !important;
+body.desktop-workspace .desktop-room-actions-footer {
+    padding: 8px 12px !important; flex-shrink: 0; background: var(--desk-panel) !important;
 }
 body.desktop-workspace :is(.desktop-room-search-row, .desktop-room-actions-row) {
     display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0;
@@ -325,11 +334,10 @@ body.desktop-workspace :is(.desktop-room-search-row, .desktop-room-actions-row) 
 body.desktop-workspace .desktop-room-search-row > div,
 body.desktop-workspace .desktop-room-actions-row #followed-sort-wrapper { flex: 1; min-width: 0; }
 body.desktop-workspace .desktop-room-actions-row #followed-sort-wrapper { width: auto !important; }
-body.desktop-workspace :is(.desktop-room-search-row, .desktop-room-actions-row) :is(.input-control, button) {
-    height: 32px !important; min-height: 32px;
+body.desktop-workspace :is(.desktop-room-search-row, .desktop-room-actions-row) :is(.input-control, button),
+body.desktop-workspace #private-message-search {
+    height: 28px !important; min-height: 28px;
 }
-body.desktop-workspace :is(.desktop-room-search-header, .desktop-room-actions-footer) { padding: 8px 12px !important; }
-body.desktop-workspace :is(.desktop-room-search-row, .desktop-room-actions-row) :is(.input-control, button) { height: 28px !important; min-height: 28px; }
 body.desktop-workspace .desktop-room-actions-row :is(.followed-notification-all-toggle, #followed-sort-display) {
     box-sizing: border-box; font-family: inherit; font-size: 12px !important;
     display: inline-flex; align-items: center; font-weight: 400; line-height: 18px; color: var(--desk-ink);
@@ -339,10 +347,8 @@ body.desktop-workspace .desktop-room-search-row #quick-follow-results { top: cal
 body.desktop-workspace .desktop-room-actions-row #followed-sort-dropdown { top: auto !important; bottom: calc(100% + 6px); }
 
 body.desktop-workspace:is([data-desktop-view="followed-rooms"], [data-desktop-view="private-messages"]) {
-    --desktop-default-contact-width: 238px;
     --home-side-width: var(--desktop-contact-width, var(--desktop-default-contact-width)) !important;
 }
-body.desktop-workspace[data-desktop-view="private-messages"] { --desktop-default-contact-width: 266px; }
 body.desktop-workspace:is([data-desktop-view="followed-rooms"], [data-desktop-view="private-messages"]) .app-container > .home-conversation-pane {
     display: none;
 }
@@ -359,7 +365,7 @@ body.desktop-workspace[data-desktop-view="private-messages"] .private-messages-s
 body.desktop-workspace .desktop-conversations { position: relative; }
 body.desktop-workspace .desktop-contact-splitter {
     position: absolute; z-index: 35; top: 0; bottom: 0;
-    left: calc(var(--desktop-contact-width, var(--desktop-default-contact-width, 238px)) - 3px); width: 6px;
+    left: calc(var(--home-side-width) - 3px); width: 6px;
     cursor: col-resize; touch-action: none; outline: none;
 }
 body.desktop-workspace .desktop-contact-splitter::after {

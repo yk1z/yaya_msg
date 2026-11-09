@@ -8,7 +8,7 @@
     function initContactResizing() {
         const minWidth = 220;
         const maxWidth = 420;
-        const defaultWidths = { 'followed-rooms': 238, 'private-messages': 266 };
+        const defaultWidth = Number.parseFloat(getComputedStyle(document.body).getPropertyValue('--desktop-default-contact-width')) || 252;
         const storageKey = 'yaya_desktop_contact_widths_v1';
         const widths = {};
         const splitters = new Map();
@@ -69,7 +69,7 @@
                 if (event.button !== 0 || !event.isPrimary) return;
                 event.preventDefault();
                 splitter.focus({ preventScroll: true });
-                const width = apply(view, widths[view] ?? defaultWidths[view]);
+                const width = apply(view, widths[view] ?? defaultWidth);
                 drag = { view, splitter, pointerId: event.pointerId, startX: event.clientX, originalWidth: width, width };
                 splitter.setPointerCapture(event.pointerId);
                 document.body.classList.add('desktop-resizing-contacts');
@@ -83,12 +83,12 @@
             });
             splitter.addEventListener('pointercancel', () => finish(false));
             splitter.addEventListener('lostpointercapture', () => finish(false));
-            splitter.addEventListener('dblclick', () => { widths[view] = apply(view, defaultWidths[view]); save(); });
+            splitter.addEventListener('dblclick', () => { widths[view] = apply(view, defaultWidth); save(); });
             splitter.addEventListener('keydown', event => {
                 if (event.key === 'Escape') { finish(false); return; }
                 if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
                 event.preventDefault();
-                const width = widths[view] ?? defaultWidths[view];
+                const width = widths[view] ?? defaultWidth;
                 const next = event.key === 'Home' ? minWidth : event.key === 'End' ? upperBound()
                     : width + (event.key === 'ArrowRight' ? 1 : -1) * (event.shiftKey ? 25 : 10);
                 widths[view] = apply(view, next);
@@ -98,7 +98,7 @@
 
         function sync(view) {
             finish(false);
-            if (splitters.has(view)) apply(view, widths[view] ?? defaultWidths[view]);
+            if (splitters.has(view)) apply(view, widths[view] ?? defaultWidth);
         }
         window.addEventListener('resize', () => {
             railWidth = document.querySelector('.home-app-rail').getBoundingClientRect().width;

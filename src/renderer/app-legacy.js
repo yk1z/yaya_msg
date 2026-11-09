@@ -362,11 +362,12 @@
             const channelInput = document.getElementById('tool-channel');
             const channelLabel = document.getElementById('tool-channel-label');
             const toggleBtn = document.getElementById('btn-toggle-fetch-room-type');
-            if (!channelInput || !channelLabel || !toggleBtn) return;
+            if (!channelInput || !toggleBtn) return;
 
             const roomTypeText = isFetchSmallRoomMode ? '小房间' : '大房间';
-            channelLabel.textContent = `${roomTypeText} Channel ID`;
-            channelInput.placeholder = `${roomTypeText} Channel ID`;
+            const channelHint = `${roomTypeText} Channel ID`;
+            channelInput.placeholder = channelHint;
+            if (channelLabel) channelLabel.textContent = channelHint;
             toggleBtn.textContent = roomTypeText;
         }
 

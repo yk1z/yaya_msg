@@ -352,7 +352,6 @@ function configureEarlyWebLocale(indexHtml) {
                 urlLocale = normalizeLocale(new URL(window.location.href).searchParams.get('lang'));
                 storedLocale = normalizeLocale(window.localStorage.getItem('yaya_web_locale_v1'));
             } catch (_) {
-                // Storage can be unavailable in restricted browsing modes.
             }
             const locale = urlLocale
                 || storedLocale
