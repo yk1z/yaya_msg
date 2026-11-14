@@ -14,6 +14,27 @@
             showToast
         } = deps;
 
+        let profileRequestRevision = 0;
+        let profileOpenRevision = 0;
+        let profileViewRevision = 0;
+        let activeProfileRequest = null;
+        const profileToken = () => getAppToken?.() || window.getAppToken?.() || '';
+        const cancelProfileLoad = () => {
+            profileRequestRevision += 1;
+            if (activeProfileRequest) {
+                activeProfileRequest.container.innerHTML = '<div class="empty-state">请选择成员并查询档案</div>';
+                activeProfileRequest = null;
+            }
+            return profileRequestRevision;
+        };
+        const invalidateProfileRequests = () => {
+            cancelProfileLoad();
+            profileOpenRevision += 1;
+            profileViewRevision += 1;
+        };
+        window.addEventListener?.('yaya:view-changed', invalidateProfileRequests);
+        window.addEventListener?.('yaya:account-state-changed', invalidateProfileRequests);
+
         function getProfileSearchResultBox() {
             return document.getElementById('profile-search-results');
         }
@@ -67,6 +88,8 @@
         }
 
         function selectProfileMember(name, userId) {
+            cancelProfileLoad();
+            profileOpenRevision += 1;
             const inputEl = document.getElementById('profile-member-input');
             const idEl = document.getElementById('profile-member-id');
             const resultBox = getProfileSearchResultBox();
@@ -82,6 +105,12 @@
         async function openProfileById(memberId) {
             const normalizedMemberId = String(memberId || '').trim();
             if (!/^\d{1,32}$/.test(normalizedMemberId)) return false;
+            const revision = ++profileOpenRevision;
+            const viewRevision = profileViewRevision;
+            const token = profileToken();
+            const accountGeneration = window.getPocketAccountSessionGeneration?.();
+            const isCurrent = () => viewRevision === profileViewRevision && token === profileToken()
+                && accountGeneration === window.getPocketAccountSessionGeneration?.();
 
             if (!getMemberDataLoaded() && typeof loadMemberData === 'function') {
                 try {
@@ -91,6 +120,8 @@
                 }
             }
 
+            if (revision !== profileOpenRevision || !isCurrent()) return false;
+
             const memberList = Array.isArray(getMemberData()) ? getMemberData() : [];
             const member = memberList.find(item => [
                 item?.id,
@@ -99,14 +130,22 @@
                 item?.memberId
             ].some(value => String(value || '') === normalizedMemberId));
             selectProfileMember(member?.ownerName || member?.name || '', normalizedMemberId);
-            setTimeout(() => loadStarProfile(), 0);
+            const selectedRevision = profileOpenRevision;
+            setTimeout(() => {
+                if (selectedRevision === profileOpenRevision && isCurrent()) loadStarProfile();
+            }, 0);
             return true;
         }
 
         async function loadStarProfile() {
             const container = document.getElementById('profile-result-container');
             const memberId = String(document.getElementById('profile-member-id')?.value || '').trim();
-            const token = getAppToken ? getAppToken() : (typeof window.getAppToken === 'function' ? window.getAppToken() : '');
+            const token = profileToken();
+            const revision = cancelProfileLoad();
+            const accountGeneration = window.getPocketAccountSessionGeneration?.();
+            const isCurrent = () => revision === profileRequestRevision && token === profileToken()
+                && accountGeneration === window.getPocketAccountSessionGeneration?.()
+                && String(document.getElementById('profile-member-id')?.value || '').trim() === memberId;
 
             if (!container) return;
 
@@ -125,6 +164,7 @@
             }
 
             container.innerHTML = '<div class="empty-state">正在读取完整档案...</div>';
+            activeProfileRequest = { revision, container };
 
             try {
                 const pa = window.getPA ? window.getPA() : null;
@@ -132,6 +172,8 @@
                     ipcRenderer.invoke('fetch-star-archives', { token, pa, memberId }),
                     ipcRenderer.invoke('fetch-star-history', { token, pa, memberId })
                 ]);
+
+                if (!isCurrent()) return;
 
                 if (archiveRes.success && archiveRes.content) {
                     const data = archiveRes.content;
@@ -147,7 +189,10 @@
                     container.innerHTML = `<div class="placeholder-tip"><h3>获取失败</h3><p>${archiveRes.msg || '未知错误'}</p></div>`;
                 }
             } catch (error) {
+                if (!isCurrent()) return;
                 container.innerHTML = `<div class="placeholder-tip"><h3>发生错误</h3><p>${error.message}</p></div>`;
+            } finally {
+                if (activeProfileRequest?.revision === revision) activeProfileRequest = null;
             }
         }
 

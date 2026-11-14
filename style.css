@@ -8199,10 +8199,6 @@ html[data-theme="dark"] .account-state-actions #btn-copy-token {
     border-color: rgba(178, 111, 184, 0.22);
 }
 
-.account-settings-shell .account-checkin-panel:hover {
-    border-color: rgba(40, 167, 69, 0.24);
-}
-
 .account-section-head {
     display: flex;
     flex-direction: column;
@@ -8220,6 +8216,33 @@ html[data-theme="dark"] .account-state-actions #btn-copy-token {
     font-size: 12px;
     color: var(--text-sub);
     line-height: 1.5;
+}
+
+.bilibili-login-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px 16px;
+}
+
+.bilibili-login-copy {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.bilibili-login-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-inline-start: auto;
+}
+
+#bilibili-login-panel {
+    margin-top: 14px;
 }
 
 .account-rename-count {
@@ -8405,23 +8428,10 @@ html[data-theme="dark"] .account-state-actions #btn-copy-token {
     background: rgba(255, 255, 255, 0.82);
 }
 
-.account-checkin-panel {
-    background: rgba(255, 255, 255, 0.82);
-    border-color: var(--border);
-}
-
-.account-checkin-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 14px;
-    flex-wrap: wrap;
-    margin-bottom: 14px;
-}
-
 .account-checkin-toggle {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 10px;
     padding: 12px 14px;
     border-radius: 10px;
@@ -8433,6 +8443,11 @@ html[data-theme="dark"] .account-state-actions #btn-copy-token {
     cursor: pointer;
 }
 
+.account-checkin-toggle > span {
+    display: grid;
+    gap: 4px;
+}
+
 .account-checkin-toggle input {
     width: 16px;
     height: 16px;
@@ -8440,25 +8455,16 @@ html[data-theme="dark"] .account-state-actions #btn-copy-token {
 }
 
 .account-checkin-status {
-    margin-top: 12px;
-    min-height: 0;
-    padding: 0;
-    border-radius: 0;
-    border: none;
-    background: transparent;
-    font-size: 13px;
+    font-size: 12px;
     color: var(--text-sub);
-    line-height: 1.45;
-    display: block;
+}
+
+.account-checkin-status:empty {
+    display: none;
 }
 
 html[data-theme="dark"] .account-switcher-panel {
     background: rgba(24, 28, 34, 0.82);
-}
-
-html[data-theme="dark"] .account-checkin-panel {
-    background: rgba(24, 28, 34, 0.82);
-    border-color: var(--border);
 }
 
 html[data-theme="dark"] .account-profile-edit-card {
@@ -8536,6 +8542,130 @@ html[data-theme="dark"] .account-checkin-toggle {
     overflow: hidden;
     text-overflow: ellipsis;
     margin-right: 10px;
+}
+
+.saved-pocket-account-list {
+    display: grid;
+    gap: 10px;
+}
+
+#saved-pocket-accounts[hidden] {
+    display: none;
+}
+
+#saved-pocket-accounts .account-section-title {
+    margin: 0;
+}
+
+.account-section-head.saved-pocket-accounts-head {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.saved-pocket-accounts-heading {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+}
+
+.saved-pocket-account-card {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 6px 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.46);
+}
+
+html[data-theme="dark"] .saved-pocket-account-card {
+    background: rgba(9, 13, 18, 0.46);
+}
+
+.saved-pocket-account-card .account-card-avatar {
+    width: 42px;
+    height: 42px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.saved-pocket-account-details {
+    display: grid;
+    min-width: 0;
+    gap: 3px;
+}
+
+.saved-pocket-account-id {
+    color: var(--text-sub);
+    font-size: 12px;
+}
+
+.saved-pocket-account-switch {
+    grid-column: 1;
+    grid-row: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    border-radius: inherit;
+    background: transparent;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.saved-pocket-account-switch::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+}
+
+.saved-pocket-account-switch:disabled {
+    cursor: default;
+}
+
+.saved-pocket-account-card:has(.saved-pocket-account-switch:not(:disabled):hover) {
+    background: var(--input-bg);
+}
+
+.saved-pocket-account-switch:focus-visible {
+    outline: none;
+}
+
+.saved-pocket-account-switch:focus-visible::after {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+.saved-pocket-account-remove {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+    position: relative;
+    z-index: 1;
+    min-height: 32px;
+    padding: 5px 12px;
+    white-space: nowrap;
+}
+
+#saved-pocket-account-status {
+    max-width: 50%;
+    color: var(--text);
+    font-size: 12px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+
+#saved-pocket-account-status.is-error {
+    color: #ff7875;
 }
 
 .tag-badge {

@@ -274,13 +274,18 @@
 
             if (token && liveId) {
                 try {
-                    const res = await ipcRenderer.invoke('fetch-gift-list', { token, pa: getSafePa(), liveId });
+                    const res = await ipcRenderer.invoke('fetch-gift-list', {
+                        token, pa: getSafePa(), liveId,
+                        memberId: currentPlayingItem?.userInfo?.userId || currentPlayingItem?.userInfo?.id
+                            || currentPlayingItem?.user?.userId || currentPlayingItem?.userId || currentPlayingItem?.ownerId,
+                        liveType: currentPlayingItem?.liveType
+                    });
 
                     if (res.success && res.content) {
                         if (Array.isArray(res.content)) {
                             res.content.forEach(category => {
                                 if (category.giftList && Array.isArray(category.giftList)) {
-                                    giftList = giftList.concat(category.giftList);
+                                    giftList = giftList.concat(category.giftList.map(gift => ({ ...gift, typeId: gift.typeId ?? category.typeId })));
                                 }
                             });
                         } else if (res.content.giftList && Array.isArray(res.content.giftList)) {
@@ -289,6 +294,7 @@
 
                         const seen = new Set();
                         giftList = giftList.filter(item => {
+                            if (Number(item.typeId) === 888 || item.isVote === true || Number(item.isVote) === 1) return false;
                             const id = item.giftId || item.id;
                             if (seen.has(id)) return false;
                             seen.add(id);

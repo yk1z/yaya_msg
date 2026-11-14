@@ -39,6 +39,7 @@
         let accountValidationGeneration = 0;
         let smsLoginBusy = false;
         let accountSwitchGeneration = 0;
+        let savedAccountSwitching = '';
         let selectedAccountAvatarFile = null;
         let selectedAccountAvatarDataUrl = '';
         let accountProfileStatusTimer = null;
@@ -69,12 +70,14 @@
             return document.getElementById('login-client-profile')?.value === 'seine48' ? 'seine48' : 'pocket48';
         }
 
-        function savePocketClientProfile(value) {
+        function savePocketClientProfile(value, persist = true) {
             const api = getAppSettingsApi();
-            if (api?.setSettingValueSync) {
-                api.setSettingValueSync('p48ClientProfile', value);
-                localStorage.removeItem('p48ClientProfile');
-            } else localStorage.setItem('p48ClientProfile', value);
+            if (persist) {
+                if (api?.setSettingValueSync) {
+                    api.setSettingValueSync('p48ClientProfile', value);
+                    localStorage.removeItem('p48ClientProfile');
+                } else localStorage.setItem('p48ClientProfile', value);
+            }
             const badge = document.getElementById('logged-in-client-profile');
             if (badge) {
                 const profile = value === 'seine48' ? 'seine48' : 'pocket48';
@@ -183,6 +186,119 @@
             }
             localStorage.removeItem('yaya_p48_token');
         }
+
+        function setSavedPocketAccountStatus(message = '', isError = false) {
+            const status = document.getElementById('saved-pocket-account-status');
+            if (!status) return;
+            status.textContent = message;
+            status.classList.toggle('is-error', isError);
+            status.hidden = !message;
+        }
+
+        function renderSavedPocketAccounts() {
+            const section = document.getElementById('saved-pocket-accounts');
+            const list = document.getElementById('saved-pocket-account-list');
+            const settings = getAppSettingsApi();
+            if (!section || !list || isWebRuntimeForAccountUi() || !settings?.listPocketAccountsSync
+                || window.desktop?.isRoomWindow || window.desktop?.isLiveWindow) return;
+            section.hidden = false;
+            let accounts;
+            try {
+                accounts = settings.listPocketAccountsSync().filter(account => account.userId !== currentPocketUserId);
+            } catch (_) {
+                list.replaceChildren();
+                setSavedPocketAccountStatus('无法读取已保存的账号', true);
+                return;
+            }
+            list.replaceChildren();
+            if (!accounts.length) {
+                const empty = document.createElement('div');
+                empty.className = 'account-section-subtitle';
+                empty.textContent = '暂无其它账号';
+                list.append(empty);
+                return;
+            }
+            for (const account of accounts) {
+                const card = document.createElement('div');
+                card.className = 'saved-pocket-account-card';
+                const avatar = document.createElement('img');
+                avatar.className = 'account-card-avatar';
+                avatar.alt = '';
+                avatar.src = /^https?:\/\//i.test(account.avatarUrl) ? account.avatarUrl : './icon.png';
+                avatar.addEventListener('error', () => { avatar.src = './icon.png'; }, { once: true });
+                const name = document.createElement('span');
+                name.className = 'account-card-name';
+                name.textContent = account.nickname;
+                const id = document.createElement('span');
+                id.className = 'saved-pocket-account-id';
+                id.textContent = `ID ${account.userId}`;
+                const accountDetails = document.createElement('span');
+                accountDetails.className = 'saved-pocket-account-details';
+                accountDetails.append(name, id);
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'saved-pocket-account-switch';
+                button.disabled = Boolean(savedAccountSwitching);
+                button.setAttribute('aria-label', `切换到 ${account.nickname}`);
+                button.append(avatar, accountDetails);
+                button.addEventListener('click', () => switchSavedPocketAccount(account));
+                const forget = document.createElement('button');
+                forget.type = 'button';
+                forget.className = 'btn btn-secondary saved-pocket-account-remove';
+                forget.textContent = '移除';
+                forget.disabled = Boolean(savedAccountSwitching);
+                forget.setAttribute('aria-label', `移除 ${account.nickname} 的登录记录`);
+                forget.addEventListener('click', () => {
+                    try {
+                        settings.forgetPocketAccountSync(account.userId);
+                        setSavedPocketAccountStatus();
+                        renderSavedPocketAccounts();
+                    } catch (_) {
+                        setSavedPocketAccountStatus('移除账号失败，请重试', true);
+                    }
+                });
+                card.append(button, forget);
+                list.append(card);
+            }
+        }
+
+        function rememberCurrentPocketAccount() {
+            const settings = getAppSettingsApi();
+            if (isWebRuntimeForAccountUi() || !settings?.rememberPocketAccountSync
+                || window.desktop?.isRoomWindow || window.desktop?.isLiveWindow) return;
+            try {
+                settings.rememberPocketAccountSync({ userId: currentPocketUserId, token: appToken,
+                    nickname: currentPocketProfile.nickname, avatarUrl: currentPocketProfile.avatarUrl });
+            } catch (_) {
+                setSavedPocketAccountStatus('无法保存账号，请检查系统凭据存储', true);
+            }
+        }
+
+        async function switchSavedPocketAccount(account) {
+            if (savedAccountSwitching || account.userId === currentPocketUserId) return;
+            const settings = getAppSettingsApi();
+            const switchGeneration = ++accountSwitchGeneration;
+            window.YayaPocketSocialLoginUi?.cancel(false);
+            window.YayaPocketRegistrationUi?.close();
+            savedAccountSwitching = account.userId;
+            setSavedPocketAccountStatus('验证中');
+            renderSavedPocketAccounts();
+            try {
+                const saved = settings.getPocketAccountSync(account.userId);
+                await checkToken(false, { ...saved, userId: account.userId });
+            } catch (error) {
+                if (switchGeneration === accountSwitchGeneration) {
+                    setSavedPocketAccountStatus(error.message || '切换账号失败，请重试', true);
+                }
+            } finally {
+                savedAccountSwitching = '';
+                const status = document.getElementById('saved-pocket-account-status');
+                if (status?.textContent === '验证中') setSavedPocketAccountStatus();
+                renderSavedPocketAccounts();
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', renderSavedPocketAccounts, { once: true });
 
         function readStoredMeet48Auth() {
             const settingsApi = getAppSettingsApi();
@@ -467,7 +583,6 @@
             const avatarButton = document.querySelector('.account-avatar-edit-actions .btn');
             if (nicknameButton) nicknameButton.disabled = false;
             if (avatarButton) avatarButton.disabled = false;
-            setCheckinButtonBusy(false);
         }
 
         window.invalidatePocketAccountRequestState = invalidatePocketAccountRequestState;
@@ -722,6 +837,7 @@
                 }
 
                 currentPocketProfile.nickname = nickname;
+                rememberCurrentPocketAccount();
                 const nameEl = document.getElementById('user-nickname');
                 if (nameEl) nameEl.innerText = nickname;
                 syncWebAccountButton(currentPocketProfile, true);
@@ -782,6 +898,7 @@
                 const avatarUrl = normalizeAccountAvatarUrl(uploadRes.path);
                 currentPocketProfile.avatar = uploadRes.path;
                 currentPocketProfile.avatarUrl = avatarUrl;
+                rememberCurrentPocketAccount();
                 const currentAvatarEl = document.getElementById('current-user-avatar');
                 const preview = document.getElementById('account-avatar-preview');
                 if (currentAvatarEl) currentAvatarEl.src = avatarUrl;
@@ -2075,26 +2192,22 @@
                 && String(readAutoCheckinSetting(AUTO_CHECKIN_LAST_USER_KEY, '')) === targetUserId;
         }
 
-        function updateAutoCheckinStatus(message, color = 'var(--text-sub)') {
+        function updateAutoCheckinStatus(message) {
             const statusEl = document.getElementById('auto-checkin-status');
             if (!statusEl) return;
             statusEl.innerText = message;
-            statusEl.style.color = color;
+            statusEl.style.color = '';
         }
 
         function syncAutoCheckinUi() {
             scheduleAutoCheckinMidnight();
-            if (window.desktop?.platform && window.desktop.platform !== 'web') {
-                const subtitle = document.querySelector('.account-checkin-panel .account-section-subtitle');
-                if (subtitle) subtitle.textContent = '打开软件及跨零点自动签到';
-            }
             const toggle = document.getElementById('auto-checkin-toggle');
             if (toggle) {
                 toggle.checked = getAutoCheckinEnabled();
             }
 
             if (currentPocketUserId && isCheckinRecordedToday(currentPocketUserId)) {
-                updateAutoCheckinStatus('今日签到已完成，重复打开软件不会再次提交', '#28a745');
+                updateAutoCheckinStatus('今日签到已完成，重复打开软件不会再次提交');
                 return;
             }
 
@@ -2103,7 +2216,7 @@
                     ? '已开启自动签到，登录成功后会在打开软件时自动尝试签到'
                     : '已开启自动签到，启动并登录后及跨零点时会自动尝试签到');
             } else {
-                updateAutoCheckinStatus('已关闭自动签到，需要时可以点击“立即签到”');
+                updateAutoCheckinStatus('已关闭自动签到');
             }
         }
 
@@ -2124,25 +2237,18 @@
             return parts.length ? `签到成功，${parts.join('，')}` : '签到成功';
         }
 
-        function setCheckinButtonBusy(isBusy) {
-            const btn = document.getElementById('btn-manual-checkin');
-            if (!btn) return;
-            btn.disabled = isBusy;
-            btn.innerText = window.YayaRendererUtils.t(isBusy ? '签到中...' : '立即签到');
-        }
-
         async function performPocketCheckin(options = {}) {
             const { force = false, silentWhenSkipped = true } = options;
             const shouldShowCheckinToast = force || !silentWhenSkipped;
 
             if (!appToken) {
-                updateAutoCheckinStatus('请先登录账号后再签到', '#ff4d4f');
+                updateAutoCheckinStatus('请先登录账号后再签到');
                 if (!silentWhenSkipped) showToast('请先登录账号');
                 return { success: false, skipped: true, reason: 'missing-token' };
             }
 
             if (!currentPocketUserId) {
-                updateAutoCheckinStatus('当前账号信息未就绪，请稍后重试', '#ff4d4f');
+                updateAutoCheckinStatus('当前账号信息未就绪，请稍后重试');
                 return { success: false, skipped: true, reason: 'missing-user' };
             }
 
@@ -2168,8 +2274,7 @@
             );
 
             autoCheckinInFlight = true;
-            setCheckinButtonBusy(true);
-            updateAutoCheckinStatus('正在签到，请稍候...', 'var(--primary)');
+            updateAutoCheckinStatus('正在签到，请稍候...');
 
             try {
                 const pa = window.getPA ? window.getPA() : null;
@@ -2182,7 +2287,7 @@
                 if (res && res.success) {
                     markCheckinComplete(accountContext.userId, checkinDate);
                     const successMsg = formatCheckinSuccessMessage(res.content);
-                    updateAutoCheckinStatus(`${successMsg}，今日无需重复签到`, '#28a745');
+                    updateAutoCheckinStatus(`${successMsg}，今日无需重复签到`);
                     if (shouldShowCheckinToast) {
                         showToast(successMsg);
                     }
@@ -2192,14 +2297,14 @@
                 const errorMessage = res?.msg || '签到失败';
                 if (/已签到|重复签到|已经签到|已领取|明天再来/.test(errorMessage)) {
                     markCheckinComplete(accountContext.userId, checkinDate);
-                    updateAutoCheckinStatus('今日签到已完成，重复打开软件不会再次提交', '#28a745');
+                    updateAutoCheckinStatus('今日签到已完成，重复打开软件不会再次提交');
                     if (shouldShowCheckinToast) {
                         showToast('今天已经签到过了');
                     }
                     return { success: true, skipped: true, reason: 'already-signed' };
                 }
 
-                updateAutoCheckinStatus(`签到失败：${errorMessage}`, '#ff4d4f');
+                updateAutoCheckinStatus(`签到失败：${errorMessage}`);
                 if (shouldShowCheckinToast) {
                     showToast(`签到失败：${errorMessage}`);
                 }
@@ -2207,7 +2312,7 @@
             } catch (error) {
                 if (!isCurrentCheckin()) return { success: false, skipped: true, reason: 'account-changed' };
                 const errorMessage = error?.message || '签到请求异常';
-                updateAutoCheckinStatus(`签到失败：${errorMessage}`, '#ff4d4f');
+                updateAutoCheckinStatus(`签到失败：${errorMessage}`);
                 if (shouldShowCheckinToast) {
                     showToast(`签到失败：${errorMessage}`);
                 }
@@ -2215,17 +2320,9 @@
             } finally {
                 if (isCurrentCheckin()) {
                     autoCheckinInFlight = false;
-                    setCheckinButtonBusy(false);
                     checkAutoCheckinDayChange();
                 }
             }
-        }
-
-        async function handleManualCheckIn() {
-            await performPocketCheckin({
-                force: true,
-                silentWhenSkipped: false
-            });
         }
 
         function toggleAutoCheckin(enabled) {
@@ -2235,7 +2332,7 @@
                     ? '已开启自动签到，软件启动并验证登录后会自动尝试签到'
                     : '已开启自动签到，软件启动并验证登录后及跨零点时会自动尝试签到');
             } else {
-                updateAutoCheckinStatus('已关闭自动签到，需要时可以点击“立即签到”');
+                updateAutoCheckinStatus('已关闭自动签到');
             }
         }
 
@@ -2751,11 +2848,12 @@
                 if (loginButton) loginButton.disabled = false;
             }
         }
-        async function checkToken(manualLogin = false) {
+        async function checkToken(manualLogin = false, savedAccount = null) {
             if (manualLogin === true) window.YayaPocketSocialLoginUi?.cancel(false);
-            const clientProfile = manualLogin === true ? selectedPocketClientProfile() : readPocketClientProfile();
+            const clientProfile = savedAccount ? savedAccount.clientProfile
+                : manualLogin === true ? selectedPocketClientProfile() : readPocketClientProfile();
             const tokenField = document.getElementById('login-token');
-            const tokenInput = (tokenField && tokenField.value ? tokenField.value.trim() : '')
+            const tokenInput = savedAccount ? savedAccount.token : (tokenField && tokenField.value ? tokenField.value.trim() : '')
                 || (typeof appToken !== 'undefined' && appToken ? String(appToken).trim() : '')
                 || readStoredToken();
             const msgBox = document.getElementById('login-msg');
@@ -2773,35 +2871,35 @@
                 return;
             }
             const previousToken = String(appToken || readStoredToken() || '').trim();
-            if (previousToken && previousToken !== tokenInput
-                && typeof resetAccountScopedSessionState === 'function') {
-                resetAccountScopedSessionState();
-                currentPocketUserId = '';
-                currentPocketProfile = { nickname: '', avatar: '', avatarUrl: '' };
-            }
             const validationGeneration = ++accountValidationGeneration;
+            const settings = getAppSettingsApi();
+            const previousStoredToken = savedAccount ? settings.getTokenSync() : '';
+            let savedAccountActivated = false;
             const isCurrentValidation = () => (
                 validationGeneration === accountValidationGeneration
-                && String(appToken || '').trim() === tokenInput
-                && String(readStoredToken() || '').trim() === tokenInput
+                && (savedAccount && !savedAccountActivated
+                    ? settings.getTokenSync() === previousStoredToken
+                    : appToken === tokenInput && readStoredToken() === tokenInput)
             );
 
-            appToken = tokenInput;
-            writeStoredToken(appToken);
-            if (previousToken && previousToken !== tokenInput) {
-                syncWebAccountButton(currentPocketProfile, false);
-                syncAccountProfileEditUi(currentPocketProfile);
-            }
-            if (tokenField && tokenField.value !== tokenInput) {
-                tokenField.value = tokenInput;
-            }
-
-            if (msgBox) {
-                msgBox.innerText = window.YayaRendererUtils.t('正在验证身份...');
-                msgBox.style.color = '#666';
-            }
-            if (typeof window.setWebAccountAuthPending === 'function') {
-                window.setWebAccountAuthPending(true);
+            if (!savedAccount) {
+                if (previousToken && previousToken !== tokenInput) {
+                    if (typeof resetAccountScopedSessionState === 'function') resetAccountScopedSessionState();
+                    currentPocketUserId = '';
+                    currentPocketProfile = { nickname: '', avatar: '', avatarUrl: '' };
+                }
+                appToken = tokenInput;
+                writeStoredToken(tokenInput);
+                if (previousToken && previousToken !== tokenInput) {
+                    syncWebAccountButton(currentPocketProfile, false);
+                    syncAccountProfileEditUi(currentPocketProfile);
+                }
+                if (tokenField && tokenField.value !== tokenInput) tokenField.value = tokenInput;
+                if (msgBox) {
+                    msgBox.innerText = window.YayaRendererUtils.t('正在验证身份...');
+                    msgBox.style.color = '#666';
+                }
+                window.setWebAccountAuthPending?.(true);
             }
 
             try {
@@ -2812,12 +2910,28 @@
                     clientProfile
                 });
                 if (!isCurrentValidation()) return;
+                if (savedAccount) {
+                    const user = res.userInfo;
+                    const id = user?.baseUserInfo?.userId || user?.userId || user?.id;
+                    if (!res.success) throw new Error(res.msg === 'Token 无效' || !res.msg
+                        ? '此账号登录已失效，请重新登录' : res.msg);
+                    if (String(id) !== savedAccount.userId) throw new Error('登录记录与账号不符，请重新登录此账号');
+                    settings.activatePocketAccountSync({ previousToken: previousStoredToken, token: tokenInput, clientProfile });
+                    savedAccountActivated = true;
+                    if (typeof resetAccountScopedSessionState === 'function') resetAccountScopedSessionState();
+                    currentPocketUserId = '';
+                    currentPocketProfile = { nickname: '', avatar: '', avatarUrl: '' };
+                    appToken = tokenInput;
+                    localStorage.removeItem('yaya_p48_token');
+                    localStorage.removeItem('p48ClientProfile');
+                    if (tokenField) tokenField.value = tokenInput;
+                }
                 if (typeof window.setWebAccountAuthPending === 'function') {
                     window.setWebAccountAuthPending(false);
                 }
 
                 if (res.success) {
-                    savePocketClientProfile(clientProfile);
+                    savePocketClientProfile(clientProfile, !savedAccount);
                     if (clientProfile) updateLoginClientProfile(clientProfile);
                     if (!isWebRuntimeForAccountUi()) {
                         void ipcRenderer.invoke('connect-account-im').catch(error => {
@@ -2846,10 +2960,13 @@
                         avatar: currentAvatarRaw,
                         avatarUrl: currentAvatarUrl
                     };
+                    setSavedPocketAccountStatus();
+                    rememberCurrentPocketAccount();
+                    renderSavedPocketAccounts();
                     syncWebAccountButton(currentPocketProfile, true);
                     document.getElementById('user-nickname').innerText = safeName;
                     const idDisplay = document.getElementById('user-id-display');
-                    if (idDisplay) idDisplay.innerText = `ID: ${userId}`;
+                    if (idDisplay) idDisplay.innerText = `ID ${userId}`;
                     const currentAvatarEl = document.getElementById('current-user-avatar');
                     if (currentAvatarEl) currentAvatarEl.src = currentAvatarUrl;
                     syncAccountProfileEditUi(currentPocketProfile);
@@ -2934,6 +3051,7 @@
                     currentPocketUserId = '';
                     currentPocketProfile = { nickname: '', avatar: '', avatarUrl: '' };
                     clearWebAccountProfileCache();
+                    renderSavedPocketAccounts();
                     syncWebAccountButton(currentPocketProfile, false);
                     if (panelInput) panelInput.style.display = 'block';
                     if (panelSuccess) panelSuccess.style.display = 'none';
@@ -2948,6 +3066,7 @@
                 }
             } catch (e) {
                 if (!isCurrentValidation()) return;
+                if (savedAccount && !savedAccountActivated) throw e;
                 if (typeof window.setWebAccountAuthPending === 'function') {
                     window.setWebAccountAuthPending(false);
                 }
@@ -2960,6 +3079,7 @@
                 }
                 currentPocketUserId = '';
                 currentPocketProfile = { nickname: '', avatar: '', avatarUrl: '' };
+                renderSavedPocketAccounts();
                 syncWebAccountButton(currentPocketProfile, false);
                 if (panelInput) panelInput.style.display = 'block';
                 if (panelSuccess) panelSuccess.style.display = 'none';
@@ -3055,6 +3175,8 @@
             }
             currentPocketUserId = '';
             currentPocketProfile = { nickname: '', avatar: '', avatarUrl: '' };
+            setSavedPocketAccountStatus();
+            renderSavedPocketAccounts();
             clearWebAccountProfileCache();
             syncWebAccountButton(currentPocketProfile, false);
             selectedAccountAvatarFile = null;
@@ -3078,7 +3200,7 @@
             if (avatarInput) avatarInput.value = '';
             const msgBox = document.getElementById('login-msg');
             if (msgBox) {
-                msgBox.innerText = window.YayaRendererUtils.t('记录已清除');
+                msgBox.innerText = window.YayaRendererUtils.t(isWebRuntimeForAccountUi() ? '记录已清除' : '已退出当前账号');
                 msgBox.style.color = '#28a745';
             }
             syncAutoCheckinUi();

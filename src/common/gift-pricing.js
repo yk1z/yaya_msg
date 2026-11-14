@@ -13,6 +13,7 @@
     ]);
     function isScoringGift(gift = {}, options = {}) {
         gift = normalizeGiftInfo(gift, options);
+        if (gift.giftName === '琴音生花') return false;
         if ([true, 1, '1'].includes(gift.isScore) || [true, 1, '1'].includes(gift.isVote)) return true;
         const id = String(gift.giftId ?? gift.id ?? '');
         const name = String(gift.giftName ?? gift.name ?? '');

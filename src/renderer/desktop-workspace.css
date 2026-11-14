@@ -201,6 +201,8 @@ body.desktop-workspace .gift-effects-setting-row {
     padding: 12px 0; cursor: pointer;
 }
 body.desktop-workspace .gift-effects-setting-row + .gift-effects-setting-row { border-top: 1px solid var(--desk-line); }
+body.desktop-workspace .gift-effects-settings-card h3 + .gift-effects-setting-row { padding-top: 0; }
+body.desktop-workspace .gift-effects-settings-card .gift-effects-setting-row:last-child { padding-bottom: 0; }
 body.desktop-workspace :is(.gift-effects-setting-row > span, .desktop-setting-copy) { display: flex; flex-direction: column; gap: 6px; line-height: 1.6; }
 body.desktop-workspace :is(.gift-effects-setting-row strong, .desktop-setting-copy > label) { font-size: 13px; font-weight: 700; color: var(--desk-ink); }
 body.desktop-workspace :is(.gift-effects-setting-row > span > span, .desktop-setting-copy > span) { font-size: 12px; color: var(--desk-muted); }
@@ -462,7 +464,7 @@ body.desktop-workspace #view-settings .desktop-about-card .desktop-about-credit 
 body.desktop-workspace #view-settings .desktop-about-card .desktop-about-copyright { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--desk-line); }
 body.desktop-workspace .desktop-about-author,
 body.desktop-workspace .desktop-about-author:is(:link, :visited, :hover, :active, :focus) { color: inherit; text-decoration: none; cursor: pointer; }
-body.desktop-workspace .desktop-background-transparency-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 15px; }
+body.desktop-workspace .desktop-background-transparency-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
 body.desktop-workspace .desktop-background-transparency-row label { display: block; font-weight: bold; color: var(--desk-ink); }
 body.desktop-workspace .desktop-background-transparency-row > div > span { font-size: 12px; color: var(--desk-muted); }
 body.desktop-workspace .desktop-background-transparency-controls { display: flex; align-items: center; gap: 12px; width: min(280px, 45%); }
@@ -490,7 +492,7 @@ body.desktop-workspace .invoice-order-row { border-color: var(--desk-line); back
 body.desktop-workspace #view-netface {
     --nf-surface: var(--desk-panel); --nf-border: var(--desk-line); --nf-text: var(--desk-ink); --nf-secondary: var(--desk-muted);
 }
-body.desktop-workspace :is(.netface-toolbar, .netface-card, .netface-summary, .netface-call-panel) { background: var(--desk-panel); border-color: var(--desk-line); border-radius: 6px; box-shadow: none; }
+body.desktop-workspace :is(.netface-card, .netface-summary, .netface-call-panel) { background: var(--desk-panel); border-color: var(--desk-line); border-radius: 6px; box-shadow: none; }
 body.desktop-workspace .netface-card { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 body.desktop-workspace #live-player-view { background: var(--desk-canvas); }
 body.desktop-workspace #live-player-view > div:first-child {

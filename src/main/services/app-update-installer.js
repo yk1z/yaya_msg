@@ -5,37 +5,19 @@ const { spawn, execFile } = require('child_process');
 const { promisify } = require('util');
 const runFile = promisify(execFile);
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-const psQuote = value => `'${String(value).replace(/'/g, "''")}'`;
 const shQuote = value => `'${String(value).replace(/'/g, "'\\''")}'`;
 
-function windowsScript({ installer, executable, directory, parentPid, ready, result, log, digest }) {
-    return `$ErrorActionPreference = 'Stop'
-$installer = ${psQuote(installer)}
-$executable = ${psQuote(executable)}
-$installDirectory = ${psQuote(directory)}
-$resultPath = ${psQuote(result)}
-$parentExited = $false
-Set-Content -LiteralPath ${psQuote(ready)} -Value 'ready' -Encoding ASCII
-try {
-    $parent = Get-Process -Id ${parentPid} -ErrorAction SilentlyContinue
-    if ($parent) { $parent | Wait-Process -Timeout 300 -ErrorAction Stop }
-    $parentExited = $true
-    $stream = [System.IO.File]::OpenRead($installer)
-    $sha = [System.Security.Cryptography.SHA256]::Create()
-    try { $actualHash = [BitConverter]::ToString($sha.ComputeHash($stream)).Replace('-', '').ToLowerInvariant() }
-    finally { $stream.Dispose(); $sha.Dispose() }
-    if ($actualHash -ne ${psQuote(digest)}) { throw 'Installer checksum changed' }
-    $task = Start-Process -FilePath $installer -ArgumentList @('/S', '--updated', '--force-run', ('/D=' + $installDirectory)) -WindowStyle Hidden -PassThru -ErrorAction Stop
-    $task.WaitForExit()
-    if ($task.ExitCode -ne 0) { throw ('Installer exit code: ' + $task.ExitCode) }
-    Set-Content -LiteralPath $resultPath -Value '{"success":true}' -Encoding ASCII
-} catch {
-    Add-Content -LiteralPath ${psQuote(log)} -Value $_.ToString()
-    Set-Content -LiteralPath $resultPath -Value '{"success":false}' -Encoding ASCII
-    if ($parentExited -and (Test-Path -LiteralPath $executable -PathType Leaf)) { Start-Process -FilePath $executable }
-    exit 1
-}
-`;
+function launchWindowsInstaller({ installer, directory, spawnProcess = spawn }) {
+    if (!path.win32.isAbsolute(installer) || !path.win32.isAbsolute(directory)
+        || /["\r\n]/.test(installer + directory)) throw new Error('安装包或安装目录无效，请重新下载');
+    return new Promise((resolve, reject) => {
+        const child = spawnProcess(installer, ['/S', '--updated', '--force-run', `/D=${directory}`], {
+            argv0: `"${installer}"`, windowsVerbatimArguments: true,
+            detached: true, stdio: 'ignore', windowsHide: true, shell: false
+        });
+        child.once('error', reject);
+        child.once('spawn', () => { child.unref(); resolve(); });
+    });
 }
 
 function linuxScript({ installer, executable, parentPid, ready, result, log, digest, authorization }) {
@@ -74,12 +56,8 @@ fi
 `;
 }
 
-async function launchHelper({ script, ready, platform }) {
-    const command = platform === 'win32'
-        ? path.win32.join(process.env.SystemRoot || 'C:\\Windows', 'System32/WindowsPowerShell/v1.0/powershell.exe') : '/bin/sh';
-    const args = platform === 'win32'
-        ? ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', script] : [script];
-    const child = spawn(command, args, { detached: true, stdio: 'ignore', windowsHide: true });
+async function launchHelper({ script, ready }) {
+    const child = spawn('/bin/sh', [script], { detached: true, stdio: 'ignore', windowsHide: true });
     let failure = null;
     let exited = false;
     child.on('error', error => { failure = error; });
@@ -95,7 +73,8 @@ async function launchHelper({ script, ready, platform }) {
 }
 
 function createUpdateInstaller({ app, shell, platform = process.platform, execute = runFile,
-    startHelper = launchHelper, canExecute = file => fs.promises.access(file, fs.constants.X_OK),
+    startHelper = launchHelper, startWindowsInstaller = launchWindowsInstaller,
+    canExecute = file => fs.promises.access(file, fs.constants.X_OK),
     scheduleQuit = callback => setTimeout(callback, 200), getUid = () => process.getuid?.() ?? 1000 }) {
     let pending = null;
     let scheduled = false;
@@ -122,6 +101,18 @@ function createUpdateInstaller({ app, shell, platform = process.platform, execut
                     : '已打开安装包，请按提示完成安装；自动安装重启需在安装版中使用' };
             }
             const executable = app.getPath('exe');
+            if (platform === 'win32') {
+                try {
+                    await startWindowsInstaller({ installer: info.filePath, directory: path.win32.dirname(executable) });
+                } catch (error) {
+                    throw new Error(['EACCES', 'EPERM'].includes(error?.code)
+                        ? '系统拒绝启动安装包，请检查安全软件或手动运行已下载的安装包'
+                        : `无法启动安装包：${error?.message || '启动失败'}，请重试或手动运行已下载的安装包`);
+                }
+                scheduled = true;
+                scheduleQuit(() => app.quit());
+                return { success: true, mode: 'automatic', authorization: false };
+            }
             let authorization = false;
             if (platform === 'linux') {
                 authorization = getUid() !== 0;
@@ -148,11 +139,11 @@ function createUpdateInstaller({ app, shell, platform = process.platform, execut
             await fs.promises.mkdir(statusDirectory, { recursive: true });
             await fs.promises.writeFile(resultPath(), '{"success":null}', { mode: 0o600 });
             const helperDirectory = await fs.promises.mkdtemp(path.join(app.getPath('temp'), 'yaya-install-'));
-            const script = path.join(helperDirectory, platform === 'win32' ? 'install.ps1' : 'install.sh');
+            const script = path.join(helperDirectory, 'install.sh');
             const ready = path.join(helperDirectory, 'ready');
             const config = { installer: info.filePath, executable, directory: path.win32.dirname(executable), parentPid: process.pid,
                 ready, result: resultPath(), log: path.join(statusDirectory, 'install.log'), digest: info.digest, authorization };
-            await fs.promises.writeFile(script, platform === 'win32' ? '\uFEFF' + windowsScript(config) : linuxScript(config), { mode: 0o700 });
+            await fs.promises.writeFile(script, linuxScript(config), { mode: 0o700 });
             await startHelper({ script, ready, platform }).catch(() => { throw new Error('无法启动自动安装，请检查系统权限后重试'); });
             scheduled = true;
             scheduleQuit(() => app.quit());
@@ -170,4 +161,4 @@ function createUpdateInstaller({ app, shell, platform = process.platform, execut
     return { install, hadLastFailure };
 }
 
-module.exports = { createUpdateInstaller, windowsScript, linuxScript };
+module.exports = { createUpdateInstaller, launchWindowsInstaller, linuxScript };

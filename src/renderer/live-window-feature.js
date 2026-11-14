@@ -4,7 +4,7 @@
     const ipc = window.desktop.ipcRenderer;
     window.openLiveWindowForItem = async (item, mode = 'live') => {
         const target = { liveId: String(item?.liveId || ''), mode,
-            ownerName: item?.userInfo?.nickname || item?.nickname || '直播', title: item?.title || item?.liveTitle || '直播' };
+            ownerName: item?.userInfo?.nickname || item?.nickname || '', title: item?.title || item?.liveTitle || '直播' };
         if (!target.liveId) { window.showToast?.('直播信息不完整'); return; }
         try {
             const result = await ipc.invoke('open-live-window', target);
@@ -62,9 +62,14 @@
         try {
             const context = await ipc.invoke('get-room-window-context');
             if (context?.kind !== 'live') throw new Error('直播信息已失效，请关闭窗口后重试');
-            const isVod = context.mode.endsWith('vod');
-            if (brand) brand.textContent = `牙牙消息 · ${isVod ? '回放' : '直播'}`;
-            document.title = `${context.ownerName} · ${isVod ? '回放' : '直播'} · 牙牙消息`;
+            const modeLabel = context.mode.endsWith('vod') ? '回放' : '直播';
+            window.setDetachedLiveWindowTitle = memberName => {
+                const name = String(memberName || '').trim();
+                const title = name ? `牙牙消息 · ${modeLabel} · ${name}` : `牙牙消息 · ${modeLabel}`;
+                if (brand) brand.textContent = title;
+                document.title = title;
+            };
+            window.setDetachedLiveWindowTitle(context.ownerName);
             window.switchView('media', context.mode);
             let resizeFrame = 0;
             window.addEventListener('resize', () => {

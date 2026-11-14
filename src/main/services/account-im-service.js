@@ -33,10 +33,14 @@ function createAccountImService({ readAuth, resolveCredentials, createClient, on
         previous.client = null;
     }
 
-    function closeAll() {
+    function closeAll({ notify = false } = {}) {
+        const previousOwners = notify ? [...owners.values()] : [];
         stopCurrent();
         owners.clear();
         onReset();
+        for (const sender of previousOwners) {
+            if (!sender.isDestroyed()) sender.send('account-im-status', { status: 'reset' });
+        }
     }
 
     function scheduleRetry(state) {
@@ -110,7 +114,7 @@ function createAccountImService({ readAuth, resolveCredentials, createClient, on
             return Promise.resolve({ success: false, status: 'disconnected' });
         }
         const key = keyOf(auth);
-        if (current && current.key !== key) closeAll();
+        if (current && current.key !== key) closeAll({ notify: true });
         owners.set(sender.id, sender);
         if (!observed.has(sender)) {
             observed.add(sender);
@@ -148,11 +152,13 @@ function accountImService() {
         onReset() {
             require('./member-room-service').closeAllMemberRoomConnections();
             require('./room-notification-service').closeAll();
+            require('./room-voice-service').closeAll();
+            require('./live-start-service').closeAll();
             require('./danmaku-service').closeAllLiveDanmakuConnections();
             transport.closeMemberRoomTransport();
         }
     });
-    settings.onAuthChange(() => shared.closeAll());
+    settings.onAuthChange(() => shared.closeAll({ notify: true }));
     return shared;
 }
 

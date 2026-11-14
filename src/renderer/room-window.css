@@ -49,24 +49,12 @@ html[data-live-window="true"] #mainContentArea .media-playback-page {
 html[data-live-window="true"] #live-player-view {
     flex: 1 !important; height: 100% !important; min-height: 0 !important; overflow: hidden !important;
 }
-html[data-live-window="true"] #live-player-view > div:first-child {
-    flex: 0 0 auto; margin: 8px 10px !important; border-radius: 8px !important; padding: 10px 12px !important;
-}
-html[data-live-window="true"] #live-player-view > div:first-child > div {
-    display: grid !important; grid-template-columns: minmax(0, 1fr) auto !important; gap: 10px !important;
-}
-html[data-live-window="true"] #live-player-view > div:first-child > div > div:first-child {
-    display: grid !important; grid-template-columns: 1.2fr 1.8fr 1fr 1fr 1fr; gap: 6px 16px !important; min-width: 0;
-}
-html[data-live-window="true"] #live-player-view > div:first-child > div > div:first-child > div { min-width: 0; }
-html[data-live-window="true"] #live-player-view > div:first-child span[id] {
-    font-size: 13px !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-html[data-live-window="true"] .player-top-actions { flex-wrap: wrap; justify-content: flex-end; }
+html[data-live-window="true"] .live-player-info-card { display: none !important; }
+html[data-live-window="true"] body.desktop-workspace .title-info { max-width: calc(100% - 140px); }
 html[data-live-window="true"] #player-split-layout {
     display: flex !important; flex-direction: column !important; flex: 1 1 0 !important;
     height: 0 !important; min-height: 0 !important; gap: 0 !important;
-    padding: 0 10px 10px !important; overflow: hidden !important;
+    padding: 10px !important; overflow: hidden !important;
 }
 html[data-live-window="true"] :is(#live-danmu-list-wrapper, #danmu-timeline-wrapper, .media-clip-toolbar) { display: none !important; }
 html[data-live-window="true"] #player-right-column {
@@ -93,27 +81,8 @@ html[data-live-window="true"][data-platform="darwin"] body.desktop-workspace .ti
 }
 html[data-live-window="true"][data-platform="darwin"] body.desktop-workspace .title-info .title-logo { margin-left: 0; flex-shrink: 0; }
 html[data-live-window="true"][data-platform="darwin"] .window-controls { display: none !important; }
-@media (max-width: 850px) {
-    html[data-live-window="true"] #live-player-view > div:first-child > div {
-        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    }
-    html[data-live-window="true"] #live-player-view > div:first-child > div > div:first-child {
-        display: contents !important;
-    }
-    html[data-live-window="true"] .player-top-actions {
-        grid-column: 2; align-self: end; justify-self: start;
-        flex-direction: row !important; gap: 6px !important;
-    }
-    html[data-live-window="true"] .player-top-actions button { height: 30px !important; min-height: 30px !important; font-size: 12px !important; }
-}
 @media (max-width: 420px) {
-    html[data-live-window="true"] .title-info { max-width: calc(100% - 140px) !important; }
-    html[data-live-window="true"] #live-player-view > div:first-child { margin: 6px !important; padding: 8px !important; }
-    html[data-live-window="true"] #live-player-view > div:first-child > div { gap: 6px !important; }
-    html[data-live-window="true"] #live-player-view > div:first-child > div > div:first-child { gap: 4px 8px !important; }
-    html[data-live-window="true"] .player-top-actions button { min-width: 0 !important; padding: 0 6px !important; font-size: 11px !important; }
-    html[data-live-window="true"] .player-top-actions { width: auto !important; max-width: 76px; }
-    html[data-live-window="true"] #player-split-layout { padding: 0 6px 6px !important; }
+    html[data-live-window="true"] #player-split-layout { padding: 6px !important; }
     html[data-live-window="true"] .gift-control-bar { flex-wrap: wrap; gap: 6px; padding: 7px 8px !important; }
     html[data-live-window="true"] .gift-control-bar > div { min-width: 0; flex-wrap: wrap; }
     html[data-live-window="true"] .gift-control-bar > div:last-child { margin-left: auto; }

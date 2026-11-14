@@ -245,7 +245,7 @@
                 avatarSnapshot = null;
                 try { avatarCache?.removeCacheValueSync(avatarCacheKey); } catch (_) {}
             }
-            const label = state.loggedIn ? `${state.nickname || '当前账号'} · 账号设置` : '未登录 · 登录账号';
+            const label = state.loggedIn ? `${state.nickname || '当前账号'} · 账号` : '未登录 · 登录账号';
             accountButton.setAttribute('aria-label', label);
             accountButton.title = label;
             const url = state.loggedIn ? String(state.avatarUrl || '').trim() : '';
@@ -406,6 +406,17 @@
             privateRow.append(privateCopy, privateToggle);
             card.appendChild(privateRow);
 
+            const autoCheckinRow = document.getElementById('auto-checkin-setting');
+            const autoCheckinToggle = document.getElementById('auto-checkin-toggle');
+            if (autoCheckinRow && autoCheckinToggle) {
+                const autoCheckinCard = autoCheckinRow.closest('.Box-row');
+                autoCheckinRow.className = 'gift-effects-setting-row';
+                autoCheckinToggle.className = 'gift-effects-setting-switch';
+                autoCheckinToggle.setAttribute('role', 'switch');
+                card.appendChild(autoCheckinRow);
+                autoCheckinCard?.remove();
+            }
+
             const proxyToggle = document.getElementById('use-yaya-api-proxy');
             const proxyCard = proxyToggle?.closest('.Box-row');
             if (proxyToggle && proxyCard) {
@@ -559,6 +570,8 @@
             let downloadUrl = '';
             let downloadMode = 'download';
             let downloading = false;
+            let lastAutomaticUpdateCheckAt = null;
+            const autoUpdateCheckIntervalMs = 5 * 60 * 1000;
             const installLabel = window.desktop.platform === 'darwin' ? '手动安装' : '安装更新';
             window.desktop.ipcRenderer.on('app-update-download-progress', (_event, progress) => {
                 if (!downloading) return;
@@ -577,8 +590,8 @@
                 downloadButton.disabled = true;
                 checkButton.disabled = true;
                 downloading = !installing;
-                downloadButton.textContent = installing ? '正在打开…' : '正在下载…';
-                updateStatus.textContent = installing ? '正在打开安装包…' : '正在准备下载更新…';
+                downloadButton.textContent = installing ? '正在打开' : '正在下载';
+                updateStatus.textContent = installing ? '正在打开安装包' : '正在准备下载更新';
                 try {
                     const result = await window.desktop.ipcRenderer.invoke(installing ? 'open-app-update-installer' : 'download-app-update');
                     if (!result?.success) throw new Error(result?.msg || '更新失败，请稍后重试');
@@ -598,17 +611,22 @@
                     downloading = false;
                     downloadButton.disabled = restartScheduled;
                     checkButton.disabled = restartScheduled;
-                    downloadButton.textContent = restartScheduled ? '正在安装…' : downloadMode === 'install' ? installLabel : '更新';
+                    downloadButton.textContent = restartScheduled ? '正在安装' : downloadMode === 'install' ? installLabel : '更新';
                 }
             });
-            async function checkUpdates() {
+            async function checkUpdates({ automatic = false } = {}) {
                 if (checkButton.disabled) return;
+                if (automatic) {
+                    const now = Date.now();
+                    if (lastAutomaticUpdateCheckAt !== null && now - lastAutomaticUpdateCheckAt < autoUpdateCheckIntervalMs) return;
+                    lastAutomaticUpdateCheckAt = now;
+                }
                 checkButton.disabled = true;
-                checkButton.textContent = '正在检查…';
+                checkButton.textContent = '正在检查';
                 downloadButton.hidden = true;
                 downloadUrl = '';
                 downloadMode = 'download';
-                updateStatus.textContent = '正在获取最新版本信息…';
+                updateStatus.textContent = '正在获取最新版本信息';
                 try {
                     const result = await window.desktop.ipcRenderer.invoke('check-app-updates');
                     if (!result?.success) throw new Error(result?.msg || '检查更新失败，请稍后重试');
@@ -629,9 +647,11 @@
                     checkButton.textContent = '检查更新';
                 }
             }
-            checkButton.addEventListener('click', checkUpdates);
+            checkButton.addEventListener('click', () => void checkUpdates());
             window.addEventListener('yaya:view-changed', event => {
-                if (event.detail?.view === 'settings' && !downloading && downloadMode !== 'install') void checkUpdates();
+                if (event.detail?.view === 'settings' && !downloading && downloadMode !== 'install') {
+                    void checkUpdates({ automatic: true });
+                }
             });
             updateActions.append(checkButton, downloadButton);
             updateCopy.appendChild(updateStatus);

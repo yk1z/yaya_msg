@@ -18,6 +18,8 @@
             destroyPlayers,
             backToLiveList,
             setCurrentPlayingItem,
+            getCurrentPlayingItem,
+            getPlaybackViewToken,
             setReturnToOpenLive,
             setReturnToPerformance,
             startPlayer,
@@ -29,6 +31,13 @@
         let openLiveNextTime = 0;
         let isOpenLiveAutoLoading = false;
         let currentOpenLiveParticipantsRequestId = 0;
+        let openLivePlaybackRevision = 0;
+        const invalidateOpenLiveRequests = () => {
+            openLivePlaybackRevision += 1;
+            currentOpenLiveParticipantsRequestId += 1;
+        };
+        window.addEventListener?.('yaya:view-changed', invalidateOpenLiveRequests);
+        window.addEventListener?.('yaya:account-state-changed', invalidateOpenLiveRequests);
         const ENABLE_OPENLIVE_PARTICIPANTS = true;
         const SHOW_MEMBER_RANK = window.desktop?.platform !== 'web';
         const PARTICIPANTS_LABEL = SHOW_MEMBER_RANK ? '成员榜' : '参与成员';
@@ -643,6 +652,10 @@
             isLiveContent = false,
             participantGroupHint = ''
         ) {
+            const revision = ++openLivePlaybackRevision;
+            const token = getAppToken?.() || window.getAppToken?.() || '';
+            const accountGeneration = window.getPocketAccountSessionGeneration?.();
+            const viewToken = getPlaybackViewToken?.();
             if (typeof destroyPlayers === 'function') {
                 destroyPlayers({ clearTimeline: true, clearAuxPanels: true });
             }
@@ -733,6 +746,11 @@
             const playingItem = { liveId, title, nickname, startTime, openLivePageId,
                 ...(showPerformanceRank ? { rankSource: 'performance' } : {}) };
             setCurrentPlayingItem(playingItem);
+            const isCurrent = () => revision === openLivePlaybackRevision
+                && token === (getAppToken?.() || window.getAppToken?.() || '')
+                && accountGeneration === window.getPocketAccountSessionGeneration?.()
+                && viewToken === getPlaybackViewToken?.()
+                && (typeof getCurrentPlayingItem !== 'function' || getCurrentPlayingItem() === playingItem);
             if (typeof resetClipTool === 'function') {
                 resetClipTool();
             }
@@ -744,8 +762,9 @@
 
             try {
                 const streamUrl = await fetchOpenLiveStreamUrl(liveId, detail => {
-                    playingItem.rankType = detail.type;
+                    if (isCurrent()) playingItem.rankType = detail.type;
                 });
+                if (!isCurrent()) return;
                 if (!streamUrl) {
                     console.warn(`[播放失败] liveId:${liveId} 无可用流`);
                     showToast('该场公演尚未开始或暂无播放源');
@@ -757,8 +776,9 @@
                     if (typeof backToLiveList === 'function') backToLiveList();
                     return;
                 }
-                startPlayer(streamUrl, title, isLiveContent, null, [], { clearAuxPanels: true });
+                await startPlayer(streamUrl, title, isLiveContent, null, [], { clearAuxPanels: true });
             } catch (error) {
+                if (!isCurrent()) return;
                 console.error('[网络/系统错误]', error);
                 showToast('公演播放地址获取失败，请稍后重试');
                 if (typeof backToLiveList === 'function') backToLiveList();

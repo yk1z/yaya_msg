@@ -1946,12 +1946,23 @@ async function sendMemberRoomGiftRequest(payload = {}) {
     }
 }
 
-async function fetchGiftList({ token, pa, liveId }) {
+async function fetchGiftList({ token, pa, liveId, memberId, liveType }) {
     if (!token) return missingToken();
+    let receiverId = String(memberId || '').trim();
+    let scene = liveType;
+    if (!receiverId) {
+        if (!/^[1-9]\d{0,31}$/.test(String(liveId || ''))) return { success: false, msg: '缺少直播或收礼成员信息' };
+        const detail = await fetchLiveOne({ token, pa, liveId });
+        if (!detail?.success || !detail.content) return { success: false, msg: detail?.msg || '获取直播收礼成员失败' };
+        const user = detail.content.user || detail.content.userInfo || {};
+        receiverId = String(user.userId || user.id || detail.content.userId || detail.content.ownerId || '').trim();
+        scene ??= detail.content.liveType;
+    }
+    if (!/^[1-9]\d{0,31}$/.test(receiverId)) return { success: false, msg: '缺少有效的收礼成员信息' };
     const response = await postJson(
         'https://pocketapi.48.cn/gift/api/v1/gift/list',
-        { businessId: String(liveId), giftType: 1 },
-        createHeaders(token, pa),
+        { memberId: receiverId, businessCode: Number(scene) === 5 ? 7 : 0 },
+        createModernHeaders(token, pa),
         { largeNumbers: true }
     );
     if (response.status === 200 && response.data?.status === 200) return { success: true, content: response.data.content };
@@ -2013,7 +2024,8 @@ async function fetchRoomRadio({ token, pa, channelId, serverId }) {
         { timeoutMs: 12000 }
     );
     if (response.status === 200 && response.data?.status === 200) return { success: true, content: response.data.content };
-    return { success: false, msg: response.data?.message || '电台未开启或获取失败' };
+    return { success: false, status: response.status, code: response.data?.status,
+        msg: response.data?.message || '获取房间语聊状态失败' };
 }
 
 async function fetchSeineServerDetail({ token, pa, serverId }) {

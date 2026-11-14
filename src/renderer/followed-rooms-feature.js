@@ -1477,6 +1477,7 @@
                 const followedIds = [...new Set([...memberFollowedIds, ...teamFollowedIds])];
                 window.followedTeamIds = new Set(teamFollowedIds);
                 window.allFollowedIds = new Set(followedIds);
+                window.dispatchEvent(new CustomEvent('yaya:followed-rooms-changed'));
 
                 const followedMembers = [];
                 const serverIds = new Set();
@@ -2301,6 +2302,7 @@
                     }
 
                     window.allFollowedIds.delete(sourceId);
+                    window.dispatchEvent(new CustomEvent('yaya:followed-rooms-changed'));
                     if (sourceType === 0) removeTeamRelation(sourceId);
                     currentFollowedData = currentFollowedData.filter(item => {
                         const target = getFollowedTarget(item);
@@ -2452,6 +2454,7 @@
                             return target.id === String(memberId) && target.type === sourceType;
                         });
                         window.allFollowedIds.delete(String(memberId));
+                        window.dispatchEvent(new CustomEvent('yaya:followed-rooms-changed'));
                         if (sourceType === 0) removeTeamRelation(memberId);
                         currentFollowedData = currentFollowedData.filter(item => {
                             const target = getFollowedTarget(item);
@@ -2462,6 +2465,7 @@
                         sortFollowedRooms();
                     } else {
                         window.allFollowedIds.add(String(memberId));
+                        window.dispatchEvent(new CustomEvent('yaya:followed-rooms-changed'));
                         setTimeout(loadFollowedRooms, 500);
                     }
 

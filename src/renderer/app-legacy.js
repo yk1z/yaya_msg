@@ -3231,6 +3231,7 @@
             getCurrentMode: () => currentMode,
             getCurrentViewName: () => currentViewName,
             getCurrentPlayingItem: () => currentPlayingItem,
+            getPlaybackViewToken: () => mediaPlaybackViewToken,
             getLiveAnnouncementDismissed: () => liveAnnouncementDismissed,
             setLiveAnnouncementDismissed: value => { liveAnnouncementDismissed = !!value; },
             getDp: () => dp,
@@ -3297,6 +3298,8 @@
                 : undefined,
             backToLiveList,
             setCurrentPlayingItem: value => { currentPlayingItem = value; },
+            getCurrentPlayingItem: () => currentPlayingItem,
+            getPlaybackViewToken: () => mediaPlaybackViewToken,
             setReturnToOpenLive: value => { returnToOpenLive = !!value; },
             setReturnToPerformance: value => { returnToPerformance = !!value; },
             startPlayer: (...args) => typeof startPlayer === 'function'
@@ -4798,6 +4801,7 @@
         let returnToPerformance = false;
 
         function backToLiveList() {
+            mediaPlaybackViewToken += 1;
             closeAllModalOverlays();
 
             if (returnToOpenLive) {

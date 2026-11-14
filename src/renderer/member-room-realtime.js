@@ -1,6 +1,6 @@
 (function () {
     const features = window.YayaRendererFeatures = window.YayaRendererFeatures || {};
-    const hiddenTypes = new Set(['PRESENT', 'PRESENT_FULLSCREEN', 'PRESENT_FULLSCREEN_TWO', 'PRESENT_EMOTION']);
+    const hiddenTypes = new Set(['PRESENT', 'PRESENT_FULLSCREEN', 'PRESENT_FULLSCREEN_TWO', 'PRESENT_EMOTION', 'TEAM_VOICE']);
     const giftTextTypes = new Set(['GIFT_TEXT', 'CHANNEL_PRESENT_TEXT', 'PRESENT_TEXT']);
     const supportedTypes = new Set(['TEXT', 'IMAGE', 'AUDIO', 'VIDEO', 'REPLY', 'GIFTREPLY', 'EXPRESSIMAGE', 'GIFT_TEXT']);
 

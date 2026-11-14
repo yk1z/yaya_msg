@@ -42,7 +42,7 @@
 .netface-page .btn:disabled { opacity: 1; color: var(--nf-secondary); background: var(--nf-muted); border: 1px solid var(--nf-border); cursor: not-allowed; }
 .netface-page .btn:focus-visible, .netface-modal .btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
 .netface-toolbar { display: grid; grid-template-columns: auto 150px minmax(180px,1fr); gap: 12px; align-items: center; margin: 18px 0 12px; }
-.netface-tabs { padding: 4px; gap: 4px; border-radius: 10px; background: var(--nf-muted); flex-wrap: nowrap; }
+.netface-tabs { padding: 0; gap: 4px; flex-wrap: nowrap; }
 .netface-tabs .btn { min-height: 32px; padding: 6px 14px; border: 1px solid transparent; background: transparent; color: var(--nf-secondary); white-space: nowrap; }
 .netface-tabs .btn.is-active { background: var(--nf-surface); border-color: var(--nf-border); color: var(--primary); }
 .netface-page .input-control, .netface-modal .input-control { box-sizing: border-box; width: 100%; min-height: 40px; padding: 9px 12px; background: var(--nf-surface); border: 1px solid var(--nf-border); border-radius: 8px; color: var(--nf-text); font-size: 13px; }

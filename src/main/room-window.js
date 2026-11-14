@@ -101,7 +101,7 @@ async function openLiveWindow(payload = {}) {
         throw new Error('直播信息不完整，请打开直播后重试');
     }
     const context = { kind: 'live', liveId, mode,
-        ownerName: String(payload.ownerName || '直播').slice(0, 100),
+        ownerName: String(payload.ownerName || '').trim().slice(0, 100),
         title: String(payload.title || '直播').slice(0, 300) };
     return openDetachedWindow(context, `live:${mode}:${liveId}`);
 }
@@ -138,7 +138,7 @@ async function openDetachedWindow(context, key, { position } = {}) {
     const window = new BrowserWindow({
         show: false,
         backgroundColor,
-        title: `${context.ownerName} - 牙牙消息`,
+        title: context.ownerName ? `${context.ownerName} - 牙牙消息` : '牙牙消息',
         width: isLive ? 400 : 900,
         height: isLive ? 800 : 760,
         minWidth: isLive ? 320 : 640,

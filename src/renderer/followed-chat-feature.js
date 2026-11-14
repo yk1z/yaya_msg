@@ -174,7 +174,8 @@
                     window.autoConnectFollowedRoomRadio?.(
                         activeFollowedChannel, activeFollowedServer, activeFollowedMemberId, activeFollowedName
                     );
-                    window.ensureRoomRadioScanFresh?.({ preferredChannelId: activeFollowedChannel, prioritizeCurrent: true });
+                    window.ensureRoomRadioScanFresh?.({ preferredChannelId: activeFollowedChannel,
+                        preferredServerId: activeFollowedServer, preferredMemberName: activeFollowedName, prioritizeCurrent: true });
                 }
             };
             if (isDesktopRoom) window.requestAnimationFrame(() => setTimeout(refresh, 0));
@@ -4304,6 +4305,8 @@
             if (!window.desktop?.isRoomWindow && typeof window.ensureRoomRadioScanFresh === 'function') {
                 window.ensureRoomRadioScanFresh({
                     preferredChannelId: activeFollowedChannel,
+                    preferredServerId: activeFollowedServer,
+                    preferredMemberName: activeFollowedName,
                     prioritizeCurrent: true
                 });
             }

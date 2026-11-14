@@ -751,7 +751,7 @@
                 <div id="vod-pagination-controls" class="pagination-container" style="padding-bottom: 20px;"></div>
 
                 <div id="live-player-view" style="display: none; height: 100%; flex-direction: column; padding: 0;">
-                    <div
+                    <div class="live-player-info-card"
                         style="padding: 15px 20px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; margin: 0 20px 15px 20px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); transition: box-shadow 0.3s ease;">
                         <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px;">
                             <div style="display: flex; gap: 40px; flex-wrap: wrap;">
@@ -1157,7 +1157,7 @@
                             <span class="sms-login-limit-help-icon" aria-hidden="true">!</span>
                             <div>
                                 登录不了就是服务器被48ban了，请<span id="sms-limit-download-links"><a
-                                    href="https://gnz.hk/downloads/yaya_msg-v3.0-win.exe?v=20261104-v3.0-eaa9a85"
+                                    href="https://gnz.hk/downloads/yaya_msg-v3.1-win.exe?v=20261109-v3.1-cfbc803"
                                     title="下载 Windows 版本" download><strong>下载桌面端使用</strong></a></span>。我动了谁的蛋糕🤔
                             </div>
                         </div>
@@ -1171,11 +1171,10 @@
                                 <div class="account-state-main">
                                     <div class="account-state-name-row">
                                         <span class="account-state-name" id="user-nickname">用户</span>
-                                        <span class="account-state-badge">已登录</span>
                                         <span id="logged-in-client-profile" class="account-state-badge account-client-profile-badge"
                                             data-client-profile="pocket48">口袋48</span>
                                     </div>
-                                    <div id="user-id-display" class="account-state-id">ID: --</div>
+                                    <div id="user-id-display" class="account-state-id">ID --</div>
                                 </div>
                             </div>
                             <div class="account-state-actions">
@@ -1185,7 +1184,7 @@
                                     </button>
                                     <button class="btn btn-secondary" onclick="logout()"
                                         style="height: 36px; padding: 0 16px; font-size: 13px;">
-                                        注销 / 更换账号
+                                        退出账号
                                     </button>
                             </div>
                         </div>
@@ -1248,37 +1247,15 @@
                             </div>
                         </div>
 
-                        <div class="Box-row account-section-card account-checkin-panel">
-                            <div class="account-checkin-head">
-                                <div>
-                                    <div class="account-section-title">自动签到</div>
-                                    <div class="account-section-subtitle">打开软件自动签到</div>
-                                </div>
-                                <button class="btn btn-secondary" id="btn-manual-checkin" onclick="handleManualCheckIn()"
-                                    style="height: 36px; padding: 0 16px; font-size: 13px;">
-                                    立即签到
-                                </button>
-                            </div>
-                            <label class="account-checkin-toggle">
-                                    <input type="checkbox" id="auto-checkin-toggle" onchange="toggleAutoCheckin(this.checked)">
-                                    <span>开启自动签到</span>
-                                </label>
-                            <div id="auto-checkin-status" class="account-checkin-status">
-                                登录成功后会在打开软件时自动尝试签到
-                            </div>
-                        </div>
-
                     </div>
 
                     <div class="Box-row account-section-card">
-                        <div
-                            style="display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 15px;">
-                            <div style="min-width: 0;">
-                                <label style="display:block; font-weight:bold; color:var(--text);">B站登录</label>
-                                <span id="bilibili-login-status"
-                                    style="font-size: 12px; color: var(--text-sub);">正在读取登录状态...</span>
+                        <div class="bilibili-login-row">
+                            <div class="bilibili-login-copy">
+                                <div class="account-section-title">B站登录</div>
+                                <span id="bilibili-login-status" class="account-section-subtitle">正在读取登录状态...</span>
                             </div>
-                            <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end;">
+                            <div class="bilibili-login-actions">
                                 <button class="btn btn-secondary" id="btn-bilibili-login"
                                     onclick="startBilibiliLogin()">登录账号</button>
                                 <button class="btn btn-secondary" id="btn-bilibili-refresh"
@@ -1329,6 +1306,16 @@
                             目前 Meet48 播放接口需要已登录请求头。导入登录后的 HAR 或手动填写后只保存到本机设置文件，不会写进代码或上传云端。
                         </div>
                     </div>
+                    <section id="saved-pocket-accounts" class="Box-row account-section-card" hidden>
+                        <div class="account-section-head saved-pocket-accounts-head">
+                            <div class="saved-pocket-accounts-heading">
+                                <h3 class="account-section-title">其它账号</h3>
+                                <div class="account-section-subtitle">可直接切换登录过的口袋账号</div>
+                            </div>
+                            <span id="saved-pocket-account-status" role="status" hidden></span>
+                        </div>
+                        <div id="saved-pocket-account-list" class="saved-pocket-account-list"></div>
+                    </section>
                 </div>
             </div>
 
@@ -3220,6 +3207,15 @@
                                     </div>
                                 </div>
                             </div>
+                            <div id="auto-checkin-settings-card" class="Box-row">
+                                <label id="auto-checkin-setting" class="account-checkin-toggle">
+                                    <span>
+                                        <strong>自动签到</strong>
+                                        <span id="auto-checkin-status" class="account-checkin-status" role="status"></span>
+                                    </span>
+                                    <input type="checkbox" id="auto-checkin-toggle" aria-label="自动签到" checked onchange="toggleAutoCheckin(this.checked)">
+                                </label>
+                            </div>
                             <div class="Box-row" style="margin-bottom: 30px;">
                                 <h3 style="margin-top: 0; color: var(--text);">代理设置</h3>
 
@@ -3588,6 +3584,7 @@
     <script src="./src/renderer/app-legacy.js"></script>
     <script src="./src/renderer/desktop-cloud-home-feature.js"></script>
     <script src="./src/renderer/home-workspace-feature.js"></script>
+    <script src="./src/web/archive-profile-embed.js?v=__YAYA_BUILD_VERSION__"></script>
     <script src="./src/web/web-navigation.js?v=__YAYA_BUILD_VERSION__"></script>
     <script src="./src/renderer/invoice-feature.js"></script>
     <script src="./src/common/netface-model.js"></script>

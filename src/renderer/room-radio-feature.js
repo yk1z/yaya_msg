@@ -22,6 +22,7 @@
         const AUTO_ROOM_RADIO_RECORD_ENABLED_KEY = 'yaya_auto_room_radio_record_enabled';
         const AUTO_ROOM_RADIO_RECORD_MEMBERS_KEY = 'yaya_auto_room_radio_record_members';
         const AUTO_ROOM_RADIO_RECORD_POLL_INTERVAL_MS = 3000;
+        const ROOM_VOICE_EVENT_GRACE_MS = 15000;
         const IS_WEB_PLATFORM = window.desktop?.platform === 'web'
             || document.documentElement?.dataset?.platform === 'web';
 
@@ -60,6 +61,447 @@
         let autoRoomRadioRecordPollTimer = null;
         let autoRoomRadioRecordPollRunning = false;
         const autoRoomRadioRecordTasks = new Map();
+        let roomVoiceRealtime = null;
+        let roomVoiceScanTasks = [];
+        let roomVoiceRetryTimer = null;
+        const roomVoiceSnapshots = new Map();
+        const roomVoiceRequests = new Map();
+        const roomVoiceRevisions = new Map();
+        const roomVoiceQueryFailures = new Map();
+
+        function voiceQueryFailure(task) {
+            const key = getRoomRadioScanKey(task);
+            const failure = roomVoiceQueryFailures.get(key);
+            return failure?.token === radioToken()
+                && failure.revision === (roomVoiceRevisions.get(key) || 0) ? failure : null;
+        }
+        function voiceQueryRetryDelay(task) {
+            const failure = voiceQueryFailure(task);
+            return failure ? Math.max(0, failure.nextRetryAt - Date.now()) : AUTO_ROOM_RADIO_RECORD_POLL_INTERVAL_MS;
+        }
+        function markVoiceQueryFailure(task, token, revision, result) {
+            if (token !== radioToken() || revision !== (roomVoiceRevisions.get(getRoomRadioScanKey(task)) || 0)) return;
+            const attempts = (voiceQueryFailure(task)?.attempts || 0) + 1;
+            const delay = [3000, 10000, 30000, 60000][Math.min(attempts - 1, 3)];
+            roomVoiceQueryFailures.set(getRoomRadioScanKey(task), {
+                token, revision, attempts, nextRetryAt: Date.now() + delay, result
+            });
+            const cached = roomVoiceSnapshots.get(getRoomRadioScanKey(task));
+            if (cached) cached.pendingRefresh = true;
+        }
+
+        function radioToken() { return String(getAppToken?.() || window.getAppToken?.() || ''); }
+        function currentVoiceState(state) { return state && roomVoiceRealtime === state && state.token === radioToken(); }
+        function autoRecordRoomTasks() {
+            const members = autoRoomRadioRecordEnabled
+                ? autoRoomRadioRecordMembers.map(member => ({ ...getCurrentAutoRoomRadioMember(member), ownerName: member.name })) : [];
+            return createRoomRadioScanTaskList(members);
+        }
+        function voiceRoomTasks() {
+            return [...new Map([...autoRecordRoomTasks(), ...roomVoiceScanTasks]
+                .filter(task => /^\d+$/.test(task.serverId))
+                .map(task => [getRoomRadioScanKey(task), task])).values()];
+        }
+        function voiceRoomCovered(task) {
+            return currentVoiceState(roomVoiceRealtime) && roomVoiceRealtime.accepted.has(getRoomRadioScanKey(task));
+        }
+        function voiceRoomStateCovered(task, snapshot = cachedVoiceResult(task)) {
+            if (voiceQueryFailure(task)) return false;
+            if (voiceRoomCovered(task)) return roomVoiceSnapshots.get(getRoomRadioScanKey(task))?.complete !== false;
+            return currentVoiceState(roomVoiceRealtime)
+                && roomVoiceRealtime.startAccepted.has(getRoomRadioScanKey(task))
+                && !!snapshot && isRoomRadioOfflineResult(snapshot);
+        }
+        function cachedVoiceResult(task) {
+            const key = getRoomRadioScanKey(task);
+            const cached = roomVoiceSnapshots.get(key);
+            if (cached?.pendingRefresh) return null;
+            if (currentVoiceState(roomVoiceRealtime) && roomVoiceRealtime.starting.has(key) && !cached?.result?.content?.streamUrl) return null;
+            return cached?.token === radioToken() ? cached.result : null;
+        }
+        function usableVoiceEventSnapshot(task) {
+            const cached = roomVoiceSnapshots.get(getRoomRadioScanKey(task));
+            return cached?.token === radioToken() && cached.source === 'event' && cached.complete
+                && cached.revision === (roomVoiceRevisions.get(getRoomRadioScanKey(task)) || 0)
+                && (!cached.result.content?.voiceActive || cached.result.content?.streamUrl) ? cached.result : null;
+        }
+        function mergeVoiceUser(previous = {}, user = {}, operation) {
+            const fields = Object.fromEntries(Object.entries(user).filter(([, value]) => value !== '' && value != null));
+            const next = { ...previous, ...fields };
+            const micState = operation === 'closeVoice' ? false : operation === 'openVoice' ? true
+                : (user.micState ?? user.voiceStatus ?? previous.micState ?? previous.voiceStatus ?? true);
+            next.voiceStatus = next.micState = ![false, 0, '0', 'false'].includes(micState);
+            return next;
+        }
+        function overlayVoiceQueryResult(task, result) {
+            const state = roomVoiceRealtime;
+            const key = getRoomRadioScanKey(task);
+            const override = currentVoiceState(state) ? state.overrides.get(key) : null;
+            if (!override) return result;
+            if (Date.now() - override.receivedAt > ROOM_VOICE_EVENT_GRACE_MS) {
+                state.overrides.delete(key);
+                if (isRoomRadioOfflineResult(result)) state.starting.delete(key);
+                return result;
+            }
+            const current = roomVoiceSnapshots.get(key);
+            const content = result?.content || {};
+            if (!result?.success && !isRoomRadioOfflineResult(result)) return result;
+            const rawUsers = Array.isArray(content.voiceUserList) ? content.voiceUserList
+                : (current?.complete ? current.result.content?.voiceUserList || [] : []);
+            const users = new Map(rawUsers.filter(Boolean).map(user => [String(user.userId), { ...user }]));
+            if (override.active === false) users.clear();
+            else for (const [id, change] of override.users) {
+                if (Date.now() - change.receivedAt > ROOM_VOICE_EVENT_GRACE_MS) {
+                    override.users.delete(id);
+                    continue;
+                }
+                if (change.operation === 'downVoice') users.delete(id);
+                else users.set(id, mergeVoiceUser(users.get(id), change.user, change.operation));
+            }
+            const voiceUserList = [...users.values()];
+            const voiceActive = override.active === false ? false : override.active === true || voiceUserList.length > 0;
+            return { success: true, content: { ...content, voiceUserList, voiceActive,
+                streamUrl: voiceActive ? content.streamUrl || current?.result?.content?.streamUrl || '' : '' } };
+        }
+        function reconcileVoiceRecording(task, result, { stoppedUsers = [], stoppedRoom = false } = {}) {
+            if (!autoRoomRadioRecordEnabled) return;
+            for (const member of autoRoomRadioRecordMembers) {
+                const currentMember = getCurrentAutoRoomRadioMember(member);
+                if (String(currentMember.serverId || '') !== task.serverId) continue;
+                const recording = autoRoomRadioRecordTasks.get(member.id);
+                const inThisRoom = recording?.channelId === task.channelId;
+                const absentFromCompleteList = roomVoiceSnapshots.get(getRoomRadioScanKey(task))?.complete
+                    && Array.isArray(result?.content?.voiceUserList) && !isTargetMemberInVoiceList(result.content, member);
+                if (inThisRoom && (stoppedRoom || stoppedUsers.includes(member.id) || absentFromCompleteList)) {
+                    stopAutoRoomRadioRecordTask(member.id);
+                    continue;
+                }
+                if (result?.content?.streamUrl && isTargetMemberInVoiceList(result.content, member)) {
+                    if (recording) recording.missedPolls = 0;
+                    else startAutoRoomRadioRecordTask(member, { streamUrl: result.content.streamUrl, channelId: task.channelId });
+                }
+            }
+        }
+        function applyDirectVoiceEvent(state, task, event) {
+            const key = getRoomRadioScanKey(task);
+            const operation = String(event.operateType || '');
+            const system = event.source === 'system' || (!event.source
+                && !['upVoice', 'downVoice', 'openVoice', 'closeVoice'].includes(operation));
+            const rawUsers = Array.isArray(event.voiceUsers) ? event.voiceUsers : [];
+            const users = rawUsers.filter(user => user && String(user.userId || '').trim());
+            if (!operation || (!system && (!users.length || event.usersComplete === false))) return false;
+            const eventId = event.id ? `${key}:${event.source || 'channel'}:${event.id}` : '';
+            if (eventId && state.seen.has(eventId)) return true;
+            const time = Number(event.time) || 0;
+            const clocks = state.clocks.get(key) || new Map();
+            const boundary = state.boundaries.get(key) || 0;
+            const latestUserTime = Math.max(0, ...clocks.values());
+            if (system && time && time < Math.max(boundary, latestUserTime)) return true;
+            const freshUsers = system ? [] : users.filter(user => !time || time >= Math.max(boundary, clocks.get(String(user.userId)) || 0));
+            if (!system && !freshUsers.length) return true;
+            const baseline = roomVoiceSnapshots.get(key);
+            if (time && baseline?.complete && time + 5000 < (baseline.checkedAt || 0)) {
+                if (eventId) {
+                    state.seen.add(eventId);
+                    if (state.seen.size > 1000) state.seen.delete(state.seen.values().next().value);
+                }
+                queueVoiceRoomRefresh(state, task);
+                return true;
+            }
+            if (eventId) {
+                state.seen.add(eventId);
+                if (state.seen.size > 1000) state.seen.delete(state.seen.values().next().value);
+            }
+            if (system && time) state.boundaries.set(key, time);
+            for (const user of freshUsers) if (time) clocks.set(String(user.userId), time);
+            state.clocks.set(key, clocks);
+            state.revisions.set(key, (state.revisions.get(key) || 0) + 1);
+            roomVoiceRevisions.set(key, (roomVoiceRevisions.get(key) || 0) + 1);
+            const pending = state.pending.get(key);
+            if (pending) clearTimeout(pending);
+            state.pending.delete(key);
+            const previous = roomVoiceSnapshots.get(key);
+            const previousContent = previous?.token === state.token ? previous.result.content || {} : {};
+            let complete = previous?.token === state.token && previous.complete && previous.generation === state.id;
+            const people = new Map((previousContent.voiceUserList || []).filter(Boolean).map(user => [String(user.userId), { ...user }]));
+            let streamUrl = people.size ? previousContent.streamUrl || '' : '';
+            const override = state.overrides.get(key) || { users: new Map() };
+            override.receivedAt = Date.now();
+            const stoppedRoom = system && operation !== 'startVoice';
+            if (system) {
+                override.active = !stoppedRoom;
+                if (stoppedRoom) { people.clear(); override.users.clear(); streamUrl = ''; complete = true; }
+                else { people.clear(); streamUrl = ''; complete = false; override.users.clear(); }
+            } else for (const user of freshUsers) {
+                const id = String(user.userId);
+                if (operation === 'downVoice') people.delete(id);
+                else people.set(id, mergeVoiceUser(people.get(id), user, operation));
+                override.users.set(id, { operation, user, receivedAt: Date.now() });
+                override.active = undefined;
+            }
+            state.overrides.set(key, override);
+            const voiceActive = stoppedRoom ? false : system || people.size > 0 || !complete;
+            if (!voiceActive) streamUrl = '';
+            else if (event.streamUrl) streamUrl = event.streamUrl;
+            const result = { success: true, content: { ...previousContent, streamUrl, voiceActive, voiceUserList: [...people.values()] } };
+            roomVoiceSnapshots.set(key, { token: state.token, result, complete: !!complete, source: 'event',
+                generation: state.id, revision: roomVoiceRevisions.get(key), checkedAt: previous?.checkedAt || 0 });
+            if (complete && (!voiceActive || streamUrl)) roomVoiceQueryFailures.delete(key);
+            if (!voiceActive) state.starting.delete(key);
+            else if (!streamUrl) state.starting.add(key);
+            else state.starting.delete(key);
+            applyVoiceRoomResult(task, result);
+            reconcileVoiceRecording(task, result, { stoppedRoom,
+                stoppedUsers: operation === 'downVoice' ? freshUsers.map(user => String(user.userId)) : [] });
+            if (!complete || (voiceActive && !streamUrl)) queueVoiceRoomRefresh(state, task);
+            scheduleAutoRoomRadioRecordPoll();
+            if (isRoomRadioAutoScanEnabled) scheduleAllMemberRoomRadioAutoScan();
+            updateAutoRoomRadioRecordUi();
+            return true;
+        }
+        async function queryRoomVoice(task, { force = false, retryNow = false } = {}) {
+            const token = radioToken();
+            const roomKey = getRoomRadioScanKey(task);
+            const failure = voiceQueryFailure(task);
+            if (!retryNow && failure && Date.now() < failure.nextRetryAt) return failure.result;
+            const cached = cachedVoiceResult(task);
+            if (!force && voiceRoomStateCovered(task, cached) && cached) return cached;
+            const requestKey = `${token}:${roomKey}`;
+            const revision = roomVoiceRevisions.get(roomKey) || 0;
+            const existing = roomVoiceRequests.get(requestKey);
+            if (existing) {
+                const result = await existing.promise;
+                if (existing.revision !== (roomVoiceRevisions.get(roomKey) || 0)) {
+                    return usableVoiceEventSnapshot(task) || queryRoomVoice(task, { force: true });
+                }
+                return result;
+            }
+            const checkedAt = Date.now();
+            const request = (async () => {
+                let result;
+                try {
+                    result = await ipcRenderer.invoke('fetch-room-radio', {
+                        token, pa: window.getPA?.() || null, channelId: task.channelId, serverId: task.serverId
+                    });
+                } catch (error) {
+                    markVoiceQueryFailure(task, token, revision, { success: false, msg: '上麦状态检查失败' });
+                    updateAutoRoomRadioRecordUi();
+                    throw error;
+                }
+                if (!result?.success && !isRoomRadioOfflineResult(result)) markVoiceQueryFailure(task, token, revision, result || { success: false });
+                if (token === radioToken() && revision === (roomVoiceRevisions.get(roomKey) || 0)
+                    && (result?.success || isRoomRadioOfflineResult(result))) {
+                    roomVoiceQueryFailures.delete(roomKey);
+                    let complete = Array.isArray(result?.content?.voiceUserList) || isRoomRadioOfflineResult(result)
+                        || roomVoiceSnapshots.get(roomKey)?.complete === true;
+                    result = overlayVoiceQueryResult(task, result);
+                    if (result?.content?.voiceActive && !result.content.voiceUserList?.length) complete = false;
+                    roomVoiceSnapshots.set(roomKey, { token, result, complete,
+                        generation: currentVoiceState(roomVoiceRealtime) ? roomVoiceRealtime.id : '', source: 'api', revision, checkedAt });
+                    if (result?.success && result.content?.streamUrl && currentVoiceState(roomVoiceRealtime)) {
+                        roomVoiceRealtime.starting.delete(roomKey);
+                    } else if (result?.content?.voiceActive === false && currentVoiceState(roomVoiceRealtime)) {
+                        roomVoiceRealtime.starting.delete(roomKey);
+                    }
+                }
+                updateAutoRoomRadioRecordUi();
+                return result;
+            })();
+            roomVoiceRequests.set(requestKey, { promise: request, revision });
+            let result;
+            try { result = await request; }
+            finally { if (roomVoiceRequests.get(requestKey)?.promise === request) roomVoiceRequests.delete(requestKey); }
+            if (token === radioToken() && revision !== (roomVoiceRevisions.get(roomKey) || 0)) {
+                return usableVoiceEventSnapshot(task) || queryRoomVoice(task, { force: true });
+            }
+            return result;
+        }
+        function applyVoiceRoomResult(task, result) {
+            const hasList = Array.isArray(result?.content?.voiceUserList);
+            if (result?.success && (result.content?.voiceActive === true
+                || (result.content?.streamUrl && (!hasList || hasActiveRoomRadioVoiceUser(result.content))))) {
+                upsertRoomRadioScanResult(createRoomRadioScanResult(task, result, getMemberData() || []));
+            } else if (isRoomRadioOfflineResult(result) || (result?.success && hasList && !hasActiveRoomRadioVoiceUser(result.content))) {
+                removeRoomRadioScanResult(task);
+            }
+            renderRoomRadioScanResults();
+            tryAutoConnectFollowedRoomRadio();
+        }
+        function queueVoiceRoomRefresh(state, task, attempt = 0, delay = 150) {
+            const key = getRoomRadioScanKey(task);
+            const existing = state.pending.get(key);
+            if (existing) clearTimeout(existing);
+            const timer = setTimeout(async () => {
+                state.pending.delete(key);
+                if (!currentVoiceState(state)) return;
+                const revision = state.revisions.get(key) || 0;
+                const cached = roomVoiceSnapshots.get(key);
+                if (cached && cached.source !== 'event') cached.pendingRefresh = true;
+                try {
+                    const result = await queryRoomVoice(task, { force: true });
+                    if (!currentVoiceState(state)) return;
+                    if ((state.revisions.get(key) || 0) !== revision) {
+                        if (!usableVoiceEventSnapshot(task)) queueVoiceRoomRefresh(state, task);
+                        return;
+                    }
+                    applyVoiceRoomResult(task, result);
+                    if (((!result?.success && !isRoomRadioOfflineResult(result)) || (state.starting.has(key) && !result.content?.streamUrl)) && attempt < 3) {
+                        queueVoiceRoomRefresh(state, task, attempt + 1, voiceQueryFailure(task)
+                            ? voiceQueryRetryDelay(task) : [1000, 3000, 10000][attempt]);
+                    } else if ((!result?.success && !isRoomRadioOfflineResult(result))
+                        || (state.starting.has(key) && !result?.content?.streamUrl)) {
+                        const cached = roomVoiceSnapshots.get(key);
+                        if (cached && cached.source !== 'event') cached.pendingRefresh = true;
+                    } else {
+                        state.starting.delete(key);
+                    }
+                } catch (_) {
+                    if (currentVoiceState(state) && attempt < 3) queueVoiceRoomRefresh(state, task, attempt + 1, voiceQueryRetryDelay(task));
+                    else if (currentVoiceState(state)) {
+                        const cached = roomVoiceSnapshots.get(key);
+                        if (cached && cached.source !== 'event') cached.pendingRefresh = true;
+                    }
+                }
+                if (currentVoiceState(state) && autoRoomRadioRecordEnabled) scheduleAutoRoomRadioRecordPoll(voiceQueryFailure(task) ? voiceQueryRetryDelay(task) : 0);
+                if (currentVoiceState(state) && isRoomRadioAutoScanEnabled) scheduleAllMemberRoomRadioAutoScan();
+            }, delay);
+            state.pending.set(key, timer);
+        }
+        function stopVoiceRealtime() {
+            const previous = roomVoiceRealtime;
+            roomVoiceRealtime = null;
+            updateAutoRoomRadioRecordUi();
+            clearTimeout(roomVoiceRetryTimer);
+            roomVoiceRetryTimer = null;
+            if (!previous) return;
+            previous.pending.forEach(clearTimeout);
+            void ipcRenderer.invoke('disconnect-room-voice', { requestId: previous.id }).catch(() => {});
+        }
+        function syncVoiceRealtime(reconnect = false) {
+            if (IS_WEB_PLATFORM) return;
+            const tasks = voiceRoomTasks();
+            const token = radioToken();
+            const signature = tasks.map(getRoomRadioScanKey).join(',');
+            if (!reconnect && currentVoiceState(roomVoiceRealtime) && roomVoiceRealtime.signature === signature) return;
+            stopVoiceRealtime();
+            if (!tasks.length || !token) return;
+            const state = { id: `voice_${Date.now()}_${Math.random().toString(36).slice(2)}`, token, signature,
+                accepted: new Set(), startAccepted: new Set(), connected: false, status: 'connecting',
+                pending: new Map(), revisions: new Map(), starting: new Set(), overrides: new Map(),
+                seen: new Set(), clocks: new Map(), boundaries: new Map() };
+            roomVoiceRealtime = state;
+            updateAutoRoomRadioRecordUi();
+            void ipcRenderer.invoke('configure-room-voice', { requestId: state.id,
+                rooms: tasks.map(({ serverId, channelId }) => ({ serverId, channelId }))
+            }).then(result => { if (result?.success === false) throw Error('语聊订阅失败'); }).catch(() => {
+                if (!currentVoiceState(state)) return;
+                stopVoiceRealtime();
+                roomVoiceRetryTimer = setTimeout(() => syncVoiceRealtime(), 10000);
+            });
+        }
+        ipcRenderer?.on?.('room-voice-status', (_event, payload = {}) => {
+            const state = roomVoiceRealtime;
+            if (!currentVoiceState(state) || payload.requestId !== state.id) return;
+            const previous = state.accepted;
+            const previousStarts = state.startAccepted;
+            const wasConnected = state.connected;
+            state.connected = payload.status === 'connected';
+            state.status = payload.status;
+            state.accepted = new Set(payload.status === 'connected' ? (payload.accepted || []).map(getRoomRadioScanKey) : []);
+            state.startAccepted = new Set(payload.status === 'connected' ? (payload.startAccepted || []).map(getRoomRadioScanKey) : []);
+            if (!state.connected) {
+                state.overrides.clear();
+                for (const task of voiceRoomTasks()) {
+                    const cached = roomVoiceSnapshots.get(getRoomRadioScanKey(task));
+                    if (cached) cached.complete = false;
+                }
+            }
+            const changed = wasConnected !== state.connected || previous.size !== state.accepted.size
+                || [...previous].some(key => !state.accepted.has(key)) || previousStarts.size !== state.startAccepted.size
+                || [...previousStarts].some(key => !state.startAccepted.has(key));
+            if (payload.status === 'connected') {
+                const tasks = voiceRoomTasks().filter(task => {
+                    const key = getRoomRadioScanKey(task);
+                    return (state.accepted.has(key) || state.startAccepted.has(key)) && (!wasConnected
+                        || (state.accepted.has(key) && !previous.has(key))
+                        || (state.startAccepted.has(key) && !previousStarts.has(key)));
+                });
+                tasks.forEach((task, index) => {
+                    roomVoiceQueryFailures.delete(getRoomRadioScanKey(task));
+                    queueVoiceRoomRefresh(state, task, 0, 100 + Math.floor(index / 4) * 200);
+                });
+            }
+            if (changed || !state.connected) {
+                if (autoRoomRadioRecordEnabled) scheduleAutoRoomRadioRecordPoll(0);
+                if (isRoomRadioAutoScanEnabled) scheduleAllMemberRoomRadioAutoScan(payload.status === 'disconnected' ? 0 : ROOM_RADIO_AUTO_SCAN_INTERVAL_MS);
+            }
+            updateAutoRoomRadioRecordUi();
+        });
+        ipcRenderer?.on?.('room-voice-event', (_event, payload = {}) => {
+            const state = roomVoiceRealtime;
+            if (!currentVoiceState(state) || payload.requestId !== state.id) return;
+            const event = payload.event || {};
+            const task = voiceRoomTasks().find(task => getRoomRadioScanKey(task) === getRoomRadioScanKey(event));
+            if (!task) return;
+            if (applyDirectVoiceEvent(state, task, event)) return;
+            const key = getRoomRadioScanKey(task);
+            state.overrides.delete(key);
+            state.revisions.set(key, (state.revisions.get(key) || 0) + 1);
+            roomVoiceRevisions.set(key, (roomVoiceRevisions.get(key) || 0) + 1);
+            roomVoiceSnapshots.delete(key);
+            if (['startVoice', 'upVoice'].includes(event.operateType)) state.starting.add(key);
+            queueVoiceRoomRefresh(state, task);
+        });
+        ipcRenderer?.on?.('account-im-status', (_event, payload = {}) => {
+            if (payload.status === 'reset') {
+                for (const task of voiceRoomTasks()) {
+                    const key = getRoomRadioScanKey(task);
+                    roomVoiceRevisions.set(key, (roomVoiceRevisions.get(key) || 0) + 1);
+                }
+                roomVoiceSnapshots.clear();
+                roomVoiceQueryFailures.clear();
+                syncVoiceRealtime(true);
+                if (autoRoomRadioRecordEnabled) scheduleAutoRoomRadioRecordPoll(0);
+                if (isRoomRadioAutoScanEnabled) scheduleAllMemberRoomRadioAutoScan(0);
+            } else if (payload.status === 'connected') syncVoiceRealtime(true);
+            else if (roomVoiceRealtime) {
+                roomVoiceRealtime.accepted.clear();
+                roomVoiceRealtime.startAccepted.clear();
+                roomVoiceRealtime.connected = false;
+                roomVoiceRealtime.status = payload.status;
+                roomVoiceRealtime.overrides.clear();
+                for (const task of voiceRoomTasks()) {
+                    const cached = roomVoiceSnapshots.get(getRoomRadioScanKey(task));
+                    if (cached) cached.complete = false;
+                }
+                if (autoRoomRadioRecordEnabled) scheduleAutoRoomRadioRecordPoll(0);
+            }
+            updateAutoRoomRadioRecordUi();
+        });
+        window.addEventListener?.('yaya:followed-rooms-changed', () => {
+            if (IS_WEB_PLATFORM || !isRoomRadioAutoScanEnabled || !roomRadioAutoScanFollowedOnly) return;
+            const followedIds = new Set(Array.from(window.allFollowedIds || [], String));
+            const members = (getMemberData() || []).filter(member => followedIds.has(getRoomRadioMemberId(member)));
+            const tasks = createRoomRadioScanTaskList(members, followedIds);
+            const previous = new Set(roomVoiceScanTasks.map(getRoomRadioScanKey));
+            if (tasks.length === previous.size && tasks.every(task => previous.has(getRoomRadioScanKey(task)))) return;
+            roomRadioScanRunId += 1;
+            isRoomRadioScanning = false;
+            roomRadioScanCompletedAt = 0;
+            roomVoiceScanTasks = tasks;
+            const visible = new Set([...tasks, ...autoRecordRoomTasks()].map(getRoomRadioScanKey));
+            roomRadioScanResults = roomRadioScanResults.filter(item => item.manualOnly || visible.has(getRoomRadioScanKey(item)));
+            if (!tasks.some(task => getRoomRadioScanKey(task) === getRoomRadioScanKey(pendingFollowedRoomRadioAutoConnect))) {
+                pendingFollowedRoomRadioAutoConnect = null;
+            }
+            syncVoiceRealtime();
+            setRoomRadioScanButton();
+            renderRoomRadioScanResults();
+            const state = roomVoiceRealtime;
+            if (currentVoiceState(state)) tasks.filter(task => !previous.has(getRoomRadioScanKey(task)))
+                .forEach((task, index) => queueVoiceRoomRefresh(state, task, 0, 100 + Math.floor(index / 4) * 200));
+            scheduleAllMemberRoomRadioAutoScan();
+        });
 
         function readStringSetting(key, fallbackValue = '') {
             if (typeof window.readStoredStringSetting === 'function') {
@@ -242,11 +684,12 @@
             const status = document.getElementById('auto-room-radio-record-status');
             const count = document.getElementById('auto-room-radio-record-member-count');
             const activeCount = autoRoomRadioRecordTasks.size;
+            const monitorStatus = getAutoRoomRadioMonitorStatus();
             if (button) {
                 button.textContent = window.YayaRendererUtils.t(activeCount > 0 ? `自动录制 ${activeCount}` : '自动录制');
                 button.classList.toggle('is-recording', activeCount > 0);
                 button.title = autoRoomRadioRecordEnabled
-                    ? `已启用，监控 ${autoRoomRadioRecordMembers.length} 位成员${activeCount ? `，正在录制 ${activeCount} 路` : ''}`
+                    ? `${monitorStatus}${activeCount ? `，正在录制 ${activeCount} 路` : ''}`
                     : '设置上麦自动录制成员';
             }
             if (checkbox) checkbox.checked = autoRoomRadioRecordEnabled;
@@ -254,8 +697,32 @@
             if (status) {
                 if (!autoRoomRadioRecordEnabled) status.textContent = window.YayaRendererUtils.t('尚未启用');
                 else if (!autoRoomRadioRecordMembers.length) status.textContent = window.YayaRendererUtils.t('请先添加需要自动录制的成员');
-                else status.textContent = window.YayaRendererUtils.t(`正在监控 ${autoRoomRadioRecordMembers.length} 位成员`);
+                else status.textContent = window.YayaRendererUtils.t(monitorStatus);
             }
+        }
+
+        function getAutoRoomRadioMonitorStatus() {
+            if (!autoRoomRadioRecordEnabled) return '尚未启用';
+            if (!autoRoomRadioRecordMembers.length) return '请先添加需要自动录制的成员';
+            if (!radioToken()) return '请先登录口袋48账号';
+            const tasks = autoRecordRoomTasks();
+            if (tasks.some(task => voiceQueryFailure(task))) return '上麦检查失败，正在延迟重试';
+            if (roomVoiceRealtime?.status === 'connecting') return `正在订阅 ${autoRoomRadioRecordMembers.length} 位成员，轮询兜底中`;
+            let covered = 0, startsOnly = 0;
+            for (const member of autoRoomRadioRecordMembers) {
+                const rooms = createRoomRadioScanTaskList([{ ...getCurrentAutoRoomRadioMember(member), ownerName: member.name }]);
+                if (rooms.length && rooms.every(voiceRoomCovered)) covered++;
+                else if (rooms.length && rooms.every(task => voiceRoomCovered(task)
+                    || (currentVoiceState(roomVoiceRealtime) && roomVoiceRealtime.startAccepted.has(getRoomRadioScanKey(task))))) startsOnly++;
+            }
+            if (covered === autoRoomRadioRecordMembers.length) return `订阅正常：${covered} 位成员`;
+            const fallback = autoRoomRadioRecordMembers.length - covered - startsOnly;
+            const parts = [];
+            if (covered) parts.push(`${covered} 位订阅正常`);
+            if (startsOnly) parts.push(`${startsOnly} 位仅开始通知，上麦期间轮询兜底`);
+            if (fallback) parts.push(`${fallback} 位轮询兜底`);
+            if (!covered && !startsOnly) parts.unshift(roomVoiceRealtime?.connected ? '订阅未完整' : '正在重连');
+            return parts.join('，');
         }
 
         function renderAutoRoomRadioRecordMembers() {
@@ -315,6 +782,7 @@
             renderAutoRoomRadioRecordMembers();
             updateAutoRoomRadioRecordUi();
             if (autoRoomRadioRecordEnabled) scheduleAutoRoomRadioRecordPoll(0);
+            syncVoiceRealtime();
         }
 
         function stopAutoRoomRadioRecordTask(memberId) {
@@ -331,6 +799,7 @@
             persistAutoRoomRadioRecordSettings();
             renderAutoRoomRadioRecordMembers();
             updateAutoRoomRadioRecordUi();
+            syncVoiceRealtime();
         }
 
         function searchAutoRoomRadioRecordMembers(keyword = '') {
@@ -414,6 +883,7 @@
             autoRoomRadioRecordEnabled = enabled === true;
             persistAutoRoomRadioRecordSettings();
             updateAutoRoomRadioRecordUi();
+            syncVoiceRealtime();
             if (autoRoomRadioRecordEnabled) {
                 if (!autoRoomRadioRecordMembers.length) showToast('请先添加需要自动录制的成员');
                 scheduleAutoRoomRadioRecordPoll(0);
@@ -520,7 +990,7 @@
         function getActiveRoomRadioVoiceUsers(content, memberList, fallbackTask) {
             const voiceUserList = Array.isArray(content?.voiceUserList) ? content.voiceUserList : [];
             return voiceUserList
-                .filter(user => user && user.voiceStatus !== false)
+                .filter(user => user)
                 .map(user => {
                     const member = memberList.find(item => String(item.id || item.userId || '') === String(user.userId || ''));
                     return {
@@ -528,7 +998,8 @@
                         name: String(user.nickname || member?.ownerName || member?.name || fallbackTask.name || '未知成员').trim(),
                         avatar: String(user.avatar || member?.avatar || ''),
                         team: String(member?.team || member?.groupName || '').trim(),
-                        inactive: member ? member.isInGroup === false : false
+                        inactive: member ? member.isInGroup === false : false,
+                        micState: ![false, 0, '0', 'false'].includes(user.voiceStatus ?? user.micState ?? true)
                     };
                 });
         }
@@ -567,7 +1038,7 @@
 
         function hasActiveRoomRadioVoiceUser(content) {
             return Array.isArray(content?.voiceUserList)
-                && content.voiceUserList.some(user => user && user.voiceStatus !== false);
+                && content.voiceUserList.some(user => user);
         }
 
         function renderRoomRadioScanResults({ finished = false, cancelled = false } = {}) {
@@ -658,9 +1129,10 @@
         }
 
         function isRoomRadioOfflineResult(result) {
-            if (result?.success) return !result?.content?.streamUrl;
+            if (result?.success) return result.content?.voiceActive !== true && !result?.content?.streamUrl;
+            if ([401, 403, 408, 429].includes(Number(result?.code)) || Number(result?.status) >= 500) return false;
             const message = String(result?.msg || result?.message || '');
-            return /未开启|没有开启|未开通|已结束|电台未开启|获取失败/.test(message);
+            return /未开启|没有开启|未开通|已结束|电台未开启/.test(message);
         }
 
         function formatAutoRoomRadioRecordTime(date = new Date()) {
@@ -677,7 +1149,7 @@
             const voiceUsers = Array.isArray(content?.voiceUserList) ? content.voiceUserList : null;
             if (!voiceUsers) return true;
             const normalizedName = String(member.name || '').replace(/^(SNH48|GNZ48|BEJ48|CKG48|CGT48)-/, '').trim();
-            return voiceUsers.some(user => user && user.voiceStatus !== false && (
+            return voiceUsers.some(user => user && (
                 String(user.userId || '').trim() === member.id
                 || String(user.nickname || '').replace(/^(SNH48|GNZ48|BEJ48|CKG48|CGT48)-/, '').trim() === normalizedName
             ));
@@ -694,12 +1166,8 @@
             let hadUnknownResult = false;
             for (const channelId of channels) {
                 try {
-                    const result = await ipcRenderer.invoke('fetch-room-radio', {
-                        token,
-                        pa,
-                        channelId,
-                        serverId: String(currentMember.serverId || '').trim()
-                    });
+                    const result = await queryRoomVoice({ channelId, serverId: String(currentMember.serverId || '').trim() });
+                    if (token !== radioToken()) return { state: 'unknown' };
                     if (
                         result?.success
                         && result?.content?.streamUrl
@@ -750,6 +1218,12 @@
             if (autoRoomRadioRecordPollTimer) clearTimeout(autoRoomRadioRecordPollTimer);
             autoRoomRadioRecordPollTimer = null;
             if (IS_WEB_PLATFORM || !autoRoomRadioRecordEnabled) return;
+            if (delay > 0) {
+                const tasks = autoRecordRoomTasks();
+                if (tasks.length && tasks.every(task => voiceRoomStateCovered(task) && cachedVoiceResult(task))) return;
+                const pending = tasks.filter(task => !voiceRoomStateCovered(task) || !cachedVoiceResult(task));
+                if (pending.length) delay = Math.min(...pending.map(voiceQueryRetryDelay));
+            }
             autoRoomRadioRecordPollTimer = setTimeout(pollAutoRoomRadioRecordMembers, Math.max(0, delay));
         }
 
@@ -765,11 +1239,14 @@
                 const token = getAppToken ? getAppToken() : (typeof window.getAppToken === 'function' ? window.getAppToken() : '');
                 if (!token || !autoRoomRadioRecordMembers.length) return;
                 if (!getMemberDataLoaded() && typeof loadMemberData === 'function') await loadMemberData();
+                syncVoiceRealtime();
                 const pa = window.getPA ? window.getPA() : null;
                 const detections = await Promise.all(autoRoomRadioRecordMembers.map(async member => ({
                     member,
                     detection: await detectAutoRoomRadioRecordState(member, token, pa)
                 })));
+
+                if (token !== radioToken() || !autoRoomRadioRecordEnabled) return;
 
                 detections.forEach(({ member, detection }) => {
                     const task = autoRoomRadioRecordTasks.get(member.id);
@@ -780,7 +1257,11 @@
                     }
                     if (!task || detection.state === 'unknown' || task.stopRequested) return;
                     task.missedPolls += 1;
-                    if (task.missedPolls >= 2) {
+                    const rooms = autoRecordRoomTasks().filter(room => {
+                        const source = getCurrentAutoRoomRadioMember(member);
+                        return [String(source.channelId || ''), String(source.smallChannelId || source.yklzId || '')].includes(room.channelId);
+                    });
+                    if (task.missedPolls >= 2 || (rooms.length && rooms.every(voiceRoomCovered))) {
                         stopAutoRoomRadioRecordTask(member.id);
                         showToast(`${member.name} 已下麦，正在保存录制`);
                     }
@@ -801,6 +1282,10 @@
             if (!['success', 'error', 'canceled'].includes(data?.status)) return;
             if (autoRoomRadioRecordTasks.get(memberId) !== task) return;
             autoRoomRadioRecordTasks.delete(memberId);
+            const member = autoRoomRadioRecordMembers.find(member => member.id === memberId);
+            if (member) roomVoiceSnapshots.delete(getRoomRadioScanKey({
+                serverId: getCurrentAutoRoomRadioMember(member).serverId, channelId: task.channelId
+            }));
             updateAutoRoomRadioRecordUi();
             renderAutoRoomRadioRecordMembers();
             if (autoRoomRadioRecordEnabled) {
@@ -826,7 +1311,8 @@
             const {
                 followedOnly = false,
                 preferredChannelId = '',
-                silent = false
+                silent = false,
+                fallbackOnly = false
             } = options;
             const effectiveFollowedOnly = IS_WEB_PLATFORM || followedOnly;
             const token = getAppToken ? getAppToken() : (typeof window.getAppToken === 'function' ? window.getAppToken() : '');
@@ -835,41 +1321,59 @@
                 return;
             }
 
-            setRoomRadioScanButton({ disabled: true, text: '载入成员...' });
+            const runId = ++roomRadioScanRunId;
+            isRoomRadioScanning = true;
+
+            setRoomRadioScanButton({ disabled: true, text: '载入成员' });
             let loadedMembers = [];
             try {
                 if (!getMemberDataLoaded() && typeof loadMemberData === 'function') {
                     loadedMembers = await loadMemberData();
                 }
             } catch (error) {
+                if (runId !== roomRadioScanRunId || token !== radioToken()) return;
+                isRoomRadioScanning = false;
                 setRoomRadioScanButton();
                 if (!silent) showToast(`成员列表加载失败：${error.message || error}`);
                 return;
             }
+            if (runId !== roomRadioScanRunId || token !== radioToken()) return;
 
             const memberList = Array.isArray(getMemberData()) && getMemberData().length
                 ? getMemberData()
                 : loadedMembers;
-            setRoomRadioScanButton({ disabled: true, text: '读取关注...' });
+            setRoomRadioScanButton({ disabled: true, text: '读取关注' });
             const followedMemberIds = await getRoomRadioFollowedMemberIds(token);
+            if (runId !== roomRadioScanRunId || token !== radioToken()) return;
             const normalizedMemberList = Array.isArray(memberList) ? memberList : [];
             const normalizedPreferredChannelId = normalizeRoomRadioChannelId(preferredChannelId);
             const scopedMemberList = effectiveFollowedOnly
-                ? normalizedMemberList.filter(member => (
-                    followedMemberIds.has(getRoomRadioMemberId(member))
-                    || (!IS_WEB_PLATFORM && [
-                        normalizeRoomRadioChannelId(member.channelId),
-                        normalizeRoomRadioChannelId(member.smallChannelId || member.yklzId)
-                    ].includes(normalizedPreferredChannelId))
-                ))
+                ? normalizedMemberList.filter(member => followedMemberIds.has(getRoomRadioMemberId(member)))
                 : normalizedMemberList.filter(member => member?.isInGroup !== false);
-            const tasks = createRoomRadioScanTaskList(
+            const scopedTasks = createRoomRadioScanTaskList(
                 scopedMemberList,
                 followedMemberIds,
                 normalizedPreferredChannelId
             );
+            const watchedTasks = scopedTasks.filter(task => task.followed);
+            const recordingTasks = autoRecordRoomTasks();
+            const automaticKeys = new Set([...watchedTasks, ...recordingTasks].map(getRoomRadioScanKey));
+            const queryTasks = [...new Map([...recordingTasks, ...scopedTasks]
+                .map(task => [getRoomRadioScanKey(task), task])).values()]
+                .map(task => automaticKeys.has(getRoomRadioScanKey(task)) ? task : { ...task, manualOnly: true });
+            let tasks = queryTasks;
+            roomVoiceScanTasks = watchedTasks;
+            if (pendingFollowedRoomRadioAutoConnect && !automaticKeys.has(getRoomRadioScanKey(pendingFollowedRoomRadioAutoConnect))) {
+                pendingFollowedRoomRadioAutoConnect = null;
+            }
+            const visibleKeys = new Set([...tasks, ...autoRecordRoomTasks()].map(getRoomRadioScanKey));
+            roomRadioScanResults = roomRadioScanResults.filter(item => item.manualOnly || visibleKeys.has(getRoomRadioScanKey(item)));
+            syncVoiceRealtime();
+            if (fallbackOnly) tasks = tasks.filter(task => !voiceRoomStateCovered(task) || !cachedVoiceResult(task));
             if (!tasks.length) {
+                isRoomRadioScanning = false;
                 setRoomRadioScanButton();
+                publishRoomRadioScanState();
                 if (!silent) {
                     showToast(effectiveFollowedOnly
                         ? '没有可扫描的已关注成员房间'
@@ -878,9 +1382,6 @@
                 return;
             }
 
-            const runId = roomRadioScanRunId + 1;
-            roomRadioScanRunId = runId;
-            isRoomRadioScanning = true;
             roomRadioScanTotal = tasks.length;
             roomRadioScanCompleted = 0;
             roomRadioScanFailed = 0;
@@ -909,13 +1410,8 @@
 
                     try {
                         const pa = window.getPA ? window.getPA() : null;
-                        const result = await ipcRenderer.invoke('fetch-room-radio', {
-                            token,
-                            pa,
-                            channelId: task.channelId,
-                            serverId: task.serverId
-                        });
-                        if (runId !== roomRadioScanRunId) return;
+                        const result = await queryRoomVoice(task, { force: !fallbackOnly, retryNow: !fallbackOnly });
+                        if (runId !== roomRadioScanRunId || token !== radioToken()) return;
 
                         const hasExplicitVoiceList = Array.isArray(result?.content?.voiceUserList);
                         const hasActiveVoiceUser = hasActiveRoomRadioVoiceUser(result?.content);
@@ -932,7 +1428,7 @@
                             roomRadioScanFailed += 1;
                         }
                     } catch (error) {
-                        if (runId !== roomRadioScanRunId) return;
+                        if (runId !== roomRadioScanRunId || token !== radioToken()) return;
                         roomRadioScanFailed += 1;
                         console.warn(`扫描${task.name}${task.roomType === 'small' ? '小房间' : '大房间'}失败:`, error);
                     }
@@ -952,7 +1448,7 @@
             if (runId !== roomRadioScanRunId) return;
             isRoomRadioScanning = false;
             if (!effectiveFollowedOnly) {
-                const currentTaskKeys = new Set(tasks.map(getRoomRadioScanKey));
+                const currentTaskKeys = new Set(queryTasks.map(getRoomRadioScanKey));
                 roomRadioScanResults = roomRadioScanResults.filter(item => currentTaskKeys.has(getRoomRadioScanKey(item)));
             }
             roomRadioScanCompletedAt = Date.now();
@@ -992,6 +1488,12 @@
         function scheduleAllMemberRoomRadioAutoScan(delayMs = ROOM_RADIO_AUTO_SCAN_INTERVAL_MS) {
             clearAllMemberRoomRadioAutoScanTimer();
             if (IS_WEB_PLATFORM || !isRoomRadioAutoScanEnabled) return;
+            if (delayMs > 0 && roomVoiceScanTasks.length
+                && roomVoiceScanTasks.every(task => voiceRoomStateCovered(task) && cachedVoiceResult(task))) return;
+            if (delayMs > 0) {
+                const failures = roomVoiceScanTasks.filter(task => voiceQueryFailure(task));
+                if (failures.length) delayMs = Math.min(delayMs, ...failures.map(voiceQueryRetryDelay));
+            }
             roomRadioAutoScanTimer = setTimeout(runAllMemberRoomRadioAutoScan, Math.max(0, delayMs));
         }
 
@@ -1006,7 +1508,7 @@
             try {
                 await scanAllMemberRoomRadios({
                     followedOnly: roomRadioAutoScanFollowedOnly,
-                    silent: true
+                    silent: true, fallbackOnly: true
                 });
             } catch (error) {
                 isRoomRadioScanning = false;
@@ -1019,12 +1521,7 @@
         }
 
         function startAllMemberRoomRadioAutoScan() {
-            if (IS_WEB_PLATFORM) return;
-            const alreadyScanningAll = isRoomRadioAutoScanEnabled && !roomRadioAutoScanFollowedOnly;
-            isRoomRadioAutoScanEnabled = true;
-            roomRadioAutoScanFollowedOnly = false;
-            if (alreadyScanningAll) return;
-            scheduleAllMemberRoomRadioAutoScan(0);
+            startFollowedMemberRoomRadioAutoScan();
         }
 
         function startFollowedMemberRoomRadioAutoScan() {
@@ -1040,6 +1537,11 @@
             isRoomRadioAutoScanEnabled = false;
             roomRadioAutoScanFollowedOnly = false;
             clearAllMemberRoomRadioAutoScanTimer();
+            roomRadioScanRunId += 1;
+            isRoomRadioScanning = false;
+            roomVoiceScanTasks = [];
+            pendingFollowedRoomRadioAutoConnect = null;
+            syncVoiceRealtime();
         }
 
         function ensureRoomRadioScanFresh(options = {}) {
@@ -1050,11 +1552,12 @@
                 maxAgeMs = 120000
             } = options;
             const normalizedPreferredChannelId = normalizeRoomRadioChannelId(preferredChannelId);
+            const preferredMonitored = voiceRoomTasks().some(task => task.channelId === normalizedPreferredChannelId);
             const preferredAlreadyScanned = normalizedPreferredChannelId
                 && roomRadioScannedChannelIds.has(normalizedPreferredChannelId);
 
             if (isRoomRadioScanning) {
-                if (!prioritizeCurrent || !normalizedPreferredChannelId || preferredAlreadyScanned) return;
+                if (!prioritizeCurrent || !preferredMonitored || preferredAlreadyScanned) return;
                 roomRadioScanRunId += 1;
                 isRoomRadioScanning = false;
             }
@@ -1062,7 +1565,13 @@
             const scanIsFresh = roomRadioScanCompletedAt
                 && Date.now() - roomRadioScanCompletedAt < maxAgeMs
                 && (roomRadioScanCompletedScope === 'followed' || roomRadioScanCompletedScope === 'all');
-            if (scanIsFresh && (!normalizedPreferredChannelId || preferredAlreadyScanned)) return;
+            if (scanIsFresh && (!preferredMonitored || preferredAlreadyScanned)) {
+                if (normalizedPreferredChannelId && !roomVoiceScanTasks.some(task => task.channelId === normalizedPreferredChannelId)
+                    && pendingFollowedRoomRadioAutoConnect?.channelId === normalizedPreferredChannelId) {
+                    pendingFollowedRoomRadioAutoConnect = null;
+                }
+                return;
+            }
 
             scanAllMemberRoomRadios({
                 followedOnly: true,
@@ -1086,14 +1595,7 @@
             showToast(`正在连接 ${item.name} 的上麦音频`);
 
             try {
-                const token = getAppToken ? getAppToken() : (typeof window.getAppToken === 'function' ? window.getAppToken() : '');
-                const pa = window.getPA ? window.getPA() : null;
-                const freshResult = await ipcRenderer.invoke('fetch-room-radio', {
-                    token,
-                    pa,
-                    channelId: item.channelId,
-                    serverId: item.serverId
-                });
+                const freshResult = await queryRoomVoice(item);
                 if (playbackRequestId !== roomRadioPlaybackRequestId) return;
                 const freshStreamUrl = freshResult?.content?.streamUrl;
                 if (!freshResult?.success || !freshStreamUrl) {
@@ -1136,7 +1638,7 @@
                         || (normalizedMemberName && String(user.name || '').trim() === normalizedMemberName)
                     ));
                 });
-            if (!item) return;
+            if (!item?.streamUrl) return;
             pendingFollowedRoomRadioAutoConnect = null;
             startScannedRoomRadioPlayback(item);
         }

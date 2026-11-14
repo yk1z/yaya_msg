@@ -837,7 +837,7 @@
             if (!countNode) return;
             const count = Number(value);
             countNode.textContent = Number.isFinite(count) && count >= 0
-                ? new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 0 }).format(Math.round(count))
+                ? String(Math.round(count))
                 : '--';
         }
 

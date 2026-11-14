@@ -75,6 +75,8 @@ function performFinalCleanup() {
     closeAllLiveDanmakuConnections();
     closeAllMemberRoomConnections();
     roomNotificationService.closeAll();
+    require('./services/room-voice-service').closeAll();
+    require('./services/live-start-service').closeAll();
     closeMemberRoomTransport();
     netfaceService.closeAll();
 }

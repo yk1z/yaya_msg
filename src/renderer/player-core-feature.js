@@ -1130,6 +1130,8 @@
         }
 
         function updatePlayerMeta(item, mode = '') {
+            const memberName = item.userInfo?.nickname || item.nickname;
+            if (memberName && window.desktop?.isLiveWindow) window.setDetachedLiveWindowTitle?.(memberName);
             const authorEl = document.getElementById('current-live-author');
             if (authorEl) {
                 authorEl.textContent = window.YayaRendererUtils.t(item.userInfo ? item.userInfo.nickname : (item.nickname || '未知成员'));

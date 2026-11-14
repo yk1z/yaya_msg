@@ -17,6 +17,10 @@ function registerSystemIpc() {
     });
     ipcMain.on('settings-sync', (event, payload) => {
         try {
+            if (['list-pocket-accounts', 'remember-pocket-account', 'get-pocket-account', 'activate-pocket-account', 'forget-pocket-account'].includes(payload?.action)
+                && (event.sender !== getMainWindow()?.webContents || event.senderFrame !== event.sender.mainFrame)) {
+                throw new Error('请从主窗口的账号页操作');
+            }
             event.returnValue = {
                 success: true,
                 data: settingsService.handleSyncRequest(payload)
