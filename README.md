@@ -1,6 +1,6 @@
 # 牙牙消息
 > 一个口袋48电脑端工具
-<img width="689" height="495" alt="yayamsg" src="https://github.com/user-attachments/assets/62f978fa-57b9-4de9-8016-86c722d9d887" />
+<img width="689" height="495" alt="yayamsg" src="https://github.com/user-attachments/assets/639deaa6-0117-472e-bedd-044c4c727ed6" />
 
 ## 主要功能
 ### 消息类
