@@ -12,7 +12,6 @@
             getPlaybackViewToken,
             getLiveAnnouncementDismissed,
             setLiveAnnouncementDismissed,
-            getDp,
             getMemberData,
             loadMemberData,
             getPinyinInitials,
@@ -132,10 +131,6 @@
 
         function getCurrentArt() {
             return typeof getArt === 'function' ? getArt() : null;
-        }
-
-        function getCurrentDp() {
-            return typeof getDp === 'function' ? getDp() : null;
         }
 
         function getSafeCurrentViewName() {
@@ -326,8 +321,8 @@
                     const userId = String(row.dataset.liveRankUserId || '').trim();
                     if (!userId) return;
                     if (typeof window.openFollowedUserProfile !== 'function') {
-                        const dp = getCurrentDp();
-                        if (dp) dp.notice('用户主页模块还没有准备好');
+                        const art = getCurrentArt();
+                        if (art?.notice) art.notice.show = '用户主页模块还没有准备好';
                         return;
                     }
                     closeLiveRankModal();
@@ -1319,8 +1314,8 @@
             clipStartTime = null;
             clipEndTime = null;
             updateClipUI();
-            const dp = getCurrentDp();
-            if (dp && data.msg) dp.notice(data.msg);
+            const art = getCurrentArt();
+            if (art?.notice && data.msg) art.notice.show = data.msg;
         });
 
         function setClipStartFromTimeline(time) {
@@ -1350,15 +1345,14 @@
 
         function setClipStart() {
             const art = getCurrentArt();
-            const dp = getCurrentDp();
             const currentMode = getClipMode();
             const currentPlayingItem = typeof getCurrentPlayingItem === 'function' ? getCurrentPlayingItem() : null;
 
-            if (!art && !dp) return;
+            if (!art) return;
 
             if (currentMode === 'live') {
                 if (currentRecordTaskId) {
-                    if (dp) dp.notice('录制正在进行中，请先结束当前片段');
+                    if (art.notice) art.notice.show = '录制正在进行中，请先结束当前片段';
                     return;
                 }
 
@@ -1381,7 +1375,7 @@
 
                 const startDisplay = getClipElement('start-display', 'clip-start-display');
                 if (startDisplay) startDisplay.textContent = window.YayaRendererUtils.t('状态: 正在录制...');
-                if (dp) dp.notice('后台录制已开启');
+                if (art.notice) art.notice.show = '后台录制已开启';
                 return;
             }
 
@@ -1393,15 +1387,14 @@
 
         function setClipEnd() {
             const art = getCurrentArt();
-            const dp = getCurrentDp();
             const currentMode = getClipMode();
             const currentPlayingItem = typeof getCurrentPlayingItem === 'function' ? getCurrentPlayingItem() : null;
 
-            if (!art && !dp) return;
+            if (!art) return;
 
             if (currentMode === 'live') {
                 if (!currentRecordTaskId) {
-                    if (dp) dp.notice('请先点击开始录制');
+                    if (art.notice) art.notice.show = '请先点击开始录制';
                     return;
                 }
 

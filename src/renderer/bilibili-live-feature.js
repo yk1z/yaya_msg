@@ -8,15 +8,16 @@
             BILIBILI_LIVE_CONFIG_CACHE_KEY,
             escapePrivateMessageHtml,
             getAppToken,
+            getArt,
             getCurrentViewName,
+            getPerpendicularVideoScale,
             ipcRenderer,
             setArt,
-            setCurrentPlayingItem,
-            setDp
+            setCurrentPlayingItem
         } = deps;
 
         let bilibiliLiveConfigPromise = null;
-        let bilibiliDp = null;
+        let bilibiliArt = null;
         let bilibiliFlvPlayer = null;
         let bilibiliLiveStatusTimer = null;
         let bilibiliLiveStatusMap = {};
@@ -30,6 +31,7 @@
         let bilibiliLiveCandidates = [];
         let bilibiliLiveCandidateIndex = -1;
         let bilibiliLiveAttemptId = 0;
+        let bilibiliProxyActive = false;
         let bilibiliLiveFallbackTimer = null;
         let bilibiliLiveRooms = DEFAULT_BILIBILI_LIVE_CONFIG.rooms.slice();
         const BILIBILI_LAST_ROOM_KEY = 'bilibili_live_last_room_id';
@@ -237,7 +239,7 @@
         }
 
         function syncBilibiliLivePlaceholderForSelection() {
-            if (bilibiliDp || bilibiliFlvPlayer) return;
+            if (bilibiliArt || bilibiliFlvPlayer) return;
 
             const selectedRoomId = String(document.getElementById('bilibili-live-room-id')?.value || '').trim();
             if (!selectedRoomId) {
@@ -417,7 +419,7 @@
 
                 const roomStatus = bilibiliLiveStatusMap[roomId] || {};
                 const isLive = !!roomStatus.live;
-                const isPlaying = roomId === bilibiliCurrentRoomId && !!(bilibiliDp || bilibiliFlvPlayer);
+                const isPlaying = roomId === bilibiliCurrentRoomId && !!(bilibiliArt || bilibiliFlvPlayer);
                 const isActive = roomId === String(document.getElementById('bilibili-live-room-id')?.value || '').trim();
 
                 const button = document.createElement('button');
@@ -460,32 +462,32 @@
                     bilibiliCurrentOpenLiveInfo = null;
                     bilibiliCurrentOpenLiveGroupKey = '';
                 }
-                if (!(bilibiliDp || bilibiliFlvPlayer)) {
+                if (!(bilibiliArt || bilibiliFlvPlayer)) {
                     setBilibiliLiveSummary('');
                 }
 
                 if (bilibiliLiveAutoConnectPending) {
                     bilibiliLiveAutoConnectPending = false;
                     const selectedRoomId = String(document.getElementById('bilibili-live-room-id')?.value || '').trim();
-                    if (selectedRoomId && bilibiliLiveStatusMap[selectedRoomId]?.live && !(bilibiliDp || bilibiliFlvPlayer)) {
+                    if (selectedRoomId && bilibiliLiveStatusMap[selectedRoomId]?.live && !(bilibiliArt || bilibiliFlvPlayer)) {
                         await selectBilibiliLiveRoom(selectedRoomId, true);
                         return;
                     }
 
                     const rememberedRoomId = readLastBilibiliLiveRoomId();
-                    if (rememberedRoomId && bilibiliLiveStatusMap[rememberedRoomId]?.live && !(bilibiliDp || bilibiliFlvPlayer)) {
+                    if (rememberedRoomId && bilibiliLiveStatusMap[rememberedRoomId]?.live && !(bilibiliArt || bilibiliFlvPlayer)) {
                         await selectBilibiliLiveRoom(rememberedRoomId, true);
                         return;
                     }
 
                     const liveRooms = getBilibiliLiveRoomIds().filter(roomId => bilibiliLiveStatusMap[roomId]?.live);
-                    if (liveRooms.length === 1 && !(bilibiliDp || bilibiliFlvPlayer)) {
+                    if (liveRooms.length === 1 && !(bilibiliArt || bilibiliFlvPlayer)) {
                         await selectBilibiliLiveRoom(liveRooms[0], true);
                     }
                 }
             } catch (error) {
                 bilibiliLiveAutoConnectPending = false;
-                if (!(bilibiliDp || bilibiliFlvPlayer)) {
+                if (!(bilibiliArt || bilibiliFlvPlayer)) {
                     setBilibiliLiveSummary('');
                 }
             }
@@ -541,7 +543,7 @@
 
             if (autoConnect) {
                 const isSameRoom = previousRoomId === nextRoomId;
-                const hasActivePlayer = !!(bilibiliDp || bilibiliFlvPlayer);
+                const hasActivePlayer = !!(bilibiliArt || bilibiliFlvPlayer);
                 if (isSameRoom && hasActivePlayer) {
                     return;
                 }
@@ -631,7 +633,7 @@
         }
 
         async function destroyBilibiliLivePlayer(resetMeta = true, resetStreamState = true) {
-            bilibiliLiveAttemptId += 1;
+            const attemptId = ++bilibiliLiveAttemptId;
             clearBilibiliLiveFallbackTimer();
 
             try {
@@ -644,24 +646,24 @@
             } catch (error) { window.YayaRendererUtils.reportIgnoredError(error, 'src/renderer/bilibili-live-feature.js'); }
             bilibiliFlvPlayer = null;
 
+            const player = bilibiliArt;
+            bilibiliArt = null;
+            if (player && getArt() === player) {
+                setArt(null);
+                setCurrentPlayingItem(null);
+            }
             try {
-                if (bilibiliDp) {
-                    if (typeof bilibiliDp.yayaTransformResizeCleanup === 'function') {
-                        bilibiliDp.yayaTransformResizeCleanup();
-                        bilibiliDp.yayaTransformResizeCleanup = null;
-                    }
-                    bilibiliDp.destroy();
-                }
-            } catch (error) { window.YayaRendererUtils.reportIgnoredError(error, 'src/renderer/bilibili-live-feature.js'); }
-            bilibiliDp = null;
-            if (typeof setDp === 'function') setDp(null);
-            if (typeof setArt === 'function') setArt(null);
-            if (typeof setCurrentPlayingItem === 'function') setCurrentPlayingItem(null);
-
-            try {
-                await ipcRenderer.invoke('stop-live-proxy');
+                if (player && !player.isDestroy) player.destroy(true);
             } catch (error) { window.YayaRendererUtils.reportIgnoredError(error, 'src/renderer/bilibili-live-feature.js'); }
 
+            if (bilibiliProxyActive) {
+                bilibiliProxyActive = false;
+                try {
+                    await ipcRenderer.invoke('stop-live-proxy');
+                } catch (error) { window.YayaRendererUtils.reportIgnoredError(error, 'src/renderer/bilibili-live-feature.js'); }
+            }
+
+            if (attemptId !== bilibiliLiveAttemptId) return;
             bilibiliCurrentRoomId = '';
             renderBilibiliLiveRoomButtons();
 
@@ -680,10 +682,10 @@
             }
         }
 
-        function buildBilibiliCustomType(localUrl, callbacks = {}) {
-            return function customFlv(video) {
+        function buildBilibiliCustomType(callbacks = {}) {
+            return function customFlv(video, url) {
                 if (!(window.mpegts && typeof window.mpegts.isSupported === 'function' && window.mpegts.isSupported())) {
-                    video.src = localUrl;
+                    video.src = url;
                     return;
                 }
 
@@ -699,7 +701,7 @@
 
                 bilibiliFlvPlayer = window.mpegts.createPlayer({
                     type: 'flv',
-                    url: localUrl,
+                    url,
                     isLive: true,
                     enableWorker: true,
                     enableStashBuffer: false,
@@ -734,14 +736,27 @@
             }
 
             bilibiliLiveCandidateIndex = index;
-            await destroyBilibiliLivePlayer(false, false);
+            const cleanup = destroyBilibiliLivePlayer(false, false);
+            const attemptId = bilibiliLiveAttemptId;
+            await cleanup;
+            if (attemptId !== bilibiliLiveAttemptId) return;
             bilibiliCurrentRoomId = String(document.getElementById('bilibili-live-room-id')?.value || info.requestedRoomId || '').trim();
             renderBilibiliLiveRoomButtons();
 
-            const localUrl = await ipcRenderer.invoke('start-live-proxy', {
-                url: candidate.url,
-                headers: info.proxyHeaders || {}
-            });
+            let localUrl;
+            try {
+                await window.ensureYayaWebPlayerLibs?.('player');
+                if (attemptId !== bilibiliLiveAttemptId) return;
+                bilibiliProxyActive = true;
+                localUrl = await ipcRenderer.invoke('start-live-proxy', {
+                    url: candidate.url,
+                    headers: info.proxyHeaders || {}
+                });
+            } catch (error) {
+                if (attemptId !== bilibiliLiveAttemptId) return;
+                throw error;
+            }
+            if (attemptId !== bilibiliLiveAttemptId) return;
             const playerEl = document.getElementById('bilibili-live-player');
             const placeholderEl = document.getElementById('bilibili-live-player-placeholder');
 
@@ -753,15 +768,10 @@
             const switchHint = reason ? ` · 正在切换：${reason}` : '';
             setBilibiliLiveStatus(`正在连接 · ${info.uname || info.title || 'B站直播'} · ${candidateLabel}${switchHint}`);
 
-            playerEl.innerHTML = '<div id="bilibili-dplayer-container" style="width:100%; height:100%;"></div>';
             playerEl.style.display = 'block';
             if (placeholderEl) placeholderEl.style.display = 'none';
-            const attemptId = bilibiliLiveAttemptId;
-            if (typeof window.ensureYayaWebPlayerLibs === 'function') {
-                await window.ensureYayaWebPlayerLibs('dplayer');
-            }
-            if (attemptId !== bilibiliLiveAttemptId) return;
             let hasPlaybackStarted = false;
+            let switchingLine = false;
 
             const markPlaybackStarted = () => {
                 if (attemptId !== bilibiliLiveAttemptId || hasPlaybackStarted) return;
@@ -772,59 +782,82 @@
             };
 
             const handleStreamFailure = async (failureReason = '当前线路连接失败') => {
-                if (attemptId !== bilibiliLiveAttemptId || hasPlaybackStarted) return;
+                if (attemptId !== bilibiliLiveAttemptId || hasPlaybackStarted || switchingLine) return;
+                switchingLine = true;
                 clearBilibiliLiveFallbackTimer();
+                const fallback = fallbackToNextBilibiliStream(failureReason);
+                const fallbackAttempt = bilibiliLiveAttemptId;
                 try {
-                    await fallbackToNextBilibiliStream(failureReason);
+                    await fallback;
                 } catch (error) {
+                    if (fallbackAttempt !== bilibiliLiveAttemptId) return;
                     await destroyBilibiliLivePlayer(false, false);
+                    if (fallbackAttempt + 1 !== bilibiliLiveAttemptId) return;
                     const friendlyMessage = formatBilibiliLiveError(error, failureReason || '连接直播失败，请稍后重试');
                     setBilibiliLiveStatus(friendlyMessage, true);
                 }
             };
 
-            bilibiliDp = new DPlayer({
-                container: document.getElementById('bilibili-dplayer-container'),
-                live: true,
+            let rotation = 0;
+            let mirror = 0;
+            const applyTransform = (art, animate = true) => {
+                const scale = rotation % 180
+                    ? getPerpendicularVideoScale(art.video, playerEl.getBoundingClientRect())
+                    : 1;
+                const mirrorTransform = ['', ' scaleX(-1)', ' scaleY(-1)'][mirror];
+                art.video.style.transition = animate ? 'transform 0.3s ease' : 'none';
+                art.video.style.objectFit = rotation % 180 ? 'contain' : '';
+                art.video.style.transform = `rotate(${rotation}deg) scale(${scale})${mirrorTransform}`;
+            };
+            const player = new Artplayer({
+                container: playerEl,
+                url: localUrl,
+                type: 'flv',
+                isLive: true,
                 autoplay: true,
-                screenshot: false,
                 hotkey: false,
                 theme: '#FF8EBF',
-                video: {
-                    url: localUrl,
-                    type: 'customFlv',
-                    customType: {
-                        customFlv: buildBilibiliCustomType(localUrl, {
-                            onError: detail => handleStreamFailure(detail || '直播流解码失败')
-                        })
+                fullscreen: true,
+                fullscreenWeb: true,
+                setting: true,
+                settings: [{
+                    name: 'picture-rotation',
+                    html: '画面旋转',
+                    tooltip: '0°',
+                    selector: [0, 90, 180, 270].map(degrees => ({
+                        html: `${degrees}°`, degrees, default: degrees === 0
+                    })),
+                    onSelect(item) {
+                        rotation = item.degrees;
+                        applyTransform(this);
+                        return item.html;
                     }
+                }, {
+                    name: 'picture-mirror',
+                    html: '镜像翻转',
+                    tooltip: '关闭镜像',
+                    selector: ['关闭镜像', '水平镜像', '垂直镜像'].map((html, mode) => ({
+                        html, mode, default: mode === 0
+                    })),
+                    onSelect(item) {
+                        mirror = item.mode;
+                        applyTransform(this);
+                        return item.html;
+                    }
+                }],
+                customType: {
+                    flv: buildBilibiliCustomType({
+                        onError: detail => queueMicrotask(() => handleStreamFailure(detail || '直播流解码失败'))
+                    })
                 }
             });
-            if (typeof setDp === 'function') {
-                setDp(bilibiliDp);
-            }
-            if (typeof window.enhanceYayaDPlayerControls === 'function') {
-                window.enhanceYayaDPlayerControls(bilibiliDp);
-            }
-            if (typeof setArt === 'function') {
-                setArt({
-                    get currentTime() {
-                        return Number(bilibiliDp?.video?.currentTime || 0);
-                    },
-                    get notice() {
-                        return {
-                            show: (msg) => {
-                                if (bilibiliDp && typeof bilibiliDp.notice === 'function') {
-                                    bilibiliDp.notice(msg);
-                                }
-                            }
-                        };
-                    },
-                    option: {
-                        url: localUrl
-                    }
-                });
-            }
+            bilibiliArt = player;
+            setArt(player);
+            const resize = () => { if (rotation % 180) applyTransform(player, false); };
+            const observer = new ResizeObserver(resize);
+            observer.observe(playerEl);
+            player.on('destroy', () => observer.disconnect());
+            player.on('video:loadedmetadata', resize);
             if (typeof setCurrentPlayingItem === 'function') {
                 const roomConfig = getBilibiliLiveRoomConfig(bilibiliCurrentRoomId);
                 const groupInfo = getBilibiliOpenLiveGroupInfo(bilibiliCurrentRoomId);
@@ -847,8 +880,10 @@
                 window.resetClipTool();
             }
 
-            const videoEl = bilibiliDp?.video;
+            const videoEl = player.video;
             if (videoEl) {
+                const stopLiveCatchUp = window.YayaRendererFeatures.startFlvLiveCatchUp(videoEl);
+                player.on('destroy', stopLiveCatchUp);
                 ['loadeddata', 'canplay', 'playing'].forEach(eventName => {
                     videoEl.addEventListener(eventName, markPlaybackStarted);
                 });
@@ -861,12 +896,6 @@
                 handleStreamFailure('连接超时，自动切换线路');
             }, 8000);
 
-            setTimeout(() => {
-                if (attemptId !== bilibiliLiveAttemptId) return;
-                if (bilibiliDp && typeof bilibiliDp.play === 'function') {
-                    bilibiliDp.play().catch(() => { });
-                }
-            }, 300);
         }
 
         async function connectBilibiliLive() {
@@ -877,13 +906,18 @@
                 return;
             }
 
+            let attemptId = ++bilibiliLiveAttemptId;
+            const isCurrent = () => attemptId === bilibiliLiveAttemptId
+                && getCurrentViewName() === 'bilibili-live'
+                && String(roomInput?.value || '').trim() === roomId;
             setBilibiliLiveStatus('');
             setBilibiliLiveConnectingPlaceholder();
 
             try {
                 await refreshBilibiliCurrentOpenLiveInfo(roomId);
+                if (!isCurrent()) return;
                 const resolvedInfo = await ipcRenderer.invoke('resolve-bilibili-live', roomId);
-                if (String(roomInput?.value || '').trim() !== roomId) return;
+                if (!isCurrent()) return;
                 if (resolvedInfo && resolvedInfo.success === false) {
                     throw new Error(resolvedInfo.msg || 'B站直播解析失败');
                 }
@@ -902,9 +936,14 @@
                 bilibiliLiveCandidates = flvCandidates.length > 0 ? flvCandidates : allCandidates;
                 bilibiliLiveCandidateIndex = -1;
 
-                await startBilibiliLiveCandidate(0);
+                const playback = startBilibiliLiveCandidate(0);
+                attemptId = bilibiliLiveAttemptId;
+                await playback;
             } catch (error) {
+                if (!isCurrent()) return;
                 await destroyBilibiliLivePlayer(false, true);
+                attemptId += 1;
+                if (!isCurrent()) return;
                 const friendlyMessage = formatBilibiliLiveError(error, '连接直播失败，请稍后重试');
                 setBilibiliLiveStatus(friendlyMessage, true);
                 if (friendlyMessage === '该直播间当前未开播' || friendlyMessage === '未找到对应直播间') {
@@ -918,8 +957,10 @@
         }
 
         async function stopBilibiliLive() {
-            await destroyBilibiliLivePlayer(false, true);
-            setBilibiliLiveStatus('');
+            const cleanup = destroyBilibiliLivePlayer(false, true);
+            const attemptId = bilibiliLiveAttemptId;
+            await cleanup;
+            if (attemptId === bilibiliLiveAttemptId) setBilibiliLiveStatus('');
         }
 
         return {

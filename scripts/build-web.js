@@ -3,23 +3,35 @@ const fs = require('fs');
 const path = require('path');
 const esbuild = require('esbuild');
 const postcss = require('postcss');
-const tailwindcss = require('tailwindcss');
+const tailwindcss = require('@tailwindcss/postcss');
 const { brotliCompressSync, gzipSync, constants: zlibConstants } = require('zlib');
 
 const scopeDatabaseTailwind = {
     postcssPlugin: 'scope-database-tailwind',
-    Rule(rule) {
-        if (rule.parent?.type === 'atrule' && /keyframes$/i.test(rule.parent.name || '')) return;
-        rule.selectors = rule.selectors.flatMap((selector) => {
-            const trimmed = selector.trim();
-            if (!trimmed || trimmed.startsWith('#database-root')) return [trimmed];
-            if ([':root', 'html', ':host', 'body'].includes(trimmed)) return ['#database-root'];
-            if (trimmed === '*') return ['#database-root', '#database-root *'];
-            if (trimmed === ':before' || trimmed === ':after') {
-                return [`#database-root${trimmed}`, `#database-root *${trimmed}`];
+    Once(root) {
+        const baseRules = new Set();
+        root.walkAtRules('layer', layer => {
+            if (layer.params === 'base') layer.walkRules(rule => baseRules.add(rule));
+            if (['theme', 'base', 'components', 'utilities'].includes(layer.params) && layer.nodes) {
+                layer.replaceWith(...layer.nodes);
             }
-            if (trimmed === '::backdrop') return ['#database-root::backdrop'];
-            return [`#database-root ${trimmed}`];
+        });
+        root.walkRules(rule => {
+            for (let parent = rule.parent; parent; parent = parent.parent) {
+                if (parent.type === 'rule' || (parent.type === 'atrule' && /keyframes$/i.test(parent.name))) return;
+            }
+            const scoped = rule.selectors.flatMap(selector => {
+                const trimmed = selector.trim();
+                if ([':root', 'html', ':host', 'body'].includes(trimmed)) return ['#database-root'];
+                if (trimmed === '*') return ['#database-root', '#database-root *'];
+                if (/^::?(?:before|after|backdrop)$/.test(trimmed)) {
+                    return [`#database-root${trimmed}`, `#database-root *${trimmed}`];
+                }
+                return [`#database-root ${trimmed}`];
+            });
+            rule.selectors = [...new Set(baseRules.has(rule)
+                ? scoped.map(selector => selector.replace('#database-root', ':where(#database-root)'))
+                : scoped)];
         });
     }
 };
@@ -156,29 +168,14 @@ async function buildMediaVendors() {
 }
 
 async function buildDatabaseTailwind() {
-    const outputPath = path.join(projectRoot, 'src', 'renderer', 'database', 'tailwind.css');
-    const result = await postcss([
-        tailwindcss({
-            content: [
-                path.join(projectRoot, 'src', 'renderer', 'database', 'app.jsx'),
-                path.join(projectRoot, 'src', 'renderer', 'database', 'index.html')
-            ],
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        gray: { 750: '#2d3748', 850: '#1a202c', 950: '#0d1117' },
-                        gold: { 500: '#EAB308', 100: '#FEF9C3' },
-                        silver: { 500: '#94A3B8', 100: '#F1F5F9' },
-                        bronze: { 500: '#B45309', 100: '#FFEDD5' }
-                    }
-                }
-            }
-        }),
-        scopeDatabaseTailwind
-    ]).process('@tailwind base; @tailwind components; @tailwind utilities;', { from: undefined });
+    const directory = path.join(projectRoot, 'src', 'renderer', 'database');
+    const sourcePath = path.join(directory, 'tailwind.input.css');
+    const compiled = await postcss([tailwindcss({ optimize: false })]).process(
+        fs.readFileSync(sourcePath, 'utf8'), { from: sourcePath }
+    );
+    const result = await postcss([scopeDatabaseTailwind]).process(compiled.css, { from: sourcePath });
     const minified = await esbuild.transform(result.css, { loader: 'css', minify: true });
-    fs.writeFileSync(outputPath, minified.code, 'utf8');
+    fs.writeFileSync(path.join(directory, 'tailwind.css'), minified.code, 'utf8');
 }
 
 function copyDesktopVendorFiles() {

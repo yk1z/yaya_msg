@@ -957,6 +957,25 @@
         header.appendChild(title);
         document.querySelector('.custom-title-bar').appendChild(header);
 
+        const railIndicator = document.createElement('span');
+        railIndicator.className = 'desktop-rail-indicator';
+        railIndicator.setAttribute('aria-hidden', 'true');
+        rail.appendChild(railIndicator);
+        function positionRailIndicator() {
+            const activeButton = rail.querySelector('.home-rail-button.is-active');
+            const buttonBounds = activeButton?.getBoundingClientRect();
+            if (!buttonBounds?.height) {
+                railIndicator.style.opacity = '0';
+                return;
+            }
+            const top = buttonBounds.top - rail.getBoundingClientRect().top + (buttonBounds.height - 26) / 2;
+            railIndicator.style.transform = `translateY(${Math.round(top)}px)`;
+            railIndicator.style.opacity = '1';
+        }
+        window.addEventListener('resize', positionRailIndicator);
+        const railResizeObserver = new ResizeObserver(positionRailIndicator);
+        railResizeObserver.observe(rail);
+
         function syncNavigation(detail) {
             const view = detail.view || 'home';
             const route = view === 'media' ? `media:${String(detail.mode || 'live').includes('vod') ? 'vod' : 'live'}` : view;
@@ -987,9 +1006,11 @@
                 if (active) button.setAttribute('aria-current', 'true');
                 else button.removeAttribute('aria-current');
             });
+            positionRailIndicator();
         }
         window.addEventListener('yaya:view-changed', event => syncNavigation(event.detail || {}));
         syncNavigation({ view: 'home' });
+        requestAnimationFrame(() => railIndicator.classList.add('is-ready'));
         window.YayaRendererFeatures.createDesktopCloudHome?.({ homeView: document.getElementById('view-home') });
         return { filter: filterNavigation };
     }

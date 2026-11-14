@@ -156,6 +156,20 @@ function closeServerObject(server) {
     } catch (error) { reportIgnoredError(error, 'src/main/services/media-service.js'); }
 }
 
+function closeMediaServer(server) {
+    const closeListeners = () => getServerObjects(server).forEach(closeServerObject);
+    if (typeof server?.stop !== 'function') return closeListeners();
+    try {
+        Promise.resolve(server.stop()).catch(error => {
+            closeListeners();
+            reportIgnoredError(error, 'media-service:stop-media-server');
+        });
+    } catch (error) {
+        closeListeners();
+        reportIgnoredError(error, 'media-service:stop-media-server');
+    }
+}
+
 function stopMediaServer() {
     if (!mediaServer) {
         mediaServerPorts = null;
@@ -163,7 +177,7 @@ function stopMediaServer() {
         return;
     }
 
-    getServerObjects(mediaServer).forEach(closeServerObject);
+    closeMediaServer(mediaServer);
     mediaServer = null;
     mediaServerPorts = null;
     mediaServerStartPromise = null;
@@ -183,6 +197,8 @@ async function startMediaServer() {
         const httpPort = await findAvailablePort(DEFAULT_HTTP_PORT);
         const nextServer = new NodeMediaServer({
             bind: MEDIA_SERVER_HOST,
+            webadmin: { enable: false },
+            store: { path: path.join(app.getPath('userData'), 'media-proxy') },
             rtmp: { port: rtmpPort, chunk_size: 60000, gop_cache: true, ping: 30, ping_timeout: 60 },
             http: { port: httpPort, allow_origin: '*', mediaroot: './media' }
         });
@@ -190,7 +206,7 @@ async function startMediaServer() {
 
         return await new Promise((resolve, reject) => {
             let settled = false;
-            let pending = serverObjects.length;
+            let pending = serverObjects.length + 1;
             const cleanupListeners = [];
 
             const finish = () => {
@@ -209,7 +225,7 @@ async function startMediaServer() {
                 if (settled) return;
                 settled = true;
                 cleanupListeners.forEach((cleanup) => cleanup());
-                getServerObjects(nextServer).forEach(closeServerObject);
+                closeMediaServer(nextServer);
                 reject(new Error(`媒体代理启动失败: ${error.message}`));
             };
 
@@ -225,10 +241,7 @@ async function startMediaServer() {
             });
 
             try {
-                nextServer.run();
-                if (pending === 0) {
-                    finish();
-                }
+                Promise.resolve(nextServer.run()).then(finish, fail);
             } catch (error) {
                 fail(error);
             }

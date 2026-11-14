@@ -1,0 +1,39 @@
+@import "tailwindcss" source(none);
+@source "./app.jsx";
+@source "./index.html";
+@custom-variant dark (&:is(.dark, .dark *));
+
+@layer base {
+    :root {
+        line-height: inherit;
+    }
+
+    *, ::before, ::after, ::backdrop, ::file-selector-button {
+        border-color: var(--color-gray-200);
+    }
+}
+
+@theme {
+    --font-sans: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    --color-gray-50: #f9fafb;
+    --color-gray-100: #f3f4f6;
+    --color-gray-200: #e5e7eb;
+    --color-gray-300: #d1d5db;
+    --color-gray-400: #9ca3af;
+    --color-gray-500: #6b7280;
+    --color-gray-600: #4b5563;
+    --color-gray-700: #374151;
+    --color-gray-750: #2d3748;
+    --color-gray-800: #1f2937;
+    --color-gray-850: #1a202c;
+    --color-gray-900: #111827;
+    --color-gray-950: #0d1117;
+    --color-green-400: #4ade80;
+    --color-green-600: #16a34a;
+    --color-gold-500: #eab308;
+    --color-gold-100: #fef9c3;
+    --color-silver-500: #94a3b8;
+    --color-silver-100: #f1f5f9;
+    --color-bronze-500: #b45309;
+    --color-bronze-100: #ffedd5;
+}

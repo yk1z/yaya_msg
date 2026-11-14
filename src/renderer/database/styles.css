@@ -102,6 +102,15 @@
             min-height: 72px;
         }
 
+        .db-app .db-member-card[data-group="IDFT"] {
+            background: color-mix(in srgb, var(--db-member-accent) 9%, var(--db-card)) !important;
+            border-color: color-mix(in srgb, var(--db-member-accent) 38%, var(--db-border)) !important;
+        }
+
+        .dark .db-app .db-member-card[data-group="IDFT"] {
+            background: color-mix(in srgb, var(--db-member-accent) 22%, var(--db-card)) !important;
+        }
+
         .db-member-card-avatar {
             display: flex;
             align-items: center;

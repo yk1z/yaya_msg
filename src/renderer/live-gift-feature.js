@@ -6,7 +6,6 @@
             getAppToken,
             getArt,
             getCurrentPlayingItem,
-            getDp,
             getPocketGiftData,
             getSelectedLiveGiftId,
             setSelectedLiveGiftId,
@@ -55,15 +54,10 @@
             return window.getPA ? window.getPA() : null;
         }
 
-        function notify(message, duration = 2000) {
+        function notify(message) {
             const art = typeof getArt === 'function' ? getArt() : null;
             if (art?.notice && 'show' in art.notice) {
                 art.notice.show = message;
-                return true;
-            }
-            const dp = typeof getDp === 'function' ? getDp() : null;
-            if (dp && typeof dp.notice === 'function') {
-                dp.notice(message, duration);
                 return true;
             }
             if (typeof showToast === 'function') {
@@ -146,9 +140,9 @@
             if (window.desktop?.platform === 'web') {
                 if (confirmed) {
                     const balanceText = balanceDecreased ? `，余额 ${beforeState.money} → ${afterState.money}` : '';
-                    notify(`🎁 官方已确认赠送${balanceText}`, 4000);
+                    notify(`🎁 官方已确认赠送${balanceText}`);
                 } else {
-                    notify('暂未确认赠送结果，请先检查余额和礼物记录，勿重复发送', 5000);
+                    notify('暂未确认赠送结果，请先检查余额和礼物记录，勿重复发送');
                 }
             }
             void updateLiveBalance();
@@ -419,7 +413,7 @@
             if (liveGiftSending || liveGiftListLoading) return;
             const selectedLiveGiftId = typeof getSelectedLiveGiftId === 'function' ? getSelectedLiveGiftId() : null;
             if (!selectedLiveGiftId) {
-                notify('请先选择一个礼物', 2000);
+                notify('请先选择一个礼物');
                 return;
             }
 
@@ -428,14 +422,14 @@
 
             const token = getSafeToken();
             if (!token) {
-                if (!notify('请先登录', 2000)) {
+                if (!notify('请先登录')) {
                     switchView('login');
                 }
                 return;
             }
 
             if (renderedGiftContext && !isCurrentGiftTarget(renderedGiftContext.token, renderedGiftContext.liveId)) {
-                notify('直播或账号已变化，请重新打开礼物栏', 3000);
+                notify('直播或账号已变化，请重新打开礼物栏');
                 return;
             }
 
@@ -447,7 +441,7 @@
             const giftNum = numInput ? Number(numInput.value) : 1;
             const maxQuantity = window.desktop?.platform === 'web' ? 9999 : 999;
             if (!Number.isInteger(giftNum) || giftNum < 1 || giftNum > maxQuantity) {
-                notify(`礼物数量须为 1–${maxQuantity} 的整数`, 3000);
+                notify(`礼物数量须为 1–${maxQuantity} 的整数`);
                 return;
             }
 
@@ -521,9 +515,9 @@
 
                 if (res.success) {
                     if (window.desktop?.platform === 'web') {
-                        notify(`🎁 [${giftName}] 接口已受理，正在核对官方余额和贡献榜`, 3500);
+                        notify(`🎁 [${giftName}] 接口已受理，正在核对官方余额和贡献榜`);
                     } else {
-                        notify(`已送出 ${giftName} × ${giftNum}`, 3000);
+                        notify(`已送出 ${giftName} × ${giftNum}`);
                     }
                     if (typeof window.fetchLiveRank === 'function') void window.fetchLiveRank(liveId);
                     void verifyOfficialGift(token, liveId, beforeState, res, sendRevision).catch(error => console.error('核对送礼结果失败:', error));
@@ -537,7 +531,7 @@
                         errorMsg = '余额不足，请充值';
                     }
 
-                    if (!notify(`${errorMsg}`, 3000)) {
+                    if (!notify(`${errorMsg}`)) {
                         console.error(res.msg);
                     }
                 }
@@ -547,7 +541,7 @@
                     time: new Date().toISOString(),
                     response: { success: false, message: String(e?.message || e || '未知错误') }
                 });
-                notify(paymentStarted ? '送礼结果暂未确认，请先检查余额和礼物记录，勿重复发送' : `出错: ${e.message}`, 3000);
+                notify(paymentStarted ? '送礼结果暂未确认，请先检查余额和礼物记录，勿重复发送' : `出错: ${e.message}`);
             } finally {
                 liveGiftSending = false;
                 if (numInput) numInput.disabled = false;

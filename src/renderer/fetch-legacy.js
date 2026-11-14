@@ -43,6 +43,11 @@
         let selectedAccountAvatarFile = null;
         let selectedAccountAvatarDataUrl = '';
         let accountProfileStatusTimer = null;
+        let accountProfileMetaContext = null;
+        let accountRenameCountLoaded = false;
+        let accountChickenBalanceLoaded = false;
+        let accountRenameCountRequest = 0;
+        let accountChickenBalanceRequest = 0;
         let autoCheckinInFlight = false;
         let autoCheckinGeneration = 0;
         let autoCheckinSettingsMigrated = false;
@@ -571,6 +576,7 @@
         }
 
         function invalidatePocketAccountRequestState() {
+            resetAccountProfileMeta();
             window.YayaPocketRegistrationUi?.close();
             stopAutoCheckinMidnightTimer();
             autoCheckinGeneration += 1;
@@ -663,16 +669,36 @@
             row.classList.toggle('account-profile-meta-loading', !visible);
         }
 
+        function resetAccountProfileMeta() {
+            accountProfileMetaContext = null;
+            accountRenameCountLoaded = false;
+            accountChickenBalanceLoaded = false;
+            accountRenameCountRequest += 1;
+            accountChickenBalanceRequest += 1;
+            renderAccountRenameCount(null);
+            renderAccountChickenBalance(null);
+            setAccountProfileMetaVisible(false);
+        }
+
+        function prepareAccountProfileMeta(context) {
+            if (accountProfileMetaContext && isPocketAccountContextCurrent(accountProfileMetaContext)) return;
+            resetAccountProfileMeta();
+            accountProfileMetaContext = context;
+        }
+
         function setRenameCountDisplay(freeText, chickenText) {
             const countEl = document.getElementById('account-rename-count');
             if (!countEl) return;
-            countEl.replaceChildren();
-
-            const freeEl = document.createElement('span');
-            freeEl.textContent = window.YayaRendererUtils.t(`免费修改：${freeText}`);
-            const chickenEl = document.createElement('span');
-            chickenEl.textContent = window.YayaRendererUtils.t(`鸡腿修改：${chickenText}`);
-            countEl.append(freeEl, chickenEl);
+            let [freeEl, chickenEl] = countEl.children;
+            if (countEl.children.length !== 2) {
+                freeEl = document.createElement('span');
+                chickenEl = document.createElement('span');
+                countEl.replaceChildren(freeEl, chickenEl);
+            }
+            const freeLabel = window.YayaRendererUtils.t(`免费修改：${freeText}`);
+            const chickenLabel = window.YayaRendererUtils.t(`鸡腿修改：${chickenText}`);
+            if (freeEl.textContent !== freeLabel) freeEl.textContent = freeLabel;
+            if (chickenEl.textContent !== chickenLabel) chickenEl.textContent = chickenLabel;
         }
 
         function renderAccountRenameCount(content) {
@@ -699,23 +725,25 @@
             const token = appToken || readStoredToken();
             if (!countEl) return;
             if (!token) {
-                countEl.innerText = window.YayaRendererUtils.t('改名次数：--');
+                resetAccountProfileMeta();
                 return;
             }
             const accountContext = capturePocketAccountContext(token);
-
-            setRenameCountDisplay('读取中...', '读取中...');
+            prepareAccountProfileMeta(accountContext);
+            const request = ++accountRenameCountRequest;
+            if (!accountRenameCountLoaded) setRenameCountDisplay('读取中...', '读取中...');
             try {
                 const pa = window.getPA ? window.getPA() : null;
                 const res = await ipcRenderer.invoke('fetch-user-rename-count', { token, pa });
-                if (!isPocketAccountContextCurrent(accountContext)) return;
+                if (request !== accountRenameCountRequest || !isPocketAccountContextCurrent(accountContext)) return;
                 if (!res?.success) {
                     throw new Error(res?.msg || '读取失败');
                 }
                 renderAccountRenameCount(res.content);
+                accountRenameCountLoaded = true;
             } catch (error) {
-                if (!isPocketAccountContextCurrent(accountContext)) return;
-                setRenameCountDisplay('读取失败', '读取失败');
+                if (request !== accountRenameCountRequest || !isPocketAccountContextCurrent(accountContext)) return;
+                if (!accountRenameCountLoaded) setRenameCountDisplay('读取失败', '读取失败');
             }
         }
 
@@ -725,7 +753,8 @@
             const total = content && typeof content === 'object'
                 ? (content.moneyTotal ?? content.total ?? content.balance ?? content.money)
                 : content;
-            balanceEl.innerText = total === undefined || total === null || total === '' ? '--' : String(total);
+            const text = total === undefined || total === null || total === '' ? '--' : String(total);
+            if (balanceEl.textContent !== text) balanceEl.textContent = text;
         }
 
         async function refreshAccountChickenBalance() {
@@ -733,29 +762,31 @@
             const token = appToken || readStoredToken();
             if (!balanceEl) return;
             if (!token) {
-                balanceEl.innerText = '--';
+                resetAccountProfileMeta();
                 return;
             }
             const accountContext = capturePocketAccountContext(token);
-
-            balanceEl.innerText = window.YayaRendererUtils.t('读取中...');
+            prepareAccountProfileMeta(accountContext);
+            const request = ++accountChickenBalanceRequest;
+            if (!accountChickenBalanceLoaded) balanceEl.innerText = window.YayaRendererUtils.t('读取中...');
             try {
                 const pa = window.getPA ? window.getPA() : null;
                 const res = await ipcRenderer.invoke('fetch-user-money', { token, pa });
-                if (!isPocketAccountContextCurrent(accountContext)) return;
+                if (request !== accountChickenBalanceRequest || !isPocketAccountContextCurrent(accountContext)) return;
                 if (!res?.success) {
                     throw new Error(res?.msg || '读取失败');
                 }
                 renderAccountChickenBalance(res.content);
+                accountChickenBalanceLoaded = true;
             } catch (error) {
-                if (!isPocketAccountContextCurrent(accountContext)) return;
-                balanceEl.innerText = window.YayaRendererUtils.t('读取失败');
+                if (request !== accountChickenBalanceRequest || !isPocketAccountContextCurrent(accountContext)) return;
+                if (!accountChickenBalanceLoaded) balanceEl.innerText = window.YayaRendererUtils.t('读取失败');
             }
         }
 
         async function refreshAccountProfileMeta() {
             const accountContext = capturePocketAccountContext();
-            setAccountProfileMetaVisible(false);
+            prepareAccountProfileMeta(accountContext);
             await Promise.all([
                 refreshAccountRenameCount(),
                 refreshAccountChickenBalance()

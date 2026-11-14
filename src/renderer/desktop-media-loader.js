@@ -3,7 +3,7 @@
     const source = new URL('./vendor/player-vendors.js', document.currentScript.src).href;
     let loading = null;
     const ready = () => window.mpegts && window.Hls && window.Artplayer
-        && window.artplayerPluginDanmuku && window.DPlayer;
+        && window.artplayerPluginDanmuku;
 
     window.ensureYayaWebPlayerLibs = function ensureDesktopPlayerLibs() {
         if (ready()) return Promise.resolve();

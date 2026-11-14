@@ -275,6 +275,7 @@
             "TEAM K": "text-[#FF5043] bg-[#FF5043]/10 border-[#FF5043]/30 dark:bg-[#FF5043]/20",
             "TEAM CII": "text-[#D21217] bg-[#D21217]/10 border-[#D21217]/30 dark:text-[#ff6b6e] dark:bg-[#ff6b6e]/20 dark:border-[#ff6b6e]/30",
             "TEAM GII": "text-[#0061C0] bg-[#0061C0]/10 border-[#0061C0]/30 dark:text-[#4d9eff] dark:bg-[#4d9eff]/20 dark:border-[#4d9eff]/30",
+            "IDFT": GROUP_COLORS.IDFT,
             "荣誉毕业生": "text-gray-500 bg-gray-100 border-gray-200 dark:text-gray-400 dark:bg-gray-800 dark:border-gray-700",
             "预备生": "text-gray-500 bg-gray-100 border-gray-200 dark:text-gray-400 dark:bg-gray-800 dark:border-gray-700",
             "海外练习生": "text-gray-500 bg-gray-100 border-gray-200 dark:text-gray-400 dark:bg-gray-800 dark:border-gray-700",
@@ -405,7 +406,7 @@
             const isLeftCard = index % 2 === 0;
 
             return (
-                <div className={`rounded-xl border border-gray-200 bg-white dark:bg-gray-900 dark:border-gray-800 p-5 shadow-sm hover:shadow-md transition-all duration-300 animate-content group flex flex-col justify-between h-full text-left ${isLeftCard ? 'md:text-right' : 'md:text-left'}`}>
+                <div className={`rounded-xl border border-gray-200 bg-white dark:bg-gray-900 dark:border-gray-800 p-5 shadow-xs hover:shadow-md transition-all duration-300 animate-content group flex flex-col justify-between h-full text-left ${isLeftCard ? 'md:text-right' : 'md:text-left'}`}>
                     <div>
                         <div className={`flex items-start mb-2 ${isLeftCard ? 'md:flex-row-reverse justify-between' : 'justify-between'}`}>
                             <span className={`text-[10px] px-2 py-0.5 rounded-full border font-bold ${getTeamStyle(data.队伍)}`}>
@@ -421,11 +422,11 @@
 
                         <div className="space-y-2 mt-4">
                             <div className={`flex items-start text-xs text-gray-600 dark:text-gray-400 ${isLeftCard ? 'md:flex-row-reverse' : ''}`}>
-                                <Calendar className={`w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-gray-400 mr-2 ${isLeftCard ? 'md:ml-2 md:mr-0' : 'mr-2'}`} />
+                                <Calendar className={`w-3.5 h-3.5 mt-0.5 shrink-0 text-gray-400 mr-2 ${isLeftCard ? 'md:ml-2 md:mr-0' : 'mr-2'}`} />
                                 <span className="break-words">{data.日期}</span>
                             </div>
                             <div className={`flex items-center text-xs text-gray-600 dark:text-gray-400 ${isLeftCard ? 'md:flex-row-reverse' : ''}`}>
-                                <List className={`w-3.5 h-3.5 flex-shrink-0 text-gray-400 ${isLeftCard ? 'md:ml-2 mr-2 md:mr-0' : 'mr-2'}`} />
+                                <List className={`w-3.5 h-3.5 shrink-0 text-gray-400 ${isLeftCard ? 'md:ml-2 mr-2 md:mr-0' : 'mr-2'}`} />
                                 <span>{data.场次}</span>
                             </div>
                         </div>
@@ -447,7 +448,7 @@
             const cardStyle = getAlbumCardStyle(album.分团);
 
             return (
-                <div className={`rounded-xl border overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300 animate-content group ${cardStyle}`}>
+                <div className={`rounded-xl border overflow-hidden shadow-xs hover:shadow-md transition-shadow duration-300 animate-content group ${cardStyle}`}>
                     <div className="p-5 border-b border-black/5 dark:border-white/5 flex items-start justify-between">
                         <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2">
@@ -480,7 +481,7 @@
                                     className="flex items-center text-sm p-2 rounded hover:bg-white/60 dark:hover:bg-black/30 transition-colors cursor-pointer group/song"
                                     onClick={() => onSongClick(song)}
                                 >
-                                    <span className="text-gray-500 dark:text-gray-500 w-6 font-mono text-xs flex-shrink-0">{song.歌曲序号}</span>
+                                    <span className="text-gray-500 dark:text-gray-500 w-6 font-mono text-xs shrink-0">{song.歌曲序号}</span>
                                     <div className="flex-1 min-w-0">
                                         <div className="font-medium text-gray-800 dark:text-gray-200 truncate group-hover/song:text-pink-600 dark:group-hover/song:text-pink-400 transition-colors">{song.歌曲名}</div>
                                         <div className="flex flex-wrap gap-x-2 text-xs text-gray-500 dark:text-gray-500">
@@ -490,7 +491,7 @@
                                             )}
                                         </div>
                                     </div>
-                                    <div className="flex items-center text-gray-400 dark:text-gray-500 flex-shrink-0 group-hover/song:text-pink-500 dark:group-hover/song:text-pink-400">
+                                    <div className="flex items-center text-gray-400 dark:text-gray-500 shrink-0 group-hover/song:text-pink-500 dark:group-hover/song:text-pink-400">
                                         <span className="text-[10px] mr-1 opacity-0 group-hover/song:opacity-100 transition-opacity">{t('查看歌词')}</span>
                                         <Mic2 className="w-3.5 h-3.5" />
                                     </div>
@@ -617,7 +618,7 @@
             };
 
             return (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-60 backdrop-blur-sm animate-backdrop" onClick={onClose}>
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-backdrop" onClick={onClose}>
                     <div
                         className="db-lyrics-modal bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col transform transition-all scale-100 dark:bg-gray-900 dark:border dark:border-gray-800 animate-modal"
                         onClick={(e) => e.stopPropagation()}
@@ -719,9 +720,9 @@
             };
 
             return (
-                <div className={`rounded-xl border ${borderColor} ${bgColor} p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-all duration-300 animate-content group`}>
+                <div className={`rounded-xl border ${borderColor} ${bgColor} p-4 flex items-center justify-between shadow-xs hover:shadow-md transition-all duration-300 animate-content group`}>
                     <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 flex-shrink-0 flex items-center justify-center rounded-full font-bold ${displayRank.length > 2 ? 'text-sm' : 'text-lg'} ${rankColor} bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700`}>
+                        <div className={`w-12 h-12 shrink-0 flex items-center justify-center rounded-full font-bold ${displayRank.length > 2 ? 'text-sm' : 'text-lg'} ${rankColor} bg-white dark:bg-gray-800 shadow-xs border border-gray-100 dark:border-gray-700`}>
                             {displayRank}
                         </div>
                         <div>
@@ -798,7 +799,7 @@
                                                 }`}
                                         >
                                             <span className="truncate">{option.label}</span>
-                                            {isSelected && <Check className="w-4 h-4 flex-shrink-0" />}
+                                            {isSelected && <Check className="w-4 h-4 shrink-0" />}
                                         </div>
                                     );
                                 })}
@@ -810,7 +811,7 @@
         };
 
         const DatabaseSectionPlaceholder = ({ icon: Icon, title, detail }) => (
-            <div className="rounded-2xl border border-dashed border-gray-200 bg-white/70 px-6 py-16 text-center shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
+            <div className="rounded-2xl border border-dashed border-gray-200 bg-white/70 px-6 py-16 text-center shadow-xs dark:border-gray-800 dark:bg-gray-900/60">
                 <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
                     <Icon className="h-7 w-7" />
                 </div>
@@ -880,7 +881,7 @@
                     document.body.removeChild(textArea);
                 };
                 return (
-                    <div onClick={handleAction} className={`db-member-info-item bg-gray-50 p-3 rounded-lg border border-gray-100 transition-all relative overflow-hidden dark:bg-gray-800 dark:border-gray-700 ${isCopyable || href ? 'hover:bg-white hover:shadow-md cursor-pointer group dark:hover:bg-gray-750' : 'hover:bg-white hover:shadow-sm dark:hover:bg-gray-750'}`}>
+                    <div onClick={handleAction} className={`db-member-info-item bg-gray-50 p-3 rounded-lg border border-gray-100 transition-all relative overflow-hidden dark:bg-gray-800 dark:border-gray-700 ${isCopyable || href ? 'hover:bg-white hover:shadow-md cursor-pointer group dark:hover:bg-gray-750' : 'hover:bg-white hover:shadow-xs dark:hover:bg-gray-750'}`}>
                         <span className="text-xs text-gray-400 block mb-1.5 flex items-center justify-between dark:text-gray-500">
                             <span className="flex items-center"><Icon className="w-3 h-3 mr-1" />{label}</span>
                             {(isCopyable || href) && <span className={`text-[10px] transition-opacity duration-300 ${copied ? 'text-green-500 opacity-100' : 'opacity-0 group-hover:opacity-100 text-gray-400 dark:text-gray-500'}`}>{t(href ? '点击跳转' : (copied ? '已复制' : '点击复制'))}</span>}
@@ -934,7 +935,7 @@
                 setPreviewPhoto({ label, url });
             };
             return (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-40 backdrop-blur-sm animate-backdrop" onClick={onClose}>
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-backdrop" onClick={onClose}>
                     <div className="db-member-modal bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto custom-scrollbar transform transition-all scale-100 dark:bg-gray-900 dark:border dark:border-gray-800 animate-modal" onClick={(e) => e.stopPropagation()}>
                         <div className="db-member-modal-header flex justify-between items-center p-5 border-b border-gray-100 bg-white sticky top-0 z-10 dark:bg-gray-900 dark:border-gray-800">
                             <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">{t('成员档案')}</h3>
@@ -1032,7 +1033,7 @@
                     </div>
                     {previewPhoto && (
                         <div
-                            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm animate-backdrop"
+                            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/75 p-4 backdrop-blur-xs animate-backdrop"
                             onClick={(e) => {
                                 e.stopPropagation();
                                 setPreviewPhoto(null);
@@ -1086,9 +1087,12 @@
 
         const MemberCard = ({ member, onClick }) => {
             const isActive = checkIsActive(member);
+            const isIdft = member.groupName === 'IDFT';
             return (
                 <div
-                    className={`db-member-card bg-white rounded-lg shadow-sm hover:shadow-md border p-3 cursor-pointer transition-all duration-200 animate-content group flex items-center justify-between hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-750 ${isActive ? 'border-gray-200 dark:border-gray-700' : 'border-gray-100 bg-gray-50 opacity-80 dark:bg-gray-800/50 dark:border-gray-800'}`}
+                    className={`db-member-card bg-white rounded-lg shadow-xs hover:shadow-md border p-3 cursor-pointer transition-all duration-200 animate-content group flex items-center justify-between hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-750 ${isActive ? 'border-gray-200 dark:border-gray-700' : 'border-gray-100 bg-gray-50 opacity-80 dark:bg-gray-800/50 dark:border-gray-800'}`}
+                    data-group={isIdft ? 'IDFT' : undefined}
+                    style={isIdft ? { '--db-member-accent': getGroupAccentColor(member.groupName) } : undefined}
                     onClick={() => onClick(member)}
                 >
                     <div className="flex items-center min-w-0 flex-1 gap-3">
@@ -1687,7 +1691,7 @@
                                 )}
                                 {datasetStatus.members.status !== 'loading' && datasetStatus.members.status !== 'error' && (
                                     <>
-                                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6 space-y-4 transition-colors duration-300 dark:bg-gray-900 dark:border-gray-800">
+                                        <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-4 mb-6 space-y-4 transition-colors duration-300 dark:bg-gray-900 dark:border-gray-800">
                                             <div className="flex flex-col lg:flex-row gap-4">
                                                 <div className="flex-1 relative group">
                                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
@@ -1696,7 +1700,7 @@
                                                     <input
                                                         type="text"
                                                         placeholder={t('搜索成员姓名、拼音、首字母或期数...')}
-                                                        className="w-full pl-10 pr-4 py-3 bg-gray-100 border-transparent text-gray-900 rounded-full focus:bg-white focus:ring-2 focus:ring-pink-300 focus:border-transparent focus:shadow-md outline-none transition-all duration-300 ease-in-out placeholder-gray-500 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 dark:focus:bg-gray-750 dark:focus:ring-pink-500"
+                                                        className="w-full pl-10 pr-4 py-3 bg-gray-100 border-transparent text-gray-900 rounded-full focus:bg-white focus:ring-2 focus:ring-pink-300 focus:border-transparent focus:shadow-md outline-hidden transition-all duration-300 ease-in-out placeholder-gray-500 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 dark:focus:bg-gray-750 dark:focus:ring-pink-500"
                                                         value={searchTerm}
                                                         onChange={(e) => setSearchTerm(e.target.value)}
                                                     />
@@ -1772,7 +1776,7 @@
                                     />
                                 ) : (
                                     <>
-                                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6 space-y-4 transition-colors duration-300 dark:bg-gray-900 dark:border-gray-800">
+                                <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-4 mb-6 space-y-4 transition-colors duration-300 dark:bg-gray-900 dark:border-gray-800">
                                     <div className="flex flex-col sm:flex-row gap-4">
                                         <div className="flex-1 relative group">
                                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
@@ -1781,7 +1785,7 @@
                                             <input
                                                 type="text"
                                                 placeholder={t('搜索成员姓名、拼音或首字母...')}
-                                                className="w-full pl-10 pr-4 py-3 bg-gray-100 border-transparent text-gray-900 rounded-full focus:bg-white focus:ring-2 focus:ring-pink-300 focus:border-transparent focus:shadow-md outline-none transition-all duration-300 ease-in-out placeholder-gray-500 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 dark:focus:bg-gray-750 dark:focus:ring-pink-500"
+                                                className="w-full pl-10 pr-4 py-3 bg-gray-100 border-transparent text-gray-900 rounded-full focus:bg-white focus:ring-2 focus:ring-pink-300 focus:border-transparent focus:shadow-md outline-hidden transition-all duration-300 ease-in-out placeholder-gray-500 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 dark:focus:bg-gray-750 dark:focus:ring-pink-500"
                                                 value={electionSearch}
                                                 onChange={(e) => setElectionSearch(e.target.value)}
                                             />
@@ -1860,7 +1864,7 @@
                                     />
                                 ) : (
                                     <>
-                                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6 space-y-4 transition-colors duration-300 dark:bg-gray-900 dark:border-gray-800">
+                                <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-4 mb-6 space-y-4 transition-colors duration-300 dark:bg-gray-900 dark:border-gray-800">
                                     <div className="flex flex-col lg:flex-row gap-4">
                                         <div className="flex-1 relative group">
                                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
@@ -1869,7 +1873,7 @@
                                             <input
                                                 type="text"
                                                 placeholder={t('搜索公演名称、拼音或首字母...')}
-                                                className="w-full pl-10 pr-4 py-3 bg-gray-100 border-transparent text-gray-900 rounded-full focus:bg-white focus:ring-2 focus:ring-pink-300 focus:border-transparent focus:shadow-md outline-none transition-all duration-300 ease-in-out placeholder-gray-500 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 dark:focus:bg-gray-750 dark:focus:ring-pink-500"
+                                                className="w-full pl-10 pr-4 py-3 bg-gray-100 border-transparent text-gray-900 rounded-full focus:bg-white focus:ring-2 focus:ring-pink-300 focus:border-transparent focus:shadow-md outline-hidden transition-all duration-300 ease-in-out placeholder-gray-500 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 dark:focus:bg-gray-750 dark:focus:ring-pink-500"
                                                 value={stageSearch}
                                                 onChange={(e) => setStageSearch(e.target.value)}
                                             />
@@ -1899,7 +1903,7 @@
                                         filteredStages.map((stage, index) => (
                                             <div key={index} className={`mb-8 flex items-center w-full ${index % 2 === 0 ? 'md:flex-row-reverse' : ''}`}>
                                                 <div className="hidden md:block md:w-1/2"></div>
-                                                <div className="absolute left-4 md:left-1/2 w-4 h-4 bg-white dark:bg-gray-900 border-2 border-pink-500 rounded-full z-10 -ml-2 shadow-sm"></div>
+                                                <div className="absolute left-4 md:left-1/2 w-4 h-4 bg-white dark:bg-gray-900 border-2 border-pink-500 rounded-full z-10 -ml-2 shadow-xs"></div>
                                                 <div className={`w-full md:w-1/2 pl-12 md:pl-0 ${index % 2 === 0 ? 'md:pr-12' : 'md:pl-12'}`}>
                                                     <StageCard data={stage} index={index} />
                                                 </div>
@@ -1928,7 +1932,7 @@
                                     />
                                 ) : (
                                     <>
-                                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6 space-y-4 transition-colors duration-300 dark:bg-gray-900 dark:border-gray-800">
+                                <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-4 mb-6 space-y-4 transition-colors duration-300 dark:bg-gray-900 dark:border-gray-800">
                                     <div className="flex flex-col lg:flex-row gap-4">
                                         <div className="flex-1 relative group">
                                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
@@ -1937,7 +1941,7 @@
                                             <input
                                                 type="text"
                                                 placeholder={t('搜索专辑、歌曲、拼音或首字母...')}
-                                                className="w-full pl-10 pr-4 py-3 bg-gray-100 border-transparent text-gray-900 rounded-full focus:bg-white focus:ring-2 focus:ring-pink-300 focus:border-transparent focus:shadow-md outline-none transition-all duration-300 ease-in-out placeholder-gray-500 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 dark:focus:bg-gray-750 dark:focus:ring-pink-500"
+                                                className="w-full pl-10 pr-4 py-3 bg-gray-100 border-transparent text-gray-900 rounded-full focus:bg-white focus:ring-2 focus:ring-pink-300 focus:border-transparent focus:shadow-md outline-hidden transition-all duration-300 ease-in-out placeholder-gray-500 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 dark:focus:bg-gray-750 dark:focus:ring-pink-500"
                                                 value={albumSearch}
                                                 onChange={(e) => setAlbumSearch(e.target.value)}
                                             />
@@ -1958,7 +1962,7 @@
 
                                     {fxzpError && (
                                         <div className="flex items-center p-4 mb-4 text-sm text-red-800 border border-red-300 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400 dark:border-red-800">
-                                            <AlertCircle className="flex-shrink-0 inline w-4 h-4 mr-3" />
+                                            <AlertCircle className="shrink-0 inline w-4 h-4 mr-3" />
                                             <div>
                                                  <span className="font-medium">{t('数据加载失败!')}</span> {fxzpError}. {t('请检查 JSON 文件格式。')}
                                             </div>

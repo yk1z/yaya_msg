@@ -1045,25 +1045,15 @@
             }
         }
 
-        async function initLiveDanmu(chatroomId, options = {}) {
-            return connectLiveDanmu(chatroomId, deps.getDp?.(), options);
-        }
-
         async function initArtLiveDanmu(chatroomId, art, options = {}) {
             if (!art) return null;
             return connectLiveDanmu(chatroomId, art, options);
         }
 
-        async function initDanmuForDPlayer(chatroomId, options = {}) {
-            return initLiveDanmu(chatroomId, options);
-        }
-
         return {
             disconnectLiveDanmu,
             ensureNimChatroomSdkLoaded,
-            initLiveDanmu,
             initArtLiveDanmu,
-            initDanmuForDPlayer,
             parseChatroomMessage: normalizeChatroomMessage,
             renderLiveDanmu: drawLiveDanmu,
             ensureDanmakuComposer,

@@ -1,6 +1,20 @@
 (function () {
     window.YayaRendererFeatures = window.YayaRendererFeatures || {};
 
+    window.YayaRendererFeatures.startFlvLiveCatchUp = function startFlvLiveCatchUp(video) {
+        const timer = setInterval(() => {
+            if (video.paused || video.ended || video.seeking) return;
+            const { buffered, currentTime } = video;
+            const lastRange = buffered.length - 1;
+            if (lastRange < 0) return;
+            const bufferEnd = buffered.end(lastRange);
+            if (bufferEnd - currentTime > 2.5) {
+                video.currentTime = Math.max(buffered.start(lastRange), bufferEnd - 0.15);
+            }
+        }, 3000);
+        return () => clearInterval(timer);
+    };
+
     window.YayaRendererFeatures.createPlayerCoreFeature = function createPlayerCoreFeature(deps) {
         const {
             backToLiveList,
@@ -9,7 +23,6 @@
             fetchPocketAPI,
             getArt,
             getCurrentPlayingItem,
-            getDp,
             getLiveAnnouncementDismissed,
             getNimInstance,
             getSelectedLiveGiftId,
@@ -22,7 +35,6 @@
             resetTimelinePanel,
             setArt,
             setCurrentPlayingItem,
-            setDp,
             setLiveAnnouncementDismissed,
             setNimInstance,
             setSelectedLiveGiftId,
@@ -83,106 +95,6 @@
             );
             return Number.isFinite(scale) && scale > 0 ? scale : 1;
         }
-
-        function applyDPlayerVideoTransform(dp, { animate = true } = {}) {
-            if (!dp || !dp.video) return;
-            const degree = Number(dp.yayaRotateDegree) || 0;
-            const mirror = dp.yayaMirrorMode || 'none';
-            const isPerpendicular = degree % 180 !== 0;
-            let rotateScale = 1;
-            if (isPerpendicular) {
-                const bounds = (dp.container || dp.video.parentElement || dp.video).getBoundingClientRect();
-                rotateScale = getPerpendicularVideoScale(dp.video, bounds);
-            }
-            const rotateTransform = degree ? `rotate(${degree}deg)` : '';
-            const scaleTransform = Math.abs(rotateScale - 1) > 0.001 ? `scale(${rotateScale})` : '';
-            const mirrorTransform = mirror === 'horizontal'
-                ? 'scaleX(-1)'
-                : mirror === 'vertical'
-                    ? 'scaleY(-1)'
-                    : '';
-            dp.video.style.transition = animate ? 'transform 0.3s ease' : 'none';
-            dp.video.style.transformOrigin = 'center center';
-            dp.video.style.objectFit = isPerpendicular ? 'contain' : '';
-            dp.video.style.transform = [rotateTransform, scaleTransform, mirrorTransform].filter(Boolean).join(' ');
-        }
-
-        function enhanceDPlayerControls(dp) {
-            if (!dp || !dp.container) return;
-
-            const install = () => {
-                const iconsRight = dp.container.querySelector('.dplayer-icons-right');
-                if (!iconsRight) return;
-                if (dp.container.querySelector('.yaya-dplayer-control-group')) return;
-
-                const group = document.createElement('div');
-                group.className = 'yaya-dplayer-control-group';
-
-                const rotateBtn = document.createElement('button');
-                rotateBtn.type = 'button';
-                rotateBtn.className = 'yaya-dplayer-control-btn';
-                rotateBtn.textContent = window.YayaRendererUtils.t('旋转');
-                rotateBtn.title = window.YayaRendererUtils.t('画面旋转');
-                rotateBtn.onclick = (event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    dp.yayaRotateDegree = ((Number(dp.yayaRotateDegree) || 0) + 90) % 360;
-                    applyDPlayerVideoTransform(dp);
-                    if (typeof dp.notice === 'function') dp.notice(`旋转: ${dp.yayaRotateDegree}°`);
-                };
-
-                const mirrorBtn = document.createElement('button');
-                mirrorBtn.type = 'button';
-                mirrorBtn.className = 'yaya-dplayer-control-btn';
-                mirrorBtn.textContent = window.YayaRendererUtils.t('镜像');
-                mirrorBtn.title = window.YayaRendererUtils.t('镜像翻转');
-                mirrorBtn.onclick = (event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    const modes = ['none', 'horizontal', 'vertical'];
-                    const labels = {
-                        none: '关闭',
-                        horizontal: '水平镜像',
-                        vertical: '垂直镜像'
-                    };
-                    const currentIndex = modes.indexOf(dp.yayaMirrorMode || 'none');
-                    dp.yayaMirrorMode = modes[(currentIndex + 1) % modes.length] || 'none';
-                    mirrorBtn.dataset.mode = dp.yayaMirrorMode;
-                    applyDPlayerVideoTransform(dp);
-                    if (typeof dp.notice === 'function') dp.notice(`镜像: ${labels[dp.yayaMirrorMode] || '关闭'}`);
-                };
-
-                group.appendChild(rotateBtn);
-                group.appendChild(mirrorBtn);
-                const fullControl = iconsRight.querySelector('.dplayer-full');
-                iconsRight.insertBefore(group, fullControl || null);
-            };
-
-            install();
-            setTimeout(install, 100);
-            setTimeout(install, 500);
-            if (!dp.yayaTransformResizeBound) {
-                dp.yayaTransformResizeBound = true;
-                let resizeFrame = 0;
-                const handleResize = () => {
-                    const degree = Number(dp.yayaRotateDegree) || 0;
-                    if (degree % 180 === 0 || resizeFrame) return;
-                    resizeFrame = window.requestAnimationFrame(() => {
-                        resizeFrame = 0;
-                        applyDPlayerVideoTransform(dp, { animate: false });
-                    });
-                };
-                dp.yayaTransformResizeCleanup = () => {
-                    window.removeEventListener('resize', handleResize);
-                    if (resizeFrame) window.cancelAnimationFrame(resizeFrame);
-                    resizeFrame = 0;
-                    dp.yayaTransformResizeBound = false;
-                };
-                window.addEventListener('resize', handleResize, { passive: true });
-            }
-        }
-
-        window.enhanceYayaDPlayerControls = enhanceDPlayerControls;
 
         function ensureAnnouncementBar(comboWrapper, playerArea) {
             let announcementBar = document.getElementById('live-announcement-bar');
@@ -937,12 +849,9 @@
                 setTimeout(() => void reloadLive(pendingError), 0);
             }
 
-            const bufferSyncTimer = setInterval(() => {
-                if (disposed || streamType !== 'flv' || !video.buffered?.length) return;
-                const bufferEnd = video.buffered.end(video.buffered.length - 1);
-                const lag = bufferEnd - (Number(video.currentTime) || 0);
-                if (lag > 2.5) video.currentTime = Math.max(0, bufferEnd - 0.15);
-            }, 3000);
+            const stopLiveCatchUp = streamType === 'flv'
+                ? window.YayaRendererFeatures.startFlvLiveCatchUp(video)
+                : null;
 
             const liveHealthTimer = setInterval(() => {
                 if (disposed || recovering || getArt() !== art || !isLivePlayerViewOpen()) return;
@@ -963,7 +872,7 @@
                 if (disposed) return;
                 disposed = true;
                 clearStallTimer();
-                clearInterval(bufferSyncTimer);
+                stopLiveCatchUp?.();
                 clearInterval(liveHealthTimer);
                 video.removeEventListener('timeupdate', markPlaybackProgress);
                 video.removeEventListener('playing', handlePlaying);
@@ -1813,7 +1722,6 @@
             playerStartRevision += 1;
             const { clearTimeline = true, clearAuxPanels = true } = options;
             const currentArt = getArt();
-            const currentDp = getDp();
             const nimInstance = getNimInstance();
 
             if (pendingLiveReconnectTimer) {
@@ -1841,32 +1749,6 @@
                 cleanupAttachedHls(currentArt.video);
                 currentArt.destroy(true);
                 setArt(null);
-            }
-
-            if (currentDp) {
-                if (typeof currentDp.yayaTransformResizeCleanup === 'function') {
-                    currentDp.yayaTransformResizeCleanup();
-                    currentDp.yayaTransformResizeCleanup = null;
-                }
-                if (typeof currentDp.yayaLiveCleanup === 'function') {
-                    currentDp.yayaLiveCleanup();
-                    currentDp.yayaLiveCleanup = null;
-                }
-                if (currentDp.yayaFlvPlayer && typeof currentDp.yayaFlvPlayer.destroy === 'function') {
-                    try {
-                        currentDp.yayaFlvPlayer.destroy();
-                    } catch (error) { window.YayaRendererUtils.reportIgnoredError(error, 'src/renderer/player-core-feature.js'); }
-                    currentDp.yayaFlvPlayer = null;
-                }
-                if (currentDp.yayaHlsPlayer && typeof currentDp.yayaHlsPlayer.destroy === 'function') {
-                    try {
-                        currentDp.yayaHlsPlayer.destroy();
-                    } catch (error) { window.YayaRendererUtils.reportIgnoredError(error, 'src/renderer/player-core-feature.js'); }
-                    currentDp.yayaHlsPlayer = null;
-                }
-                currentDp.destroy();
-                setDp(null);
-                if (getArt() === currentArt) setArt(null);
             }
 
             if (typeof disconnectLiveDanmu === 'function') {
@@ -1898,6 +1780,7 @@
             configurePlayerLayout,
             destroyPlayers,
             playLiveStream,
+            getPerpendicularVideoScale,
             startPlayer
         };
     };

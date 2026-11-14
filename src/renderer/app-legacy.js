@@ -173,9 +173,7 @@
         let updateThemeBtn;
         let ensureNimChatroomSdkLoaded;
         let disconnectLiveDanmu;
-        let initLiveDanmu;
         let initArtLiveDanmu;
-        let initDanmuForDPlayer;
         let handleDanmuSearch;
         let loadTimelineSubtitleText;
         let openDanmuAnalysis;
@@ -198,6 +196,7 @@
         let playLiveStream;
         let startPlayer;
         let configurePlayerLayout;
+        let getPerpendicularVideoScale;
         let showInteractions;
         let closeFlipAnalysis;
         let applyFlipSearch;
@@ -1438,7 +1437,7 @@
                             activeMediaReturnView = pendingMediaReturnView;
                             pendingMediaReturnView = null;
                         }
-                        if (art || dp || nimInstance) destroyPlayers();
+                        if (art || nimInstance) destroyPlayers();
                         stopPlaybackOnViewChange(next);
                         if (window.vodState) vodState.isSearchActive = false;
                         document.getElementById('backToTopBtn')?.classList.remove('show');
@@ -2772,9 +2771,10 @@
             getAppToken: () => getCurrentAppToken(),
             getCurrentViewName: () => currentViewName,
             ipcRenderer,
+            getArt: () => art,
+            getPerpendicularVideoScale: (...args) => getPerpendicularVideoScale(...args),
             setArt: value => { art = value; },
-            setCurrentPlayingItem: value => { currentPlayingItem = value; },
-            setDp: value => { dp = value; }
+            setCurrentPlayingItem: value => { currentPlayingItem = value; }
         }));
 
         ({
@@ -3153,6 +3153,7 @@
             configurePlayerLayout,
             destroyPlayers,
             playLiveStream,
+            getPerpendicularVideoScale,
             startPlayer
         } = window.YayaRendererFeatures.createPlayerCoreFeature({
             backToLiveList: (...args) => window.desktop?.isLiveWindow
@@ -3164,15 +3165,11 @@
             fetchPocketAPI,
             getArt: () => art,
             getCurrentPlayingItem: () => currentPlayingItem,
-            getDp: () => dp,
             getLiveAnnouncementDismissed: () => liveAnnouncementDismissed,
             getNimInstance: () => nimInstance,
             getSelectedLiveGiftId: () => selectedLiveGiftId,
             initArtLiveDanmu: (...args) => typeof initArtLiveDanmu === 'function'
                 ? initArtLiveDanmu(...args)
-                : undefined,
-            initLiveDanmu: (...args) => typeof initLiveDanmu === 'function'
-                ? initLiveDanmu(...args)
                 : undefined,
             ipcRenderer,
             loadTimelineSubtitleText: (...args) => typeof loadTimelineSubtitleText === 'function'
@@ -3190,7 +3187,6 @@
                 : undefined,
             setArt: value => { art = value; },
             setCurrentPlayingItem: value => { currentPlayingItem = value; },
-            setDp: value => { dp = value; },
             setLiveAnnouncementDismissed: value => { liveAnnouncementDismissed = !!value; },
             setNimInstance: value => { nimInstance = value; },
             setSelectedLiveGiftId: value => { selectedLiveGiftId = value; },
@@ -3234,7 +3230,6 @@
             getPlaybackViewToken: () => mediaPlaybackViewToken,
             getLiveAnnouncementDismissed: () => liveAnnouncementDismissed,
             setLiveAnnouncementDismissed: value => { liveAnnouncementDismissed = !!value; },
-            getDp: () => dp,
             getMemberData: () => window.memberData || [],
             loadMemberData,
             getPinyinInitials,
@@ -3614,12 +3609,9 @@
         ({
             disconnectLiveDanmu,
             ensureNimChatroomSdkLoaded,
-            initLiveDanmu,
-            initArtLiveDanmu,
-            initDanmuForDPlayer
+            initArtLiveDanmu
         } = window.YayaRendererFeatures.createNimChatroomFeature({
             ipcRenderer,
-            getDp: () => dp,
             getNimAuth: async () => {
                 const token = getCurrentAppToken();
                 if (!token) return { success: false, msg: '未登录口袋48' };
@@ -3876,7 +3868,6 @@
             getAppToken: () => getCurrentAppToken(),
             getArt: () => art,
             getCurrentPlayingItem: () => currentPlayingItem,
-            getDp: () => dp,
             getPocketGiftData: () => typeof POCKET_GIFT_DATA !== 'undefined' ? POCKET_GIFT_DATA : [],
             getSelectedLiveGiftId: () => selectedLiveGiftId,
             setSelectedLiveGiftId: value => { selectedLiveGiftId = value; },
@@ -5822,7 +5813,6 @@
         }
 
         let nimInstance = null,
-            dp = null,
             art = null;
 
         bgInput.addEventListener('change', (e) => {
