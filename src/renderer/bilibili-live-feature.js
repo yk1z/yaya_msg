@@ -856,7 +856,10 @@
             const resize = () => { if (rotation % 180) applyTransform(player, false); };
             const observer = new ResizeObserver(resize);
             observer.observe(playerEl);
-            player.on('destroy', () => observer.disconnect());
+            player.on('destroy', () => {
+                observer.disconnect();
+                if (getArt() === player) setCurrentPlayingItem?.(null);
+            });
             player.on('video:loadedmetadata', resize);
             if (typeof setCurrentPlayingItem === 'function') {
                 const roomConfig = getBilibiliLiveRoomConfig(bilibiliCurrentRoomId);

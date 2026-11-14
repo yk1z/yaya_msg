@@ -21,7 +21,7 @@ function renderDesktopDocument(sharedDocument, home, navigation, version = requi
         .replace('<head>', `<head>\n    <meta name="yaya-app-version" content="${appVersion}">`)
         .replace(/<span>牙牙消息(?: v[\d.]+)?<\/span>/,
             '<span>牙牙消息</span><script>if (window.desktop?.isRoomWindow) document.currentScript.previousElementSibling.textContent = window.desktop.isLiveWindow ? "牙牙消息 · 直播" : "牙牙消息 · 房间";</script>')
-        .replace(/^[ \t]*<script src="\.\/src\/web\/(?:desktop-live-link|browser-shim|web-shell|pocket-home|presence-feature|web-navigation)\.js(?:\?[^"\n]*)?"><\/script>\r?\n/gm, '')
+        .replace(/^[ \t]*<script src="\.\/src\/web\/[^"\n]+"><\/script>\r?\n/gm, '')
         .replace(/^[ \t]*<link\b[^>]*\bhref="\.\/src\/web\/[^"\n]+"[^>]*>\r?\n/gm, '')
         .replace('<html ', '<html class="desktop-workspace-pending" data-desktop-shell="true" ')
         .replace('<body class="topbar-page-title-enabled">', '<body class="topbar-page-title-enabled desktop-workspace">')

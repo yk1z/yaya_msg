@@ -90,6 +90,7 @@ const proxySessions = new Map();
 let mediaServer = null;
 let mediaServerPorts = null;
 let mediaServerStartPromise = null;
+let mediaServerStopPromise = null;
 
 const MEDIA_SERVER_HOST = '127.0.0.1';
 const DEFAULT_RTMP_PORT = 1935;
@@ -156,14 +157,11 @@ function closeServerObject(server) {
     } catch (error) { reportIgnoredError(error, 'src/main/services/media-service.js'); }
 }
 
-function closeMediaServer(server) {
+async function closeMediaServer(server) {
     const closeListeners = () => getServerObjects(server).forEach(closeServerObject);
     if (typeof server?.stop !== 'function') return closeListeners();
     try {
-        Promise.resolve(server.stop()).catch(error => {
-            closeListeners();
-            reportIgnoredError(error, 'media-service:stop-media-server');
-        });
+        await server.stop();
     } catch (error) {
         closeListeners();
         reportIgnoredError(error, 'media-service:stop-media-server');
@@ -171,16 +169,11 @@ function closeMediaServer(server) {
 }
 
 function stopMediaServer() {
-    if (!mediaServer) {
-        mediaServerPorts = null;
-        mediaServerStartPromise = null;
-        return;
-    }
+    if (!mediaServer) return;
 
-    closeMediaServer(mediaServer);
+    mediaServerStopPromise = closeMediaServer(mediaServer);
     mediaServer = null;
     mediaServerPorts = null;
-    mediaServerStartPromise = null;
 }
 
 async function startMediaServer() {
@@ -193,6 +186,8 @@ async function startMediaServer() {
     }
 
     mediaServerStartPromise = (async () => {
+        await mediaServerStopPromise;
+        mediaServerStopPromise = null;
         const rtmpPort = await findAvailablePort(DEFAULT_RTMP_PORT);
         const httpPort = await findAvailablePort(DEFAULT_HTTP_PORT);
         const nextServer = new NodeMediaServer({
@@ -207,6 +202,7 @@ async function startMediaServer() {
         return await new Promise((resolve, reject) => {
             let settled = false;
             let pending = serverObjects.length + 1;
+            let runPromise;
             const cleanupListeners = [];
 
             const finish = () => {
@@ -221,11 +217,12 @@ async function startMediaServer() {
                 resolve(mediaServerPorts);
             };
 
-            const fail = (error) => {
+            const fail = async (error) => {
                 if (settled) return;
                 settled = true;
+                await runPromise?.catch(() => {});
                 cleanupListeners.forEach((cleanup) => cleanup());
-                closeMediaServer(nextServer);
+                await closeMediaServer(nextServer);
                 reject(new Error(`媒体代理启动失败: ${error.message}`));
             };
 
@@ -241,7 +238,8 @@ async function startMediaServer() {
             });
 
             try {
-                Promise.resolve(nextServer.run()).then(finish, fail);
+                runPromise = Promise.resolve(nextServer.run());
+                runPromise.then(finish, fail);
             } catch (error) {
                 fail(error);
             }
@@ -250,9 +248,6 @@ async function startMediaServer() {
 
     try {
         return await mediaServerStartPromise;
-    } catch (error) {
-        stopMediaServer();
-        throw error;
     } finally {
         mediaServerStartPromise = null;
     }
