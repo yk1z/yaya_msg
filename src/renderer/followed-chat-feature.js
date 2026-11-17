@@ -3601,7 +3601,7 @@
             giftInfo = window.YayaGiftPricing.normalizeGiftInfo(giftInfo, { rules: window.YayaGiftPriceSnapshot.rules });
             const giftName = escapeFollowedHtml(giftInfo.giftName || giftInfo.name || '未知礼物');
             const giftNum = Number(giftInfo.giftNum || giftInfo.num || giftInfo.count || 1) || 1;
-            const giftImg = normalizeFollowedPocketMediaUrl(giftInfo.picPath || giftInfo.giftPic || giftInfo.image || '');
+            const giftImg = window.YayaRendererUtils.resolvePocketImageUrl(normalizeFollowedPocketMediaUrl(giftInfo.picPath || giftInfo.giftPic || giftInfo.image || ''));
             const unitCost = window.resolvePocketGiftPrice(giftInfo, { historical: true }).unitCost;
 
             upsertFollowedPocketGiftData(giftInfo, unitCost);
@@ -3613,7 +3613,7 @@
 
             return `
                 <div class="mb-2" style="display:flex; align-items:center; background:#fff0f6; padding:6px 8px; border-radius:6px; border:1px solid #ffadd2; max-width: 300px;">
-                    ${giftImg ? `<img src="${escapeFollowedHtml(giftImg)}" style="width: 25px !important; height: 25px !important; max-width: 32px !important; max-height: 32px !important; object-fit: contain !important; margin: 0 8px 0 0 !important; border-radius: 4px; box-shadow: none !important;">` : '<span style="font-size:24px; margin-right:8px;">🎁</span>'}
+                    ${giftImg ? `<img class="pocket-gift-image" src="${escapeFollowedHtml(giftImg)}" style="width: 25px !important; height: 25px !important; max-width: 32px !important; max-height: 32px !important; object-fit: contain !important; margin: 0 8px 0 0 !important; border-radius: 4px; box-shadow: none !important;">` : '<span style="font-size:24px; margin-right:8px;">🎁</span>'}
                     <div style="flex: 1; overflow: hidden;">
                         <div style="color:#eb2f96; font-weight:bold; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">送出礼物：${giftName}</div>
                         <div style="font-size:11px; color:#888;">数量: x${giftNum} ${costDisplay}</div>

@@ -6,6 +6,10 @@ on:
       - 'v*'
   workflow_dispatch:
     inputs:
+      replace_release_tag:
+        description: Existing release tag whose installers should be replaced (preserves download names)
+        required: false
+        type: string
       replace_mac_release_tag:
         description: Existing release tag to upload macOS DMG installers to
         required: false
@@ -102,18 +106,43 @@ jobs:
     name: Publish GitHub Release
     needs: build
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.replace_release_tag != '')
     steps:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
           path: release-assets
 
+      - name: Preserve existing installer download names
+        if: github.event_name == 'workflow_dispatch' && inputs.replace_release_tag != ''
+        env:
+          RELEASE_TAG: ${{ inputs.replace_release_tag }}
+        run: |
+          python - <<'PY'
+          import os, pathlib, re
+          tag = os.environ['RELEASE_TAG']
+          if not re.fullmatch(r'v\d+\.\d+(?:\.\d+)?', tag):
+              raise SystemExit('Invalid release tag')
+          files = list(pathlib.Path('release-assets').rglob('*'))
+          installers = []
+          for path in files:
+              match = re.fullmatch(r'yaya_msg-v\d+\.\d+(?:\.\d+)?-(win\.exe|mac\.dmg|linux\.deb)', path.name)
+              if match and path.is_file():
+                  installers.append((path, match[1]))
+          if sorted(suffix for _, suffix in installers) != ['linux.deb', 'mac.dmg', 'win.exe']:
+              raise SystemExit('Expected exactly one installer per platform')
+          for path, suffix in installers:
+              path.rename(path.with_name(f'yaya_msg-{tag}-{suffix}'))
+          PY
+
       - name: Remove old release assets
         uses: actions/github-script@v7
+        env:
+          RELEASE_TAG: ${{ inputs.replace_release_tag || github.ref_name }}
         with:
           script: |
-            const tag = context.ref.replace('refs/tags/', '');
+            const tag = process.env.RELEASE_TAG;
+            const installerNames = new Set(['win.exe', 'mac.dmg', 'linux.deb'].map(suffix => `yaya_msg-${tag}-${suffix}`));
             try {
               const release = await github.rest.repos.getReleaseByTag({
                 owner: context.repo.owner,
@@ -121,6 +150,7 @@ jobs:
                 tag
               });
               for (const asset of release.data.assets) {
+                if (!installerNames.has(asset.name)) continue;
                 await github.rest.repos.deleteReleaseAsset({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
@@ -136,8 +166,8 @@ jobs:
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
+          tag_name: ${{ inputs.replace_release_tag || github.ref_name }}
+          name: ${{ inputs.replace_release_tag || github.ref_name }}
           files: |
             release-assets/**/*.exe
             release-assets/**/*.dmg

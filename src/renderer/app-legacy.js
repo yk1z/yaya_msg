@@ -6212,7 +6212,7 @@
             giftInfo = window.YayaGiftPricing.normalizeGiftInfo(giftInfo, { rules: window.YayaGiftPriceSnapshot.rules });
             const giftName = structuredJsonValueText(giftInfo.giftName || giftInfo.name, '未知礼物');
             const giftNum = Number(giftInfo.giftNum || giftInfo.num || giftInfo.count || 1) || 1;
-            const giftImg = normalizeJsonMessageMediaUrl(giftInfo.picPath || giftInfo.giftPic || giftInfo.image || '');
+            const giftImg = window.YayaRendererUtils.resolvePocketImageUrl(normalizeJsonMessageMediaUrl(giftInfo.picPath || giftInfo.giftPic || giftInfo.image || ''));
             const giftPrice = window.resolvePocketGiftPrice(giftInfo, { historical: true, ...window.YayaGiftPricing.messageContext(record) });
             const unitCost = giftPrice.unitCost;
 
@@ -6223,7 +6223,7 @@
 
             return `
                 <div class="mb-2" data-gift-id="${escapeHtml(giftInfo.giftId || giftInfo.id || '')}" data-gift-name="${escapeHtml(giftName)}" data-gift-num="${giftNum}" data-gift-is-score="${window.YayaGiftPricing.isScoringGift(giftInfo) ? '1' : '0'}" data-gift-message-cost="${giftPrice.basis === 'message' ? unitCost : ''}" style="display:flex; align-items:center; background:#fff0f6; padding:6px 8px; border-radius:6px; border:1px solid #ffadd2; max-width: 300px;">
-                    ${giftImg ? `<img src="${escapeHtml(giftImg)}" style="width: 25px !important; height: 25px !important; max-width: 32px !important; max-height: 32px !important; object-fit: contain !important; margin: 0 8px 0 0 !important; border-radius: 4px; box-shadow: none !important;">` : '<span style="font-size:24px; margin-right:8px;">🎁</span>'}
+                    ${giftImg ? `<img class="pocket-gift-image" src="${escapeHtml(giftImg)}" style="width: 25px !important; height: 25px !important; max-width: 32px !important; max-height: 32px !important; object-fit: contain !important; margin: 0 8px 0 0 !important; border-radius: 4px; box-shadow: none !important;">` : '<span style="font-size:24px; margin-right:8px;">🎁</span>'}
                     <div style="flex: 1; overflow: hidden;">
                         <div style="color:#eb2f96; font-weight:bold; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">送出礼物：${escapeHtml(giftName)}</div>
                         <div style="font-size:11px; color:#888;">数量: x${giftNum} ${costDisplay}</div>
@@ -6379,7 +6379,7 @@
             }
 
             const sender = record.sender && typeof record.sender === 'object' ? record.sender : {};
-            const avatarUrl = String(sender.avatarUrl || record.avatarUrl || record.avatar || '').trim();
+            const avatarUrl = window.YayaRendererUtils.resolvePocketImageUrl(sender.avatarUrl || record.avatarUrl || record.avatar || '');
             const avatarHtml = record.avatarHtml
                 || (avatarUrl ? `<img class="avatar avatar-5 mr-2" src="${escapeHtml(avatarUrl)}" loading="lazy">` : '');
             const nameStr = String(sender.name || record.nameStr || record.nickName || record.nickname || record.senderName || 'Unknown');

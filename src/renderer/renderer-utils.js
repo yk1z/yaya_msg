@@ -164,6 +164,63 @@
         return normalizeUrl(raw.startsWith('/') ? `${sourceOrigin}${raw}` : `${sourceOrigin}/${raw}`);
     }
 
+    const pocketImageHosts = ['source.48.cn', 'source1.48.cn', 'source2.48.cn'];
+
+    function parsePocketImageUrl(value) {
+        const raw = String(value || '').trim();
+        try {
+            const url = new URL(raw.startsWith('//') ? `https:${raw}` : raw);
+            return ['http:', 'https:'].includes(url.protocol) && (pocketImageHosts.includes(url.hostname) || url.hostname === 'source3.48.cn') ? url : null;
+        } catch (_) { return null; }
+    }
+
+    function resolvePocketImageUrl(value) {
+        const raw = String(value || '').trim();
+        if (!raw || window.desktop?.platform === 'web') return raw;
+        const url = parsePocketImageUrl(raw);
+        if (!url) return raw;
+        url.protocol = 'https:';
+        url.hostname = pocketImageHosts[0];
+        url.pathname = url.pathname.replace(/^\/mediasource\/backstage\//, '/backstage/');
+        return url.href;
+    }
+
+    if (window.desktop && window.desktop.platform !== 'web' && typeof document !== 'undefined' && document.addEventListener) {
+        document.addEventListener('error', event => {
+            const image = event.target;
+            if (image?.tagName !== 'IMG') return;
+            const original = image.currentSrc || image.src;
+            const current = parsePocketImageUrl(original);
+            let next = null;
+            if (current) {
+                const resolved = new URL(resolvePocketImageUrl(original));
+                const index = pocketImageHosts.indexOf(current.hostname);
+                if (index < 0 || current.pathname !== resolved.pathname || current.protocol !== resolved.protocol) {
+                    next = resolved.href;
+                } else if (index < pocketImageHosts.length - 1) {
+                    resolved.hostname = pocketImageHosts[index + 1];
+                    next = resolved.href;
+                }
+            }
+            if (next) {
+                event.stopImmediatePropagation();
+                image.removeAttribute('srcset');
+                image.src = next;
+            } else if (image.classList.contains('pocket-gift-image')) {
+                const fallback = document.createElement('span');
+                fallback.textContent = '🎁';
+                fallback.setAttribute('role', 'img');
+                fallback.setAttribute('aria-label', '礼物图片暂不可用');
+                fallback.style.cssText = 'font-size:24px;margin-right:8px;';
+                image.replaceWith(fallback);
+            } else if (current && (image.classList.contains('avatar') || image.classList.contains('message-profile-avatar'))) {
+                event.stopImmediatePropagation();
+                image.removeAttribute('srcset');
+                image.src = './icon.png';
+            }
+        }, true);
+    }
+
     function getErrorMessage(error, fallback = '未知错误') {
         if (error instanceof Error && error.message) return error.message;
         const message = String(error == null ? '' : error).trim();
@@ -264,6 +321,7 @@
         replaceTencentEmoji,
         reportError,
         reportIgnoredError,
+        resolvePocketImageUrl,
         setSafeHtml,
         setText,
         t
