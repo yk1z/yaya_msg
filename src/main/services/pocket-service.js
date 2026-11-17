@@ -4,6 +4,7 @@ const settingsService = require('./settings-service');
 const { ensureWasmLoaded, generatePa } = require('./wasm-service');
 const { runLiveReadRequest } = require('./live-read-request');
 const { withDesktopLiveRoom } = require('./live-room-routing');
+const { writeNetfaceLog } = require('./netface-log');
 const { normalizePocketClientProfile, createPocketClientHeaders } = require('../../common/pocket-client-profile');
 
 const LIVE48_LOGIN_COOKIE_KEY = 'live48LoginCookie';
@@ -64,7 +65,8 @@ async function loadPocketRuntime() {
         pocketRuntimePromise = import(runtimeUrl).then((runtime) => {
             runtime.configurePocketRuntime({
                 saveLive48Login,
-                getLive48LoginStatus
+                getLive48LoginStatus,
+                netfaceDiagnostic: details => writeNetfaceLog({ ...details, source: 'main' })
             });
             return runtime;
         });

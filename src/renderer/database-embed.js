@@ -45,7 +45,8 @@
     }
 
     function getWebDatabaseRuntimeUrl() {
-        return getVersionedRuntimeUrl(WEB_DATABASE_RUNTIME_PATH);
+        return document.querySelector('meta[name="yaya-database-runtime"]')?.content
+            || getVersionedRuntimeUrl(WEB_DATABASE_RUNTIME_PATH);
     }
 
     function getDesktopDatabaseRuntimeUrl() {
@@ -68,9 +69,13 @@
         host.innerHTML = `<div class="${className}">${html}</div>`;
     }
 
-    async function ensureRuntime() {
+    function ensureRuntime() {
         if (runtimePromise) return runtimePromise;
-        runtimePromise = Promise.resolve();
+        runtimePromise = import(isWebRuntime() ? getWebDatabaseRuntimeUrl() : getDesktopDatabaseRuntimeUrl())
+            .catch(error => {
+                runtimePromise = null;
+                throw error;
+            });
         return runtimePromise;
     }
 
@@ -119,21 +124,10 @@
 
         mountPromise = (async () => {
             try {
-                const styles = await readDatabaseStyles();
+                const [styles, runtime] = await Promise.all([readDatabaseStyles(), ensureRuntime()]);
                 injectDatabaseStyles(styles);
-                await ensureRuntime();
-
-                if (isWebRuntime()) {
-                    host.replaceChildren();
-                    databaseModule = await import(getWebDatabaseRuntimeUrl());
-                    databaseModule.mountDatabaseApp?.(host);
-                    host.dataset.databaseMounted = 'true';
-                    restoreDatabaseScroll(host);
-                    return;
-                }
-
                 host.replaceChildren();
-                databaseModule = await import(getDesktopDatabaseRuntimeUrl());
+                databaseModule = runtime;
                 databaseModule.mountDatabaseApp?.(host);
                 host.dataset.databaseMounted = 'true';
                 restoreDatabaseScroll(host);

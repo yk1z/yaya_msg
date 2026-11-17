@@ -51,7 +51,7 @@
 #netface-status { margin-bottom: 12px; color: var(--nf-secondary); font-size: 12px; line-height: 1.6; text-align: right; }
 #netface-status:empty { display: none; }
 #netface-status[data-error="true"], #netface-modal-error { color: var(--nf-error); }
-.netface-list { display: grid; grid-template-columns: minmax(0,1fr); gap: 10px; }
+.netface-list { display: grid; grid-template-columns: minmax(0,1fr); gap: 10px; container: netface-list / inline-size; }
 .netface-card { display: grid; grid-template-columns: minmax(205px,1fr) minmax(220px,1fr) minmax(160px,.8fr) 220px; align-items: center; gap: 20px; min-width: 0; padding: 16px 18px; border-radius: 12px; border: 1px solid var(--nf-border); background: var(--nf-surface); }
 .netface-card[data-ordered="true"] { border-color: color-mix(in srgb, var(--primary) 60%, var(--nf-border)); }
 .netface-member { display: grid; grid-template-columns: 46px minmax(0,1fr); align-items: center; gap: 12px; min-width: 0; }
@@ -60,7 +60,7 @@
 .netface-member h3 { margin: 0; color: var(--nf-text); font-size: 15px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .netface-member-affiliation { margin-top: 6px; line-height: 20px; }
 .netface-member-affiliation .team-tag { max-width: 100%; box-sizing: border-box; }
-.netface-badge { display: inline-block; flex-shrink: 0; border-radius: 5px; padding: 3px 6px; font-size: 11px; white-space: nowrap; background: color-mix(in srgb, var(--primary) 14%, var(--nf-surface)); color: var(--primary); }
+.netface-badge { display: inline-block; flex-shrink: 0; max-width: 100%; box-sizing: border-box; border-radius: 5px; padding: 3px 6px; font-size: 11px; white-space: normal; overflow-wrap: anywhere; background: color-mix(in srgb, var(--primary) 14%, var(--nf-surface)); color: var(--primary); }
 .netface-schedule, .netface-card-meta { display: grid; gap: 7px; font-size: 12px; }
 .netface-schedule > div, .netface-card-meta > div { display: grid; grid-template-columns: 4em minmax(0,1fr); align-items: baseline; gap: 10px; }
 .netface-schedule span, .netface-card-meta span { color: var(--nf-secondary); white-space: nowrap; }
@@ -68,8 +68,9 @@
 .netface-card-meta strong { color: var(--nf-text); font-size: 12px; font-weight: 500; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .netface-card-meta > div:first-child strong { color: var(--nf-success); font-weight: 600; }
 .netface-card-meta .netface-count-unit { color: var(--nf-text); font-size: inherit; font-weight: 500; }
-.netface-card-actions { gap: 16px; justify-content: flex-end; }
-.netface-card-actions .btn { width: 92px; min-width: 92px; flex-shrink: 0; }
+.netface-card-actions { gap: 8px 16px; justify-content: flex-end; flex-wrap: wrap; }
+.netface-card-actions .btn { width: 92px; min-width: 92px; height: auto; min-height: 38px; flex-shrink: 0; flex-direction: column; gap: 3px; white-space: normal; line-height: 1.4; }
+.netface-entry-countdown { display: block; font-size: 11px; line-height: 1.4; white-space: normal; }
 .netface-empty { min-height: 250px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; border: 1px dashed var(--nf-border); border-radius: 14px; background: var(--nf-surface); color: var(--nf-secondary); text-align: center; }
 .netface-empty-icon { font-size: 42px; color: var(--primary); }
 .netface-empty strong { color: var(--nf-text); font-size: 16px; }
@@ -142,12 +143,18 @@
 #netface-mic-wave { display: block; flex: 1; min-width: 0; width: 100%; height: 54px; color: var(--nf-secondary); }
 #netface-device-video { display: block; width: 100%; max-height: 30vh; aspect-ratio: 4 / 3; object-fit: contain; margin-top: 12px; border-radius: 12px; background: #10131a; }
 #netface-device-result:empty { display: none; }
-@media (max-width: 980px) {
+@container netface-list (width < 903px) {
     .netface-card { grid-template-columns: minmax(190px,1fr) minmax(220px,1fr) 92px; gap: 12px 18px; }
     .netface-member { grid-column: 1; grid-row: 1 / 3; }
     .netface-schedule { grid-column: 2; }
     .netface-card-meta { grid-column: 2; display: flex; gap: 16px; flex-wrap: wrap; }
     .netface-card-actions { grid-column: 3; grid-row: 1 / 3; flex-direction: column; }
+}
+@container netface-list (width < 650px) {
+    .netface-card { grid-template-columns: minmax(0,1fr) 92px; }
+    .netface-member { grid-column: 1; grid-row: 1; }
+    .netface-schedule, .netface-card-meta { grid-column: 1/-1; }
+    .netface-card-actions { grid-column: 2; grid-row: 1; }
 }
 @media (max-width: 760px) {
     .netface-page { padding: 18px 16px; }
@@ -155,10 +162,6 @@
     #netface-search { grid-column: 1/-1; }
     .netface-summary { padding: 16px; }
     .netface-balance-block { flex-wrap: wrap; gap: 12px; }
-    .netface-card { grid-template-columns: minmax(0,1fr) 92px; }
-    .netface-member { grid-column: 1; grid-row: 1; }
-    .netface-schedule, .netface-card-meta { grid-column: 1/-1; }
-    .netface-card-actions { grid-column: 2; grid-row: 1; }
 }
 @media (max-width: 440px) {
     .netface-heading { align-items: flex-start; flex-wrap: wrap; gap: 10px; }

@@ -1340,6 +1340,7 @@
                             : member.ownerName === current.ownerName && member.groupName === current.groupName) || current : current);
                     }));
                     for (const [url, key, setter] of [[DATA_URLS.zx, 'elections', setZxData], [DATA_URLS.stages, 'stages', setStagesData], [DATA_URLS.fxzp, 'albums', setFxzpData]]) {
+                        if (key !== activeTab) continue;
                         subscriptions.push(window.YayaDataSync.subscribe(url, data => {
                             if (cancelled) return;
                             setter(data);
@@ -1349,15 +1350,15 @@
                     }
                 }
                 loadMembers();
-                loadElections();
-                loadStages();
-                loadAlbums();
+                if (activeTab === 'elections') loadElections();
+                if (activeTab === 'stages') loadStages();
+                if (activeTab === 'albums') loadAlbums();
 
                 return () => {
                     cancelled = true;
                     subscriptions.forEach(unsubscribe => unsubscribe());
                 };
-            }, [persistedUiState.selectedEdition]);
+            }, [activeTab, persistedUiState.selectedEdition]);
 
             const parseStageDate = (dateStr) => {
                 if (!dateStr) return 0;
@@ -2046,4 +2047,5 @@
             databaseRoot = null;
             databaseRootElement = null;
         }
-        mountDatabaseApp();
+        const standaloneRoot = document.getElementById('root');
+        if (standaloneRoot && !document.getElementById('database-root')) mountDatabaseApp(standaloneRoot);

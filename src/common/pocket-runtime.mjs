@@ -22,12 +22,14 @@ let deviceId = '';
 const live48QrLoginSessions = new Map();
 const runtimeHooks = {
     saveLive48Login: null,
-    getLive48LoginStatus: null
+    getLive48LoginStatus: null,
+    netfaceDiagnostic: null
 };
 
 export function configurePocketRuntime(hooks = {}) {
     runtimeHooks.saveLive48Login = typeof hooks.saveLive48Login === 'function' ? hooks.saveLive48Login : null;
     runtimeHooks.getLive48LoginStatus = typeof hooks.getLive48LoginStatus === 'function' ? hooks.getLive48LoginStatus : null;
+    runtimeHooks.netfaceDiagnostic = typeof hooks.netfaceDiagnostic === 'function' ? hooks.netfaceDiagnostic : null;
 }
 
 function createDeviceId() {
@@ -521,9 +523,13 @@ async function postJson(url, payload, headers, options = {}) {
             ...(controller ? { signal: controller.signal } : {})
         });
         text = await response.text();
+        if (typeof options.onResponse === 'function') {
+            try { options.onResponse({ status: response.status, headers: response.headers?.entries
+                ? Object.fromEntries(response.headers.entries()) : undefined, responseText: text }); } catch {}
+        }
     } catch (error) {
         if (controller?.signal.aborted) {
-            throw new Error(options.timeoutMessage || '口袋 API 请求超时，请稍后重试');
+            throw new Error(options.timeoutMessage || '口袋 API 请求超时，请稍后重试', { cause: error });
         }
         throw error;
     } finally {
@@ -2847,7 +2853,7 @@ async function runScoreOfficialAction(payload = {}) {
 }
 
 const pocketMethods = Object.freeze({
-    ...createNetfaceMethods({ postJson, createHeaders: (token, pa) => applyPocketClientHeaders(createPocketAndroidHeaders(token, pa)), apiError }),
+    ...createNetfaceMethods({ postJson, createHeaders: (token, pa) => applyPocketClientHeaders(createPocketAndroidHeaders(token, pa)), apiError, onDiagnostic: details => runtimeHooks.netfaceDiagnostic?.(details) }),
     loginSendSms,
     loginByCode,
     registerByCode,

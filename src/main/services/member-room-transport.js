@@ -22,12 +22,12 @@ function createMemberRoomTransport(createClient = createNimCommonlinkQChatClient
         }
     }
 
-    function retire(session, notify = false) {
+    function retire(session, notify = false, details) {
         if (session.closed) return;
         session.closed = true;
         if (sessions.get(session.key) === session) sessions.delete(session.key);
         session.client.destroy();
-        if (notify) for (const consumer of session.consumers) consumer.options.onDisconnected?.();
+        if (notify) for (const consumer of session.consumers) consumer.options.onDisconnected?.(details);
     }
 
     function create(options) {
@@ -48,7 +48,10 @@ function createMemberRoomTransport(createClient = createNimCommonlinkQChatClient
                     current.client = createClient({
                         appKey: options.appKey, account: options.account, token: options.token,
                         clientProfile: options.clientProfile, deviceId: options.deviceId,
-                        onDisconnected: () => retire(current, true),
+                        onDisconnected: details => retire(current, true, details),
+                        onDiagnostic: details => {
+                            if (!current.closed) for (const item of current.consumers) item.options.onDiagnostic?.(details);
+                        },
                         onError: error => {
                             for (const item of current.consumers) item.options.onError?.(error);
                         },
@@ -58,6 +61,10 @@ function createMemberRoomTransport(createClient = createNimCommonlinkQChatClient
                             for (const item of current.consumers) {
                                 if (item.accepted.has(roomKey)) item.options.onMessage?.(message);
                             }
+                        },
+                        onCustomNotification: notification => {
+                            if (current.closed) return;
+                            for (const item of current.consumers) item.options.onCustomNotification?.(notification);
                         },
                         onVoiceEvent: event => {
                             if (current.closed) return;

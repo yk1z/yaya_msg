@@ -307,6 +307,7 @@ class NimCommonlinkChatroomClient {
         this.onDisconnected = options.onDisconnected;
         this.onMessage = options.onMessage;
         this.onError = options.onError;
+        this.onDiagnostic = options.onDiagnostic;
         this.stopped = true;
         this.connected = false;
         this.serial = 1;
@@ -471,6 +472,7 @@ class NimCommonlinkChatroomClient {
             nt: '2'
         }).toString();
         const response = await this.fetchImpl(url, { signal: AbortSignal.timeout(15_000) });
+        this.#diagnostic('address-response', { status: response.status, roomId: this.roomId });
         if (!response.ok) throw new Error(`获取聊天室地址失败：HTTP ${response.status}`);
         const result = await response.json();
         return parseTcpAddress(Array.isArray(result?.link) ? result.link[0] : '');
@@ -514,6 +516,7 @@ class NimCommonlinkChatroomClient {
 
     async #openConnection() {
         const address = await this.#requestAddress();
+        this.#diagnostic('connect-start', { address, roomId: this.roomId });
         const encryptionKey = crypto.randomBytes(16);
         const enterPacket = this.#makeEnterPacket(this.identity.deviceId);
         const handshake = this.#makeHandshake(encryptionKey, enterPacket);
@@ -542,7 +545,7 @@ class NimCommonlinkChatroomClient {
                 this.#reportError(new Error('直播聊天室心跳超时'));
                 this.socket?.destroy();
             });
-            this.socket.on('connect', () => this.socket.write(handshake));
+            this.socket.on('connect', () => { this.#diagnostic('tcp-connected', { address, roomId: this.roomId }); this.socket.write(handshake); });
             this.socket.on('data', chunk => {
                 try {
                     this.receiveBuffer = Buffer.concat([this.receiveBuffer, this.decryptor.apply(chunk)]);
@@ -563,6 +566,8 @@ class NimCommonlinkChatroomClient {
                             response = embedded;
                         }
 
+                        this.#diagnostic('packet-received', { serviceId: response.serviceId, commandId: response.commandId,
+                            serial: response.serial, resultCode: response.resultCode, bodyBytes: response.body.length });
                         if (response.serviceId === 1 && response.commandId === 1) {
                             if (response.resultCode !== 200) {
                                 throw new Error(`聊天室握手失败：${response.resultCode}`);
@@ -618,6 +623,7 @@ class NimCommonlinkChatroomClient {
                 }
             });
             this.socket.on('error', error => {
+                this.#diagnostic('socket-error', { error });
                 this.#reportError(error);
                 settleError(error);
             });
@@ -627,6 +633,7 @@ class NimCommonlinkChatroomClient {
                 this.#rejectPendingRequests(new Error('发送弹幕时聊天室连接已断开'));
                 const wasConnected = this.connected;
                 this.connected = false;
+                this.#diagnostic('socket-closed', { wasConnected, bytesRead: this.socket?.bytesRead, bytesWritten: this.socket?.bytesWritten });
                 if (!settled) settleError(new Error('直播聊天室连接已关闭'));
                 if (wasConnected && !this.stopped) {
                     this.onDisconnected?.();
@@ -745,6 +752,10 @@ class NimCommonlinkChatroomClient {
             this.onError?.(error);
         } catch (_callbackError) {
         }
+    }
+
+    #diagnostic(phase, details) {
+        try { this.onDiagnostic?.({ phase, ...details }); } catch {}
     }
 }
 

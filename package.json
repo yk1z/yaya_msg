@@ -1,6 +1,6 @@
 {
   "name": "yaya_msg",
-  "version": "3.2.0",
+  "version": "3.3.0",
   "description": "牙牙消息",
   "homepage": "https://github.com/yk1z/yaya_msg",
   "main": "main.js",
@@ -63,7 +63,14 @@
   },
   "build": {
     "appId": "com.yaya.message",
-    "protocols": [{ "name": "牙牙消息", "schemes": ["yayamsg"] }],
+    "protocols": [
+      {
+        "name": "牙牙消息",
+        "schemes": [
+          "yayamsg"
+        ]
+      }
+    ],
     "productName": "牙牙消息",
     "executableName": "牙牙消息",
     "afterPack": "scripts/copy-ffmpeg.js",

@@ -1997,6 +1997,8 @@
         }
         let downloadStatusMap = {};
         const vodPopularityCache = new Map();
+        const vodPopularityRequests = new Map();
+        let vodPopularityObserver = null;
 
         function formatDuration(ms) {
             if (!ms || isNaN(ms)) return "00:00";
@@ -2366,7 +2368,7 @@
         }
         const vodState = new VODState();
         window.vodState = vodState;
-        const VOD_INITIAL_PAGE_TARGET = 5;
+        const VOD_INITIAL_PAGE_TARGET = 1;
 
         function isMeet48Mode(mode = currentMode) {
             return mode === 'meet-live' || mode === 'meet-vod';
@@ -5134,19 +5136,10 @@
             btn.textContent = window.YayaRendererUtils.t('正在刷新');
             btn.disabled = true;
 
-            vodState.searchPageToken = 0;
-            const groupId = vodState.currentGroup;
-            vodState.nextPageTokens[groupId] = 0;
-            vodState.nextPageTokens.meet48 = 0;
-            vodState.hasMore = true;
-            vodState.currentPage = 1;
-            vodState.requestVersion++;
-            vodState.isLoading = false;
+            vodState.resetPagination(vodState.currentGroup);
             vodState.filterSignature = getVodFilterSignature();
 
             try {
-                await fetchVODPageInternal();
-
                 await ensurePageData(VOD_INITIAL_PAGE_TARGET);
 
                 window.renderVODListUI();
@@ -5408,63 +5401,82 @@
             `;
         }
 
-        function updateVODPopularityBadge(liveId, value) {
-            const badge = document.querySelector(`.vod-row-popularity[data-vod-popularity-liveid="${String(liveId)}"]`);
-            if (!badge) return;
+        function updateVODPopularityBadge(card, value) {
+            const badge = card.querySelector('.vod-row-popularity');
             const display = formatVODPopularity(value);
-            if (!display) {
-                badge.hidden = true;
-                return;
-            }
+            if (!badge || !display) return;
             badge.hidden = false;
             badge.title = window.YayaRendererUtils.t(`人气值 ${display}`);
             const valueEl = badge.querySelector('span');
             if (valueEl) valueEl.textContent = display;
         }
 
-        async function hydrateVODPopularity(pageItems, requestVersion = vodState.requestVersion) {
-            if (!Array.isArray(pageItems) || isMeet48Mode()) return;
-            const targets = pageItems
-                .filter(item => item?.liveId && getVODPopularityValue(item) === null && !vodPopularityCache.has(String(item.liveId)))
-                .slice(0, 8);
-            await Promise.allSettled(targets.map(async (item) => {
-                const liveId = String(item.liveId);
+        function getCachedVODPopularity(liveId) {
+            const entry = vodPopularityCache.get(liveId);
+            if (entry && entry.expiresAt > Date.now()) return entry.value;
+            vodPopularityCache.delete(liveId);
+            return undefined;
+        }
+
+        function fetchVODPopularity(liveId) {
+            const cached = getCachedVODPopularity(liveId);
+            if (cached !== undefined) return Promise.resolve(cached);
+            const pending = vodPopularityRequests.get(liveId);
+            if (pending) return pending;
+
+            const request = (async () => {
+                let value = null;
                 try {
-                    const res = await fetchPocketAPI('/live/api/v1/live/getLiveOne', JSON.stringify({ liveId }));
-                    if (requestVersion !== vodState.requestVersion) return;
-                    const value = getVODPopularityValue(res?.content || {});
-                    if (value === null) return;
-                    vodPopularityCache.set(liveId, value);
-                    item.onlineNum = value;
-                    updateVODPopularityBadge(liveId, value);
+                    let useDetail = !isWebRuntime;
+                    if (isWebRuntime) {
+                        const url = `/api/vod-popularity?${new URLSearchParams({ liveId })}`;
+                        const response = await fetch(window.yayaWebApiUrl ? window.yayaWebApiUrl(url) : url);
+                        if (response.ok) value = getVODPopularityValue(await response.json());
+                        useDetail = response.status === 404;
+                    }
+                    if (useDetail) {
+                        const response = await fetchPocketAPI('/live/api/v1/live/getLiveOne', JSON.stringify({ liveId }));
+                        if (response?.status === 200) value = getVODPopularityValue(response.content);
+                    }
                 } catch (error) {
                     console.warn('获取回放人气值失败:', liveId, error);
                 }
-            }));
+                if (vodPopularityCache.size >= 1024) vodPopularityCache.delete(vodPopularityCache.keys().next().value);
+                vodPopularityCache.set(liveId, { value, expiresAt: Date.now() + (value === null ? 30000 : 300000) });
+                return value;
+            })().finally(() => vodPopularityRequests.delete(liveId));
+            vodPopularityRequests.set(liveId, request);
+            return request;
+        }
+
+        function observeVODPopularity(cards, requestVersion) {
+            if (!cards.size) return;
+            const load = async (card) => {
+                if (!card.isConnected || requestVersion !== vodState.requestVersion || currentViewName !== 'media' || !isVodMediaMode()) return;
+                const value = await fetchVODPopularity(cards.get(card));
+                if (card.isConnected && requestVersion === vodState.requestVersion && currentViewName === 'media' && isVodMediaMode()) {
+                    updateVODPopularityBadge(card, value);
+                }
+            };
+            vodPopularityObserver = new IntersectionObserver((entries, observer) => {
+                for (const entry of entries) {
+                    if (!entry.isIntersecting) continue;
+                    observer.unobserve(entry.target);
+                    void load(entry.target);
+                }
+            });
+            for (const card of cards.keys()) vodPopularityObserver.observe(card);
         }
 
         window.renderVODListUI = function () {
             if (!window.vodState || currentViewName !== 'media' || !isVodMediaMode()) return;
+            vodPopularityObserver?.disconnect();
+            vodPopularityObserver = null;
             const container = document.getElementById('vod-list-container');
             const filteredList = getFilteredVODList();
             const currentType = window.vodState.currentFilterType || '0';
             const typeDropdownVal = document.getElementById('vod-type-dropdown') ? document.getElementById('vod-type-dropdown').getAttribute('data-value') : '0';
-
-            if (filteredList.length < 5 && vodState.hasMore && !vodState.isLoading) {
-
-                console.log("当前筛选结果不足，自动拉取下一页...");
-
-                if (container.innerHTML.trim() === '') container.replaceChildren();
-
-                fetchVODPageInternal().then(() => {
-                    renderVODListUI();
-                }).catch(err => {
-                    console.error("自动加载出错", err);
-                    container.innerHTML = '<div style="width:100%; text-align:center; color:#888;">加载失败，请手动刷新</div>';
-                });
-
-                return;
-            }
+            if (filteredList.length || !vodState.isLoading) delete document.documentElement.dataset.vodStartup;
 
             container.className = 'vod-list-mode';
             container.replaceChildren();
@@ -5481,6 +5493,7 @@
             const startIndex = (vodState.currentPage - 1) * vodState.pageSize;
             const endIndex = startIndex + vodState.pageSize;
             const pageItems = filteredList.slice(startIndex, endIndex);
+            const popularityCards = new Map();
             pageItems.forEach(item => {
                 const card = document.createElement('div');
                 card.className = 'vod-card-row';
@@ -5502,8 +5515,12 @@
                 const name = item.userInfo ? item.userInfo.nickname : item.nickname || '未知成员';
                 const cover = normalizeMediaCoverUrl(item.coverPath, isMeetItem ? 'meet48' : 'pocket');
                 const titleText = item.liveTitle || item.title || '无标题';
-                const cachedPopularity = vodPopularityCache.get(String(item.liveId));
-                const popularityValue = getVODPopularityValue(item) ?? (cachedPopularity ?? null);
+                const ownPopularity = getVODPopularityValue(item);
+                const cachedPopularity = isMeetItem || isMeet48Mode() ? null : getCachedVODPopularity(String(item.liveId));
+                const popularityValue = ownPopularity ?? cachedPopularity ?? null;
+                if (item.liveId && ownPopularity === null && cachedPopularity === undefined) {
+                    popularityCards.set(card, String(item.liveId));
+                }
                 let timeStr = '未知时间';
                 const rawTime = item.startTime || item.ctime;
                 if (rawTime) {
@@ -5559,7 +5576,7 @@
                 }, isMeetItem ? currentMode : (isLive ? 'live' : 'vod'));
                 container.appendChild(card);
             });
-            hydrateVODPopularity(pageItems, vodState.requestVersion);
+            observeVODPopularity(popularityCards, vodState.requestVersion);
             updatePaginationControls(filteredList.length);
             window.scheduleVodPageSizeAdjustment?.();
         }

@@ -7,6 +7,7 @@ const { pathToFileURL } = require('url');
 const { ipcRenderer, shell, webFrame } = require('electron');
 
 window.getNetfaceRtcEngine = () => require('zego-express-engine-electron/ZegoExpressEngine');
+window.sanitizeNetfaceLog = require('../common/netface-log-data').createNetfaceLogSanitizer();
 const { ensureStoragePaths } = require('../common/storage-paths');
 const { reportIgnoredError } = require('../common/error-utils');
 const { POCKET_CHANNEL_METHODS } = require('../common/pocket-channel-config');

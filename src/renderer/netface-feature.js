@@ -12,12 +12,13 @@
         }
     } catch (error) { console.warn('[netface] device preferences unavailable', error); }
     const $ = id => document.getElementById(id);
-    const state = { token: '', generation: 0, loading: false, loaded: false, busy: false, stale: true,
+    const state = { token: '', userId: '', generation: 0, loading: false, loaded: false, busy: false, stale: true,
         info: {}, balance: null, events: [], active: null, engine: null, preview: null,
         timer: null, tick: null, signalId: '', signalOff: [], filter: 'all', search: '',
         group: '0', status: '', rtcStatus: '', paused: false, deadline: 0, muted: false, camera: true,
         remote: new Set(), joined: false, entering: false, ticketId: '0', tickets: [], ticketsLoaded: false, signalSequence: 0,
-        started: false, expiryTimer: null, rtcReady: false, signalHealthy: false, pendingSignals: [], signalOverflow: false, lastSignalTime: 0, ending: false };
+        started: false, expiryTimer: null, rtcReady: false, signalHealthy: false, signalRetryTimer: null, signalRetryAttempt: 0,
+        pendingSignals: [], signalOverflow: false, lastSignalTime: 0, ending: false };
     const token = () => String(window.getAppToken?.() || '');
     let joinPending = false;
     let quitPrompt = null;
@@ -27,6 +28,16 @@
     let availabilityNoticeShown = false;
     const searchNames = new Map();
     const listMarkup = new WeakMap();
+    const entryCalls = new Map();
+    let requestSequence = 0;
+    function logEvent(event, details = {}) {
+        try {
+            const entry = window.sanitizeNetfaceLog({
+                event, ticketId: state.ticketId, eventId: state.active?.eventId, connectionId: state.signalId, ...details
+            }, { token: state.token });
+            void transport.invoke('write-netface-log', entry).catch(() => {});
+        } catch (error) { console.warn('[netface] diagnostic log unavailable', error?.name); }
+    }
     function updateListMarkup(list, html) {
         if (listMarkup.get(list) === html) return false;
         list.innerHTML = html;
@@ -60,6 +71,7 @@
         });
     });
     function message(text, error = false) {
+        if (text) logEvent('ui-message', { message: text, level: error ? 'error' : 'info' });
         const el = $('netface-status');
         if (el) { el.textContent = text; el.dataset.error = String(error); }
         if (state.active && error && $('netface-staff')) {
@@ -68,9 +80,25 @@
         }
     }
     async function invoke(channel, payload = {}, requestToken = state.token) {
-        const result = await transport.invoke(channel, { token: requestToken, pa: window.getPA?.(), ...payload });
-        if (!result?.success) throw new Error(result?.msg || '请求失败，请稍后重试');
-        return result;
+        const started = Date.now();
+        const context = { api: channel, requestId: `renderer-${state.generation}-${++requestSequence}`, eventId: payload.eventId,
+            count: payload.tpNum, ticketId: state.ticketId, connectionId: state.signalId };
+        logEvent('request-start', { ...context, request: payload });
+        let response;
+        try {
+            const result = await transport.invoke(channel, { token: requestToken, pa: window.getPA?.(), ...payload });
+            response = result;
+            if (!result?.success) {
+                const error = new Error(result?.msg || '请求失败，请稍后重试');
+                error.code = result?.code;
+                throw error;
+            }
+            logEvent('request-success', { ...context, response: result, elapsedMilliseconds: Date.now() - started });
+            return result;
+        } catch (error) {
+            logEvent('request-failed', { ...context, code: error.code, errorName: error.name, error, response, elapsedMilliseconds: Date.now() - started });
+            throw error;
+        }
     }
     function current(generation, requestToken) {
         return generation === state.generation && requestToken === token() && requestToken === state.token;
@@ -186,12 +214,14 @@
         $('netface-mic').onclick = () => {
             if (state.ending) return;
             state.muted = !state.muted;
+            logEvent('microphone-changed', { enabled: !state.muted });
             syncAudio();
             updateCaptureButtons();
         };
         $('netface-camera').onclick = () => {
             if (state.ending) return;
             state.camera = !state.camera;
+            logEvent('camera-changed', { enabled: state.camera });
             state.engine?.enableCamera(state.camera);
             updateCaptureButtons();
         };
@@ -215,27 +245,37 @@
             updateListMarkup(list, `<div class="netface-empty">${initialLoading ? '<span class="netface-empty-icon">◌</span>' : ''}<strong>${initialLoading ? '正在获取云握手场次' : state.stale ? '暂时无法获取场次' : state.filter === 'mine' ? '还没有预约' : '暂无云握手场次'}</strong><p>${state.stale ? '请点击刷新重试。' : '活动开放后，可在这里选择成员并预约。'}</p></div>`);
             return;
         }
+        const membersById = new Map();
+        for (const member of Array.isArray(window.memberData) ? window.memberData : []) {
+            const id = String(member.id || member.userId || member.memberId || '');
+            if (id) membersById.set(id, member);
+        }
         const html = events.map(item => {
             const star = item.starInfo || {};
             let avatar = safeUrl(star.avatar);
             if (!avatar && star.avatar && !/^[a-z]+:/i.test(star.avatar)) avatar = safeUrl(`https://source.48.cn/${String(star.avatar).replace(/^\//, '')}`);
             const canReserve = Number(item.status) === 1 && !item.ordered;
-            const canJoin = item.ordered && [3, 4].includes(Number(item.status));
-            const label = canJoin ? '进入房间' : canReserve ? '预约' : model.statusText[Number(item.status)] || '活动状态待确认';
+            const canJoin = item.ordered && [3, 4, 5].includes(Number(item.status));
+            const label = Number(item.status) === 5 ? '超时未入场' : canJoin ? '进入房间' : canReserve ? '预约' : model.statusText[Number(item.status)] || '活动状态待确认';
+            const entryCall = entryCalls.get(item.eventId);
+            const entryCountdown = entryCall && !entryCall.expired ? `<span class="netface-entry-countdown" data-entry-countdown="${esc(item.eventId)}">${Math.max(0, Math.ceil((entryCall.deadline - Date.now()) / 1000))}秒后失效</span>` : '';
             const name = star.name || star.nickname || '成员';
             const groupName = star.groupName || state.info.groupInfos?.find(group => String(group.groupId) === String(item.groupId))?.groupName || '';
-            const teamName = star.teamName || item.teamName || '';
+            const member = membersById.get(String(star.userId || star.id || ''));
+            const teamName = star.teamName || item.teamName || member?.team || '';
             const affiliation = [groupName, teamName].filter(Boolean).join(' · ');
-            const teamStyle = typeof window.getTeamStyle === 'function' ? window.getTeamStyle(teamName, false) : '';
-            const bookingStatus = item.ordered ? `<span class="netface-badge">${esc(model.statusText[Number(item.status)] || '待确认')} · ${esc(item.orderNum || item.orderedTime || '—')} 次</span>` : '';
-            return `<article class="netface-card" data-status="${Number(item.status)}" data-ordered="${item.ordered}"><div class="netface-member">${avatar ? `<img src="${esc(avatar)}" alt="" loading="lazy">` : '<div class="netface-avatar">☁</div>'}<div class="netface-member-info"><h3 title="${esc(name)}">${esc(name)}</h3>${affiliation ? `<div class="netface-member-affiliation"><span class="team-tag" style="${esc(teamStyle)}" title="${esc(affiliation)}">${esc(teamName || groupName)}</span></div>` : ''}</div></div>
+            const tagStyle = window.getTeamStyle?.(teamName, false) || '';
+            const reservation = model.reservation(item, state.info.ticketTime);
+            const bookingStatus = item.ordered ? `<span class="netface-badge">${esc(model.statusText[Number(item.status)] || '待确认')}${reservation.count ? ` · ${esc(reservation.count)} 次` : ''}${reservation.duration ? ` · ${esc(reservation.duration)} 秒` : ''}</span>` : '';
+            return `<article class="netface-card" data-status="${Number(item.status)}" data-ordered="${item.ordered}"><div class="netface-member">${avatar ? `<img src="${esc(avatar)}" alt="" loading="lazy">` : '<div class="netface-avatar">☁</div>'}<div class="netface-member-info"><h3 title="${esc(name)}">${esc(name)}</h3>${teamName ? `<div class="netface-member-affiliation"><span class="team-tag" style="${esc(tagStyle)}" title="${esc(affiliation)}">${esc(teamName)}</span></div>` : ''}</div></div>
                 <div class="netface-schedule"><div><span>预约时间</span><time>${esc(reservationTime(item.queueStartTime))}</time></div><div><span>开始时间</span><time>${esc(item.startTime || '待公布')}</time></div></div>
                 <div class="netface-card-meta"><div><span>${item.ordered ? '排队号' : '队列'}</span><strong>${item.ordered ? esc(item.queneNumber || item.queueNumber || '—') : `${esc(item.queueSize ?? '—')} <span class="netface-count-unit">人</span>`}</strong></div><div><span>预计等待</span><strong>${esc(waitTime(item))}</strong></div></div>
-                <div class="netface-card-actions">${bookingStatus}${item.ordered && Number(item.status) === 2 ? `<button class="btn btn-secondary" data-event="${esc(item.eventId)}" data-action="cancel" ${state.busy ? 'disabled' : ''}>取消预约</button>` : `<button class="btn ${canReserve || canJoin ? 'btn-primary' : 'btn-secondary'}" data-event="${esc(item.eventId)}" data-action="${canJoin ? 'join' : 'reserve'}" ${!(canReserve || canJoin) || state.stale || state.busy || state.entering || state.active ? 'disabled' : ''}>${esc(label)}</button>`}</div>
+                <div class="netface-card-actions">${bookingStatus}${item.ordered && Number(item.status) === 2 ? `<button class="btn btn-secondary" data-event="${esc(item.eventId)}" data-action="cancel" ${state.busy ? 'disabled' : ''}>取消预约</button>` : `<button class="btn ${canReserve || canJoin ? 'btn-primary' : 'btn-secondary'}" data-event="${esc(item.eventId)}" data-action="${canJoin ? 'join' : 'reserve'}" ${!(canReserve || canJoin) || state.stale || state.busy || state.entering || state.active ? 'disabled' : ''}>${esc(label)}${entryCountdown}</button>`}</div>
             </article>`;
         }).join('');
         if (!updateListMarkup(list, html)) return;
         list.querySelectorAll('[data-action]').forEach(button => { button.onclick = () => {
+            logEvent('ui-action', { action: button.dataset.action, eventId: button.dataset.event });
             const item = state.events.find(v => v.eventId === button.dataset.event);
             if (button.dataset.action === 'reserve') reserve(item);
             else if (button.dataset.action === 'cancel') cancel(item);
@@ -245,6 +285,7 @@
     async function refresh(manual = false) {
         if (state.loading || !visible() || !state.token) return;
         const generation = state.generation, requestToken = state.token;
+        const refreshStarted = Date.now();
         state.loading = true;
         $('netface-refresh').disabled = true;
         $('netface-refresh').setAttribute('aria-busy', 'true');
@@ -269,6 +310,16 @@
             const previous = new Map(state.events.map(v => [v.eventId, Number(v.status)]));
             state.info = result.content || {};
             state.events = model.events(state.info);
+            for (const [eventId, call] of entryCalls) {
+                let item = state.events.find(event => event.eventId === eventId);
+                if (!item?.ordered && call.receivedAt >= refreshStarted) {
+                    item = { ...call.item };
+                    state.events = state.events.filter(event => event.eventId !== eventId);
+                    state.events.push(item);
+                }
+                if (!item?.ordered) entryCalls.delete(eventId);
+                else item.status = call.expired ? 5 : 3;
+            }
             state.stale = false; state.loaded = true;
             $('netface-activity').textContent = state.info.ticketName || '当前活动';
             const groups = state.info.groupInfos || [];
@@ -298,7 +349,7 @@
             }
             const failure = results.find(v => v.status === 'rejected');
             message(failure ? `场次已更新，${failure.reason.message}` : state.status || '', Boolean(failure));
-            if (!state.signalId && !state.active && !state.entering && state.info.chatRoomId) void connectSignals('');
+            if (!state.signalId && !state.signalRetryTimer && !state.active && !state.entering && state.info.chatRoomId) void connectSignals('');
         } catch (error) {
             if (current(generation, requestToken)) {
                 state.stale = true;
@@ -363,15 +414,18 @@
         if (!item || Number(item.status) !== 1 || item.ordered || state.stale) return;
         const max = Math.min(state.balance ?? 0, Number(item.maxSingleNum || state.info.maxTpNum || 1), Number(state.info.maxTpNum || 999));
         if (max < 1) { message(state.balance === null ? '资格尚未获取，请刷新后再试' : '握手资格不足，请先兑换资格', true); return; }
-        modal('预约云握手', `<p>成员：<strong>${esc(item.starInfo?.name || item.starInfo?.nickname)}</strong></p><p>时间：${esc(item.startTime)}</p><label class="netface-field">使用资格次数<input id="netface-count" class="input-control" type="number" min="1" max="${max}" step="1" value="1"></label><p id="netface-modal-error" role="alert"></p><button class="btn btn-primary btn-full" id="netface-confirm">确认预约</button>`);
+        modal('预约云握手', `<p>成员：<strong>${esc(item.starInfo?.name || item.starInfo?.nickname)}</strong></p><p>时间：${esc(item.startTime)}</p><label class="netface-field">使用资格次数<input id="netface-count" class="input-control" type="number" min="1" max="${max}" step="1" value="1"></label><p id="netface-reservation-time"></p><p id="netface-modal-error" role="alert"></p><button class="btn btn-primary btn-full" id="netface-confirm">确认预约</button>`);
         const input = $('netface-count');
         const updateCount = () => {
-            if (input.value === '') { $('netface-confirm').disabled = true; return; }
+            if (input.value === '') { $('netface-confirm').disabled = true; $('netface-reservation-time').textContent = ''; return; }
             input.value = String(Math.min(max, Math.max(1, Math.trunc(Number(input.value)) || 1)));
+            const reservation = model.reservation({ orderNum: Number(input.value) }, state.info.ticketTime);
+            $('netface-reservation-time').textContent = reservation.duration ? `${reservation.count} 次资格，共 ${reservation.duration} 秒` : '预约互动时长待公布';
             $('netface-confirm').disabled = state.busy;
             $('netface-modal-error').textContent = '';
         };
         input.oninput = updateCount;
+        updateCount();
         input.onblur = () => { if (input.value === '') input.value = '1'; updateCount(); };
         $('netface-confirm').onclick = () => {
             const count = Number($('netface-count').value);
@@ -543,6 +597,7 @@
             try {
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 if (!valid()) return;
+                logEvent('browser-devices', { devices: devices.map(device => ({ kind: device.kind, deviceId: device.deviceId, label: device.label, groupId: device.groupId })) });
                 for (const [kind, select] of Object.entries(selects)) {
                     const available = devices.filter(device => device.kind === `${kind}input` && device.deviceId && !['default', 'communications'].includes(device.deviceId));
                     const choice = pending[kind];
@@ -589,6 +644,7 @@
                     pending[kind] = { ...selection[kind] };
                 }
                 deviceSelection = selection;
+                logEvent('device-check-success', { selectedDevices: selection, tracks: stream.getTracks().map(track => ({ kind: track.kind, label: track.label, settings: track.getSettings?.() })) });
                 try { localStorage.setItem(deviceStorageKey, JSON.stringify(deviceSelection)); } catch (error) { console.warn('[netface] device preferences not saved', error); }
                 $('netface-mic-device').textContent = '';
                 $('netface-camera-device').textContent = '';
@@ -598,6 +654,7 @@
             } catch (error) {
                 stream?.getTracks().forEach(track => track.stop());
                 if (!valid() || request !== sequence) return;
+                logEvent('device-check-failed', { selectedDevices: selection, error });
                 $('netface-mic-device').textContent = '未完成检测';
                 $('netface-camera-device').textContent = '未完成检测';
                 const reasons = {
@@ -626,7 +683,23 @@
         if (!valid()) return;
         await check();
     }
-    async function connectSignals(eventId) {
+    function cancelSignalRetry() {
+        clearTimeout(state.signalRetryTimer); state.signalRetryTimer = null;
+    }
+    function scheduleSignalReconnect() {
+        if (state.signalRetryTimer || state.signalId || state.active || state.entering || !visible()
+            || !state.token || state.token !== token() || !state.info.chatRoomId) return;
+        const generation = state.generation, requestToken = state.token;
+        const delay = state.signalRetryAttempt ? Math.min(5000, 500 * 2 ** Math.min(state.signalRetryAttempt - 1, 4)) : 0;
+        state.signalRetryAttempt++;
+        logEvent('reconnect-scheduled', { delayMilliseconds: delay, count: state.signalRetryAttempt });
+        state.signalRetryTimer = setTimeout(() => {
+            state.signalRetryTimer = null;
+            if (current(generation, requestToken) && visible() && !state.signalId && !state.active && !state.entering) void connectSignals('');
+        }, delay);
+    }
+    async function connectSignals(eventId, throwOnFailure = false) {
+        cancelSignalRetry();
         const generation = state.generation, requestToken = state.token;
         disconnectSignals();
         const id = `netface-${generation}-${++state.signalSequence}`;
@@ -637,27 +710,42 @@
             if (signal) {
                 if (state.entering && !state.rtcReady) {
                     if (state.pendingSignals.length >= 128) { state.signalOverflow = true; return; }
-                    state.pendingSignals.push(signal);
+                    state.pendingSignals.push({ signal, receivedAt: Date.now() });
                 } else handleSignal(signal);
             }
         }));
         state.signalOff.push(transport.on('netface-signal-status', (_event, payload) => {
             if (payload.connectionId !== state.signalId || !current(generation, requestToken)) return;
+            logEvent('signal-status', { status: payload.status, details: payload, entering: state.entering, active: Boolean(state.active) });
             state.signalHealthy = payload.status === 'connected';
             if (!state.signalHealthy && payload.status !== 'connecting') {
                 if (state.active && !state.entering) finishInteraction('实时通知中断，已停止音视频，请重新进入房间');
-                else message('实时通知连接中断，正在重连；排队列表仍会定时刷新', true);
+                else {
+                    message('实时通知连接中断，正在重连；排队列表仍会定时刷新', true);
+                    if (!state.entering) { disconnectSignals(); scheduleSignalReconnect(); }
+                }
             }
         }));
         try {
+            if (!state.userId) {
+                const account = await invoke('login-check-token', {}, requestToken);
+                if (!current(generation, requestToken) || state.signalId !== id) return false;
+                const userId = String(account.userInfo?.userId || '');
+                if (!/^\d+$/.test(userId)) throw new Error('无法确认当前口袋账号，请重新登录');
+                state.userId = userId;
+            }
             const result = await transport.invoke('connect-netface-signals', { connectionId: id, ticketId: state.ticketId, eventId });
             if (!current(generation, requestToken) || state.signalId !== id) return false;
             if (!result.success) throw new Error(result.msg);
             if (eventId && state.signalOverflow) throw new Error('实时通知过多，请重新入场');
             state.signalHealthy = true;
+            state.signalRetryAttempt = 0;
             return true;
         } catch (error) {
-            if (state.signalId === id) { disconnectSignals(); message(`实时通知暂不可用：${error.message}`, true); }
+            if (current(generation, requestToken) && state.signalId === id) {
+                disconnectSignals(); message(`实时通知暂不可用：${error.message}`, true); scheduleSignalReconnect();
+            }
+            if (throwOnFailure) throw error;
             return false;
         }
     }
@@ -682,6 +770,7 @@
     function finishInteraction(status, release = false) {
         const active = state.active;
         if (!active) return;
+        logEvent('interaction-finished', { release, remainingSeconds: state.paused ? active.remainingTime : Math.max(0, Math.ceil((state.deadline - Date.now()) / 1000)) });
         const generation = state.generation, requestToken = state.token;
         stopRtc(); state.active = null; state.status = status; state.rtcStatus = status;
         message(status); void connectSignals('');
@@ -697,7 +786,53 @@
             });
         } else void refresh();
     }
-    function handleSignal(signal) {
+    function receiveEntryCall(signal, receivedAt = Date.now()) {
+        const eventId = String(signal.eventId || signal.sourceId || '');
+        if (!state.userId || String(signal.targetId || '') !== state.userId || state.active?.eventId === eventId) return;
+        const item = state.events.find(event => event.eventId === eventId && event.ordered);
+        if (!item || (item.reservationId && signal.reservationId && String(item.reservationId) !== String(signal.reservationId))) return;
+        const previous = entryCalls.get(eventId);
+        const signalTime = Number(signal.signTime) || 0;
+        if (previous && (!signalTime || signalTime <= previous.signalTime || !previous.expired)) return;
+        entryCalls.set(eventId, { deadline: receivedAt + 15000, receivedAt, item: { ...item }, signalTime, expired: false, prompted: false });
+        logEvent('entry-call', { eventId, durationSeconds: 15 });
+        item.status = 3;
+        renderList();
+        window.showToast?.(`${item.starInfo?.name || '成员'}的云握手可以入场了，请在 15 秒内进入`);
+        updateEntryCountdowns();
+    }
+    function updateEntryCountdowns() {
+        let changed = false;
+        for (const [eventId, call] of entryCalls) {
+            const item = state.events.find(event => event.eventId === eventId && event.ordered);
+            if (!item || state.active?.eventId === eventId) {
+                entryCalls.delete(eventId);
+                if ($('netface-modal')?.dataset.entryEvent === eventId) closeModal();
+                continue;
+            }
+            const seconds = Math.max(0, Math.ceil((call.deadline - Date.now()) / 1000));
+            if (!seconds && !call.expired) {
+                logEvent('entry-expired', { eventId, remainingSeconds: 0 });
+                call.expired = true; item.status = 5; changed = true;
+                if ($('netface-modal')?.dataset.entryEvent === eventId) closeModal();
+            }
+            if (!call.expired && !call.prompted && !state.active && !state.entering && !state.busy && !$('netface-notice-confirm') && !$('netface-modal')?.dataset.entryEvent) {
+                call.prompted = true;
+                modal('轮到你入场了', `<p><strong>${esc(item.starInfo?.name || item.starInfo?.nickname || '成员')}</strong>的云握手可以入场了。</p><p><strong data-entry-countdown="${esc(eventId)}">${seconds}秒后失效</strong>，请及时进入房间。</p><button type="button" class="btn btn-primary btn-full" id="netface-entry-confirm">进入房间</button>`);
+                $('netface-modal').dataset.entryEvent = eventId;
+                $('netface-entry-confirm').onclick = () => join(state.events.find(event => event.eventId === eventId));
+            }
+            document.querySelectorAll('[data-entry-countdown]').forEach(el => {
+                if (el.dataset.entryCountdown === eventId) el.textContent = `${seconds}秒后失效`;
+            });
+        }
+        if (changed) renderList();
+    }
+    function handleSignal(signal, receivedAt = Date.now(), deferred = false) {
+        logEvent('signal-handled', { signal, receivedAt, delayMilliseconds: Date.now() - receivedAt, deferred,
+            session: state.active ? { eventId: state.active.eventId, reservationId: state.active.reservationId,
+                userId: state.active.userId, started: state.started, paused: state.paused, deadline: state.deadline } : null });
+        if (signal.messageType === 'NETFACE_NEXT_FANS') { receiveEntryCall(signal, receivedAt); return; }
         if (!state.active) { void refresh(); return; }
         const sourceId = signal.sourceId || signal.eventId;
         if (sourceId && String(sourceId) !== String(state.active.eventId)) return;
@@ -713,22 +848,30 @@
             if (state.started || String(signal.targetId || '') === '0') return;
             const duration = Number(signal.duration ?? state.active.duration);
             if (!Number.isFinite(duration) || duration <= 0) return;
-            state.started = true; state.paused = false; state.deadline = Date.now() + duration * 1000;
+            state.started = true; state.paused = false; state.deadline = receivedAt + duration * 1000;
             state.rtcStatus = '互动中';
         } else if (signal.messageType === 'NETFACE_PAUSE') {
             if (!state.started || state.paused) return;
-            state.active.remainingTime = Math.max(0, (state.deadline - Date.now()) / 1000); state.paused = true; state.rtcStatus = '工作人员已暂停互动';
+            state.active.remainingTime = Math.max(0, (state.deadline - receivedAt) / 1000); state.paused = true; state.rtcStatus = '工作人员已暂停互动';
         } else if (signal.messageType === 'NETFACE_CONTINUE') {
             if (!state.started || !state.paused) return;
-            state.paused = false; state.deadline = Date.now() + Number(state.active.remainingTime || 0) * 1000; state.rtcStatus = '互动中';
+            state.paused = false; state.deadline = receivedAt + Number(state.active.remainingTime || 0) * 1000; state.rtcStatus = '互动中';
         } else if (signal.messageType === 'NETFACE_END' || signal.messageType === 'NETFACE_KICKUSER') {
             if (String(signal.targetId || '') === '0') return;
+            logEvent('interaction-control', { messageType: signal.messageType });
             finishInteraction(signal.messageType === 'NETFACE_END' ? '互动已结束' : '工作人员已结束本次互动');
             return;
         } else return;
         if (signalTime) state.lastSignalTime = signalTime;
-        syncAudio(); scheduleExpiry();
-        updateClock();
+        logEvent('interaction-control', { messageType: signal.messageType, paused: state.paused, remainingSeconds: state.paused ? state.active.remainingTime : Math.max(0, Math.ceil((state.deadline - Date.now()) / 1000)) });
+        if (!deferred) { syncAudio(); scheduleExpiry(); updateClock(); }
+    }
+    function applyPendingSignals() {
+        for (const { signal, receivedAt } of state.pendingSignals.splice(0)) {
+            if (!state.active) break;
+            handleSignal(signal, receivedAt, true);
+        }
+        if (state.active) { syncAudio(); scheduleExpiry(); updateClock(); }
     }
     function updateClock() {
         if (!state.active || !$('netface-call-status')) return;
@@ -740,11 +883,11 @@
         $('netface-call-status').textContent = `${state.rtcStatus}${state.started ? ` · 剩余 ${Math.ceil(remaining)} 秒` : ''}`;
     }
     async function join(item) {
-        if (!item?.ordered || state.stale || state.busy || state.entering || joinPending || state.active || ![3, 4].includes(Number(item.status))) return;
+        if (!item?.ordered || state.stale || state.busy || state.entering || joinPending || state.active || ![3, 4, 5].includes(Number(item.status))) return;
         joinPending = true;
         state.entering = true; state.rtcReady = false; state.pendingSignals = []; state.signalOverflow = false; renderList(); closeModal();
         const generation = state.generation, requestToken = state.token;
-        let admitted = false, rollbackAttempted = false;
+        let admitted = false, rollbackAttempted = false, pendingEngine = null;
         const rollbackAdmission = async () => {
             if (!admitted || rollbackAttempted) return;
             rollbackAttempted = true;
@@ -757,14 +900,43 @@
             ]);
             if (!current(generation, requestToken)) return;
             if (!Number(config.content?.appId) || !config.content?.appSign) throw new Error('口袋未返回完整的音视频配置');
-            if (!await connectSignals(item.eventId)) throw new Error('工作人员通知未连接成功，请重试入场');
+            state.userId = String(account.userInfo?.userId || '');
+            if ((!state.signalId || !state.signalHealthy) && !await connectSignals('', true)) throw new Error('工作人员通知未连接成功，请重试入场');
+            if (!current(generation, requestToken)) return;
+            const connectionId = state.signalId;
+            logEvent('rtc-initializing', { stage: 'device-preflight', config: config.content, selectedDevices: deviceSelection });
+            pendingEngine = engine;
+            await engine.createEngine({ appID: Number(config.content.appId), appSign: config.content.appSign, scenario: 0 });
+            if (!current(generation, requestToken)) {
+                await releaseRtcEngine(pendingEngine); pendingEngine = null;
+                return;
+            }
+            state.engine = engine; pendingEngine = null;
+            engine.muteMicrophone(true); engine.enableCamera(false);
+            try {
+                const inventory = { audio: engine.getAudioDeviceList(0), video: engine.getVideoDeviceList() };
+                logEvent('rtc-device-list', { selectedDevices: deviceSelection, inventory });
+                if (!Array.isArray(inventory.audio) || !inventory.audio.length) throw new Error('音视频 SDK 未检测到可用麦克风，请检查设备连接和 Windows 麦克风访问权限');
+                const resolved = model.applyRtcDevices(engine, deviceSelection, inventory);
+                logEvent('device-preflight-success', { selectedDevices: deviceSelection, resolved });
+            } catch (error) {
+                logEvent('device-preflight-failed', { selectedDevices: deviceSelection, error });
+                throw error;
+            }
+            if (!state.signalHealthy || state.signalOverflow) throw new Error('工作人员通知连接中断，请重新入场');
             const result = await invoke('join-netface', { eventId: item.eventId }, requestToken);
             admitted = true;
             if (!current(generation, requestToken)) { await rollbackAdmission(); return; }
             const info = result.content || {};
+            const session = model.session(info);
             const room = model.room(info, account.userInfo || {});
+            const switched = await transport.invoke('switch-netface-room', { connectionId, eventId: item.eventId, imRoomId: info.imRoomId });
+            if (!switched?.success) throw new Error(switched?.msg || '连接成员聊天室失败');
+            if (!current(generation, requestToken) || state.signalId !== connectionId) { await rollbackAdmission(); return; }
+            entryCalls.delete(item.eventId);
             state.active = { ...info, ...room, eventId: item.eventId };
-            state.engine = engine; state.joined = false; state.ending = false; state.camera = true; state.muted = false; state.remote.clear();
+            logEvent('session-admitted', { started: Number(info.joinStatus) === 1, paused: Number(info.eventPauseStatus || 0) !== 0, remainingSeconds: Number(info.remainingTime), durationSeconds: Number(info.duration), admission: info, room });
+            state.joined = false; state.ending = false; state.camera = true; state.muted = false; state.remote.clear();
             $('netface-call').hidden = false;
             $('netface-overview').hidden = true;
             $('netface-browse').hidden = true;
@@ -772,23 +944,24 @@
             $('netface-staff').textContent = '';
             $('netface-staff').dataset.error = 'false';
             updateCaptureButtons();
-            const session = model.session(info);
             state.started = session.started; state.paused = session.paused; state.lastSignalTime = 0;
             state.active.remainingTime = session.remainingTime;
             state.rtcStatus = '正在连接音视频';
             state.deadline = session.deadline;
-            updateClock();
-            await engine.createEngine({ appID: Number(config.content.appId), appSign: config.content.appSign, scenario: 0 });
-            if (!current(generation, requestToken) || !state.active) { engine.removeAllListeners(); engine.destroyEngine(); return; }
-            else model.applyRtcDevices(engine, deviceSelection);
+            applyPendingSignals();
+            if (!current(generation, requestToken) || !state.active) return;
             if (!state.signalHealthy || state.signalOverflow) throw new Error('工作人员通知连接中断，请重新入场');
+            engine.enableCamera(true);
             state.rtcReady = true;
+            logEvent('rtc-ready');
             const listenRtc = (name, callback) => engine.on(name, param => {
+                logEvent('rtc-event', { rtcEvent: name, parameters: param });
                 if (!state.active || state.engine !== engine || (param?.roomID && param.roomID !== room.roomId)) return;
                 try { callback(param); }
-                catch { finishInteraction('音视频设备发生异常，已停止音视频，请检查设备后重新进入房间'); }
+                catch (error) { logEvent('rtc-error', { errorName: error.name, code: error.code, error }); finishInteraction('音视频设备发生异常，已停止音视频，请检查设备后重新进入房间'); }
             });
             listenRtc('onRoomStateUpdate', param => {
+                logEvent('rtc-room-state', { state: param.state, code: param.errorCode });
                 if (param.errorCode) { finishInteraction(`音视频连接失败 (${param.errorCode})，已停止音视频，请重新进入房间`); return; }
                 if (state.ending) return;
                 if (param.state === 2) {
@@ -807,6 +980,7 @@
                 if (state.ending) return;
                 for (const stream of param.streamList || []) {
                     if (stream.streamID !== room.starStreamId) continue;
+                    logEvent('rtc-stream-state', { state: param.updateType });
                     if (param.updateType === 0) {
                         state.remote.add(stream.streamID);
                         engine.startPlayingStream(stream.streamID, { canvas: $('netface-remote-canvas'), viewMode: 0 });
@@ -815,33 +989,48 @@
                     else { engine.stopPlayingStream(stream.streamID); state.remote.delete(stream.streamID); }
                 }
             });
-            engine.on('onPublisherStateUpdate', param => { if (param.errorCode && state.engine === engine) message(`音视频发送失败 (${param.errorCode})，请检查网络`, true); });
-            engine.on('onPlayerStateUpdate', param => { if (param.errorCode && state.engine === engine) message(`成员画面连接失败 (${param.errorCode})，请检查网络`, true); });
-            for (const signal of state.pendingSignals.splice(0)) handleSignal(signal);
+            engine.on('onPublisherStateUpdate', param => { logEvent('rtc-event', { rtcEvent: 'onPublisherStateUpdate', parameters: param }); if (param.errorCode && state.engine === engine) { logEvent('rtc-error', { channel: 'publisher', code: param.errorCode }); message(`音视频发送失败 (${param.errorCode})，请检查网络`, true); } });
+            engine.on('onPlayerStateUpdate', param => { logEvent('rtc-event', { rtcEvent: 'onPlayerStateUpdate', parameters: param }); if (param.errorCode && state.engine === engine) { logEvent('rtc-error', { channel: 'player', code: param.errorCode }); message(`成员画面连接失败 (${param.errorCode})，请检查网络`, true); } });
+            for (const name of ['onDebugError', 'onNetworkModeChanged', 'onNetworkQuality', 'onPublisherQualityUpdate',
+                'onPlayerQualityUpdate', 'onPublisherVideoSizeChanged', 'onPlayerVideoSizeChanged', 'onPlayerMediaEvent',
+                'onPublisherCapturedAudioFirstFrame', 'onPublisherCapturedVideoFirstFrame', 'onPlayerRecvAudioFirstFrame',
+                'onPlayerRecvVideoFirstFrame', 'onPlayerRenderVideoFirstFrame', 'onAudioDeviceStateChanged', 'onVideoDeviceStateChanged']) {
+                engine.on(name, parameters => logEvent('rtc-event', { rtcEvent: name, parameters }));
+            }
+            applyPendingSignals();
             if (!current(generation, requestToken) || state.engine !== engine || !state.active) return;
             scheduleExpiry();
+            logEvent('rtc-login', { room });
             engine.loginRoom(room.roomId, { userID: room.userId, userName: room.userName }, { isUserStatusNotify: true });
             $('netface-call').scrollIntoView({ behavior: 'smooth', block: 'start' });
         } catch (error) {
+            logEvent('session-failed', { eventId: item.eventId, code: error.code, errorName: error.name, error });
+            if (pendingEngine) { await releaseRtcEngine(pendingEngine); pendingEngine = null; }
             if (current(generation, requestToken)) { stopRtc(); state.active = null; }
             let quitFailed = false;
             if (admitted && !rollbackAttempted) { try { await rollbackAdmission(); } catch { quitFailed = true; } }
-            if (current(generation, requestToken)) { message(`进入云握手失败：${error.message}${quitFailed ? '；退出请求也未成功，请在口袋客户端核实本次预约' : ''}`, true); void connectSignals(''); }
-        } finally { joinPending = false; if (current(generation, requestToken)) { state.entering = false; renderList(); } }
+            if (current(generation, requestToken)) {
+                message(`进入云握手失败：${error.message}${quitFailed ? '；退出请求也未成功，请在口袋客户端核实本次预约' : ''}`, true);
+                if (admitted || !state.signalHealthy) void connectSignals('');
+            }
+        } finally { joinPending = false; if (current(generation, requestToken)) { state.entering = false; renderList(); scheduleSignalReconnect(); } }
+    }
+    function releaseRtcEngine(engine, roomId = '', streams = []) {
+        logEvent('rtc-stopped');
+        const cleanup = [() => engine.removeAllListeners(), () => engine.muteMicrophone(true), () => engine.enableCamera(false),
+            () => engine.stopPublishingStream(), () => engine.stopPreview(), ...streams.map(id => () => engine.stopPlayingStream(id)),
+            () => { if (roomId) engine.logoutRoom(roomId); }, () => engine.destroyEngine()];
+        return Promise.all(cleanup.map((action, step) => {
+            try { return Promise.resolve(action()).catch(error => logEvent('rtc-cleanup-failed', { step, code: error?.code, errorName: error?.name, error })); }
+            catch (error) { logEvent('rtc-cleanup-failed', { step, code: error.code, errorName: error.name, error }); }
+        }));
     }
     function stopRtc() {
         quitPrompt?.cancel();
         clearTimeout(state.expiryTimer); state.expiryTimer = null;
         state.rtcReady = false; state.started = false; state.deadline = 0; state.pendingSignals = [];
         const engine = state.engine; state.engine = null; state.joined = false;
-        if (engine) {
-            const cleanup = [() => engine.removeAllListeners(), () => engine.muteMicrophone(true), () => engine.enableCamera(false), () => engine.stopPublishingStream(),
-                () => engine.stopPreview(), ...Array.from(state.remote, id => () => engine.stopPlayingStream(id)),
-                () => { if (state.active) engine.logoutRoom(state.active.roomId); }, () => engine.destroyEngine()];
-            for (const action of cleanup) {
-                try { Promise.resolve(action()).catch(() => {}); } catch {                                               }
-            }
-        }
+        if (engine) void releaseRtcEngine(engine, state.active?.roomId, Array.from(state.remote));
         state.remote.clear();
         if ($('netface-call')) $('netface-call').hidden = true;
         if ($('netface-overview')) $('netface-overview').hidden = false;
@@ -890,8 +1079,10 @@
         finally { if (current(generation, requestToken)) { state.busy = false; renderList(); } }
     }
     function leave() {
+        logEvent('page-leave');
         clearInterval(state.timer); clearInterval(state.tick); state.timer = null; state.tick = null;
-        disconnectSignals(); closeModal(); state.generation++; state.loading = false;
+        cancelSignalRetry(); state.signalRetryAttempt = 0;
+        disconnectSignals(); closeModal(); entryCalls.clear(); state.generation++; state.loading = false;
     }
     window.beforeLeaveNetfaceView = (next, mode) => {
         if (state.entering || joinPending || state.busy) { message('正在处理云握手请求，请稍候'); return false; }
@@ -899,8 +1090,9 @@
         leave(); availabilityNoticeShown = false; return true;
     };
     window.resetNetfaceAccountState = () => {
+        logEvent('account-reset');
         searchNames.clear();
-        stopRtc(); state.active = null; leave(); state.token = ''; state.info = {}; state.events = []; state.balance = null;
+        stopRtc(); state.active = null; leave(); state.token = ''; state.userId = ''; state.info = {}; state.events = []; state.balance = null;
         state.stale = true; state.loaded = false; state.status = ''; state.busy = false; state.entering = false;
         state.tickets = []; state.ticketsLoaded = false; state.ticketId = '0';
         message('');
@@ -913,13 +1105,15 @@
         if (state.token !== token()) {
             window.resetNetfaceAccountState(); state.token = token();
         }
+        logEvent('page-open', { userAgent: navigator.userAgent, online: navigator.onLine, selectedDevices: deviceSelection, viewport: { width: window.innerWidth, height: window.innerHeight } });
         renderList(); void refresh(true);
+        void window.YayaMemberDataStore?.loadMemberData().catch(error => console.warn('[netface] member data unavailable', error));
         clearInterval(state.timer); clearInterval(state.tick);
         state.timer = setInterval(() => {
             if (state.token !== token()) { stopRtc(); state.active = null; leave(); window.enterNetfaceView(); return; }
             void refresh();
         }, 10000);
-        state.tick = setInterval(updateClock, 1000);
+        state.tick = setInterval(() => { updateClock(); updateEntryCountdowns(); }, 1000);
         if (!availabilityNoticeShown) {
             availabilityNoticeShown = true;
             modal('注意', '<p id="netface-availability-notice">该功能可用性未经测试，当前版本仅作入口预留，不保证功能可用性。</p><button type="button" id="netface-notice-confirm" class="btn btn-primary btn-full">我已知晓风险并继续使用</button>');
@@ -930,5 +1124,9 @@
             $('netface-notice-confirm').focus();
         }
     };
+    window.addEventListener('member-data-loaded', () => { if (visible()) renderList(); });
+    window.addEventListener('online', () => {
+        if (visible() && !state.signalId && !state.active && !state.entering) { cancelSignalRetry(); state.signalRetryAttempt = 0; scheduleSignalReconnect(); }
+    });
     window.addEventListener('beforeunload', () => { stopRtc(); leave(); });
 })();

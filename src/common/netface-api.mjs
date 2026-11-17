@@ -1,5 +1,7 @@
-export function createNetfaceMethods({ postJson, createHeaders, apiError }) {
+export function createNetfaceMethods({ postJson, createHeaders, apiError, onDiagnostic }) {
     const base = 'https://pocketapi.48.cn/netface/api/v1/';
+    let sequence = 0;
+    const diagnostic = (event, details) => { try { onDiagnostic?.({ event, ...details }); } catch {} };
     const id = (value, name) => {
         const result = String(value ?? '').trim();
         if (!/^\d{1,32}$/.test(result)) throw new Error(`无效的${name}`);
@@ -10,17 +12,30 @@ export function createNetfaceMethods({ postJson, createHeaders, apiError }) {
         const headers = createHeaders(payload.token, payload.pa);
         headers.token = payload.token;
         if (attachAppInfo) body = { ...body, appInfo: headers.appInfo };
-        let response;
-        if (method === 'GET') {
-            const res = await fetch(base + path, { headers, signal: AbortSignal.timeout(15000) });
-            response = { status: res.status, data: await res.json() };
-        } else {
-            response = await postJson(base + path, body, headers, { largeNumbers: true, timeoutMs: 15000 });
+        const started = Date.now();
+        const details = { requestId: `http-${started}-${++sequence}`, url: base + path, method };
+        diagnostic('http-request', { ...details, request: { headers, body } });
+        try {
+            let response;
+            if (method === 'GET') {
+                const res = await fetch(base + path, { headers, signal: AbortSignal.timeout(15000) });
+                if (typeof res.text === 'function') {
+                    const text = await res.text();
+                    diagnostic('http-raw-response', { ...details, status: res.status,
+                        headers: res.headers?.entries ? Object.fromEntries(res.headers.entries()) : undefined, responseText: text });
+                    response = { status: res.status, data: JSON.parse(text) };
+                } else response = { status: res.status, data: await res.json() };
+            } else {
+                response = await postJson(base + path, body, headers, { largeNumbers: true, timeoutMs: 15000,
+                    onResponse: raw => diagnostic('http-raw-response', { ...details, ...raw }) });
+            }
+            diagnostic('http-response', { ...details, response, elapsedMilliseconds: Date.now() - started });
+            if (response.status === 200 && response.data?.status === 200) return { success: true, content: response.data.content };
+            return apiError(response, '云握手请求失败');
+        } catch (error) {
+            diagnostic('http-error', { ...details, error, elapsedMilliseconds: Date.now() - started });
+            throw error;
         }
-        if (response.status === 200 && response.data?.status === 200) {
-            return { success: true, content: response.data.content };
-        }
-        return apiError(response, '云握手请求失败');
     }
     return {
         fetchNetfaceActivities: (p = {}) => request('user/tp/ticket_info', p, {}),

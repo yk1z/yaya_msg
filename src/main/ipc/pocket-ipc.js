@@ -6,6 +6,7 @@ const { withDesktopLiveRoom } = require('../services/live-room-routing');
 const { POCKET_CHANNEL_METHODS } = require('../../common/pocket-channel-config');
 const { createPocketSocialLoginService } = require('../services/pocket-social-login-service');
 const { getMainWindow } = require('../window');
+const { traceNetfaceRequest } = require('../services/netface-log');
 
 const YAYA_API_PROXY_SETTING_KEY = 'useYayaApiProxy';
 const DEFAULT_YAYA_API_BASE = 'https://api.gnz.hk';
@@ -221,7 +222,11 @@ function registerPocketIpc() {
     app.on('before-quit', socialLogin.closeAll);
     const handle = (channel) => {
         ipcMain.handle(channel, async (event, payload) => {
-            const result = await handlePocketRequest(channel, payload, preparedPayload => pocketService.invoke(channel, preparedPayload));
+            const action = () => handlePocketRequest(channel, payload, preparedPayload => pocketService.invoke(channel, preparedPayload));
+            const result = channel.includes('netface') ? await traceNetfaceRequest(channel, payload, action, {
+                boundary: 'ipc', ticketId: payload?.ticketId, eventId: payload?.eventId, senderId: event.sender?.id,
+                route: 'direct'
+            }) : await action();
             return channel === 'fetch-live-one' ? withDesktopLiveRoom(result) : result;
         });
     };

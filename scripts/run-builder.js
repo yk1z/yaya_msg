@@ -3,7 +3,7 @@ const path = require('path');
 const pkg = require('../package.json');
 
 function toDisplayVersion(version) {
-    return String(version).replace(/^(\d+\.\d+)\.\d+$/, '$1');
+    return String(version).replace(/^(\d+\.\d+)\.0$/, '$1');
 }
 
 const versionLabel = `v${toDisplayVersion(pkg.version)}`;

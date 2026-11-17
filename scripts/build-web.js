@@ -49,6 +49,7 @@ const excludedWebScripts = new Set([
     'src/renderer/invoice-feature.js', 'src/renderer/pocket-social-login-feature.js',
     'src/renderer/deep-link-feature.js', 'src/renderer/desktop-live-gift-animation.js',
     'src/renderer/desktop-cloud-home-feature.js',
+    'src/renderer/home-workspace-feature.js',
     'src/renderer/private-message-notifications.js',
     'src/renderer/desktop-navigation-feature.js',
     'src/common/deep-link.js'
@@ -464,14 +465,13 @@ function configureWebHomeMarkup(indexHtml) {
             throw new Error('Invalid Web homepage link');
         }
     });
-    const start = indexHtml.indexOf('<div id="view-home"');
-    const end = indexHtml.indexOf('<div id="view-followed-rooms"', start);
-    if (start < 0 || end < 0) throw new Error('Web homepage boundaries not found');
+    const mount = '<div id="view-home" class="web-home-view"></div>';
+    if (!indexHtml.includes(mount)) throw new Error('Web homepage mount not found');
     const data = JSON.stringify(links).replace(/</g, '\\u003c');
     const home = `<div id="view-home" class="web-home-view">
                 <script type="application/json" id="web-home-links">${data}</script>
-            </div>\n\n            `;
-    return indexHtml.slice(0, start) + home + indexHtml.slice(end);
+            </div>`;
+    return indexHtml.replace(mount, () => home);
 }
 
 function configureWebDesktopDownload(indexHtml) {
@@ -533,6 +533,11 @@ async function buildWebAssets() {
     }
     const indexPath = path.join(outputDir, 'index.html');
     let indexHtml = fs.readFileSync(indexPath, 'utf8');
+    const databaseDir = path.join(outputDir, 'src', 'renderer', 'database');
+    const databaseRuntime = path.join(databaseDir, 'runtime.js');
+    const versionedDatabaseRuntime = `runtime.${getFileVersion(databaseRuntime)}.js`;
+    fs.copyFileSync(databaseRuntime, path.join(databaseDir, versionedDatabaseRuntime));
+    indexHtml = indexHtml.replace('<head>', `<head>\n    <meta name="yaya-database-runtime" content="/src/renderer/database/${versionedDatabaseRuntime}">`);
     indexHtml = configureWebDocumentBase(indexHtml);
     indexHtml = configureSolidWebBackground(indexHtml);
     indexHtml = configureWebContentSecurityPolicy(indexHtml);

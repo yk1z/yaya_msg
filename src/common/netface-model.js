@@ -49,6 +49,16 @@
         const paused = started && Number(info.eventPauseStatus || 0) !== 0;
         return { started, paused, deadline: started ? now + remaining * 1000 : 0, remainingTime: remaining };
     }
+    function reservation(item = {}, ticketTime) {
+        const count = Number(item.orderNum);
+        const unitSeconds = Number(ticketTime);
+        const hasCount = Number.isInteger(count) && count > 0;
+        const hasUnit = Number.isFinite(unitSeconds) && unitSeconds > 0;
+        const duration = hasCount && hasUnit ? count * unitSeconds : Number(item.orderedTime);
+        const hasDuration = Number.isFinite(duration) && duration > 0;
+        const inferredCount = hasDuration && hasUnit && Number.isInteger(duration / unitSeconds) ? duration / unitSeconds : null;
+        return { count: hasCount ? count : inferredCount, duration: hasDuration ? duration : null };
+    }
     function room(info, account) {
         const starId = String(info.starInfo?.userId || '');
         const userId = String(account.userId || '');
@@ -60,25 +70,31 @@
         const constraint = device => device?.id ? { deviceId: { exact: device.id } } : true;
         return { audio: constraint(selection.audio), video: constraint(selection.video) };
     }
-    function deviceName(value) {
-        return String(value || '').normalize('NFKC').replace(/^(default|communications|默认|通信)\s*[-–:]\s*/i, '')
+    function deviceName(value, stripTransport = true) {
+        let name = String(value || '').normalize('NFKC').replace(/^(default|communications|默认|通信)\s*[-–:]\s*/i, '')
             .replace(/\s*\([a-f\d]{4}:[a-f\d]{4}\)\s*$/i, '').replace(/\s+/g, ' ').trim().toLowerCase();
+        if (stripTransport) name = name.replace(/\s*\((?:bluetooth|蓝牙)\)\s*$/i, '').trim();
+        return name;
     }
     function rtcDeviceId(list, selection, label) {
         if (!selection?.id || selection.id === 'default') return '';
         const devices = Array.isArray(list) ? list : [];
         const exact = devices.find(device => device.deviceID === selection.id);
         if (exact) return exact.deviceID;
+        const originalName = deviceName(selection.label, false);
+        const originalMatches = originalName ? devices.filter(device => deviceName(device.deviceName, false) === originalName && device.deviceID) : [];
+        if (originalMatches.length === 1) return originalMatches[0].deviceID;
         const name = deviceName(selection.label);
         const matches = name ? devices.filter(device => deviceName(device.deviceName) === name && device.deviceID) : [];
         if (matches.length === 1) return matches[0].deviceID;
         throw new Error(`无法确定所选${label}，请在设备检查中重新选择`);
     }
-    function applyRtcDevices(engine, selection = {}) {
-        const audio = selection.audio?.id ? rtcDeviceId(engine.getAudioDeviceList(0), selection.audio, '麦克风') : '';
-        const video = selection.video?.id ? rtcDeviceId(engine.getVideoDeviceList(), selection.video, '摄像头') : '';
+    function applyRtcDevices(engine, selection = {}, inventory) {
+        const audio = selection.audio?.id ? rtcDeviceId(inventory?.audio ?? engine.getAudioDeviceList(0), selection.audio, '麦克风') : '';
+        const video = selection.video?.id ? rtcDeviceId(inventory?.video ?? engine.getVideoDeviceList(), selection.video, '摄像头') : '';
         if (audio) engine.useAudioDevice(audio, 0);
         if (video) engine.useVideoDevice(video);
+        return { audio, video };
     }
-    return { events, signal, session, room, statusText, ticketId, deviceConstraints, deviceName, rtcDeviceId, applyRtcDevices };
+    return { events, signal, session, reservation, room, statusText, ticketId, deviceConstraints, deviceName, rtcDeviceId, applyRtcDevices };
 });
