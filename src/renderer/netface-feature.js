@@ -25,10 +25,11 @@
     let historySession = null;
     let deviceAudioCleanup = null;
     let devicePickerCleanup = null;
-    let availabilityNoticeShown = false;
     const searchNames = new Map();
     const listMarkup = new WeakMap();
     const entryCalls = new Map();
+    const messageKeys = new Set();
+    let lastToast = { text: '', time: 0 };
     let requestSequence = 0;
     function logEvent(event, details = {}) {
         try {
@@ -70,14 +71,20 @@
             }
         });
     });
-    function message(text, error = false) {
+    function message(text, error = false, { key, repeat = false } = {}) {
         if (text) logEvent('ui-message', { message: text, level: error ? 'error' : 'info' });
-        const el = $('netface-status');
-        if (el) { el.textContent = text; el.dataset.error = String(error); }
         if (state.active && error && $('netface-staff')) {
             $('netface-staff').textContent = text;
             $('netface-staff').dataset.error = 'true';
         }
+        if (!text || !visible()) return;
+        const repeated = key && messageKeys.has(key);
+        if (key) messageKeys.add(key);
+        if (repeated && !repeat) return;
+        const time = Date.now();
+        if (!repeat && text === lastToast.text && time - lastToast.time < 3000) return;
+        lastToast = { text, time };
+        window.showToast?.(text);
     }
     async function invoke(channel, payload = {}, requestToken = state.token) {
         const started = Date.now();
@@ -196,7 +203,6 @@
             <section id="netface-browse" class="netface-browse">
             <div class="netface-toolbar"><div class="netface-tabs"><button class="btn btn-secondary is-active" id="netface-tab-all">全部场次</button><button class="btn btn-secondary" id="netface-tab-mine">我的预约</button></div>
                 <select id="netface-group" class="input-control" aria-label="选择团体"><option value="0">全部团体</option></select><input id="netface-search" class="input-control" placeholder="成员名 / 拼音 / 首字母" aria-label="搜索成员姓名、拼音或首字母"></div>
-            <div id="netface-status" role="status" aria-live="polite"></div>
             <div id="netface-list" class="netface-list"></div>
             </section>
         </div>`;
@@ -301,10 +307,12 @@
                     state.info = {}; state.events = []; state.balance = null; state.stale = false; state.loaded = true;
                     $('netface-activity').textContent = '暂无开放活动';
                     $('netface-balance').textContent = '—';
-                    message('口袋当前没有返回开放的活动，可通过「选择活动」查询指定活动');
+                    messageKeys.delete('refresh');
+                    message('口袋当前没有返回开放的活动，可通过「选择活动」查询指定活动', false, { key: 'activities', repeat: manual });
                     return;
                 }
             }
+            messageKeys.delete('activities');
             const result = await invoke('fetch-netface-events', { ticketId: state.ticketId }, requestToken);
             if (!current(generation, requestToken)) return;
             const previous = new Map(state.events.map(v => [v.eventId, Number(v.status)]));
@@ -348,13 +356,14 @@
                 renderList();
             }
             const failure = results.find(v => v.status === 'rejected');
-            message(failure ? `场次已更新，${failure.reason.message}` : state.status || '', Boolean(failure));
+            if (failure) message(`场次已更新，${failure.reason.message}`, true, { key: 'refresh', repeat: manual });
+            else messageKeys.delete('refresh');
             if (!state.signalId && !state.signalRetryTimer && !state.active && !state.entering && state.info.chatRoomId) void connectSignals('');
         } catch (error) {
             if (current(generation, requestToken)) {
                 state.stale = true;
                 $('netface-activity').textContent = state.info.ticketName || state.tickets.find(v => String(v.ticketId) === state.ticketId)?.ticketName || '未选择活动';
-                message(error.message, true); renderList();
+                message(error.message, true, { key: 'refresh', repeat: manual }); renderList();
             }
         } finally {
             if (current(generation, requestToken)) { state.loading = false; $('netface-refresh').disabled = false; $('netface-refresh').removeAttribute('aria-busy'); renderList(); }
@@ -396,12 +405,12 @@
             if (!current(generation, requestToken)) return;
             state.status = success;
             closeModal();
+            message(success);
             await refresh();
             return result;
         } catch (error) {
             if (current(generation, requestToken)) {
-                const el = $('netface-modal-error');
-                if (el) el.textContent = error.message; else message(error.message, true);
+                message(error.message, true);
             }
         } finally {
             if (current(generation, requestToken)) {
@@ -414,38 +423,64 @@
         if (!item || Number(item.status) !== 1 || item.ordered || state.stale) return;
         const max = Math.min(state.balance ?? 0, Number(item.maxSingleNum || state.info.maxTpNum || 1), Number(state.info.maxTpNum || 999));
         if (max < 1) { message(state.balance === null ? '资格尚未获取，请刷新后再试' : '握手资格不足，请先兑换资格', true); return; }
-        modal('预约云握手', `<p>成员：<strong>${esc(item.starInfo?.name || item.starInfo?.nickname)}</strong></p><p>时间：${esc(item.startTime)}</p><label class="netface-field">使用资格次数<input id="netface-count" class="input-control" type="number" min="1" max="${max}" step="1" value="1"></label><p id="netface-reservation-time"></p><p id="netface-modal-error" role="alert"></p><button class="btn btn-primary btn-full" id="netface-confirm">确认预约</button>`);
+        const star = item.starInfo || {};
+        const name = star.name || star.nickname || '成员';
+        const avatar = safeUrl(star.avatar) || (star.avatar && !/^[a-z]+:/i.test(star.avatar) ? safeUrl(`https://source.48.cn/${String(star.avatar).replace(/^\//, '')}`) : '');
+        modal('预约云握手', `<div class="netface-reservation-member">
+            ${avatar ? `<img class="netface-reservation-avatar" src="${esc(avatar)}" alt="">` : `<span class="netface-reservation-avatar" aria-hidden="true">${esc(name.charAt(0))}</span>`}
+            <div><strong>${esc(name)}</strong><span class="netface-reservation-schedule">${esc(item.startTime || '时间待公布')}</span></div>
+            </div><div class="netface-reservation-count-row"><div><label for="netface-count">使用资格次数</label><span class="netface-reservation-limit">可用 ${state.balance} 次 · 本场最多 ${max} 次</span></div>
+            <div class="netface-reservation-stepper" role="group" aria-label="选择资格次数">
+                <button type="button" class="netface-stepper-button" id="netface-count-minus" aria-label="减少一次资格">−</button>
+                <input id="netface-count" class="input-control" aria-label="使用资格次数" type="number" min="1" max="${max}" step="1" value="1">
+                <button type="button" class="netface-stepper-button" id="netface-count-plus" aria-label="增加一次资格">+</button>
+            </div></div><div class="netface-reservation-summary"><span>本次互动</span><strong id="netface-reservation-time" role="status" aria-live="polite"></strong></div>
+            <button class="btn btn-primary btn-full" id="netface-confirm">确认预约</button>`);
+        $('netface-modal').classList.add('netface-reservation-modal');
         const input = $('netface-count');
+        const minus = $('netface-count-minus'), plus = $('netface-count-plus');
         const updateCount = () => {
-            if (input.value === '') { $('netface-confirm').disabled = true; $('netface-reservation-time').textContent = ''; return; }
+            if (input.value === '') {
+                minus.disabled = true; plus.disabled = state.busy;
+                $('netface-confirm').disabled = true; $('netface-reservation-time').textContent = ''; return;
+            }
             input.value = String(Math.min(max, Math.max(1, Math.trunc(Number(input.value)) || 1)));
+            minus.disabled = state.busy || Number(input.value) <= 1;
+            plus.disabled = state.busy || Number(input.value) >= max;
             const reservation = model.reservation({ orderNum: Number(input.value) }, state.info.ticketTime);
             $('netface-reservation-time').textContent = reservation.duration ? `${reservation.count} 次资格，共 ${reservation.duration} 秒` : '预约互动时长待公布';
             $('netface-confirm').disabled = state.busy;
-            $('netface-modal-error').textContent = '';
         };
         input.oninput = updateCount;
         updateCount();
+        input.focus({ preventScroll: true });
         input.onblur = () => { if (input.value === '') input.value = '1'; updateCount(); };
+        for (const [button, change] of [[minus, -1], [plus, 1]]) button.onclick = () => {
+            input.value = String((Number(input.value) || 0) + change);
+            updateCount();
+        };
         $('netface-confirm').onclick = () => {
             const count = Number($('netface-count').value);
-            if (!Number.isInteger(count) || count < 1 || count > max) { $('netface-modal-error').textContent = `请输入 1–${max} 的整数`; return; }
-            void mutation('reserve-netface', { eventId: item.eventId, tpNum: count }, '预约成功，请留意排队状态');
+            if (!Number.isInteger(count) || count < 1 || count > max) { message(`请输入 1–${max} 的整数`, true); return; }
+            input.disabled = true; minus.disabled = true; plus.disabled = true;
+            void mutation('reserve-netface', { eventId: item.eventId, tpNum: count }, '预约成功，请留意排队状态').finally(() => {
+                if ($('netface-count') === input) { input.disabled = false; updateCount(); }
+            });
         };
     }
     function cancel(item) {
         if (!item?.ordered) return;
-        modal('取消预约', `<p>取消 ${esc(item.starInfo?.name || item.starInfo?.nickname)} 的云握手预约？资格退还情况以活动规则和口袋处理结果为准。</p><p id="netface-modal-error" role="alert"></p><button id="netface-confirm" class="btn btn-danger btn-full">确认取消预约</button>`);
+        modal('取消预约', `<p>取消 ${esc(item.starInfo?.name || item.starInfo?.nickname)} 的云握手预约？资格退还情况以活动规则和口袋处理结果为准。</p><button id="netface-confirm" class="btn btn-danger btn-full">确认取消预约</button>`);
         $('netface-confirm').onclick = () => mutation('cancel-netface', { eventId: item.eventId }, '预约已取消');
     }
     function redeem() {
         if (state.ticketId === '0') { message('请先选择云握手活动', true); return; }
-        modal('兑换握手资格', `<label class="netface-field">资格兑换码<input id="netface-key" class="input-control" autocomplete="off" maxlength="256" placeholder="输入兑换码"></label><p id="netface-modal-error" role="alert"></p><button id="netface-confirm" class="btn btn-primary btn-full">确认兑换</button>`);
+        modal('兑换握手资格', `<label class="netface-field">资格兑换码<input id="netface-key" class="input-control" autocomplete="off" maxlength="256" placeholder="输入兑换码"></label><button id="netface-confirm" class="btn btn-primary btn-full">确认兑换</button>`);
         $('netface-confirm').onclick = () => mutation('activate-netface-key', { ticketId: state.ticketId, tpKey: $('netface-key').value.trim() }, '资格兑换成功');
     }
     function chooseActivity() {
         if (state.active || state.entering || state.busy) { message('请先完成当前云握手再切换活动'); return; }
-        modal('选择云握手活动', `<div class="netface-field"><select id="netface-activity-select" class="input-control" aria-label="选择云握手活动"><option value="0">自动选择当前活动</option>${state.tickets.map(v => `<option value="${esc(v.ticketId)}" ${String(v.ticketId) === state.ticketId ? 'selected' : ''}>${esc(v.ticketName)}</option>`).join('')}</select></div><p id="netface-modal-error" role="alert"></p><button id="netface-confirm" class="btn btn-primary btn-full">查看活动</button>`);
+        modal('选择云握手活动', `<div class="netface-field"><select id="netface-activity-select" class="input-control" aria-label="选择云握手活动"><option value="0">自动选择当前活动</option>${state.tickets.map(v => `<option value="${esc(v.ticketId)}" ${String(v.ticketId) === state.ticketId ? 'selected' : ''}>${esc(v.ticketName)}</option>`).join('')}</select></div><button id="netface-confirm" class="btn btn-primary btn-full">查看活动</button>`);
         $('netface-modal').classList.add('netface-activity-modal');
         styleDropdown($('netface-activity-select'));
         $('netface-activity-select-trigger').focus();
@@ -456,16 +491,16 @@
                 $('netface-balance').textContent = '—';
                 $('netface-activity').textContent = '正在加载活动…';
                 window.enterNetfaceView();
-            } catch (error) { if ($('netface-modal-error')) $('netface-modal-error').textContent = error.message; }
+            } catch (error) { message(error.message, true); }
         };
     }
     async function history(reset) {
         if (state.ticketId === '0') { message('请先选择云握手活动', true); return; }
         if (reset) {
-            modal('资格兑换记录', '<div id="netface-history-list"></div><div id="netface-history-status" role="status" aria-live="polite"></div><p id="netface-modal-error" role="alert"></p>');
+            modal('资格兑换记录', '<div id="netface-history-list"></div><div id="netface-history-status" role="status" aria-live="polite"></div>');
             const el = $('netface-modal');
             historySession = { el, body: el.querySelector('.modal-body'), list: $('netface-history-list'),
-                status: $('netface-history-status'), error: $('netface-modal-error'), generation: state.generation,
+                status: $('netface-history-status'), generation: state.generation,
                 token: state.token, ticketId: state.ticketId, next: 0, count: 0, loading: false, hasMore: true, cursors: new Set(), frame: 0 };
             const session = historySession;
             session.body.addEventListener('scroll', () => {
@@ -474,7 +509,7 @@
         }
         const session = historySession;
         if (!session || session.loading || !session.hasMore) return;
-        session.loading = true; session.status.textContent = '正在加载…'; session.error.textContent = '';
+        session.loading = true; session.status.textContent = '正在加载…';
         const cursor = session.next;
         const isCurrent = () => historySession === session && $('netface-modal') === session.el && current(session.generation, session.token);
         let loaded = false;
@@ -493,7 +528,7 @@
             session.status.textContent = session.hasMore ? '' : session.count ? '已加载全部记录' : '';
             loaded = true;
         } catch (error) {
-            if (isCurrent()) { session.error.textContent = error.message; session.status.textContent = '滚动到底可重试'; }
+            if (isCurrent()) { message(error.message, true); session.status.textContent = '滚动到底可重试'; }
         } finally {
             session.loading = false;
             if (loaded && isCurrent() && session.hasMore) {
@@ -718,10 +753,11 @@
             if (payload.connectionId !== state.signalId || !current(generation, requestToken)) return;
             logEvent('signal-status', { status: payload.status, details: payload, entering: state.entering, active: Boolean(state.active) });
             state.signalHealthy = payload.status === 'connected';
+            if (state.signalHealthy) messageKeys.delete('signals');
             if (!state.signalHealthy && payload.status !== 'connecting') {
                 if (state.active && !state.entering) finishInteraction('实时通知中断，已停止音视频，请重新进入房间');
                 else {
-                    message('实时通知连接中断，正在重连；排队列表仍会定时刷新', true);
+                    message('实时通知连接中断，正在重连；排队列表仍会定时刷新', true, { key: 'signals' });
                     if (!state.entering) { disconnectSignals(); scheduleSignalReconnect(); }
                 }
             }
@@ -739,11 +775,12 @@
             if (!result.success) throw new Error(result.msg);
             if (eventId && state.signalOverflow) throw new Error('实时通知过多，请重新入场');
             state.signalHealthy = true;
+            messageKeys.delete('signals');
             state.signalRetryAttempt = 0;
             return true;
         } catch (error) {
             if (current(generation, requestToken) && state.signalId === id) {
-                disconnectSignals(); message(`实时通知暂不可用：${error.message}`, true); scheduleSignalReconnect();
+                disconnectSignals(); message(`实时通知暂不可用：${error.message}`, true, { key: 'signals' }); scheduleSignalReconnect();
             }
             if (throwOnFailure) throw error;
             return false;
@@ -816,7 +853,7 @@
                 call.expired = true; item.status = 5; changed = true;
                 if ($('netface-modal')?.dataset.entryEvent === eventId) closeModal();
             }
-            if (!call.expired && !call.prompted && !state.active && !state.entering && !state.busy && !$('netface-notice-confirm') && !$('netface-modal')?.dataset.entryEvent) {
+            if (!call.expired && !call.prompted && !state.active && !state.entering && !state.busy && !$('netface-modal')?.dataset.entryEvent) {
                 call.prompted = true;
                 modal('轮到你入场了', `<p><strong>${esc(item.starInfo?.name || item.starInfo?.nickname || '成员')}</strong>的云握手可以入场了。</p><p><strong data-entry-countdown="${esc(eventId)}">${seconds}秒后失效</strong>，请及时进入房间。</p><button type="button" class="btn btn-primary btn-full" id="netface-entry-confirm">进入房间</button>`);
                 $('netface-modal').dataset.entryEvent = eventId;
@@ -1083,11 +1120,12 @@
         clearInterval(state.timer); clearInterval(state.tick); state.timer = null; state.tick = null;
         cancelSignalRetry(); state.signalRetryAttempt = 0;
         disconnectSignals(); closeModal(); entryCalls.clear(); state.generation++; state.loading = false;
+        messageKeys.clear(); lastToast = { text: '', time: 0 };
     }
     window.beforeLeaveNetfaceView = (next, mode) => {
         if (state.entering || joinPending || state.busy) { message('正在处理云握手请求，请稍候'); return false; }
         if (state.active) { void quit(true).then(ok => { if (ok) window.switchView(next, mode); }); return false; }
-        leave(); availabilityNoticeShown = false; return true;
+        leave(); return true;
     };
     window.resetNetfaceAccountState = () => {
         logEvent('account-reset');
@@ -1114,15 +1152,6 @@
             void refresh();
         }, 10000);
         state.tick = setInterval(() => { updateClock(); updateEntryCountdowns(); }, 1000);
-        if (!availabilityNoticeShown) {
-            availabilityNoticeShown = true;
-            modal('注意', '<p id="netface-availability-notice">该功能可用性未经测试，当前版本仅作入口预留，不保证功能可用性。</p><button type="button" id="netface-notice-confirm" class="btn btn-primary btn-full">我已知晓风险并继续使用</button>');
-            $('netface-modal').classList.add('netface-notice-modal');
-            $('netface-modal').querySelector('.modal-close').remove();
-            $('netface-modal').querySelector('[role="dialog"]').setAttribute('aria-describedby', 'netface-availability-notice');
-            $('netface-notice-confirm').onclick = closeModal;
-            $('netface-notice-confirm').focus();
-        }
     };
     window.addEventListener('member-data-loaded', () => { if (visible()) renderList(); });
     window.addEventListener('online', () => {

@@ -5798,8 +5798,9 @@
                 const card = document.createElement('div');
                 card.className = 'live-card';
                 const isMeetItem = item.source === 'meet48';
+                const mode = isMeetItem ? 'meet-live' : 'live';
                 card.addEventListener('contextmenu', event => {
-                    window.showLiveWindowMenu?.(event, item, isMeetItem ? 'meet-live' : 'live');
+                    window.showLiveWindowMenu?.(event, item, mode);
                 });
                 const cover = normalizeMediaCoverUrl(item.coverPath, isMeetItem ? 'meet48' : 'pocket');
                 let typeText = '视频', typeClass = 'badge-video';
@@ -5813,12 +5814,24 @@
                 }
                 card.innerHTML = `
                     <div class="live-badge ${typeClass}">${typeText}</div>
-                    <img src="${cover}" onclick="directToPotPlayer(event, '${item.liveId}', '${isMeetItem ? 'meet48' : 'pocket'}')" title="点击播放" style="cursor: pointer;">
+                    <img src="${cover}" title="${window.desktop && window.desktop.platform !== 'web' ? '独立窗口播放' : '点击播放'}" style="cursor: pointer;">
                     <div class="name">${item.userInfo.nickname}</div>
                     <div class="title">${item.title}</div>
                 `;
+                card.querySelector('img').onclick = event => {
+                    if (!window.desktop || window.desktop.platform === 'web') {
+                        void directToPotPlayer(event, String(item.liveId), isMeetItem ? 'meet48' : 'pocket');
+                        return;
+                    }
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (typeof window.openLiveWindowForItem !== 'function') {
+                        showToast('直播窗口尚未准备好，请重试');
+                        return;
+                    }
+                    void window.openLiveWindowForItem(item, mode);
+                };
                 card.onclick = event => {
-                    const mode = isMeetItem ? 'meet-live' : 'live';
                     if (window.desktop?.platform === 'web' && !event.target.closest('img')) {
                         if (!window.openWebDesktopLive?.(item, mode)) showToast('直播信息不完整，请刷新列表后重试');
                         return;
