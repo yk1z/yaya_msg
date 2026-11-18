@@ -5,7 +5,7 @@ const { buildDeletePayload, buildReplyOptions, buildSendOptions } = require('../
 const { applyCustomSenderProfile } = require('../../common/sender-profile');
 const pocketService = require('./pocket-service');
 const settingsService = require('./settings-service');
-const { ensureWasmLoaded, generatePa } = require('./wasm-service');
+const { generatePa } = require('../../common/pocket-pa-node.mjs');
 
 const MEMBER_ROOM_APP_KEY = '632feff1f4c838541ab75195d1ceb3fa';
 const SEND_INTERVAL_MS = 1500;
@@ -72,7 +72,6 @@ async function connectMemberRoom(sender, payload = {}) {
     try {
         pocketToken = settingsService.getToken();
         if (!pocketToken) throw new Error('请先登录口袋48账号');
-        await ensureWasmLoaded();
         assertConnectionStillRequested();
         const pa = generatePa() || '';
         [credentials, accountResult] = await Promise.all([
@@ -233,7 +232,6 @@ async function deleteMemberRoomMessage(senderId, payload = {}) {
     if (deletePayload.channelId !== current.channelId) throw new Error('成员房间删除目标已变化，请重新连接');
     const pocketToken = settingsService.getToken();
     if (!pocketToken) throw new Error('请先登录口袋48账号');
-    await ensureWasmLoaded();
     const result = await pocketService.deleteMemberRoomMessage({
         token: pocketToken,
         pa: generatePa() || '',

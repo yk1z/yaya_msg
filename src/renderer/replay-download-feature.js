@@ -11,7 +11,6 @@
             getPlayLiveStream,
             getPreferredExternalPlayerName,
             getVodState,
-            https,
             ipcRenderer,
             openExternal,
             openMediaInExternalPlayer,
@@ -32,24 +31,17 @@
         }
 
         async function fetchDanmuNative(url) {
+            let requestUrl = url;
             if (window.desktop?.platform === 'web') {
                 const apiUrl = window.yayaWebApiUrl ? window.yayaWebApiUrl('/api/text-proxy') : '/api/text-proxy';
-                const response = await fetch(`${apiUrl}?url=${encodeURIComponent(url)}`);
-                if (!response.ok) {
-                    throw new Error(`弹幕文件读取失败: ${response.status}`);
-                }
-                return response.text();
+                requestUrl = `${apiUrl}?url=${encodeURIComponent(url)}`;
+            } else if (new URL(url).protocol !== 'https:') {
+                throw new Error('弹幕文件地址无效');
             }
 
-            return new Promise((resolve, reject) => {
-                https.get(url, (res) => {
-                    let data = '';
-                    res.on('data', (chunk) => {
-                        data += chunk;
-                    });
-                    res.on('end', () => resolve(data));
-                }).on('error', (error) => reject(error));
-            });
+            const response = await fetch(requestUrl, { credentials: 'same-origin' });
+            if (!response.ok) throw new Error(`弹幕文件读取失败: ${response.status}`);
+            return response.text();
         }
 
         function getStreamUrlFromLiveResponse(content, source = 'pocket') {

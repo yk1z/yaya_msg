@@ -1,5 +1,6 @@
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
+const { isDesktopDocument, isMainFrameSender } = require('./desktop-document');
 const { reportIgnoredError } = require('../common/error-utils');
 const settingsService = require('./services/settings-service');
 
@@ -64,7 +65,7 @@ function createWindow() {
         webPreferences: {
             preload: preloadPath,
             nodeIntegration: false,
-            contextIsolation: false,
+            contextIsolation: true,
             sandbox: false,
             webSecurity: false,
             backgroundThrottling: false
@@ -73,7 +74,8 @@ function createWindow() {
 
     const window = mainWindow;
     const onWorkspaceReady = event => {
-        if (event.sender !== window.webContents || window.isDestroyed() || mainWindow !== window) return;
+        if (window.isDestroyed() || mainWindow !== window || event.sender !== window.webContents
+            || !isMainFrameSender(event) || !isDesktopDocument(event.senderFrame.url)) return;
         mainWindowReady = true;
         showMainWindow();
     };

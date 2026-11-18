@@ -137,7 +137,7 @@ function accountImService() {
     if (shared) return shared;
     const settings = require('./settings-service');
     const pocket = require('./pocket-service');
-    const wasm = require('./wasm-service');
+    const { generatePa } = require('../../common/pocket-pa-node.mjs');
     const transport = require('./member-room-transport');
     shared = createAccountImService({
         readAuth() {
@@ -145,8 +145,7 @@ function accountImService() {
             return { token: saved.p48Token || '', clientProfile: saved.p48ClientProfile || '', deviceId: saved.p48ClientDeviceId || '' };
         },
         async resolveCredentials(auth) {
-            await wasm.ensureWasmLoaded();
-            return pocket.invoke('get-nim-login-info', { ...auth, pa: wasm.generatePa() || '' });
+            return pocket.invoke('get-nim-login-info', { ...auth, pa: generatePa() || '' });
         },
         createClient: transport.createSharedMemberRoomClient,
         onReset() {

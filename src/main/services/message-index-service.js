@@ -10,6 +10,7 @@ const DEFAULT_PAGE_SIZE = 100;
 const MAX_PAGE_SIZE = 200;
 const MESSAGE_INDEX_SCHEMA_VERSION = 4;
 let database = null;
+let hasTrigramSearch = false;
 let syncPromise = null;
 let messageDirectoryWatcher = null;
 let messageWatcherTimer = null;
@@ -43,10 +44,12 @@ function hasCurrentMessageSchema(db) {
 }
 
 function initializeDatabase(db) {
+    db.exec('PRAGMA busy_timeout = 5000');
     if (!hasCurrentMessageSchema(db)) {
         db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
         db.exec('PRAGMA journal_mode = DELETE');
         db.exec(`
+            DROP TABLE IF EXISTS message_trigrams;
             DROP TABLE IF EXISTS messages;
             DROP TABLE IF EXISTS message_files;
         `);
@@ -54,7 +57,7 @@ function initializeDatabase(db) {
     }
 
     db.exec(`
-        PRAGMA journal_mode = DELETE;
+        PRAGMA journal_mode = WAL;
         PRAGMA synchronous = NORMAL;
         PRAGMA temp_store = MEMORY;
         CREATE TABLE IF NOT EXISTS message_files (
@@ -107,15 +110,60 @@ function initializeDatabase(db) {
         } catch (error) { db.exec('ROLLBACK'); throw error; }
     }
     db.exec('CREATE INDEX IF NOT EXISTS idx_messages_room_time ON messages(room_type, sort_time, id)');
+    return initializeTrigramIndex(db);
+}
+
+function initializeTrigramIndex(db) {
+    const exists = db.prepare("SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = 'message_trigrams'");
+    if (exists.get()) return true;
+
+    try {
+        db.exec('BEGIN IMMEDIATE');
+        if (exists.get()) {
+            db.exec('COMMIT');
+            return true;
+        }
+        db.exec(`
+            CREATE VIRTUAL TABLE message_trigrams USING fts5(
+                search_text, content='messages', content_rowid='id', tokenize='trigram'
+            );
+            CREATE TRIGGER message_trigrams_insert AFTER INSERT ON messages BEGIN
+                INSERT INTO message_trigrams(rowid, search_text) VALUES (new.id, new.search_text);
+            END;
+            CREATE TRIGGER message_trigrams_delete AFTER DELETE ON messages BEGIN
+                INSERT INTO message_trigrams(message_trigrams, rowid, search_text)
+                    VALUES ('delete', old.id, old.search_text);
+            END;
+            CREATE TRIGGER message_trigrams_update AFTER UPDATE OF id, search_text ON messages
+            WHEN old.id IS NOT new.id OR old.search_text IS NOT new.search_text BEGIN
+                INSERT INTO message_trigrams(message_trigrams, rowid, search_text)
+                    VALUES ('delete', old.id, old.search_text);
+                INSERT INTO message_trigrams(rowid, search_text) VALUES (new.id, new.search_text);
+            END;
+            INSERT INTO message_trigrams(message_trigrams) VALUES ('rebuild');
+        `);
+        db.exec('COMMIT');
+        return true;
+    } catch (error) {
+        if (db.isTransaction) db.exec('ROLLBACK');
+        console.warn('无法建立消息文本索引，将使用普通检索:', error.message);
+        return false;
+    }
 }
 
 function getDatabase() {
     if (database) return database;
 
     const { messageIndexFile } = ensureStoragePaths();
-    database = new DatabaseSync(messageIndexFile);
-    initializeDatabase(database);
-    return database;
+    const db = new DatabaseSync(messageIndexFile);
+    try {
+        hasTrigramSearch = initializeDatabase(db);
+        database = db;
+        return database;
+    } catch (error) {
+        db.close();
+        throw error;
+    }
 }
 
 async function listJsonlFiles(rootDir) {
@@ -500,7 +548,7 @@ function escapeLike(value) {
     return String(value || '').replace(/[\\%_]/g, match => `\\${match}`);
 }
 
-function buildQueryConditions(filters = {}, includeCursor = true) {
+function buildQueryConditions(filters = {}, includeCursor = true, useTrigrams = false) {
     const where = [];
     const params = [];
     const member = String(filters.member || '').trim();
@@ -530,6 +578,11 @@ function buildQueryConditions(filters = {}, includeCursor = true) {
     }
     if (query) {
         const terms = Array.from(new Set(query.split('|').map(term => term.trim()).filter(Boolean)));
+        if (useTrigrams && terms.length > 0 && terms.length <= 32
+            && terms.every(term => term.length <= 256 && !term.includes('\u0000') && [...term].length >= 3)) {
+            where.push('messages.id IN (SELECT rowid FROM message_trigrams WHERE message_trigrams MATCH ?)');
+            params.push(terms.map(term => '"' + term.replaceAll('"', '""') + '"').join(' OR '));
+        }
         if (terms.length === 1) {
             where.push("search_text LIKE ? ESCAPE '\\'");
             params.push(`%${escapeLike(terms[0])}%`);
@@ -687,8 +740,8 @@ function getMessageIndexContext(payload = {}) {
 function queryMessageIndexPage(filters = {}) {
     const db = getDatabase();
     const limit = Math.max(1, Math.min(MAX_PAGE_SIZE, Math.trunc(Number(filters.limit) || DEFAULT_PAGE_SIZE)));
-    const query = buildQueryConditions(filters, true);
-    const countQuery = buildQueryConditions(filters, false);
+    const query = buildQueryConditions(filters, true, hasTrigramSearch);
+    const countQuery = buildQueryConditions(filters, false, hasTrigramSearch);
     const direction = query.sortOrder === 'asc' ? 'ASC' : 'DESC';
     const rows = db.prepare(`
         SELECT messages.id, message_files.path AS source_path, member_name, sort_time,
@@ -827,7 +880,7 @@ function queryDateAnalysis(db, payload) {
 }
 
 function querySpeechAnalysis(db, payload) {
-    const query = buildQueryConditions(payload?.filters || {}, false);
+    const query = buildQueryConditions(payload?.filters || {}, false, hasTrigramSearch);
     const whereSql = appendAnalysisCondition(query, "message_type <> 'GIFT_TEXT' AND sender_name <> ''");
     const latestRecords = queryLatestSenderRecords(db, whereSql, query.params);
 
@@ -851,7 +904,7 @@ function querySpeechAnalysis(db, payload) {
 }
 
 function queryGiftAnalysis(db, payload) {
-    const query = buildQueryConditions(payload?.filters || {}, false);
+    const query = buildQueryConditions(payload?.filters || {}, false, hasTrigramSearch);
     const whereSql = appendAnalysisCondition(query, "message_type = 'GIFT_TEXT'");
     const rows = db.prepare(`
         SELECT messages.id, messages.file_id, message_files.path AS source_path, member_name,
@@ -1037,6 +1090,7 @@ function closeMessageIndex() {
     if (!database) return;
     database.close();
     database = null;
+    hasTrigramSearch = false;
 }
 
 module.exports = {

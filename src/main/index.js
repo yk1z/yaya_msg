@@ -3,7 +3,6 @@ const path = require('path');
 const { createWindow, getMainWindow, showMainWindow: revealMainWindow, markAppQuitting, setDeepLinkHandler } = require('./window');
 const { registerDeepLinkProtocol, createDeepLinkController } = require('./services/deep-link-service');
 const { createTray, destroyTray } = require('./tray');
-const { ensureWasmLoaded } = require('./services/wasm-service');
 const {
     cleanupMediaTasks,
     finalizeLiveRecordingsBeforeQuit,
@@ -127,7 +126,6 @@ if (!gotSingleInstanceLock) {
             window.webContents.send('message-index-updated', result);
         });
         registerMediaKeyShortcuts();
-        ensureWasmLoaded();
         runLiveRecordingRecovery();
         setTimeout(runLiveRecordingRecovery, 20_000);
     });

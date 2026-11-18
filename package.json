@@ -1,6 +1,6 @@
 {
   "name": "yaya_msg",
-  "version": "3.3.1",
+  "version": "3.4.0",
   "description": "牙牙消息",
   "homepage": "https://github.com/yk1z/yaya_msg",
   "main": "main.js",
@@ -44,10 +44,11 @@
   "devDependencies": {
     "@ffmpeg/core": "0.11.0",
     "@ffmpeg/ffmpeg": "0.11.6",
+    "@noble/hashes": "1.8.0",
     "@tailwindcss/postcss": "4.3.5",
     "artplayer": "5.4.0",
     "artplayer-plugin-danmuku": "5.3.0",
-    "electron": "45.3.2",
+    "electron": "45.3.4",
     "electron-builder": "26.18.0",
     "esbuild": "0.28.2",
     "ffmpeg-static": "5.3.0",
@@ -81,19 +82,17 @@
       "main.js",
       "src/**/*",
       "!src/web/**/*",
+      "!src/renderer/*.mjs",
+      "!src/renderer/database/app.jsx",
+      "!src/renderer/database/tailwind.input.css",
       "!src/renderer/netface-fixtures.js",
       "!src/common/room-message-record.mjs",
       "desktop.html",
       "style.css",
       "icon.png",
       "icon.ico",
-      "rust-wasm.js",
-      "rust-wasm-browser.js",
       "node_modules/**/*",
       "!node_modules/ffmpeg-static/**"
-    ],
-    "extraResources": [
-      "2.wasm"
     ],
     "asar": true,
     "asarUnpack": [

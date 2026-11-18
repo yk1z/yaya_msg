@@ -493,6 +493,7 @@ body.desktop-workspace .invoice-order-row { border-color: var(--desk-line); back
 body.desktop-workspace #view-netface {
     --nf-surface: var(--desk-panel); --nf-border: var(--desk-line); --nf-text: var(--desk-ink); --nf-secondary: var(--desk-muted);
 }
+body.desktop-workspace #view-netface > .netface-page:has(> .netface-overview:not([hidden])) { padding-top: 0; }
 body.desktop-workspace :is(.netface-card, .netface-summary, .netface-call-panel) { background: var(--desk-panel); border-color: var(--desk-line); border-radius: 6px; box-shadow: none; }
 body.desktop-workspace #live-player-view { background: var(--desk-canvas); }
 body.desktop-workspace #live-player-view > div:first-child {

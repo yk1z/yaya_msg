@@ -1,4 +1,5 @@
 const { ipcMain } = require('electron');
+const { handleDesktop } = require('./desktop-sender');
 const {
     resolveBilibiliLive,
     getBilibiliLiveStatuses,
@@ -9,7 +10,7 @@ const {
 } = require('../services/bilibili-service');
 
 function registerBilibiliIpc() {
-    ipcMain.handle('resolve-bilibili-live', async (event, roomId) => {
+    handleDesktop(ipcMain, 'resolve-bilibili-live', async (event, roomId) => {
         try {
             return await resolveBilibiliLive(roomId);
         } catch (error) {
@@ -19,11 +20,11 @@ function registerBilibiliIpc() {
             };
         }
     });
-    ipcMain.handle('get-bilibili-live-statuses', async (event, roomIds) => getBilibiliLiveStatuses(roomIds));
-    ipcMain.handle('bilibili-login-create-qrcode', () => createBilibiliLoginQrcode());
-    ipcMain.handle('bilibili-login-poll', (event, payload) => pollBilibiliLoginQrcode(payload?.qrcodeKey));
-    ipcMain.handle('bilibili-login-status', () => getBilibiliLoginStatus());
-    ipcMain.handle('bilibili-logout', () => logoutBilibili());
+    handleDesktop(ipcMain, 'get-bilibili-live-statuses', async (event, roomIds) => getBilibiliLiveStatuses(roomIds));
+    handleDesktop(ipcMain, 'bilibili-login-create-qrcode', () => createBilibiliLoginQrcode());
+    handleDesktop(ipcMain, 'bilibili-login-poll', (event, payload) => pollBilibiliLoginQrcode(payload?.qrcodeKey));
+    handleDesktop(ipcMain, 'bilibili-login-status', () => getBilibiliLoginStatus());
+    handleDesktop(ipcMain, 'bilibili-logout', () => logoutBilibili());
 }
 
 module.exports = {

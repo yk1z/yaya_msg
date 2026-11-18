@@ -1,8 +1,6 @@
         let memberData = [];
         let isMemberDataLoaded = false;
         let memberDataLoadPromise = null;
-        let currentSelectedMemberName = '';
-        let currentLiveListRaw = [];
         const MEMBER_DATA_URL = 'https://data.gnz.hk/members.json';
         const MEMBER_DATA_CACHE_KEY = 'yaya_member_data_cache_v1';
 
@@ -69,8 +67,8 @@
         function readRuntimeCacheValue(key, fallbackValue) {
             const cacheApi = getRuntimeCacheApi();
             if (cacheApi && typeof cacheApi.getCacheValueSync === 'function') {
-                const storedValue = cacheApi.getCacheValueSync(key, fallbackValue);
-                if (storedValue !== fallbackValue) return storedValue;
+                const storedValue = cacheApi.getCacheValueSync(key, undefined);
+                if (storedValue !== undefined) return storedValue;
             }
 
             const raw = localStorage.getItem(key);

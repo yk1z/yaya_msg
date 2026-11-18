@@ -1,7 +1,7 @@
 const path = require('path');
 const { pathToFileURL } = require('url');
 const settingsService = require('./settings-service');
-const { ensureWasmLoaded, generatePa } = require('./wasm-service');
+const { generatePa } = require('../../common/pocket-pa-node.mjs');
 const { runLiveReadRequest } = require('./live-read-request');
 const { withDesktopLiveRoom } = require('./live-room-routing');
 const { writeNetfaceLog } = require('./netface-log');
@@ -74,7 +74,7 @@ async function loadPocketRuntime() {
     return pocketRuntimePromise;
 }
 
-async function preparePayload(channel, payload) {
+function preparePayload(channel, payload) {
     const prepared = payload && typeof payload === 'object' && !Array.isArray(payload)
         ? { ...payload }
         : {};
@@ -92,7 +92,6 @@ async function preparePayload(channel, payload) {
     }
 
     if ((channel === 'login-send-sms' || channel === 'login-by-code' || channel === 'register-by-code' || channel === 'login-by-password' || channel === 'login-by-thirdparty' || channel === 'send-live-gift') && !prepared.pa) {
-        await ensureWasmLoaded();
         prepared.pa = generatePa() || '';
     }
 
@@ -101,15 +100,12 @@ async function preparePayload(channel, payload) {
 
 async function invoke(channel, payload = {}) {
     try {
-        const [runtime, preparedPayload] = await Promise.all([
-            loadPocketRuntime(),
-            preparePayload(channel, payload)
-        ]);
+        const preparedPayload = preparePayload(channel, payload);
+        const runtime = await loadPocketRuntime();
         if (channel === 'fetch-live-one') {
             return withDesktopLiveRoom(await runLiveReadRequest('/live/api/v1/live/getLiveOne', preparedPayload, async attempt => {
                 const requestPayload = { ...preparedPayload };
                 if (attempt > 0) {
-                    await ensureWasmLoaded();
                     requestPayload.pa = generatePa() || requestPayload.pa;
                 }
                 return runtime.invokePocketChannel(channel, requestPayload);

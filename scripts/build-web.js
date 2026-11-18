@@ -5,6 +5,7 @@ const esbuild = require('esbuild');
 const postcss = require('postcss');
 const tailwindcss = require('@tailwindcss/postcss');
 const { brotliCompressSync, gzipSync, constants: zlibConstants } = require('zlib');
+const { buildRendererEntry } = require('./build-renderer-entry');
 
 const scopeDatabaseTailwind = {
     postcssPlugin: 'scope-database-tailwind',
@@ -40,32 +41,19 @@ const projectRoot = path.join(__dirname, '..');
 const outputDir = path.join(projectRoot, 'web-dist');
 const buildDesktopRuntimeOnly = process.argv.includes('--database-runtime-only')
     || process.argv.includes('--desktop-runtime-only');
-const excludedWebFeatureFactories = new Map([
-    ['src/renderer/private-messages-feature.js', 'createPrivateMessagesFeature'],
-    ['src/renderer/room-radio-feature.js', 'createRoomRadioFeature'],
-    ['src/renderer/live-gift-feature.js', 'createLiveGiftFeature']
-]);
 const excludedWebScripts = new Set([
     'src/renderer/invoice-feature.js', 'src/renderer/pocket-social-login-feature.js',
     'src/renderer/deep-link-feature.js', 'src/renderer/desktop-live-gift-animation.js',
     'src/renderer/desktop-cloud-home-feature.js',
     'src/renderer/home-workspace-feature.js',
-    'src/renderer/private-message-notifications.js',
-    'src/renderer/desktop-navigation-feature.js',
+    'src/renderer/private-message-notifications.js', 'src/renderer/desktop-startup-features.mjs',
+    'src/renderer/room-radio-feature.js', 'src/renderer/live-gift-feature.js',
+    'src/renderer/room-window-feature.js', 'src/renderer/live-window-feature.js',
+    'src/renderer/private-messages-feature.js', 'src/renderer/yk1z-home-feature.js',
     'src/common/deep-link.js'
 ]);
-
-function webFeatureSource(relativePath, source) {
-    const factory = excludedWebFeatureFactories.get(relativePath);
-    if (!factory) return source;
-    const original = fs.readFileSync(path.join(projectRoot, relativePath), 'utf8');
-    const returned = [...original.matchAll(/return\s*\{\s*([A-Za-z\s,]+)\s*\};/g)].at(-1);
-    const methods = returned?.[1].split(',').map(name => name.trim()).filter(Boolean);
-    if (!methods?.length || methods.some(name => !/^[A-Za-z]\w*$/.test(name))) {
-        throw new Error(`Cannot preserve disabled web feature API: ${relativePath}`);
-    }
-    return `window.YayaRendererFeatures.${factory}=function(){return {${methods.map(name => `${name}(){}`).join(',')}};};`;
-}
+const localWebScript = /(<script\b[^>]*?\ssrc=")(\.\/src\/[\w./-]+\.m?js)(\?[^"\s]*)?"/g;
+const standaloneWebRendererScripts = ['src/renderer/followed-chat-feature.js'];
 
 function copyFile(relativePath, targetRelativePath = relativePath) {
     const source = path.join(projectRoot, relativePath);
@@ -74,23 +62,23 @@ function copyFile(relativePath, targetRelativePath = relativePath) {
     fs.copyFileSync(source, target);
 }
 
-function copyDir(relativePath) {
+function copyDir(relativePath, shouldCopy = () => true) {
     const sourceDir = path.join(projectRoot, relativePath);
     if (!fs.existsSync(sourceDir)) return;
     for (const entry of fs.readdirSync(sourceDir, { withFileTypes: true })) {
         const child = path.join(relativePath, entry.name);
-        if (entry.isDirectory()) copyDir(child);
-        if (entry.isFile()) copyFile(child);
+        if (entry.isDirectory()) copyDir(child, shouldCopy);
+        if (entry.isFile() && shouldCopy(child.replaceAll(path.sep, '/'))) copyFile(child);
     }
 }
 
-function collectFiles(relativePath) {
-    const absolutePath = path.join(projectRoot, relativePath);
+function collectFiles(relativePath, root = projectRoot) {
+    const absolutePath = path.join(root, relativePath);
     if (!fs.existsSync(absolutePath)) return [];
     const stat = fs.statSync(absolutePath);
     if (stat.isFile()) return [absolutePath];
     return fs.readdirSync(absolutePath, { withFileTypes: true })
-        .flatMap((entry) => collectFiles(path.join(relativePath, entry.name)));
+        .flatMap((entry) => collectFiles(path.join(relativePath, entry.name), root));
 }
 
 function getBuildVersion() {
@@ -99,10 +87,12 @@ function getBuildVersion() {
         'index.html',
         'style.css',
         'scripts/build-web.js',
+        'scripts/build-renderer-entry.js',
         'src/renderer',
         'src/web',
-        'rust-wasm-browser.js'
-    ].flatMap(collectFiles).sort().forEach((filePath) => {
+        'src/common/pocket-pa-format.js',
+        'src/common/sender-profile.js'
+    ].flatMap(file => collectFiles(file)).sort().forEach((filePath) => {
         hash.update(path.relative(projectRoot, filePath));
         hash.update(fs.readFileSync(filePath));
     });
@@ -115,6 +105,16 @@ function getContentVersion(content) {
 
 function getFileVersion(filePath) {
     return getContentVersion(fs.readFileSync(filePath));
+}
+
+function versionWebHomePoster() {
+    const poster = './src/web/assets/home-feature-20260610-v2-poster.jpg';
+    const versioned = `${poster}?v=${getFileVersion(path.join(outputDir, poster))}`;
+    const homeScript = path.join(outputDir, 'src/web/pocket-home.js');
+    const source = fs.readFileSync(homeScript, 'utf8');
+    if (!source.includes(poster)) throw new Error(`Missing static asset reference: ${poster}`);
+    fs.writeFileSync(homeScript, source.replaceAll(poster, versioned));
+    return versioned;
 }
 
 async function buildDatabaseRuntime(sourcePath, runtimePath, banner) {
@@ -196,23 +196,6 @@ async function buildDesktopRuntime() {
     copyDesktopVendorFiles();
 }
 
-function getRendererBundlePaths(indexHtml) {
-    const startMarker = '<script src="./src/renderer/bootstrap-shared.js"></script>';
-    const endMarker = '<script src="./src/renderer/app-legacy.js"></script>';
-    const startIndex = indexHtml.indexOf(startMarker);
-    const endMarkerIndex = indexHtml.indexOf(endMarker);
-    if (startIndex < 0 || endMarkerIndex < startIndex) {
-        throw new Error('Web renderer bundle script block not found');
-    }
-    const endIndex = endMarkerIndex + endMarker.length;
-    const block = indexHtml.slice(startIndex, endIndex);
-    const paths = Array.from(
-        block.matchAll(/src="\.\/(src\/(?:renderer|common)\/[^"?]+\.js)"/g),
-        (match) => match[1]
-    );
-    return { startIndex, endIndex, paths };
-}
-
 async function writeRendererChunk(label, source, options = {}) {
     const preserveTopLevelNames = options.preserveTopLevelNames === true;
     const result = await esbuild.transform(source, {
@@ -231,49 +214,19 @@ async function writeRendererChunk(label, source, options = {}) {
     return `<script defer src="./src/renderer/${chunkName}"></script>`;
 }
 
-async function bundleRenderer(indexHtml) {
-    const { startIndex, endIndex, paths } = getRendererBundlePaths(indexHtml);
-    const bootstrapPath = paths[0];
-    const appLegacyPath = paths[paths.length - 1];
-    if (!bootstrapPath.endsWith('/bootstrap-shared.js') || !appLegacyPath.endsWith('/app-legacy.js')) {
-        throw new Error('Unexpected web renderer bundle boundaries');
+async function bundleLegacyRenderer(indexHtml) {
+    for (const [file, label, preserveTopLevelNames] of [
+        ['bootstrap-shared.js', 'web-bootstrap', true],
+        ['app-legacy.js', 'web-app-core', false]
+    ]) {
+        const relativePath = `src/renderer/${file}`;
+        const tag = `<script src="./${relativePath}"></script>`;
+        if (!indexHtml.includes(tag)) throw new Error(`Missing legacy renderer script: ${relativePath}`);
+        const source = fs.readFileSync(path.join(projectRoot, relativePath), 'utf8');
+        const chunkTag = await writeRendererChunk(label, source, { preserveTopLevelNames });
+        indexHtml = indexHtml.replace(tag, chunkTag);
     }
-
-    const readRendererSource = (relativePath) => fs.readFileSync(path.join(outputDir, relativePath), 'utf8');
-    const tags = [];
-    tags.push(await writeRendererChunk(
-        'web-bootstrap',
-        readRendererSource(bootstrapPath),
-        { preserveTopLevelNames: true }
-    ));
-
-    const featurePaths = paths.slice(1, -1).filter(relativePath => !excludedWebScripts.has(relativePath));
-    const targetChunkBytes = 280 * 1024;
-    const featureChunks = [];
-    let currentChunk = [];
-    let currentChunkBytes = 0;
-    featurePaths.forEach((relativePath) => {
-        const source = webFeatureSource(relativePath, readRendererSource(relativePath));
-        const sourceBytes = Buffer.byteLength(source);
-        if (currentChunk.length && currentChunkBytes + sourceBytes > targetChunkBytes) {
-            featureChunks.push(currentChunk);
-            currentChunk = [];
-            currentChunkBytes = 0;
-        }
-        currentChunk.push({ relativePath, source });
-        currentChunkBytes += sourceBytes;
-    });
-    if (currentChunk.length) featureChunks.push(currentChunk);
-
-    for (let index = 0; index < featureChunks.length; index += 1) {
-        const source = featureChunks[index]
-            .map(({ relativePath, source: fileSource }) => `// ${relativePath}\n${fileSource}\n;`)
-            .join('\n');
-        tags.push(await writeRendererChunk(`web-features-${index + 1}`, source));
-    }
-
-    tags.push(await writeRendererChunk('web-app-core', readRendererSource(appLegacyPath)));
-    return indexHtml.slice(0, startIndex) + tags.join('\n    ') + indexHtml.slice(endIndex);
+    return indexHtml;
 }
 
 function configureLazyWebMediaVendors(indexHtml) {
@@ -407,18 +360,14 @@ function configureDeferredWebScripts(indexHtml) {
     );
 }
 
-async function optimizeWebTextAssets() {
-    const assets = ['style.css', ...collectFiles('src/web'), ...collectFiles('src/renderer')]
-        .map(file => path.isAbsolute(file) ? path.relative(projectRoot, file) : file)
-        .filter(file => /\.(?:js|css)$/.test(file));
-    for (const relativePath of assets) {
+async function optimizeWebTextAssets(assets) {
+    for (const relativePath of assets.filter(file => /\.(?:m?js|css)$/.test(file))) {
         const target = path.join(outputDir, relativePath);
-        if (!fs.existsSync(target)) continue;
         let source = fs.readFileSync(target, 'utf8');
-        if (relativePath.replaceAll('\\', '/') === 'src/web/pocket-home.css') {
+        if (relativePath === 'src/web/pocket-home.css') {
             source = source.replace(/^@import[^;]+;\s*/, '');
         }
-        if (relativePath.replaceAll('\\', '/') === 'src/web/vendor/phosphor/style.css') {
+        if (relativePath === 'src/web/vendor/phosphor/style.css') {
             source = source.replace('font-display: block', 'font-display: swap');
         }
         const result = await esbuild.transform(source, {
@@ -430,6 +379,16 @@ async function optimizeWebTextAssets() {
         });
         fs.writeFileSync(target, result.code);
     }
+}
+
+async function copyReferencedRendererScripts(indexHtml) {
+    const scripts = new Set(standaloneWebRendererScripts);
+    for (const [, , source] of indexHtml.matchAll(localWebScript)) {
+        if (source.startsWith('./src/renderer/')) scripts.add(source.slice(2));
+    }
+    const missing = [...scripts].filter(file => !fs.existsSync(path.join(outputDir, file)));
+    for (const file of missing) copyFile(file);
+    await optimizeWebTextAssets(missing);
 }
 
 function precompressWebAssets() {
@@ -448,8 +407,12 @@ function precompressWebAssets() {
 }
 
 function versionWebIndexAssets(indexHtml, fallbackVersion) {
+    const withScriptVersions = indexHtml.replace(localWebScript, (tag, prefix, source, query) => {
+        if (query || /\.[0-9a-f]{12}\.m?js$/.test(source)) return tag;
+        return `${prefix}${source}?v=__YAYA_BUILD_VERSION__"`;
+    });
     const versionedReference = /((?:src|href)="\.\/|(?:src|href)=")([^"?]+)\?v=__YAYA_BUILD_VERSION__(")/g;
-    const withPerFileVersions = indexHtml.replace(versionedReference, (match, prefix, assetPath, suffix) => {
+    const withPerFileVersions = withScriptVersions.replace(versionedReference, (match, prefix, assetPath, suffix) => {
         const relativePath = assetPath.replace(/^\.\//, '').replaceAll('/', path.sep);
         const filePath = path.join(outputDir, relativePath);
         if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) return match;
@@ -488,19 +451,17 @@ async function buildWebAssets() {
     await buildDesktopRuntime();
     fs.rmSync(outputDir, { recursive: true, force: true });
     fs.mkdirSync(outputDir, { recursive: true });
-    ['index.html', 'style.css', 'web-icon.png', '2.wasm', 'rust-wasm-browser.js', '_headers']
+    ['index.html', 'style.css', 'web-icon.png', '_headers']
         .forEach((relativePath) => copyFile(relativePath));
     copyFile('web-icon.png', 'icon.png');
-    copyDir('src/renderer');
+    copyDir('src/renderer', file => !file.endsWith('.mjs') && file !== 'src/renderer/vendor/renderer-entry.js'
+        && (!file.endsWith('.js') || /^src\/renderer\/(?:vendor|database)\//.test(file)));
     copyDir('src/web');
-    copyFile('src/common/sender-profile.js');
     copyFile('src/common/gift-pricing.js');
     copyFile('src/common/gift-prices.snapshot.js');
     copyFile('src/common/message-room-filter.js');
-    copyFile('src/common/deep-link.js');
     copyFile('src/common/pocket-registration.js');
     copyFile('src/common/netface-model.js');
-    copyFile('src/web/yk1z-home-feature.js', 'src/renderer/yk1z-home-feature.js');
     copyFile('src/web/service-worker.js', 'service-worker.js');
     copyFile('node_modules/@ffmpeg/ffmpeg/dist/ffmpeg.min.js', 'src/renderer/vendor/ffmpeg/ffmpeg.min.js');
     copyFile('node_modules/@ffmpeg/core/dist/ffmpeg-core.js', 'src/renderer/vendor/ffmpeg/ffmpeg-core.js');
@@ -513,10 +474,14 @@ async function buildWebAssets() {
         '// Generated with esbuild by scripts/build-web.js. Do not edit web-dist output directly.'
     );
 
-    const { prepareWebIconAssets, versionWebStaticDependencies } = require('./web-icon-assets.cjs');
+    const { prepareWebIconAssets } = require('./web-icon-assets.cjs');
     prepareWebIconAssets(projectRoot, outputDir);
-    const staticDependencies = versionWebStaticDependencies(outputDir);
-    await optimizeWebTextAssets();
+    const poster = versionWebHomePoster();
+    const copiedAssets = ['style.css', 'src/web', 'src/renderer']
+        .flatMap(file => collectFiles(file, outputDir))
+        .map(file => path.relative(outputDir, file).replaceAll(path.sep, '/'));
+    await optimizeWebTextAssets(copiedAssets);
+    buildRendererEntry(outputDir, { web: true });
 
     const buildVersion = getBuildVersion();
     const onlineAssetDir = path.join(outputDir, 'src', 'web');
@@ -546,15 +511,13 @@ async function buildWebAssets() {
     indexHtml = configureWebHomeMarkup(indexHtml);
     indexHtml = configureWebDesktopDownload(indexHtml);
     indexHtml = configureLazyWebMediaVendors(indexHtml);
-    indexHtml = await bundleRenderer(indexHtml);
+    indexHtml = await bundleLegacyRenderer(indexHtml);
     indexHtml = indexHtml.replace(/^[ \t]*<script\b[^>]*src="\.\/([^"?]+)(?:\?[^"]*)?"[^>]*><\/script>\r?\n/gm,
         (tag, relativePath) => excludedWebScripts.has(relativePath) ? '' : tag);
-    for (const relativePath of [...excludedWebScripts, ...excludedWebFeatureFactories.keys()]) {
-        fs.rmSync(path.join(outputDir, relativePath), { force: true });
-    }
+    await copyReferencedRendererScripts(indexHtml);
     indexHtml = configureDeferredWebScripts(indexHtml);
     indexHtml = indexHtml.replace('<link rel="stylesheet" href="./src/web/pocket-home.css',
-        `<link rel="stylesheet" href="./src/web/vendor/phosphor/style.css?v=__YAYA_BUILD_VERSION__">\n    <link rel="preload" as="image" href="${staticDependencies.poster}">\n    <link rel="stylesheet" href="./src/web/pocket-home.css`);
+        `<link rel="stylesheet" href="./src/web/vendor/phosphor/style.css?v=__YAYA_BUILD_VERSION__">\n    <link rel="preload" as="image" href="${poster}">\n    <link rel="stylesheet" href="./src/web/pocket-home.css`);
     indexHtml = versionWebIndexAssets(indexHtml, buildVersion);
     fs.writeFileSync(indexPath, indexHtml, 'utf8');
     const statusPath = path.join(outputDir, 'src', 'web', 'status-page.txt');

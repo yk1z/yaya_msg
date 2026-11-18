@@ -1,21 +1,31 @@
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
-const https = require('https');
-const readline = require('readline');
-const { pathToFileURL } = require('url');
-const { ipcRenderer, shell, webFrame } = require('electron');
-
-window.getNetfaceRtcEngine = () => require('zego-express-engine-electron/ZegoExpressEngine');
-window.sanitizeNetfaceLog = require('../common/netface-log-data').createNetfaceLogSanitizer();
+const { fileURLToPath, pathToFileURL } = require('url');
+const { contextBridge, ipcRenderer, shell, webFrame } = require('electron');
 const { ensureStoragePaths } = require('../common/storage-paths');
 const { reportIgnoredError } = require('../common/error-utils');
 const { POCKET_CHANNEL_METHODS } = require('../common/pocket-channel-config');
+const { createNetfaceLogSanitizer } = require('../common/netface-log-data');
+const { invokeChannels, sendChannels, eventChannels } = require('./desktop-ipc-channels');
 
 const appDir = path.join(__dirname, '../../');
 const platform = process.platform;
-const storagePaths = ensureStoragePaths();
 const CUSTOM_BACKGROUND_PREFIX = 'custom_background';
+
+function isDesktopPage() {
+    if (!process.isMainFrame || location.protocol !== 'file:') return false;
+    try {
+        const current = path.resolve(fileURLToPath(location.href));
+        const entry = path.join(appDir, 'desktop.html');
+        return platform === 'win32' ? current.toLowerCase() === entry.toLowerCase() : current === entry;
+    } catch (error) {
+        return false;
+    }
+}
+
+if (!isDesktopPage()) return;
+const storagePaths = ensureStoragePaths();
 
 function readJsonFileSafe(filePath, fallbackValue) {
     try {
@@ -60,6 +70,7 @@ function sanitizeBackgroundExt(extName) {
 }
 
 function getBackgroundFilePath(fileName) {
+    if (!/^custom_background\.[a-z0-9]{1,8}$/i.test(fileName || '')) return '';
     return path.join(storagePaths.internalDataDir, fileName);
 }
 
@@ -135,23 +146,6 @@ function getBackgroundUrlSync() {
     }
 
     return getBackgroundFileUrl(filePath, fs.statSync(filePath).mtimeMs);
-}
-
-function saveBackgroundFromFileSync(sourcePath) {
-    if (!sourcePath || !fs.existsSync(sourcePath)) {
-        throw new Error('背景图片源文件不存在');
-    }
-
-    const extName = sanitizeBackgroundExt(path.extname(sourcePath) || '.png');
-    const targetFileName = `${CUSTOM_BACKGROUND_PREFIX}${extName}`;
-    const targetFilePath = getBackgroundFilePath(targetFileName);
-
-    fs.mkdirSync(storagePaths.internalDataDir, { recursive: true });
-    fs.copyFileSync(sourcePath, targetFilePath);
-    removeManagedBackgroundFiles(targetFileName);
-    invokeSettingsSync('set', { key: 'customBackgroundFile', value: targetFileName });
-
-    return getBackgroundFileUrl(targetFilePath, Date.now());
 }
 
 function saveBackgroundFromDataUrlSync(dataUrl) {
@@ -266,40 +260,103 @@ function getCachedImageThumbnailUrlSync(url, width = 520) {
     return '';
 }
 
-window.desktop = {
-    appDir,
+let pendingLegacyMigration = null;
+function migrateLegacyHtml() {
+    if (process.argv.includes('--yaya-room-window')) return;
+    if (!pendingLegacyMigration) {
+        const { migrateLegacyMessageHtml } = require('./services/legacy-message-html');
+        pendingLegacyMigration = migrateLegacyMessageHtml(storagePaths.htmlDir)
+            .finally(() => { pendingLegacyMigration = null; });
+    }
+    return pendingLegacyMigration;
+}
+
+async function readDatabaseStyles() {
+    const directory = path.join(appDir, 'src', 'renderer', 'database');
+    const styles = await Promise.all(['tailwind.css', 'styles.css']
+        .map(file => fs.promises.readFile(path.join(directory, file), 'utf8')));
+    return styles.join('\n');
+}
+
+function readOfficialMusicCatalog(rawUrl, redirects = 0) {
+    const url = new URL(rawUrl);
+    if (url.origin !== 'https://www.snh48.com' || url.username || url.password
+        || !/^\/js\/json_data_(snh|gnz|bej|ckg|cgt)\.js$/.test(url.pathname)) {
+        return Promise.reject(new Error('无效的官网音乐目录地址'));
+    }
+    return new Promise((resolve, reject) => {
+        const request = require('node:https').get(url, { signal: AbortSignal.timeout(12000) }, async response => {
+            try {
+                const { statusCode, headers } = response;
+                if (statusCode >= 300 && statusCode < 400 && headers.location && redirects < 4) {
+                    response.resume();
+                    resolve(await readOfficialMusicCatalog(new URL(headers.location, url), redirects + 1));
+                    return;
+                }
+                if (statusCode < 200 || statusCode >= 300) {
+                    response.resume();
+                    throw new Error(`官网返回 ${statusCode}`);
+                }
+                response.setEncoding('utf8');
+                let text = '';
+                for await (const chunk of response) text += chunk;
+                resolve(text);
+            } catch (error) {
+                reject(error);
+            }
+        });
+        request.on('error', reject);
+    });
+}
+
+const desktopIpc = {
+    send(channel, payload) {
+        if (sendChannels.has(channel)) ipcRenderer.send(channel, payload);
+    },
+    invoke(channel, payload) {
+        const isPocketChannel = Object.hasOwn(POCKET_CHANNEL_METHODS, channel);
+        if (!isPocketChannel && !invokeChannels.has(channel)) {
+            return Promise.reject(new Error('当前页面不支持该操作'));
+        }
+        if (isPocketChannel || channel === 'fetch-pocket-api' || channel === 'pocket-social-login-start') {
+            payload = { ...payload };
+            if (payload.clientProfile == null) payload.clientProfile = getSettingValueSync('p48ClientProfile', '');
+            let deviceId = getSettingValueSync('p48ClientDeviceId', '');
+            if (!/^[a-f0-9]{16}$/.test(deviceId)) {
+                deviceId = crypto.randomBytes(8).toString('hex');
+                setSettingValueSync('p48ClientDeviceId', deviceId);
+            }
+            payload.deviceId = deviceId;
+        }
+        return ipcRenderer.invoke(channel, payload);
+    },
+    on(channel, listener) {
+        if (!eventChannels.has(channel) || typeof listener !== 'function') return;
+        const wrapped = (_event, payload) => listener(null, payload);
+        ipcRenderer.on(channel, wrapped);
+        return () => ipcRenderer.removeListener(channel, wrapped);
+    }
+};
+
+contextBridge.exposeInMainWorld('desktop', {
     platform,
     isRoomWindow: process.argv.includes('--yaya-room-window'),
     isLiveWindow: process.argv.includes('--yaya-live-window'),
-    storagePaths,
-    fs,
-    path,
-    https,
-    readline,
-    ipcRenderer: {
-        send(channel, payload) {
-            ipcRenderer.send(channel, payload);
-        },
-        invoke(channel, payload) {
-            if (Object.prototype.hasOwnProperty.call(POCKET_CHANNEL_METHODS, channel) || channel === 'fetch-pocket-api' || channel === 'pocket-social-login-start') {
-                payload = { ...payload };
-                if (payload.clientProfile == null) payload.clientProfile = getSettingValueSync('p48ClientProfile', '');
-                let deviceId = getSettingValueSync('p48ClientDeviceId', '');
-                if (!/^[a-f0-9]{16}$/.test(deviceId)) {
-                    deviceId = crypto.randomBytes(8).toString('hex');
-                    setSettingValueSync('p48ClientDeviceId', deviceId);
-                }
-                payload.deviceId = deviceId;
-            }
-            return ipcRenderer.invoke(channel, payload);
-        },
-        on(channel, listener) {
-            ipcRenderer.on(channel, listener);
-            return () => ipcRenderer.removeListener(channel, listener);
-        }
+    ipcRenderer: desktopIpc,
+    messageArchive: { migrateLegacyHtml },
+    database: { readStyles: readDatabaseStyles },
+    officialMusic: { readCatalog: url => readOfficialMusicCatalog(url) },
+    mediaDownloads: {
+        save: payload => ipcRenderer.invoke('save-media-download', payload),
+        begin: payload => ipcRenderer.invoke('begin-media-download', payload),
+        append: payload => ipcRenderer.invoke('append-media-download', payload),
+        finish: payload => ipcRenderer.invoke('finish-media-download', payload),
+        abort: payload => ipcRenderer.invoke('abort-media-download', payload)
     },
-    openExternal(url) {
-        return shell.openExternal(url);
+    async openExternal(rawUrl) {
+        const url = new URL(rawUrl);
+        if (!['http:', 'https:', 'mailto:'].includes(url.protocol)) throw new Error('不支持此链接类型');
+        return shell.openExternal(url.href);
     },
     openExternalPlayer(url) {
         return ipcRenderer.invoke('open-external-player', { url });
@@ -318,7 +375,6 @@ window.desktop = {
         activatePocketAccountSync: session => invokeSettingsSync('activate-pocket-account', session),
         forgetPocketAccountSync: userId => invokeSettingsSync('forget-pocket-account', { userId }),
         getBackgroundUrlSync,
-        saveBackgroundFromFileSync,
         saveBackgroundFromDataUrlSync,
         clearBackgroundSync
     },
@@ -331,10 +387,11 @@ window.desktop = {
     imageCache: {
         getCachedThumbnailUrlSync: getCachedImageThumbnailUrlSync
     }
-};
+});
 
-window.ipcRenderer = window.desktop.ipcRenderer;
-
+contextBridge.exposeInMainWorld('ipcRenderer', desktopIpc);
+contextBridge.exposeInMainWorld('getNetfaceRtcEngine', () => require('./netface-rtc-bridge').getRtcApi());
+contextBridge.exposeInMainWorld('sanitizeNetfaceLog', createNetfaceLogSanitizer());
 function resetRendererPageZoom() {
     try {
         webFrame.setZoomLevel(0);

@@ -213,7 +213,8 @@
                 fallback.setAttribute('aria-label', '礼物图片暂不可用');
                 fallback.style.cssText = 'font-size:24px;margin-right:8px;';
                 image.replaceWith(fallback);
-            } else if (current && (image.classList.contains('avatar') || image.classList.contains('message-profile-avatar'))) {
+            } else if ((current && (image.classList.contains('avatar') || image.classList.contains('message-profile-avatar')))
+                || (image.dataset?.avatarFallback !== undefined && image.getAttribute('src') !== './icon.png')) {
                 event.stopImmediatePropagation();
                 image.removeAttribute('srcset');
                 image.src = './icon.png';

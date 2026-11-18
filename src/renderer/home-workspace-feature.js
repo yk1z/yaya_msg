@@ -452,7 +452,6 @@
                 select.id = 'window-close-behavior-select';
                 select.className = 'input-control desktop-close-behavior-select';
                 select.setAttribute('aria-label', '关闭软件');
-                select.setAttribute('onchange', 'saveWindowCloseBehaviorSetting()');
                 for (const [value, text] of [['minimize-to-tray', '最小化到托盘'], ['quit', '退出软件']]) {
                     const option = document.createElement('option');
                     option.value = value;

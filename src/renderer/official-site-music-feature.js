@@ -1663,45 +1663,6 @@
         `;
     }
 
-    function requestOfficialTextWithNode(url, redirectCount = 0) {
-        return new Promise((resolve, reject) => {
-            const httpsModule = window.desktop && window.desktop.https;
-            if (!httpsModule) {
-                reject(new Error('缺少本地网络模块'));
-                return;
-            }
-
-            const request = httpsModule.get(url, (response) => {
-                const statusCode = response.statusCode || 0;
-                const nextUrl = response.headers && response.headers.location;
-                if (statusCode >= 300 && statusCode < 400 && nextUrl && redirectCount < 4) {
-                    response.resume();
-                    const redirectedUrl = new URL(nextUrl, url).toString();
-                    requestOfficialTextWithNode(redirectedUrl, redirectCount + 1).then(resolve, reject);
-                    return;
-                }
-
-                if (statusCode < 200 || statusCode >= 300) {
-                    response.resume();
-                    reject(new Error(`官网返回 ${statusCode}`));
-                    return;
-                }
-
-                response.setEncoding('utf8');
-                let text = '';
-                response.on('data', (chunk) => {
-                    text += chunk;
-                });
-                response.on('end', () => resolve(text));
-            });
-
-            request.setTimeout(12000, () => {
-                request.destroy(new Error('官网请求超时'));
-            });
-            request.on('error', reject);
-        });
-    }
-
     async function fetchOfficialScriptText(url) {
         const freshUrl = `${url}${url.includes('?') ? '&' : '?'}adv=${Date.now()}`;
         if (typeof fetch === 'function') {
@@ -1714,7 +1675,8 @@
                 console.warn('[official-site-music] browser fetch failed, fallback to node https', error);
             }
         }
-        return requestOfficialTextWithNode(freshUrl);
+        if (!window.desktop?.officialMusic) throw new Error('无法读取官网音乐目录');
+        return window.desktop.officialMusic.readCatalog(freshUrl);
     }
 
     function extractAssignedValue(scriptText, variableName) {

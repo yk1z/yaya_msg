@@ -5040,11 +5040,9 @@ a {
 .melee-rank-num {
     width: 44px;
     height: 44px;
-    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(250, 140, 22, 0.12);
     color: #fa8c16;
     font-weight: 800;
     font-size: 18px;
@@ -5067,6 +5065,19 @@ a {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.melee-rank-profile-id {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+[data-melee-profile-id] :is(.melee-person-avatar, .melee-rank-title) {
+    cursor: pointer;
 }
 
 .melee-rank-value {

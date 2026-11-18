@@ -54,8 +54,8 @@
         function readCacheValue(key, fallbackValue = null) {
             const cacheApi = window.desktop && window.desktop.appCache ? window.desktop.appCache : null;
             if (cacheApi && typeof cacheApi.getCacheValueSync === 'function') {
-                const storedValue = cacheApi.getCacheValueSync(key, fallbackValue);
-                if (storedValue !== fallbackValue) {
+                const storedValue = cacheApi.getCacheValueSync(key, undefined);
+                if (storedValue !== undefined) {
                     return storedValue;
                 }
             }

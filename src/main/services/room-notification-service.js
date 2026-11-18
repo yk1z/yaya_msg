@@ -3,7 +3,7 @@
 const { createSharedMemberRoomClient } = require('./member-room-transport');
 const pocketService = require('./pocket-service');
 const settingsService = require('./settings-service');
-const { ensureWasmLoaded, generatePa } = require('./wasm-service');
+const { generatePa } = require('../../common/pocket-pa-node.mjs');
 const APP_KEY = '632feff1f4c838541ab75195d1ceb3fa';
 
 function createRoomNotificationService({ prefix = 'room-notification', voiceEvents = false, mapMessage = message => message } = {}) {
@@ -43,7 +43,6 @@ function createRoomNotificationService({ prefix = 'room-notification', voiceEven
                 emit(state, `${prefix}-status`, { status: 'connecting', accepted: [], startAccepted: [] });
                 state.client?.destroy();
                 state.client = null;
-                await ensureWasmLoaded();
                 if (!isCurrent(state)) return;
                 const credentials = await pocketService.invoke('get-nim-login-info', { token: state.token, pa: generatePa() || '' });
                 if (!isCurrent(state)) return;

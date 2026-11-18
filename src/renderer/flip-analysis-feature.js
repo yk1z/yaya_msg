@@ -3,6 +3,7 @@
 
     window.YayaRendererFeatures.createFlipAnalysisFeature = function createFlipAnalysisFeature(deps) {
         const { getAllFlipData } = deps;
+        const { escapeHtml } = window.YayaRendererUtils;
 
         let currentFlipAnalysisYear = 'all';
 
@@ -86,7 +87,7 @@
             let globalMinDuration = Infinity;
             let globalMaxDuration = 0;
             let typeStats = { text: 0, audio: 0, video: 0 };
-            let memberStats = {};
+            const memberStats = Object.create(null);
 
             filteredData.forEach(item => {
                 const cost = Number(item.cost) || 0;
@@ -244,7 +245,7 @@
                 <div class="rank-num ${rankClass}" style="width: 30px; min-width: 30px; text-align: center; margin-right: 15px; font-weight: bold; font-size: 16px; line-height: 24px; margin-top: 2px;">${rankNum}</div>
                 <div style="flex: 1; min-width: 0;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                        <span style="font-weight: bold; font-size: 15px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${member.name}</span>
+                        <span style="font-weight: bold; font-size: 15px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(member.name)}</span>
                         <span style="font-weight: bold; font-size: 16px; color: #fa8c16; font-family: -apple-system, BlinkMacSystemFont, Roboto, sans-serif;">${member.cost} <span style="font-size:12px;">🍗</span></span>
                     </div>
                     <div style="height: 4px; background: var(--border); border-radius: 3px; overflow: hidden; margin-bottom: 10px;">

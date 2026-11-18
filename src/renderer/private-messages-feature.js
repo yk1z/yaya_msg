@@ -1592,7 +1592,7 @@
 
                 const rowHtml = `
                     <div class="private-message-list-item" onclick="openPrivateMessageDetail('${escapePrivateMessageHtml(String(user.userId || ''))}')">
-                        <img class="private-message-list-avatar" src="${escapePrivateMessageHtml(avatar)}" alt="">
+                        <img class="private-message-list-avatar" src="${escapePrivateMessageHtml(avatar)}" alt="" data-avatar-fallback>
                         <div class="private-message-list-main">
                             <div class="private-message-list-head">
                                 <div class="private-message-name-row">

@@ -10,7 +10,7 @@
         try { window.switchView(view, mode); } finally { applyingRoute = false; }
     }
     const loginViews = new Set(['fetch', 'flip', 'send-flip', 'profile', 'performance', 'photos', 'room-album',
-        'member-dynamic', 'member-weibo', 'trip', 'room-radio', 'invoice', 'private-messages', 'followed-rooms', 'community']);
+        'member-dynamic', 'member-weibo', 'trip', 'room-radio', 'invoice', 'private-messages', 'followed-rooms', 'community', 'netface']);
     const notify = message => { if (typeof window.showToast === 'function') window.showToast(message); };
     async function navigate(route) {
         const request = ++revision;
@@ -56,7 +56,8 @@
             } else if (route.action) {
                 const actions = { message: 'openPrivateMessageDetail', album: 'openRoomAlbumByChannelId', stage: 'openPerformanceById',
                     post: 'openMemberDynamicById', weibo: 'openMemberWeiboById', profile: 'openProfileById', trip: 'openTripById',
-                    send: 'openFlipSendByMemberId', nft: 'openMemberPhotosById', community: 'openCommunityTopic' };
+                    send: 'openFlipSendByMemberId', nft: 'openMemberPhotosById', community: 'openCommunityTopic',
+                    'melee-week': 'openMeleeWeekRank', 'netface-activity': 'openNetfaceActivityById' };
                 const handler = window[actions[route.action]];
                 if (typeof handler === 'function') await handler(route.id);
                 else notify('当前版本暂不能打开该详情页');

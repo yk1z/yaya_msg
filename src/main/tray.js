@@ -1,3 +1,4 @@
+const { isMainFrameSender } = require('./desktop-document');
 const { app, BrowserWindow, ipcMain, Menu, nativeImage, screen, Tray } = require('electron');
 const path = require('path');
 const { showMainWindow } = require('./window');
@@ -167,7 +168,8 @@ function showTrayMenu(bounds) {
 }
 
 ipcMain.on('tray-menu-action', (event, action) => {
-    if (!trayMenuWindow || trayMenuWindow.isDestroyed() || event.sender !== trayMenuWindow.webContents) return;
+    if (!trayMenuWindow || trayMenuWindow.isDestroyed() || event.sender !== trayMenuWindow.webContents
+        || !isMainFrameSender(event)) return;
     concealTrayMenu();
     if (action === 'show') {
         showMainWindow();

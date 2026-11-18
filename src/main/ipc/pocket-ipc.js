@@ -1,4 +1,5 @@
 const { ipcMain, BrowserWindow, app } = require('electron');
+const { handleDesktop } = require('./desktop-sender');
 const pocketService = require('../services/pocket-service');
 const settingsService = require('../services/settings-service');
 const { runLiveReadRequest } = require('../services/live-read-request');
@@ -214,14 +215,14 @@ async function handlePocketApiPathRequest(payload) {
 
 function registerPocketIpc() {
     const socialLogin = createPocketSocialLoginService({ BrowserWindow, invokePocket: (channel, payload) => pocketService.invoke(channel, payload) });
-    const isMainPage = event => event.sender === getMainWindow()?.webContents && event.senderFrame === event.sender.mainFrame;
-    ipcMain.handle('pocket-social-login-start', (event, payload) => isMainPage(event)
+    const isMainPage = event => event.sender === getMainWindow()?.webContents;
+    handleDesktop(ipcMain, 'pocket-social-login-start', (event, payload) => isMainPage(event)
         ? socialLogin.start(event.sender, payload) : { success: false, msg: '请从账号设置发起登录' });
-    ipcMain.handle('pocket-social-login-cancel', (event, payload) => isMainPage(event)
+    handleDesktop(ipcMain, 'pocket-social-login-cancel', (event, payload) => isMainPage(event)
         ? socialLogin.cancel(event.sender, payload?.attemptId) : { success: false });
     app.on('before-quit', socialLogin.closeAll);
     const handle = (channel) => {
-        ipcMain.handle(channel, async (event, payload) => {
+        handleDesktop(ipcMain, channel, async (event, payload) => {
             const action = () => handlePocketRequest(channel, payload, preparedPayload => pocketService.invoke(channel, preparedPayload));
             const result = channel.includes('netface') ? await traceNetfaceRequest(channel, payload, action, {
                 boundary: 'ipc', ticketId: payload?.ticketId, eventId: payload?.eventId, senderId: event.sender?.id,
@@ -231,7 +232,7 @@ function registerPocketIpc() {
         });
     };
 
-    ipcMain.handle('fetch-pocket-api', (event, payload) => handlePocketApiPathRequest(payload));
+    handleDesktop(ipcMain, 'fetch-pocket-api', (event, payload) => handlePocketApiPathRequest(payload));
     Object.keys(POCKET_CHANNEL_METHODS).forEach(handle);
 }
 

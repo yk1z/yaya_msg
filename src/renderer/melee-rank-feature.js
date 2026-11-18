@@ -434,15 +434,20 @@
         const rankNum = item.rankNum || '--';
         const totalCharm = String(Number(item.totalCharm || 0));
         const nickname = user.nickname || user.realNickName || '匿名用户';
-        const userId = user.userId || user.id || '--';
+        const userId = String(user.userId || user.id || '').trim();
+        const hasUserProfile = /^[1-9]\d{0,31}$/.test(userId);
+        const userProfile = hasUserProfile
+            ? `<button type="button" class="melee-rank-profile-id" title="查看用户主页">ID ${userId}</button>`
+            : '';
+        const userDetails = [userProfile, item.privacy ? '隐私用户' : ''].filter(Boolean).join(' · ');
         const avatar = normalizeSourceUrl(user.avatar);
         return `
-            <div class="melee-rank-card melee-person-rank-card" data-rank-key="person-${escapeHtml(rankNum)}">
+            <div class="melee-rank-card melee-person-rank-card" data-rank-key="person-${escapeHtml(rankNum)}"${hasUserProfile ? ` data-melee-profile-id="${userId}"` : ''}>
                 <div class="melee-rank-num">${escapeHtml(rankNum)}</div>
                 <img class="melee-person-avatar" src="${escapeHtml(avatar)}" alt="${escapeHtml(nickname)}" loading="lazy" onerror="this.src='./icon.png'">
                 <div style="min-width:0;">
                     <div class="melee-rank-title">${escapeHtml(nickname)}</div>
-                    <div class="melee-rank-sub">用户 ID：${escapeHtml(userId)}${item.privacy ? ' · 隐私用户' : ''}</div>
+                    ${userDetails ? `<div class="melee-rank-sub">${userDetails}</div>` : ''}
                 </div>
                 <div class="melee-rank-value">${escapeHtml(totalCharm)}</div>
             </div>
@@ -582,6 +587,16 @@
                     }
                 });
             }
+            getEl('melee-rank-result')?.addEventListener('click', event => {
+                const trigger = event.target.closest('.melee-rank-profile-id, .melee-person-avatar, .melee-rank-title');
+                const card = trigger?.closest('[data-melee-profile-id]');
+                if (!card) return;
+                window.openFollowedUserProfile?.(
+                    card.dataset.meleeProfileId,
+                    card.querySelector('.melee-rank-title')?.textContent,
+                    card.querySelector('.melee-person-avatar')?.getAttribute('src')
+                );
+            });
             document.addEventListener('mousedown', event => {
                 const box = getEl('melee-rank-suggestions');
                 const inputEl = getEl('melee-rank-member-input');

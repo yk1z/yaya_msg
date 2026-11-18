@@ -4,7 +4,7 @@ const { createNimCommonlinkChatroomClient } = require('../../common/nim-commonli
 const { applyCustomSenderProfile, applyCustomLiveExtensions } = require('../../common/sender-profile');
 const pocketService = require('./pocket-service');
 const settingsService = require('./settings-service');
-const { ensureWasmLoaded, generatePa } = require('./wasm-service');
+const { generatePa } = require('../../common/pocket-pa-node.mjs');
 
 const CHATROOM_APP_KEY = '632feff1f4c838541ab75195d1ceb3fa';
 const connections = new Map();
@@ -65,7 +65,6 @@ async function connectLiveDanmaku(sender, payload = {}) {
     }
 
     try {
-        await ensureWasmLoaded();
         assertCurrentRequest();
         const pa = generatePa() || '';
         const [credentials, liveResult, accountResult] = await Promise.all([

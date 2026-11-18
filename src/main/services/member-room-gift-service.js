@@ -3,7 +3,7 @@
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const settingsService = require('./settings-service');
-const { ensureWasmLoaded, generatePa } = require('./wasm-service');
+const { generatePa } = require('../../common/pocket-pa-node.mjs');
 const sending = new Set();
 let runtimePromise;
 
@@ -11,7 +11,6 @@ async function invoke(method, payload) {
     try {
         const token = settingsService.getToken();
         if (!token) return { success: false, msg: '请先登录口袋48账号' };
-        await ensureWasmLoaded();
         runtimePromise ||= import(pathToFileURL(path.join(__dirname, '../../common/pocket-runtime.mjs')).href);
         const runtime = await runtimePromise;
         const settings = settingsService.readSettings();

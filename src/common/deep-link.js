@@ -14,7 +14,8 @@
         openlive: 'performance', 'open-live': 'performance' };
     const detailActions = { 'followed-rooms': 'room', 'private-messages': 'message', 'room-album': 'album',
         performance: 'stage', 'member-dynamic': 'post', 'member-weibo': 'weibo', profile: 'profile', trip: 'trip',
-        'send-flip': 'send', photos: 'nft', community: 'community', 'room-radio': 'voice' };
+        'send-flip': 'send', photos: 'nft', community: 'community', 'room-radio': 'voice',
+        'melee-rank': 'melee-week', netface: 'netface-activity' };
     const mediaModes = ['live', 'vod', 'meet-live', 'meet-vod'];
     function parseDeepLink(raw) {
         if (typeof raw !== 'string' || raw.length > 4096 || /[\u0000-\u0020\u007f\\]/.test(raw)) return null;
@@ -51,6 +52,7 @@
             if (!route.action) return null;
             route.id = parts[0];
             if (!(['stage', 'media'].includes(route.action) ? /^[a-z0-9_-]{1,128}$/i : /^[1-9]\d{0,31}$/).test(route.id)) return null;
+            if (route.action === 'melee-week' && !Number.isSafeInteger(Number(route.id))) return null;
         } else if (slug === 'user') return null;
         return route;
     }

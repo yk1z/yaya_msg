@@ -1,6 +1,4 @@
 (function initDatabaseEmbed() {
-    const DATABASE_STYLES_PATH = 'src/renderer/database/styles.css';
-    const DATABASE_TAILWIND_PATH = 'src/renderer/database/tailwind.css';
     const DESKTOP_DATABASE_RUNTIME_PATH = './database/runtime.js';
     const WEB_DATABASE_RUNTIME_PATH = '/src/renderer/database/runtime.js';
     const WEB_DATABASE_STYLES_PATH = '/src/renderer/database/styles.css';
@@ -79,28 +77,18 @@
         return runtimePromise;
     }
 
-    async function readDatabaseAsset(desktopPath, webPath) {
-        const desktop = window.desktop;
-        if (desktop && desktop.platform === 'web') {
-            const response = await fetch(webPath);
-            if (!response.ok) {
-                throw new Error(`数据库资源加载失败: ${response.status}`);
-            }
-            return response.text();
-        }
-
-        if (!desktop || !desktop.fs || !desktop.path || !desktop.appDir) {
-            throw new Error('数据库运行环境未准备好');
-        }
-
-        const assetPath = desktop.path.join(desktop.appDir, desktopPath);
-        return desktop.fs.readFileSync(assetPath, 'utf8');
+    async function readDatabaseAsset(url) {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('数据库资源加载失败: ' + response.status);
+        return response.text();
     }
 
     async function readDatabaseStyles() {
+        if (!isWebRuntime()) return window.desktop.database.readStyles();
+
         const [tailwindStyles, databaseStyles] = await Promise.all([
-            readDatabaseAsset(DATABASE_TAILWIND_PATH, WEB_DATABASE_TAILWIND_PATH),
-            readDatabaseAsset(DATABASE_STYLES_PATH, WEB_DATABASE_STYLES_PATH)
+            readDatabaseAsset(WEB_DATABASE_TAILWIND_PATH),
+            readDatabaseAsset(WEB_DATABASE_STYLES_PATH)
         ]);
         return `${tailwindStyles}\n${databaseStyles}`;
     }

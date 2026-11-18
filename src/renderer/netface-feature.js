@@ -217,6 +217,17 @@
         $('netface-group').onchange = event => { state.group = event.target.value; renderList(); };
         styleDropdown($('netface-group'));
         $('netface-search').oninput = event => { state.search = event.target.value.trim(); renderList(); };
+        $('netface-list').addEventListener('click', event => {
+            const trigger = event.target.closest('.netface-member-profile, img, .netface-avatar');
+            const member = trigger?.closest('[data-netface-profile-id]');
+            if (!member) return;
+            window.openFollowedUserProfile?.(
+                member.dataset.netfaceProfileId,
+                member.querySelector('.netface-member-profile')?.textContent,
+                member.querySelector('img')?.getAttribute('src'),
+                true
+            );
+        });
         $('netface-mic').onclick = () => {
             if (state.ending) return;
             state.muted = !state.muted;
@@ -267,13 +278,19 @@
             const entryCountdown = entryCall && !entryCall.expired ? `<span class="netface-entry-countdown" data-entry-countdown="${esc(item.eventId)}">${Math.max(0, Math.ceil((entryCall.deadline - Date.now()) / 1000))}秒后失效</span>` : '';
             const name = star.name || star.nickname || '成员';
             const groupName = star.groupName || state.info.groupInfos?.find(group => String(group.groupId) === String(item.groupId))?.groupName || '';
-            const member = membersById.get(String(star.userId || star.id || ''));
+            const userId = String(star.userId || star.id || '').trim();
+            const hasUserProfile = /^[1-9]\d{0,31}$/.test(userId);
+            const member = membersById.get(userId);
             const teamName = star.teamName || item.teamName || member?.team || '';
             const affiliation = [groupName, teamName].filter(Boolean).join(' · ');
             const tagStyle = window.getTeamStyle?.(teamName, false) || '';
+            const nameLabel = hasUserProfile
+                ? `<button type="button" class="netface-member-profile" title="查看 ${esc(name)} 的主页">${esc(name)}</button>`
+                : esc(name);
+            const teamLabel = teamName ? `<span class="team-tag" style="${esc(tagStyle)}" title="${esc(affiliation)}">${esc(teamName)}</span>` : '';
             const reservation = model.reservation(item, state.info.ticketTime);
             const bookingStatus = item.ordered ? `<span class="netface-badge">${esc(model.statusText[Number(item.status)] || '待确认')}${reservation.count ? ` · ${esc(reservation.count)} 次` : ''}${reservation.duration ? ` · ${esc(reservation.duration)} 秒` : ''}</span>` : '';
-            return `<article class="netface-card" data-status="${Number(item.status)}" data-ordered="${item.ordered}"><div class="netface-member">${avatar ? `<img src="${esc(avatar)}" alt="" loading="lazy">` : '<div class="netface-avatar">☁</div>'}<div class="netface-member-info"><h3 title="${esc(name)}">${esc(name)}</h3>${teamName ? `<div class="netface-member-affiliation"><span class="team-tag" style="${esc(tagStyle)}" title="${esc(affiliation)}">${esc(teamName)}</span></div>` : ''}</div></div>
+            return `<article class="netface-card" data-status="${Number(item.status)}" data-ordered="${item.ordered}"><div class="netface-member"${hasUserProfile ? ` data-netface-profile-id="${userId}"` : ''}>${avatar ? `<img src="${esc(avatar)}" alt="" loading="lazy">` : '<div class="netface-avatar">☁</div>'}<div class="netface-member-info"><h3 title="${esc(name)}">${nameLabel}</h3>${teamLabel ? `<div class="netface-member-affiliation">${teamLabel}</div>` : ''}</div></div>
                 <div class="netface-schedule"><div><span>预约时间</span><time>${esc(reservationTime(item.queueStartTime))}</time></div><div><span>开始时间</span><time>${esc(item.startTime || '待公布')}</time></div></div>
                 <div class="netface-card-meta"><div><span>${item.ordered ? '排队号' : '队列'}</span><strong>${item.ordered ? esc(item.queneNumber || item.queueNumber || '—') : `${esc(item.queueSize ?? '—')} <span class="netface-count-unit">人</span>`}</strong></div><div><span>预计等待</span><strong>${esc(waitTime(item))}</strong></div></div>
                 <div class="netface-card-actions">${bookingStatus}${item.ordered && Number(item.status) === 2 ? `<button class="btn btn-secondary" data-event="${esc(item.eventId)}" data-action="cancel" ${state.busy ? 'disabled' : ''}>取消预约</button>` : `<button class="btn ${canReserve || canJoin ? 'btn-primary' : 'btn-secondary'}" data-event="${esc(item.eventId)}" data-action="${canJoin ? 'join' : 'reserve'}" ${!(canReserve || canJoin) || state.stale || state.busy || state.entering || state.active ? 'disabled' : ''}>${esc(label)}${entryCountdown}</button>`}</div>
@@ -478,6 +495,25 @@
         modal('兑换握手资格', `<label class="netface-field">资格兑换码<input id="netface-key" class="input-control" autocomplete="off" maxlength="256" placeholder="输入兑换码"></label><button id="netface-confirm" class="btn btn-primary btn-full">确认兑换</button>`);
         $('netface-confirm').onclick = () => mutation('activate-netface-key', { ticketId: state.ticketId, tpKey: $('netface-key').value.trim() }, '资格兑换成功');
     }
+    function selectActivity(ticketId, { clearFilters = false } = {}) {
+        const id = String(ticketId ?? '');
+        if (!visible() || !/^(?:0|[1-9]\d{0,31})$/.test(id)) return;
+        if (state.active || state.entering || joinPending || state.busy) { message('请先完成当前云握手再切换活动'); return; }
+        shell();
+        if (state.token !== token()) {
+            window.resetNetfaceAccountState();
+            state.token = token();
+        }
+        leave(); state.ticketId = id; state.info = {}; state.events = []; state.balance = null; state.stale = true; state.loaded = false; state.status = ''; state.group = '0';
+        $('netface-balance').textContent = '—';
+        $('netface-activity').textContent = state.tickets.find(ticket => String(ticket.ticketId) === id)?.ticketName || '正在加载活动…';
+        if (clearFilters) {
+            state.search = '';
+            $('netface-search').value = '';
+            filter('all');
+        }
+        window.enterNetfaceView();
+    }
     function chooseActivity() {
         if (state.active || state.entering || state.busy) { message('请先完成当前云握手再切换活动'); return; }
         modal('选择云握手活动', `<div class="netface-field"><select id="netface-activity-select" class="input-control" aria-label="选择云握手活动"><option value="0">自动选择当前活动</option>${state.tickets.map(v => `<option value="${esc(v.ticketId)}" ${String(v.ticketId) === state.ticketId ? 'selected' : ''}>${esc(v.ticketName)}</option>`).join('')}</select></div><button id="netface-confirm" class="btn btn-primary btn-full">查看活动</button>`);
@@ -485,13 +521,8 @@
         styleDropdown($('netface-activity-select'));
         $('netface-activity-select-trigger').focus();
         $('netface-confirm').onclick = () => {
-            try {
-                const id = $('netface-activity-select').value;
-                leave(); state.ticketId = id; state.info = {}; state.events = []; state.balance = null; state.stale = true; state.loaded = false; state.status = ''; state.group = '0';
-                $('netface-balance').textContent = '—';
-                $('netface-activity').textContent = '正在加载活动…';
-                window.enterNetfaceView();
-            } catch (error) { message(error.message, true); }
+            try { selectActivity($('netface-activity-select').value); }
+            catch (error) { message(error.message, true); }
         };
     }
     async function history(reset) {
@@ -1006,7 +1037,7 @@
                     syncAudio();
                     if (!state.joined) {
                         state.joined = true;
-                        engine.startPreview({ canvas: $('netface-local-canvas'), viewMode: 0 });
+                        engine.startPreview();
                         engine.startPublishingStream(room.streamId);
                     }
                     state.rtcStatus = state.paused ? '工作人员已暂停互动' : state.deadline ? '互动中' : '已进入，等待工作人员开始互动';
@@ -1020,7 +1051,7 @@
                     logEvent('rtc-stream-state', { state: param.updateType });
                     if (param.updateType === 0) {
                         state.remote.add(stream.streamID);
-                        engine.startPlayingStream(stream.streamID, { canvas: $('netface-remote-canvas'), viewMode: 0 });
+                        engine.startPlayingStream(stream.streamID);
                         syncAudio();
                     }
                     else { engine.stopPlayingStream(stream.streamID); state.remote.delete(stream.streamID); }
@@ -1153,6 +1184,7 @@
         }, 10000);
         state.tick = setInterval(() => { updateClock(); updateEntryCountdowns(); }, 1000);
     };
+    window.openNetfaceActivityById = ticketId => selectActivity(ticketId, { clearFilters: true });
     window.addEventListener('member-data-loaded', () => { if (visible()) renderList(); });
     window.addEventListener('online', () => {
         if (visible() && !state.signalId && !state.active && !state.entering) { cancelSignalRetry(); state.signalRetryAttempt = 0; scheduleSignalReconnect(); }

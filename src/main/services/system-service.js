@@ -8,6 +8,7 @@ const axios = require('axios');
 const { BrowserWindow, dialog, nativeImage, Notification: ElectronNotification, screen, session, shell } = require('electron');
 const { ensureStoragePaths } = require('../../common/storage-paths');
 const { reportIgnoredError } = require('../../common/error-utils');
+const { getSettingValue } = require('./settings-service');
 
 const IMAGE_THUMB_CACHE_LIMIT_BYTES = 500 * 1024 * 1024;
 const imageThumbInflight = new Map();
@@ -469,7 +470,160 @@ function fileEndsWithNewline(filePath) {
 }
 
 function safeFileName(value, fallback = '未命名成员') {
-    return String(value || fallback).replace(/[\\/:*?"<>|]/g, '_').trim() || fallback;
+    return String(value || fallback).replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_')
+        .trim().replace(/[. ]+$/, '') || fallback;
+}
+
+const MEDIA_DOWNLOAD_BYTE_LIMIT = 16 * 1024 * 1024;
+const MEDIA_DOWNLOAD_CHUNK_LIMIT = 1024 * 1024;
+const MEDIA_DOWNLOAD_STREAM_LIMIT = 512 * 1024 * 1024;
+const MEDIA_DOWNLOAD_IDLE_MS = 60_000;
+const mediaDownloadSessions = new Map();
+
+async function resolveMediaDownload({ filename, dlType, subFolder }) {
+    if (!['media', 'flip'].includes(dlType)) throw new Error('下载类型无效');
+    const fileName = safeFileName(filename, '');
+    const extension = path.extname(fileName);
+    if (!/^\.(?:png|jpe?g|gif|webp|bmp|avif|mp3|mp4|m4a|aac|wav|webm|mov)$/i.test(extension)) {
+        throw new Error('不支持保存此文件类型');
+    }
+    const configuredDir = getSettingValue(`yaya_path_${dlType}`).value;
+    if (typeof configuredDir !== 'string' || !path.isAbsolute(configuredDir)) {
+        throw new Error('请在设置中选择有效的下载目录');
+    }
+
+    await fs.promises.mkdir(configuredDir, { recursive: true });
+    const root = await fs.promises.realpath(configuredDir);
+    const dir = path.join(root, safeFileName(subFolder, ''));
+    if (dir !== root) {
+        await fs.promises.mkdir(dir).catch(error => {
+            if (error.code !== 'EEXIST') throw error;
+        });
+        if (!(await fs.promises.lstat(dir)).isDirectory()) throw new Error('下载子目录无效');
+    }
+
+    return { dir, fileName, extension, base: path.basename(fileName, extension) };
+}
+
+async function saveToAvailableMediaPath({ dir, fileName, extension, base }, write) {
+    for (let suffix = 0; ; suffix += 1) {
+        const destination = path.join(dir, suffix ? `${base}_${suffix}${extension}` : fileName);
+        try {
+            await write(destination);
+            return { success: true };
+        } catch (error) {
+            if (error.code !== 'EEXIST') throw error;
+        }
+    }
+}
+
+async function saveMediaDownload({ bytes, ...metadata } = {}) {
+    if (!(bytes instanceof Uint8Array) || !bytes.length) throw new Error('下载文件数据无效');
+    if (bytes.length > MEDIA_DOWNLOAD_BYTE_LIMIT) throw new Error('文件超过单次保存上限，请使用分段下载');
+    const target = await resolveMediaDownload(metadata);
+    return saveToAvailableMediaPath(target, async destination => {
+        const file = await fs.promises.open(destination, 'wx');
+        try {
+            try { await file.writeFile(bytes); }
+            finally { await file.close(); }
+        } catch (error) {
+            await fs.promises.rm(destination, { force: true });
+            throw error;
+        }
+    });
+}
+
+function disposeMediaDownload(download) {
+    mediaDownloadSessions.delete(download.id);
+    clearTimeout(download.timer);
+    download.owner.removeListener('destroyed', download.cancel);
+    download.owner.removeListener('render-process-gone', download.cancel);
+}
+
+async function removePartialMedia(download) {
+    try { await download.file.close(); }
+    finally { await fs.promises.rm(download.partial, { force: true }); }
+}
+
+function refreshMediaDownloadTimeout(download) {
+    clearTimeout(download.timer);
+    download.timer = setTimeout(download.cancel, MEDIA_DOWNLOAD_IDLE_MS);
+    download.timer.unref();
+}
+
+async function beginMediaDownload(owner, { contentLength, ...metadata } = {}) {
+    if (Number(contentLength) > MEDIA_DOWNLOAD_STREAM_LIMIT) throw new Error('下载文件超过 512 MiB');
+    const target = await resolveMediaDownload(metadata);
+    const id = crypto.randomUUID();
+    const partial = path.join(target.dir, `.yaya-${id}.part`);
+    const download = { id, owner, target, partial, size: 0, busy: false };
+    download.file = await fs.promises.open(partial, 'wx');
+    if (owner.isDestroyed()) {
+        await removePartialMedia(download);
+        throw new Error('下载窗口已关闭');
+    }
+    download.cancel = () => {
+        abortMediaDownload(owner, { id }).catch(error => reportIgnoredError(error, 'media-download-cleanup'));
+    };
+    mediaDownloadSessions.set(id, download);
+    owner.once('destroyed', download.cancel);
+    owner.once('render-process-gone', download.cancel);
+    refreshMediaDownloadTimeout(download);
+    return { id };
+}
+
+function findMediaDownload(owner, id) {
+    const download = mediaDownloadSessions.get(id);
+    if (!download || download.owner !== owner || download.busy) throw new Error('下载会话无效或正在写入');
+    return download;
+}
+
+async function appendMediaDownload(owner, { id, bytes } = {}) {
+    const download = findMediaDownload(owner, id);
+    if (!(bytes instanceof Uint8Array) || !bytes.length || bytes.length > MEDIA_DOWNLOAD_CHUNK_LIMIT) {
+        throw new Error('下载分段数据无效');
+    }
+    if (download.size + bytes.length > MEDIA_DOWNLOAD_STREAM_LIMIT) {
+        await abortMediaDownload(owner, { id });
+        throw new Error('下载文件超过 512 MiB');
+    }
+    download.busy = true;
+    refreshMediaDownloadTimeout(download);
+    try {
+        await download.file.writeFile(bytes);
+        download.size += bytes.length;
+    } catch (error) {
+        await abortMediaDownload(owner, { id });
+        throw error;
+    } finally {
+        download.busy = false;
+    }
+}
+
+async function finishMediaDownload(owner, { id } = {}) {
+    const download = findMediaDownload(owner, id);
+    disposeMediaDownload(download);
+    try {
+        if (!download.size) throw new Error('下载文件为空');
+        await download.file.close();
+        return await saveToAvailableMediaPath(download.target, async destination => {
+            try {
+                await fs.promises.link(download.partial, destination);
+            } catch (error) {
+                if (!['ENOSYS', 'ENOTSUP', 'EOPNOTSUPP', 'EPERM', 'EXDEV', 'EINVAL'].includes(error.code)) throw error;
+                await fs.promises.copyFile(download.partial, destination, fs.constants.COPYFILE_EXCL);
+            }
+        });
+    } finally {
+        await removePartialMedia(download);
+    }
+}
+
+async function abortMediaDownload(owner, { id } = {}) {
+    const download = mediaDownloadSessions.get(id);
+    if (!download || download.owner !== owner) return;
+    disposeMediaDownload(download);
+    await removePartialMedia(download);
 }
 
 function normalizeImageContentType(value) {
@@ -987,6 +1141,11 @@ async function openExternalPlayer({ url }) {
 module.exports = {
     showSystemNotification,
     saveExportJsonl,
+    saveMediaDownload,
+    beginMediaDownload,
+    appendMediaDownload,
+    finishMediaDownload,
+    abortMediaDownload,
     openDirectoryDialog,
     openMessageDataFolder,
     fetchRemoteImageDataUrl,

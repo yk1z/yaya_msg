@@ -58,6 +58,9 @@
 .netface-member h3 { margin: 0; color: var(--nf-text); font-size: 15px; font-weight: 650; line-height: var(--nf-card-row); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .netface-member-affiliation { display: flex; align-items: center; min-width: 0; height: var(--nf-card-row); line-height: var(--nf-card-row); }
 .netface-member-affiliation .team-tag { max-width: 100%; box-sizing: border-box; }
+.netface-member-profile { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; }
+.netface-member-profile:focus-visible { outline-offset: -2px; }
+[data-netface-profile-id] :is(img, .netface-avatar, .netface-member-profile) { cursor: pointer; }
 .netface-badge { display: inline-block; flex-shrink: 0; max-width: 100%; box-sizing: border-box; border-radius: 5px; padding: 3px 6px; font-size: 11px; white-space: normal; overflow-wrap: anywhere; background: color-mix(in srgb, var(--primary) 14%, var(--nf-surface)); color: var(--primary); }
 .netface-schedule, .netface-card-meta { display: grid; grid-auto-rows: var(--nf-card-row); gap: var(--nf-card-row-gap); font-size: 12px; line-height: var(--nf-card-row); }
 .netface-schedule > div, .netface-card-meta > div { display: grid; grid-template-columns: 4em minmax(0,1fr); align-items: center; gap: 10px; }

@@ -10,6 +10,7 @@ reports/
 !/scripts/build-web.js
 !/scripts/build-desktop-gift-player.js
 !/scripts/build-desktop-shell.js
+!/scripts/build-renderer-entry.js
 !/scripts/copy-ffmpeg.js
 !/scripts/run-builder.js
 !/scripts/build-profile-photo-history.py
@@ -28,8 +29,17 @@ dist-next/
 !.env.example
 data/
 *.db
+*.db-wal
+*.db-shm
+*.db-journal
 *.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite-journal
 *.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+*.sqlite3-journal
 __pycache__/
 *.py[cod]
 

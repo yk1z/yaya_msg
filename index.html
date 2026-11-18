@@ -474,7 +474,7 @@
                                 style="flex: 1; min-width: 0; margin-right: 15px; display: flex; align-items: center; gap: 12px;">
                                 <button type="button" class="followed-chat-mobile-back"
                                     onclick="backToFollowedRoomList(event)">‹ 聚聚</button>
-                                <img id="followed-chat-avatar" src="./icon.png"
+                                <img id="followed-chat-avatar" src="./icon.png" data-avatar-fallback
                                     style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1.5px solid var(--primary); display: block; flex: 0 0 40px; visibility: hidden; opacity: 0;">
 
                                 <div style="flex: 1; min-width: 0;">
@@ -605,19 +605,18 @@
                         <span style="white-space: nowrap; font-weight: bold; font-size: 14px;">团体</span>
                         <div id="live-group-wrapper" style="position: relative; width: 120px;">
                             <input type="hidden" id="live-group-value" value="all">
-                            <input type="text" id="live-group-display" class="input-control" value="全部团体" readonly
-                                onclick="toggleLiveGroupDropdown()" style="cursor: pointer; padding-right: 20px;">
+                            <input type="text" id="live-group-display" class="input-control" value="全部团体" readonly style="cursor: pointer; padding-right: 20px;">
                             <div
                                 style="position: absolute; right: 10px; top: 10px; pointer-events: none; color: var(--text-sub); font-size: 12px;">
                                 ▼</div>
                             <div id="live-group-dropdown" class="suggestion-box">
-                                <div class="suggestion-item" onclick="selectLiveGroup('all', '全部')">全部团体</div>
-                                <div class="suggestion-item" onclick="selectLiveGroup('snh', 'SNH48')">SNH48</div>
-                                <div class="suggestion-item" onclick="selectLiveGroup('gnz', 'GNZ48')">GNZ48</div>
-                                <div class="suggestion-item" onclick="selectLiveGroup('bej', 'BEJ48')">BEJ48</div>
-                                <div class="suggestion-item" onclick="selectLiveGroup('ckg', 'CKG48')">CKG48</div>
-                                <div class="suggestion-item" onclick="selectLiveGroup('cgt', 'CGT48')">CGT48</div>
-                                <div class="suggestion-item" onclick="selectLiveGroup('idft', 'IDFT')">IDFT</div>
+                                <div class="suggestion-item" data-media-value="all" data-media-label="全部">全部团体</div>
+                                <div class="suggestion-item" data-media-value="snh" data-media-label="SNH48">SNH48</div>
+                                <div class="suggestion-item" data-media-value="gnz" data-media-label="GNZ48">GNZ48</div>
+                                <div class="suggestion-item" data-media-value="bej" data-media-label="BEJ48">BEJ48</div>
+                                <div class="suggestion-item" data-media-value="ckg" data-media-label="CKG48">CKG48</div>
+                                <div class="suggestion-item" data-media-value="cgt" data-media-label="CGT48">CGT48</div>
+                                <div class="suggestion-item" data-media-value="idft" data-media-label="IDFT">IDFT</div>
                             </div>
                         </div>
                     </div>
@@ -626,23 +625,22 @@
                         <span style="white-space: nowrap; font-weight: bold; font-size: 14px;">类型</span>
                         <div id="live-type-wrapper" style="position: relative; width: 100px;">
                             <input type="hidden" id="live-type-value" value="all">
-                            <input type="text" id="live-type-display" class="input-control" value="全部" readonly
-                                onclick="toggleLiveTypeDropdown()" style="cursor: pointer; padding-right: 20px;">
+                            <input type="text" id="live-type-display" class="input-control" value="全部" readonly style="cursor: pointer; padding-right: 20px;">
                             <div
                                 style="position: absolute; right: 10px; top: 10px; pointer-events: none; color: var(--text-sub); font-size: 12px;">
                                 ▼</div>
                             <div id="live-type-dropdown" class="suggestion-box">
-                                <div class="suggestion-item" onclick="selectLiveType('all', '全部')">全部</div>
-                                <div class="suggestion-item" onclick="selectLiveType('video', '视频')">视频</div>
-                                <div class="suggestion-item" onclick="selectLiveType('radio', '电台')">电台</div>
-                                <div class="suggestion-item" onclick="selectLiveType('record', '录屏')">录屏</div>
+                                <div class="suggestion-item" data-media-value="all" data-media-label="全部">全部</div>
+                                <div class="suggestion-item" data-media-value="video" data-media-label="视频">视频</div>
+                                <div class="suggestion-item" data-media-value="radio" data-media-label="电台">电台</div>
+                                <div class="suggestion-item" data-media-value="record" data-media-label="录屏">录屏</div>
                             </div>
                         </div>
                     </div>
 
                     <div style="flex: 1; min-width: 200px;">
                         <input type="text" id="live-search-input" class="input-control" style="width: 100%;"
-                            placeholder="成员名 / 拼音 / 房间标题" oninput="handleLiveFilter()">
+                            placeholder="成员名 / 拼音 / 房间标题">
                     </div>
 
                     <button id="btn-auto-live-record" class="btn btn-secondary web-hidden"
@@ -651,7 +649,7 @@
                         自动录制
                     </button>
 
-                    <button id="btn-live-refresh" class="btn btn-secondary" onclick="fetchLiveList()"
+                    <button id="btn-live-refresh" class="btn btn-secondary"
                         style="white-space: nowrap; padding: 0 15px; height: 38px;">
                         刷新列表
                     </button>
@@ -663,8 +661,7 @@
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <span style="white-space: nowrap; font-weight: bold; font-size: 14px;">团体</span>
                             <div id="vod-group-wrapper" style="position: relative; width: 120px;">
-                                <input type="text" id="vod-group-display" class="input-control" value="全部团体" readonly
-                                    onclick="toggleVodGroupDropdown()" style="cursor: pointer;">
+                                <input type="text" id="vod-group-display" class="input-control" value="全部团体" readonly style="cursor: pointer;">
                                 <div
                                     style="position: absolute; right: 10px; top: 10px; pointer-events: none; color: var(--text-sub); font-size: 12px;">
                                     ▼</div>
@@ -676,30 +673,29 @@
                             <span style="white-space: nowrap; font-weight: bold; font-size: 14px;">类型</span>
                             <div id="vod-type-wrapper" style="position: relative; width: 100px;">
                                 <input type="hidden" id="vod-type-filter" value="0">
-                                <input type="text" id="vod-type-display" class="input-control" value="全部" readonly
-                                    onclick="toggleVodTypeDropdown()" style="cursor: pointer;">
+                                <input type="text" id="vod-type-display" class="input-control" value="全部" readonly style="cursor: pointer;">
                                 <div
                                     style="position: absolute; right: 10px; top: 10px; pointer-events: none; color: var(--text-sub); font-size: 12px;">
                                     ▼</div>
                                 <div id="vod-type-dropdown" class="suggestion-box">
-                                    <div class="suggestion-item" onclick="selectVodType('0', '全部')">全部</div>
-                                    <div class="suggestion-item" onclick="selectVodType('1', '视频')">视频</div>
-                                    <div class="suggestion-item" onclick="selectVodType('2', '电台')">电台</div>
-                                    <div class="suggestion-item" onclick="selectVodType('record', '录屏')">录屏</div>
+                                    <div class="suggestion-item" data-media-value="0" data-media-label="全部">全部</div>
+                                    <div class="suggestion-item" data-media-value="1" data-media-label="视频">视频</div>
+                                    <div class="suggestion-item" data-media-value="2" data-media-label="电台">电台</div>
+                                    <div class="suggestion-item" data-media-value="record" data-media-label="录屏">录屏</div>
                                 </div>
                             </div>
                         </div>
 
                         <div style="position: relative; flex: 1; min-width: 240px;">
                             <input type="text" id="vod-member-filter" class="input-control" style="width: 100%;"
-                                placeholder="成员名 / 日期" oninput="handleMemberFilter()" autocomplete="off">
+                                placeholder="成员名 / 日期" autocomplete="off">
                             <div id="member-suggestions" class="suggestion-box"></div>
                         </div>
 
-                        <button id="load-all-btn" class="btn btn-secondary" onclick="handleLoadAllVod()"
+                        <button id="load-all-btn" class="btn btn-secondary"
                             style="white-space: nowrap; padding: 0 15px; height: 38px;">加载全部</button>
 
-                        <button id="refresh-btn" class="btn btn-secondary" onclick="handleRefreshList()"
+                        <button id="refresh-btn" class="btn btn-secondary"
                             style="white-space: nowrap; padding: 0 15px; height: 38px;">刷新列表</button>
                     </div>
                 </div>
@@ -1219,12 +1215,9 @@
                                 <span id="bilibili-login-status" class="account-section-subtitle">正在读取登录状态...</span>
                             </div>
                             <div class="bilibili-login-actions">
-                                <button class="btn btn-secondary" id="btn-bilibili-login"
-                                    onclick="startBilibiliLogin()">登录账号</button>
-                                <button class="btn btn-secondary" id="btn-bilibili-refresh"
-                                    onclick="refreshBilibiliLoginStatus()">刷新状态</button>
-                                <button class="btn btn-secondary" id="btn-bilibili-logout"
-                                    onclick="logoutBilibili()" style="color: #ff4d4f; display: none;">退出登录</button>
+                                <button class="btn btn-secondary" id="btn-bilibili-login">登录账号</button>
+                                <button class="btn btn-secondary" id="btn-bilibili-refresh">刷新状态</button>
+                                <button class="btn btn-secondary" id="btn-bilibili-logout" style="color: #ff4d4f; display: none;">退出登录</button>
                             </div>
                         </div>
                         <div id="bilibili-login-panel"
@@ -1716,7 +1709,7 @@
                             <div style="display:flex; align-items:center; gap:12px; min-width:0;">
                                 <button type="button" class="private-message-mobile-back"
                                     onclick="backToPrivateMessageList(event)">‹ 私信</button>
-                                <img id="private-message-detail-avatar" class="private-message-avatar" src="./icon.png"
+                                <img id="private-message-detail-avatar" class="private-message-avatar" src="./icon.png" data-avatar-fallback
                                     style="width:40px;height:40px;">
                                 <div style="min-width:0;">
                                     <div id="private-message-detail-title"
@@ -2899,8 +2892,8 @@
                                         <span style="font-size: 12px; color: var(--text-sub);">设置一张喜欢的图片作为软件背景</span>
                                     </div>
                                     <div style="display: flex; gap: 10px;">
-                                        <button class="btn btn-secondary" onclick="triggerBgInput()">选择图片</button>
-                                        <button class="btn btn-secondary" onclick="resetBackground()"
+                                        <button class="btn btn-secondary" id="btn-choose-background">选择图片</button>
+                                        <button class="btn btn-secondary" id="btn-reset-background"
                                             style="color: #ff4d4f;">恢复默认</button>
                                     </div>
                                 </div>
@@ -2915,8 +2908,7 @@
                                         </div>
                                     </div>
                                     <label class="custom-sender-profile-toggle">
-                                        <input type="checkbox" id="custom-sender-profile-enabled"
-                                            onchange="toggleCustomSenderProfileControls()">
+                                        <input type="checkbox" id="custom-sender-profile-enabled">
                                         <span>启用</span>
                                     </label>
                                 </div>
@@ -3042,8 +3034,8 @@
 
                                 </div>
                                 <div class="custom-sender-profile-actions">
-                                    <button class="btn btn-primary" onclick="saveCustomSenderProfileSetting()">保存发送资料</button>
-                                    <button class="btn btn-secondary" onclick="resetCustomSenderProfileSetting()">恢复账号资料</button>
+                                    <button class="btn btn-primary" id="btn-save-sender-profile">保存发送资料</button>
+                                    <button class="btn btn-secondary" id="btn-reset-sender-profile">恢复账号资料</button>
                                 </div>
                                 <div class="custom-sender-profile-note">
                                     留空使用账号资料或软件默认值；月卡徽章用于成员房间和直播，sessionRole、榜单标记和客户端信息用于直播。保存后对下一条消息生效。
@@ -3057,9 +3049,9 @@
                                     <label>直播</label>
                                     <div class="download-path-controls">
                                         <input type="text" id="path-live" class="input-control"
-                                            placeholder="默认路径 (未设置)" onchange="saveCustomPaths()">
+                                            placeholder="默认路径 (未设置)">
                                         <button class="btn btn-secondary"
-                                            onclick="triggerSelectPath('path-live')">选择文件夹</button>
+                                            data-settings-path="path-live">选择文件夹</button>
                                     </div>
                                 </div>
 
@@ -3067,29 +3059,27 @@
                                     <label>回放</label>
                                     <div class="download-path-controls">
                                         <input type="text" id="path-video" class="input-control"
-                                            placeholder="默认路径 (未设置)" onchange="saveCustomPaths()">
+                                            placeholder="默认路径 (未设置)">
                                         <button class="btn btn-secondary"
-                                            onclick="triggerSelectPath('path-video')">选择文件夹</button>
+                                            data-settings-path="path-video">选择文件夹</button>
                                     </div>
                                 </div>
 
                                 <div class="download-path-row">
                                     <label>上麦</label>
                                     <div class="download-path-controls">
-                                        <input type="text" id="path-room-radio" class="input-control" placeholder="默认路径 (未设置)"
-                                            onchange="saveCustomPaths()">
+                                        <input type="text" id="path-room-radio" class="input-control" placeholder="默认路径 (未设置)">
                                         <button class="btn btn-secondary"
-                                            onclick="triggerSelectPath('path-room-radio')">选择文件夹</button>
+                                            data-settings-path="path-room-radio">选择文件夹</button>
                                     </div>
                                 </div>
 
                                 <div class="download-path-row">
                                     <label>切片</label>
                                     <div class="download-path-controls">
-                                        <input type="text" id="path-clip" class="input-control" placeholder="默认路径 (未设置)"
-                                            onchange="saveCustomPaths()">
+                                        <input type="text" id="path-clip" class="input-control" placeholder="默认路径 (未设置)">
                                         <button class="btn btn-secondary"
-                                            onclick="triggerSelectPath('path-clip')">选择文件夹</button>
+                                            data-settings-path="path-clip">选择文件夹</button>
                                     </div>
                                 </div>
 
@@ -3097,9 +3087,9 @@
                                     <label>弹幕</label>
                                     <div class="download-path-controls">
                                         <input type="text" id="path-danmu" class="input-control"
-                                            placeholder="默认路径 (未设置)" onchange="saveCustomPaths()">
+                                            placeholder="默认路径 (未设置)">
                                         <button class="btn btn-secondary"
-                                            onclick="triggerSelectPath('path-danmu')">选择文件夹</button>
+                                            data-settings-path="path-danmu">选择文件夹</button>
                                     </div>
                                 </div>
 
@@ -3107,19 +3097,18 @@
                                     <label>相册</label>
                                     <div class="download-path-controls">
                                         <input type="text" id="path-media" class="input-control"
-                                            placeholder="默认路径 (未设置)" onchange="saveCustomPaths()">
+                                            placeholder="默认路径 (未设置)">
                                         <button class="btn btn-secondary"
-                                            onclick="triggerSelectPath('path-media')">选择文件夹</button>
+                                            data-settings-path="path-media">选择文件夹</button>
                                     </div>
                                 </div>
 
                                 <div class="download-path-row">
                                     <label>翻牌</label>
                                     <div class="download-path-controls">
-                                        <input type="text" id="path-flip" class="input-control" placeholder="默认路径 (未设置)"
-                                            onchange="saveCustomPaths()">
+                                        <input type="text" id="path-flip" class="input-control" placeholder="默认路径 (未设置)">
                                         <button class="btn btn-secondary"
-                                            onclick="triggerSelectPath('path-flip')">选择文件夹</button>
+                                            data-settings-path="path-flip">选择文件夹</button>
                                     </div>
                                 </div>
                             </div>
@@ -3190,7 +3179,7 @@
                                         <span style="font-size: 12px; color: var(--text-sub);">海外网络无法直连口袋48接口时，通过 api.gnz.hk 代为请求</span>
                                     </div>
                                     <label style="display: inline-flex; align-items: center; gap: 10px; color: var(--text); white-space: nowrap; font-size: 16px; line-height: 1;">
-                                        <input type="checkbox" id="use-yaya-api-proxy" onchange="saveYayaApiProxySetting()" style="width: 16px; height: 16px; margin: 0; transform: translateY(1px);">
+                                        <input type="checkbox" id="use-yaya-api-proxy" style="width: 16px; height: 16px; margin: 0; transform: translateY(1px);">
                                         <span>使用 yaya-api 代理</span>
                                     </label>
                                 </div>
@@ -3200,13 +3189,11 @@
                                     <h3 class="window-close-settings-label">关闭软件</h3>
                                     <div id="window-close-behavior" class="window-close-behavior-options">
                                         <label class="window-close-behavior-option">
-                                            <input type="radio" name="window-close-behavior" value="minimize-to-tray"
-                                                onchange="saveWindowCloseBehaviorSetting()">
+                                            <input type="radio" name="window-close-behavior" value="minimize-to-tray">
                                             <span>最小化到托盘</span>
                                         </label>
                                         <label class="window-close-behavior-option">
-                                            <input type="radio" name="window-close-behavior" value="quit"
-                                                onchange="saveWindowCloseBehaviorSetting()">
+                                            <input type="radio" name="window-close-behavior" value="quit">
                                             <span>退出软件</span>
                                         </label>
                                     </div>
@@ -3492,58 +3479,11 @@
             </div>
         </div>
     </div>
-    <script src="./src/common/sender-profile.js"></script>
     <script src="./src/common/gift-pricing.js"></script>
     <script src="./src/common/gift-prices.snapshot.js"></script>
     <script src="./src/renderer/bootstrap-shared.js"></script>
-    <script src="./src/renderer/data-sync.js"></script>
-    <script src="./src/renderer/gift-price-sync-feature.js"></script>
+    <script src="./src/renderer/vendor/renderer-entry.js?v=__YAYA_BUILD_VERSION__"></script>
     <script src="./src/renderer/database-embed.js"></script>
-    <script src="./src/renderer/theme-feature.js"></script>
-    <script src="./src/renderer/yk1z-home-feature.js"></script>
-    <script src="./src/renderer/bilibili-live-feature.js"></script>
-    <script src="./src/renderer/music-lyrics-feature.js"></script>
-    <script src="./src/renderer/official-media-feature.js"></script>
-    <script src="./src/renderer/official-site-music-feature.js"></script>
-    <script src="./src/renderer/openlive-feature.js"></script>
-    <script src="./src/renderer/performance-feature.js"></script>
-    <script src="./src/renderer/media-utils-feature.js"></script>
-    <script src="./src/renderer/community-feature.js"></script>
-    <script src="./src/renderer/member-lookup-feature.js"></script>
-    <script src="./src/renderer/member-photos-feature.js"></script>
-    <script src="./src/renderer/profile-feature.js"></script>
-    <script src="./src/renderer/room-album-feature.js"></script>
-    <script src="./src/renderer/member-dynamic-feature.js"></script>
-    <script src="./src/renderer/member-weibo-feature.js"></script>
-    <script src="./src/renderer/trip-feature.js"></script>
-    <script src="./src/renderer/room-radio-feature.js"></script>
-    <script src="./src/renderer/live-danmu-virtual-list.js"></script>
-    <script src="./src/renderer/desktop-live-gift-animation.js"></script>
-    <script src="./src/renderer/nim-chatroom-feature.js"></script>
-    <script src="./src/renderer/danmu-timeline-feature.js"></script>
-    <script src="./src/renderer/analysis-feature.js"></script>
-    <script src="./src/renderer/flip-analysis-feature.js"></script>
-    <script src="./src/renderer/melee-rank-feature.js"></script>
-    <script src="./src/renderer/flip-feature.js"></script>
-    <script src="./src/renderer/live-gift-feature.js"></script>
-    <script src="./src/renderer/live-tools-feature.js"></script>
-    <script src="./src/renderer/replay-download-feature.js"></script>
-    <script src="./src/renderer/player-core-feature.js"></script>
-    <script src="./src/renderer/custom-media-player-feature.js"></script>
-    <script src="./src/renderer/followed-rooms-feature.js"></script>
-    <script src="./src/renderer/member-room-gift-feature.js"></script>
-    <script src="./src/renderer/member-room-gift-effects.js"></script>
-    <script src="./src/renderer/member-room-realtime.js"></script>
-    <script src="./src/renderer/room-flip-user-feature.js"></script>
-    <script src="./src/renderer/archive-flip-user-feature.js"></script>
-    <script src="./src/common/message-room-filter.js"></script>
-    <script src="./src/renderer/followed-chat-feature.js"></script>
-    <script src="./src/renderer/announcement-feature.js"></script>
-    <script src="./src/renderer/avatar-cache-feature.js"></script>
-    <script src="./src/renderer/private-message-formatters-feature.js"></script>
-    <script src="./src/renderer/private-messages-feature.js"></script>
-    <script src="./src/renderer/private-message-notifications.js"></script>
-    <script src="./src/renderer/desktop-navigation-feature.js"></script>
     <script src="./src/renderer/app-legacy.js"></script>
     <script src="./src/renderer/desktop-cloud-home-feature.js"></script>
     <script src="./src/renderer/home-workspace-feature.js"></script>
@@ -3552,11 +3492,9 @@
     <script src="./src/renderer/invoice-feature.js"></script>
     <script src="./src/common/netface-model.js"></script>
     <script src="./src/renderer/netface-feature.js"></script>
-    <script type="module" src="./src/renderer/sdk-init.js"></script>
     <script src="./src/common/pocket-registration.js"></script>
     <script src="./src/renderer/pocket-registration-feature.js"></script>
     <script src="./src/renderer/pocket-social-login-feature.js"></script>
-    <script src="./src/renderer/fetch-legacy.js"></script>
     <script src="./src/common/deep-link.js"></script>
     <script src="./src/renderer/deep-link-feature.js"></script>
 

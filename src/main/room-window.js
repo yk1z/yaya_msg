@@ -1,28 +1,14 @@
 const { app, BrowserWindow, ipcMain, shell, screen } = require('electron');
 const path = require('path');
-const { fileURLToPath } = require('url');
+const { desktopEntry, isDesktopDocument, isMainFrameSender } = require('./desktop-document');
 const { parseDeepLink } = require('../common/deep-link');
 const { getMainWindow, showMainWindow } = require('./window');
 const settingsService = require('./services/settings-service');
 
-const desktopEntry = path.resolve(__dirname, '../../desktop.html');
 const roomWindows = new Map();
 const roomContexts = new Map();
 const safeExternalProtocols = new Set(['http:', 'https:', 'mailto:']);
 let observingLifecycle = false;
-
-function isDesktopDocument(rawUrl) {
-    try {
-        const url = new URL(rawUrl);
-        if (url.protocol !== 'file:') return false;
-        const target = path.resolve(fileURLToPath(url));
-        return process.platform === 'win32'
-            ? target.toLowerCase() === desktopEntry.toLowerCase()
-            : target === desktopEntry;
-    } catch (_) {
-        return false;
-    }
-}
 
 function isTrustedDesktopSender(sender) {
     if (!sender || sender.isDestroyed() || !isDesktopDocument(sender.getURL())) return false;
@@ -152,7 +138,7 @@ async function openDetachedWindow(context, key, { position } = {}) {
             preload: path.join(__dirname, 'preload.js'),
             additionalArguments: ['--yaya-room-window', ...(isLive ? ['--yaya-live-window'] : [])],
             nodeIntegration: false,
-            contextIsolation: false,
+            contextIsolation: true,
             sandbox: false,
             webSecurity: false,
             backgroundThrottling: false
@@ -170,7 +156,8 @@ async function openDetachedWindow(context, key, { position } = {}) {
         window.focus();
     };
     const onWorkspaceReady = event => {
-        if (event.sender === window.webContents) reveal();
+        if (!window.isDestroyed() && event.sender === window.webContents
+            && isMainFrameSender(event) && isDesktopDocument(event.senderFrame.url)) reveal();
     };
     ipcMain.on('desktop-workspace-ready', onWorkspaceReady);
     window.once('ready-to-show', reveal);

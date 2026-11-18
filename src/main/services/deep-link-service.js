@@ -1,4 +1,5 @@
 const path = require('node:path');
+const { isDesktopDocument, isMainFrameSender } = require('../desktop-document');
 const { SCHEME, parseDeepLink, findDeepLink } = require('../../common/deep-link');
 
 function registerDeepLinkProtocol(app, runtime = process) {
@@ -31,7 +32,8 @@ function createDeepLinkController({ app, ipcMain, getMainWindow, showMainWindow 
     app.on('open-url', (event, url) => { event.preventDefault(); accept(url); });
     ipcMain.on('deep-link-ready', event => {
         const window = getMainWindow();
-        if (!window || event.sender !== window.webContents) return;
+        if (!window || window.isDestroyed() || event.sender !== window.webContents
+            || !isMainFrameSender(event) || !isDesktopDocument(event.senderFrame.url)) return;
         readyWindows.add(event.sender);
         if (event.sender.isLoadingMainFrame()) event.sender.once('did-stop-loading', flush);
         flush();
