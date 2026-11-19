@@ -8,12 +8,13 @@
     try {
         const saved = JSON.parse(localStorage.getItem(deviceStorageKey) || '{}');
         for (const kind of ['audio', 'video']) if (typeof saved[kind]?.id === 'string' && typeof saved[kind]?.label === 'string') {
-            deviceSelection[kind] = { id: saved[kind].id.slice(0, 1024), label: saved[kind].label.slice(0, 512) };
+            deviceSelection[kind] = { id: saved[kind].id.slice(0, 1024), label: saved[kind].label.slice(0, 512),
+                source: saved[kind].source === 'zego' ? 'zego' : undefined };
         }
     } catch (error) { console.warn('[netface] device preferences unavailable', error); }
     const $ = id => document.getElementById(id);
     const state = { token: '', userId: '', generation: 0, loading: false, loaded: false, busy: false, stale: true,
-        info: {}, balance: null, events: [], active: null, engine: null, preview: null,
+        info: {}, balance: null, events: [], active: null, engine: null,
         timer: null, tick: null, signalId: '', signalOff: [], filter: 'all', search: '',
         group: '0', status: '', rtcStatus: '', paused: false, deadline: 0, muted: false, camera: true,
         remote: new Set(), joined: false, entering: false, ticketId: '0', tickets: [], ticketsLoaded: false, signalSequence: 0,
@@ -23,8 +24,8 @@
     let joinPending = false;
     let quitPrompt = null;
     let historySession = null;
-    let deviceAudioCleanup = null;
     let devicePickerCleanup = null;
+    let rtcCleanup = Promise.resolve();
     const searchNames = new Map();
     const listMarkup = new WeakMap();
     const entryCalls = new Map();
@@ -161,6 +162,7 @@
         }
         const trigger = wrapper.querySelector('.netface-dropdown-trigger');
         const list = wrapper.querySelector('.suggestion-box');
+        trigger.disabled = select.disabled;
         trigger.innerHTML = `<span>${esc(select.selectedOptions[0]?.textContent || '请选择')}</span><span class="netface-dropdown-arrow" aria-hidden="true">▼</span>`;
         list.replaceChildren();
         for (const option of select.options) {
@@ -408,8 +410,6 @@
         if (historySession?.frame) cancelAnimationFrame(historySession.frame);
         historySession = null;
         devicePickerCleanup?.(); devicePickerCleanup = null;
-        deviceAudioCleanup?.(); deviceAudioCleanup = null;
-        state.preview?.getTracks().forEach(track => track.stop()); state.preview = null;
         $('netface-modal')?.remove();
     }
     async function mutation(channel, payload, success) {
@@ -570,13 +570,10 @@
             }
         }
     }
-    function drawMicrophoneBars(canvas, samples) {
+    function drawMicrophoneBars(canvas, soundLevel = 0) {
         const context = canvas.getContext('2d'), count = 48;
         const { width, height } = canvas;
-        let sum = 0;
-        if (samples) for (const sample of samples) sum += sample * sample;
-        const volume = samples?.length ? Math.sqrt(sum / samples.length) : 0;
-        const activeCount = volume < 0.008 ? 0 : Math.round(Math.min(1, volume * 4) * count);
+        const activeCount = Math.round(Math.max(0, Math.min(100, Number(soundLevel) || 0)) * count / 100);
         context.clearRect(0, 0, width, height);
         context.lineWidth = 3; context.lineCap = 'round';
         for (let i = 0; i < count; i++) {
@@ -589,49 +586,8 @@
             context.stroke();
         }
     }
-    function setupMicrophoneTest(stream, el) {
-        const canvas = $('netface-mic-wave'), button = $('netface-mic-test'), status = $('netface-mic-status');
-        let audioContext, source, analyser, frame, disposed = false;
-        const stop = () => {
-            cancelAnimationFrame(frame); frame = null;
-            source?.disconnect(); source = null;
-            analyser?.disconnect(); analyser = null;
-            if (audioContext) void audioContext.close().catch(error => console.warn('[netface] audio cleanup failed', error));
-            audioContext = null;
-            button.textContent = '开始试麦'; button.setAttribute('aria-pressed', 'false');
-            drawMicrophoneBars(canvas);
-        };
-        deviceAudioCleanup = () => { disposed = true; stop(); };
-        button.disabled = false;
-        button.onclick = async () => {
-            if (disposed) return;
-            if (audioContext) { stop(); return; }
-            try {
-                audioContext = new AudioContext();
-                source = audioContext.createMediaStreamSource(stream);
-                analyser = audioContext.createAnalyser(); analyser.fftSize = 2048;
-                source.connect(analyser);
-                const activeContext = audioContext;
-                await audioContext.resume();
-                if (disposed || $('netface-modal') !== el || audioContext !== activeContext) return;
-                button.textContent = '停止试麦'; button.setAttribute('aria-pressed', 'true');
-                status.textContent = '请对着麦克风说话，声音越大，蓝色亮起的竖条越多。';
-                const samples = new Float32Array(analyser.fftSize);
-                const draw = () => {
-                    analyser.getFloatTimeDomainData(samples);
-                    drawMicrophoneBars(canvas, samples);
-                    frame = requestAnimationFrame(draw);
-                };
-                draw();
-            } catch (error) {
-                if (disposed || $('netface-modal') !== el) return;
-                stop();
-                status.textContent = `无法启动试麦：${error?.message || '请重试'}`;
-            }
-        };
-    }
     async function devices() {
-        if (state.active || state.entering) { message('请先结束当前通话再检查设备'); return; }
+        if (state.active || state.entering || joinPending) { message('请先结束当前通话再检查设备'); return; }
         modal('检查麦克风 / 摄像头', `<section class="netface-device-section" aria-labelledby="netface-mic-heading">
                 <h3 id="netface-mic-heading">麦克风测试</h3>
                 <select id="netface-mic-select" class="input-control" aria-label="选择麦克风"><option value="">系统默认</option></select>
@@ -643,111 +599,139 @@
                 <h3 id="netface-camera-heading">摄像头测试</h3>
                 <select id="netface-camera-select" class="input-control" aria-label="选择摄像头"><option value="">系统默认</option></select>
                 <p id="netface-camera-device" class="netface-device-name">正在检测摄像头…</p>
-                <video id="netface-device-video" autoplay muted playsinline></video>
+                <canvas id="netface-device-video" width="640" height="480" aria-label="摄像头预览"></canvas>
             </section>
             <p id="netface-device-result" role="status"></p><button type="button" class="btn btn-secondary" id="netface-device-retry" hidden>重新检查</button>`);
         const el = $('netface-modal');
         el.classList.add('netface-device-modal');
-        drawMicrophoneBars($('netface-mic-wave'));
-        const generation = state.generation;
+        const wave = $('netface-mic-wave'), micTest = $('netface-mic-test'), micStatus = $('netface-mic-status');
+        const micName = $('netface-mic-device'), cameraName = $('netface-camera-device');
         const retry = $('netface-device-retry'), result = $('netface-device-result');
-        const pending = { audio: { ...deviceSelection.audio }, video: { ...deviceSelection.video } };
         const selects = { audio: $('netface-mic-select'), video: $('netface-camera-select') };
-        let sequence = 0, checking = false;
-        const valid = () => $('netface-modal') === el && generation === state.generation && state.token === token();
-        const setBusy = value => {
-            checking = value;
-            for (const select of Object.values(selects)) { select.disabled = value; $(`${select.id}-trigger`).disabled = value; }
+        const labels = { audio: '麦克风', video: '摄像头' };
+        const generation = state.generation, requestToken = state.token;
+        const valid = () => $('netface-modal') === el && current(generation, requestToken);
+        let pending = { audio: { ...deviceSelection.audio }, video: { ...deviceSelection.video } };
+        let engine, initializing, testing = false;
+        drawMicrophoneBars(wave);
+        for (const select of Object.values(selects)) { select.disabled = true; styleDropdown(select); }
+        devicePickerCleanup = () => {
+            if (!engine) return;
+            rtcCleanup = Promise.resolve(initializing).catch(() => {}).then(() => releaseRtcEngine(engine));
         };
-        const refreshOptions = async () => {
-            try {
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                if (!valid()) return;
-                logEvent('browser-devices', { devices: devices.map(device => ({ kind: device.kind, deviceId: device.deviceId, label: device.label, groupId: device.groupId })) });
-                for (const [kind, select] of Object.entries(selects)) {
-                    const available = devices.filter(device => device.kind === `${kind}input` && device.deviceId && !['default', 'communications'].includes(device.deviceId));
-                    const choice = pending[kind];
-                    if (choice.id && !available.some(device => device.deviceId === choice.id)) {
-                        const matches = available.filter(device => model.deviceName(device.label) === model.deviceName(choice.label));
-                        if (matches.length === 1) choice.id = matches[0].deviceId;
-                    }
-                    const defaultLabel = devices.find(device => device.kind === `${kind}input` && device.deviceId === 'default')?.label
-                        || (!choice.id && (kind === 'audio' ? state.preview?.getAudioTracks()[0]?.label : state.preview?.getVideoTracks()[0]?.label));
-                    select.replaceChildren(new Option(defaultLabel ? `系统默认 · ${defaultLabel.replace(/^default\s*[-–:]\s*/i, '')}` : '系统默认', ''));
-                    available.forEach((device, index) => select.add(new Option(device.label || `${kind === 'audio' ? '麦克风' : '摄像头'} ${index + 1}`, device.deviceId)));
-                    if (choice.id && !available.some(device => device.deviceId === choice.id)) select.add(new Option(`${choice.label || '已选设备'}（未连接）`, choice.id));
-                    select.value = choice.id;
-                    styleDropdown(select); $(`${select.id}-trigger`).disabled = checking;
-                }
-            } catch (error) { console.warn('[netface] device enumeration failed', error); }
-        };
-        for (const select of Object.values(selects)) styleDropdown(select);
-        const onDeviceChange = () => { void refreshOptions(); };
-        navigator.mediaDevices?.addEventListener('devicechange', onDeviceChange);
-        devicePickerCleanup = () => { sequence++; navigator.mediaDevices?.removeEventListener('devicechange', onDeviceChange); };
-        const check = async () => {
+        function stopMicTest() {
+            if (!testing) return;
+            testing = false;
+            engine.muteMicrophone(true);
+            engine.stopSoundLevelMonitor();
+            micTest.textContent = '开始试麦'; micTest.setAttribute('aria-pressed', 'false');
+            micStatus.textContent = '点击开始试麦后，对着麦克风说话。';
+            drawMicrophoneBars(wave);
+        }
+        function check() {
             if (!valid()) return;
-            const request = ++sequence;
-            setBusy(true);
-            retry.hidden = true; retry.disabled = true;
+            retry.hidden = true;
             result.textContent = '';
-            deviceAudioCleanup?.(); deviceAudioCleanup = null;
-            $('netface-mic-test').disabled = true;
-            state.preview?.getTracks().forEach(track => track.stop()); state.preview = null;
-            $('netface-device-video').srcObject = null;
-            $('netface-mic-device').textContent = '正在检测麦克风…';
-            $('netface-camera-device').textContent = '正在检测摄像头…';
-            const selection = { audio: { ...pending.audio }, video: { ...pending.video } };
-            let stream;
+            micTest.disabled = true;
             try {
-                if (!navigator.mediaDevices?.getUserMedia) throw new Error('当前运行环境不支持摄像头和麦克风访问');
-                stream = await navigator.mediaDevices.getUserMedia(model.deviceConstraints(selection));
-                if (!valid() || request !== sequence) { stream.getTracks().forEach(track => track.stop()); return; }
-                $('netface-device-video').srcObject = stream;
-                state.preview = stream;
-                for (const [kind, tracks] of [['audio', stream.getAudioTracks()], ['video', stream.getVideoTracks()]]) {
-                    if (selection[kind].id && tracks[0]?.label) selection[kind].label = tracks[0].label;
-                    pending[kind] = { ...selection[kind] };
+                stopMicTest();
+                engine.stopPreview();
+                engine.enableCamera(false);
+                const inventory = readRtcDevices(engine);
+                const defaults = { audio: engine.getDefaultAudioDeviceID(0), video: engine.getDefaultVideoDeviceID() };
+                for (const [kind, select] of Object.entries(selects)) {
+                    const available = inventory[kind].filter(device => device.deviceID && device.deviceID !== 'default');
+                    const selected = pending[kind];
+                    const defaultDevice = available.find(device => device.deviceID === defaults[kind]);
+                    select.replaceChildren(new Option(defaultDevice?.deviceName ? '系统默认 · ' + defaultDevice.deviceName : '系统默认', ''));
+                    for (const device of available) select.add(new Option(device.deviceName || labels[kind], device.deviceID));
+                    if (selected.id && !available.some(device => device.deviceID === selected.id)) {
+                        select.add(new Option((selected.label || '已选设备') + '（未连接）', selected.id));
+                    }
+                    select.value = selected.id;
+                    select.disabled = false;
+                    styleDropdown(select);
                 }
+                const selection = Object.fromEntries(Object.entries(pending).map(([kind, device]) => [
+                    kind, { ...device, source: 'zego' }
+                ]));
+                const resolved = model.applyRtcDevices(engine, selection, inventory, defaults);
+                const cameraAvailable = Boolean(resolved.video || inventory.video.length);
+                micTest.disabled = !resolved.audio && !inventory.audio.length;
+                micName.textContent = micTest.disabled ? '未找到可用的麦克风' : '';
+                cameraName.textContent = cameraAvailable ? '正在等待摄像头画面…' : '未找到可用的摄像头';
+                engine.enableCamera(cameraAvailable);
+                if (cameraAvailable || resolved.audio || inventory.audio.length) engine.startDevicePreview();
                 deviceSelection = selection;
-                logEvent('device-check-success', { selectedDevices: selection, tracks: stream.getTracks().map(track => ({ kind: track.kind, label: track.label, settings: track.getSettings?.() })) });
-                try { localStorage.setItem(deviceStorageKey, JSON.stringify(deviceSelection)); } catch (error) { console.warn('[netface] device preferences not saved', error); }
-                $('netface-mic-device').textContent = '';
-                $('netface-camera-device').textContent = '';
-                result.textContent = '';
-                setupMicrophoneTest(stream, el);
-                await refreshOptions();
+                try { localStorage.setItem(deviceStorageKey, JSON.stringify(selection)); } catch (error) { console.warn('[netface] device preferences not saved', error); }
+                logEvent('device-check-ready', { selectedDevices: selection, resolved });
             } catch (error) {
-                stream?.getTracks().forEach(track => track.stop());
-                if (!valid() || request !== sequence) return;
-                logEvent('device-check-failed', { selectedDevices: selection, error });
-                $('netface-mic-device').textContent = '未完成检测';
-                $('netface-camera-device').textContent = '未完成检测';
-                const reasons = {
-                    NotAllowedError: '摄像头或麦克风访问被拒绝，请检查 Windows 隐私设置中的桌面应用访问权限。',
-                    NotFoundError: '未找到可用的摄像头或麦克风，请检查设备是否已连接。',
-                    NotReadableError: '设备无法启动，可能被其他程序占用或驱动异常，请关闭占用程序后重试。',
-                    AbortError: '设备启动被中断，请重新检查。',
-                    OverconstrainedError: '所选设备已不可用或不支持当前采集要求，请重新选择设备。',
-                    SecurityError: '当前运行环境禁止访问摄像头或麦克风。'
-                };
-                result.textContent = reasons[error?.name]
-                    ? `${reasons[error.name]}（${error.name}）`
-                    : `设备检查失败：${error?.message || '未知错误'}${error?.name ? `（${error.name}）` : ''}`;
-                console.warn('[netface] device check failed', error?.name, error?.message);
-                retry.hidden = false; retry.disabled = false;
-            } finally {
-                if (valid() && request === sequence) setBusy(false);
+                result.textContent = '设备检查失败：' + (error?.message || '请检查设备连接和系统权限');
+                retry.hidden = false;
+                logEvent('device-check-failed', { selectedDevices: pending, error });
+            }
+        }
+        micTest.onclick = () => {
+            try {
+                if (testing) { stopMicTest(); return; }
+                engine.muteMicrophone(false);
+                testing = true;
+                engine.startSoundLevelMonitor(100);
+                micTest.textContent = '停止试麦'; micTest.setAttribute('aria-pressed', 'true');
+                micStatus.textContent = '请对着麦克风说话，观察音量变化。';
+            } catch (error) {
+                try { stopMicTest(); } catch { /* The engine may already be unavailable. */ }
+                micStatus.textContent = '无法启动试麦，请检查麦克风权限。';
+                logEvent('device-check-failed', { error });
             }
         };
         for (const [kind, select] of Object.entries(selects)) select.onchange = () => {
-            pending[kind] = { id: select.value, label: select.value ? select.selectedOptions[0].textContent.replace(/（未连接）$/, '') : '' };
-            void check();
+            pending[kind] = { id: select.value, label: select.value ? select.selectedOptions[0].textContent.replace(/（未连接）$/, '') : '', source: 'zego' };
+            check();
         };
-        retry.onclick = check;
-        await refreshOptions();
-        if (!valid()) return;
-        await check();
+        retry.onclick = devices;
+        try {
+            const config = await invoke('fetch-netface-rtc-config', {}, requestToken);
+            await rtcCleanup;
+            if (!valid()) return;
+            if (!Number(config.content?.appId) || !config.content?.appSign) throw new Error('口袋未返回完整的音视频配置');
+            engine = window.getNetfaceRtcEngine();
+            initializing = engine.createEngine({ appID: Number(config.content.appId), appSign: config.content.appSign, scenario: 0 });
+            await initializing;
+            if (!valid()) return;
+            engine.muteMicrophone(true);
+            const inventory = readRtcDevices(engine);
+            for (const [kind, choice] of Object.entries(pending)) {
+                if (choice.source === 'zego' || !choice.id) continue;
+                try { choice.id = model.rtcDeviceId(inventory[kind], choice, labels[kind]); } catch { /* Keep the old choice visible for manual reselection. */ }
+            }
+            engine.on('onCapturedSoundLevelUpdate', ({ soundLevel }) => {
+                if (valid() && testing) drawMicrophoneBars(wave, soundLevel);
+            });
+            engine.on('onPublisherCapturedVideoFirstFrame', () => {
+                if (valid()) cameraName.textContent = '';
+            });
+            engine.on('onLocalDeviceExceptionOccurred', details => {
+                if (!valid()) return;
+                result.textContent = '设备采集异常，请检查连接和系统相机、麦克风权限后重试。';
+                logEvent('device-check-failed', { details, selectedDevices: pending });
+                retry.hidden = false;
+            });
+            engine.on('onAudioDeviceStateChanged', check);
+            engine.on('onVideoDeviceStateChanged', check);
+            retry.onclick = check;
+            check();
+        } catch (error) {
+            if (!valid()) return;
+            micName.textContent = cameraName.textContent = '未完成检测';
+            result.textContent = '设备检查失败：' + (error?.message || '请重新检查');
+            retry.hidden = false;
+            logEvent('device-check-failed', { error });
+        }
+    }
+    function readRtcDevices(engine) {
+        const audio = engine.getAudioDeviceList(0), video = engine.getVideoDeviceList();
+        return { audio: Array.isArray(audio) ? audio : [], video: Array.isArray(video) ? video : [] };
     }
     function cancelSignalRetry() {
         clearTimeout(state.signalRetryTimer); state.signalRetryTimer = null;
@@ -962,6 +946,8 @@
             await invoke('quit-netface', { eventId: item.eventId }, requestToken);
         };
         try {
+            await rtcCleanup;
+            if (!current(generation, requestToken)) return;
             const engine = window.getNetfaceRtcEngine();
             const [config, account] = await Promise.all([
                 invoke('fetch-netface-rtc-config', {}, requestToken), invoke('login-check-token', {}, requestToken)
@@ -982,9 +968,9 @@
             state.engine = engine; pendingEngine = null;
             engine.muteMicrophone(true); engine.enableCamera(false);
             try {
-                const inventory = { audio: engine.getAudioDeviceList(0), video: engine.getVideoDeviceList() };
+                const inventory = readRtcDevices(engine);
                 logEvent('rtc-device-list', { selectedDevices: deviceSelection, inventory });
-                if (!Array.isArray(inventory.audio) || !inventory.audio.length) throw new Error('音视频 SDK 未检测到可用麦克风，请检查设备连接和 Windows 麦克风访问权限');
+                if (!inventory.audio.length) throw new Error('音视频 SDK 未检测到可用麦克风，请检查设备连接和系统麦克风权限');
                 const resolved = model.applyRtcDevices(engine, deviceSelection, inventory);
                 logEvent('device-preflight-success', { selectedDevices: deviceSelection, resolved });
             } catch (error) {
@@ -1086,6 +1072,7 @@
     function releaseRtcEngine(engine, roomId = '', streams = []) {
         logEvent('rtc-stopped');
         const cleanup = [() => engine.removeAllListeners(), () => engine.muteMicrophone(true), () => engine.enableCamera(false),
+            () => engine.stopSoundLevelMonitor?.(),
             () => engine.stopPublishingStream(), () => engine.stopPreview(), ...streams.map(id => () => engine.stopPlayingStream(id)),
             () => { if (roomId) engine.logoutRoom(roomId); }, () => engine.destroyEngine()];
         return Promise.all(cleanup.map((action, step) => {
@@ -1098,7 +1085,7 @@
         clearTimeout(state.expiryTimer); state.expiryTimer = null;
         state.rtcReady = false; state.started = false; state.deadline = 0; state.pendingSignals = [];
         const engine = state.engine; state.engine = null; state.joined = false;
-        if (engine) void releaseRtcEngine(engine, state.active?.roomId, Array.from(state.remote));
+        if (engine) rtcCleanup = releaseRtcEngine(engine, state.active?.roomId, Array.from(state.remote));
         state.remote.clear();
         if ($('netface-call')) $('netface-call').hidden = true;
         if ($('netface-overview')) $('netface-overview').hidden = false;

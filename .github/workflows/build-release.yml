@@ -74,6 +74,8 @@ jobs:
         run: npm ci
 
       - name: Build application
+        env:
+          ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
         run: ${{ matrix.build_command }}
 
       - name: Verify installer contents and protocol registration

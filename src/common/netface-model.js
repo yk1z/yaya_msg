@@ -70,10 +70,10 @@
         const constraint = device => device?.id ? { deviceId: { exact: device.id } } : true;
         return { audio: constraint(selection.audio), video: constraint(selection.video) };
     }
-    function deviceName(value, stripTransport = true) {
+    function deviceName(value, stripSuffix = true) {
         let name = String(value || '').normalize('NFKC').replace(/^(default|communications|默认|通信)\s*[-–:]\s*/i, '')
             .replace(/\s*\([a-f\d]{4}:[a-f\d]{4}\)\s*$/i, '').replace(/\s+/g, ' ').trim().toLowerCase();
-        if (stripTransport) name = name.replace(/\s*\((?:bluetooth|蓝牙)\)\s*$/i, '').trim();
+        if (stripSuffix) name = name.replace(/\s*\((?:bluetooth|蓝牙|built-in)\)\s*$/i, '').trim();
         return name;
     }
     function rtcDeviceId(list, selection, label) {
@@ -81,17 +81,19 @@
         const devices = Array.isArray(list) ? list : [];
         const exact = devices.find(device => device.deviceID === selection.id);
         if (exact) return exact.deviceID;
-        const originalName = deviceName(selection.label, false);
-        const originalMatches = originalName ? devices.filter(device => deviceName(device.deviceName, false) === originalName && device.deviceID) : [];
-        if (originalMatches.length === 1) return originalMatches[0].deviceID;
-        const name = deviceName(selection.label);
-        const matches = name ? devices.filter(device => deviceName(device.deviceName) === name && device.deviceID) : [];
-        if (matches.length === 1) return matches[0].deviceID;
+        if (selection.source !== 'zego') {
+            for (const stripSuffix of [false, true]) {
+                const name = deviceName(selection.label, stripSuffix);
+                const matches = name ? devices.filter(device => device.deviceID && deviceName(device.deviceName, stripSuffix) === name) : [];
+                if (matches.length === 1) return matches[0].deviceID;
+                if (matches.length > 1) break;
+            }
+        }
         throw new Error(`无法确定所选${label}，请在设备检查中重新选择`);
     }
-    function applyRtcDevices(engine, selection = {}, inventory) {
-        const audio = selection.audio?.id ? rtcDeviceId(inventory?.audio ?? engine.getAudioDeviceList(0), selection.audio, '麦克风') : '';
-        const video = selection.video?.id ? rtcDeviceId(inventory?.video ?? engine.getVideoDeviceList(), selection.video, '摄像头') : '';
+    function applyRtcDevices(engine, selection = {}, inventory, defaults = {}) {
+        const audio = selection.audio?.id ? rtcDeviceId(inventory?.audio ?? engine.getAudioDeviceList(0), selection.audio, '麦克风') : defaults.audio || '';
+        const video = selection.video?.id ? rtcDeviceId(inventory?.video ?? engine.getVideoDeviceList(), selection.video, '摄像头') : defaults.video || '';
         if (audio) engine.useAudioDevice(audio, 0);
         if (video) engine.useVideoDevice(video);
         return { audio, video };
