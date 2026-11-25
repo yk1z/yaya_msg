@@ -2,6 +2,9 @@
 > 一个口袋48电脑端工具
 <img width="689" height="495" alt="yayamsg" src="https://github.com/user-attachments/assets/639deaa6-0117-472e-bedd-044c4c727ed6" />
 
+## 使用指南
+[查看](https://app.gnz.hk/guide)
+
 ## 主要功能
 ### 消息类
 - 消息抓取：抓取成员房间消息并一键导入至软件内。
